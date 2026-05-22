@@ -62,8 +62,13 @@ mod tests {
     struct DummyTextSys;
     impl TextSystem for DummyTextSys {
         fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
-            TextLayout { size: Vec2::new(10.0, 10.0), handle: TextHandle(1) }
+            TextLayout {
+                handle: TextHandle(1),
+                size: Vec2::new(100.0, 20.0),
+            }
         }
+        fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
+        fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
     }
 
     #[test]

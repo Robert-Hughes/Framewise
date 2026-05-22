@@ -242,10 +242,14 @@ mod tests {
     struct DummyTextSys;
     impl TextSystem for DummyTextSys {
         fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
-            TextLayout { size: Vec2::new(0.0, 0.0), handle: TextHandle(0) }
+            TextLayout {
+                handle: TextHandle(0),
+                size: Vec2::new(0.0, 0.0),
+            }
         }
-    }
-
+        fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
+        fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
+    } 
     #[test]
     fn test_drag_off_and_release_does_not_click_other_button() {
         let mut text_system = DummyTextSys;

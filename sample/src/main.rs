@@ -43,35 +43,42 @@ struct SampleButton {
 }
 
 struct App {
-    window:    Option<Arc<Window>>,
-    gpu:         Option<GpuState>,
-    text_system: Option<SampleTextSystem>,
-    focus_sys:   framewise::focus::FocusSystem,
-    modifiers:   winit::keyboard::ModifiersState,
-    input:       Input,
-    btn1:        SampleButton,
-    btn2:        SampleButton,
-    btn3:        SampleButton,
+    window:          Option<Arc<Window>>,
+    gpu:             Option<GpuState>,
+    text_system:     Option<SampleTextSystem>,
+    focus_sys:       framewise::focus::FocusSystem,
+    start_time:      std::time::Instant,
+    last_click_time: std::time::Instant,
+    text_edit_state: framewise::widgets::text_edit::TextEditState,
+    modifiers:       winit::keyboard::ModifiersState,
+    input:           Input,
+    btn1:            SampleButton,
+    btn2:            SampleButton,
+    btn3:            SampleButton,
 }
 
 impl App {
     fn new() -> Self {
         Self {
-            window:       None,
-            gpu:          None,
-            text_system:  Some(SampleTextSystem::new()),
-            focus_sys:    framewise::focus::FocusSystem::new(),
-            modifiers:    winit::keyboard::ModifiersState::default(),
-            input:        Input::new(),
-            btn1:         Default::default(),
-            btn2:         Default::default(),
-            btn3:         Default::default(),
+            window:          None,
+            gpu:             None,
+            text_system:     Some(SampleTextSystem::new()),
+            focus_sys:       framewise::focus::FocusSystem::new(),
+            start_time:      std::time::Instant::now(),
+            last_click_time: std::time::Instant::now(),
+            text_edit_state: framewise::widgets::text_edit::TextEditState::new("Hello, TextEdit!"),
+            modifiers:       winit::keyboard::ModifiersState::default(),
+            input:           Input::new(),
+            btn1:            Default::default(),
+            btn2:            Default::default(),
+            btn3:            Default::default(),
         }
     }
 
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
         let ctx = BuilderCtx {
             text_color: Color::rgb(0.9, 0.9, 0.95),
+            time: self.start_time.elapsed().as_secs_f64(),
             ..Default::default()
         };
         self.focus_sys.begin_frame();
@@ -87,6 +94,9 @@ impl App {
         let _root = ui.frame(Rect::new(0.0, 0.0, win_size.0, win_size.1));
 
         // Button 1 ─────────────────────────────────────────────────────────
+        let text_rect = framewise::types::Rect::new(20.0, 200.0, 300.0, 40.0);
+        let (_, st4) = ui.text_edit(self.text_edit_state.clone(), text_rect, &self.input);
+        self.text_edit_state = st4;
         let btn1 = ui.button(
             self.btn1.state,
             Rect::new(24.0, 24.0, 140.0, 40.0),
@@ -190,16 +200,23 @@ impl ApplicationHandler for App {
                 );
             }
 
-            WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
+            WindowEvent::MouseInput { state, .. } => {
                 match state {
                     ElementState::Pressed => {
                         self.input.mouse_down    = true;
                         self.input.mouse_pressed = true;
                         self.input.mouse_clicked = false;
+                        
+                        let now = std::time::Instant::now();
+                        if now.duration_since(self.last_click_time).as_millis() < 300 {
+                            self.input.mouse_click_count += 1;
+                        } else {
+                            self.input.mouse_click_count = 1;
+                        }
+                        self.last_click_time = now;
                     }
                     ElementState::Released => {
                         self.input.mouse_down    = false;
-                        // Only set clicked=true for one frame (cleared in RedrawRequested).
                         self.input.mouse_clicked = true;
                     }
                 }
@@ -242,6 +259,36 @@ impl ApplicationHandler for App {
                     }
                     _ => {}
                 }
+
+                if event.state == ElementState::Pressed {
+                    use winit::keyboard::{Key, NamedKey};
+                    use framewise::input::TextEvent;
+                    
+                    match &event.logical_key {
+                        Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace),
+                        Key::Named(NamedKey::Delete)    => self.input.text_events.push(TextEvent::Delete),
+                        Key::Named(NamedKey::ArrowLeft) => self.input.text_events.push(TextEvent::CursorLeft { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
+                        Key::Named(NamedKey::ArrowRight)=> self.input.text_events.push(TextEvent::CursorRight { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
+                        Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CursorHome { shift: self.modifiers.shift_key() }),
+                        Key::Named(NamedKey::End)       => self.input.text_events.push(TextEvent::CursorEnd { shift: self.modifiers.shift_key() }),
+                        Key::Character(s) => {
+                            if s == "a" && self.modifiers.control_key() {
+                                self.input.text_events.push(TextEvent::SelectAll);
+                            }
+                        }
+                        _ => {}
+                    }
+                    
+                    if let Some(text) = &event.text {
+                        if !self.modifiers.control_key() && !self.modifiers.alt_key() {
+                            for c in text.chars() {
+                                if !c.is_control() {
+                                    self.input.text_events.push(TextEvent::Char(c));
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             WindowEvent::RedrawRequested => {
@@ -256,6 +303,8 @@ impl ApplicationHandler for App {
                 self.input.key_pressed_enter = false;
                 self.input.key_pressed_space = false;
                 self.input.key_released_space = false;
+                self.input.text_events.clear();
+                self.input.mouse_click_count = 0;
 
                 if let Some(gpu) = &mut self.gpu {
                     match gpu.surface.get_current_texture() {

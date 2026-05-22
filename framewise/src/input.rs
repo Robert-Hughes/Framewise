@@ -31,6 +31,24 @@ pub struct Input {
 
     /// True on the single frame the Spacebar was released.
     pub key_released_space: bool,
+
+    /// Sequence of logical text input events this frame.
+    pub text_events: Vec<TextEvent>,
+
+    /// The number of consecutive mouse clicks (1 = single, 2 = double, 3 = triple).
+    pub mouse_click_count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextEvent {
+    Char(char),
+    Backspace,
+    Delete,
+    CursorLeft { shift: bool, ctrl: bool },
+    CursorRight { shift: bool, ctrl: bool },
+    CursorHome { shift: bool },
+    CursorEnd { shift: bool },
+    SelectAll,
 }
 
 impl Default for Input {
@@ -44,6 +62,8 @@ impl Default for Input {
             key_down_space: false,
             key_pressed_space: false,
             key_released_space: false,
+            text_events: Vec::new(),
+            mouse_click_count: 0,
         }
     }
 }

@@ -24,6 +24,7 @@ pub struct GlyphInfo {
 
 pub struct CachedLayout {
     pub glyphs: Vec<GlyphPosition>,
+    pub text_len: usize,
 }
 
 pub struct SampleTextSystem {
@@ -147,11 +148,52 @@ impl TextSystem for SampleTextSystem {
         let handle_id = self.runs.len();
         self.runs.push(CachedLayout {
             glyphs,
+            text_len: text.len(),
         });
 
         TextLayout {
             handle: TextHandle(handle_id),
             size:   Vec2::new(width, height),
         }
+    }
+
+    fn measure_byte_x(&self, handle: TextHandle, byte_index: usize) -> f32 {
+        let run = &self.runs[handle.0];
+        
+        // If we're at the very end of the string
+        if byte_index >= run.text_len {
+            if let Some(last) = run.glyphs.last() {
+                // Approximate end by adding width, or just advance. fontdue gives x + width.
+                // Wait, advance might be better, but we don't have it easily. x + width works for simple fonts.
+                // Let's just use x + width for the end of the text.
+                return last.x + last.width as f32;
+            }
+            return 0.0;
+        }
+
+        for g in &run.glyphs {
+            if g.byte_offset >= byte_index {
+                return g.x;
+            }
+        }
+        
+        0.0
+    }
+
+    fn hit_test_x(&self, handle: TextHandle, x_offset: f32) -> usize {
+        let run = &self.runs[handle.0];
+        
+        if run.glyphs.is_empty() {
+            return 0;
+        }
+
+        for g in &run.glyphs {
+            let mid = g.x + (g.width as f32 / 2.0);
+            if x_offset < mid {
+                return g.byte_offset;
+            }
+        }
+
+        run.text_len
     }
 }

@@ -8,6 +8,7 @@ use crate::{
         button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
         frame::{frame, FrameInfo, FrameSpec, FrameStyle},
         label::{label, LabelInfo, LabelSpec},
+        text_edit::{text_edit, TextEditInfo, TextEditSpec, TextEditState, TextEditStyle},
     },
 };
 
@@ -24,6 +25,8 @@ pub struct BuilderCtx {
     pub border_color: Color,
     pub button_style: ButtonStyle,
     pub frame_style:  FrameStyle,
+    pub text_size:    f32,
+    pub time:         f64,
 }
 
 impl Default for BuilderCtx {
@@ -35,6 +38,8 @@ impl Default for BuilderCtx {
             border_color: Color::rgb(0.30, 0.30, 0.38),
             button_style: ButtonStyle::default(),
             frame_style:  FrameStyle::default(),
+            text_size:    14.0,
+            time:         0.0,
         }
     }
 }
@@ -94,17 +99,37 @@ impl<'a, T: TextSystem> Builder<'a, T> {
     // ── Convenience widget methods ─────────────────────────────────────────
 
     /// Draw a label (text stub) and return its info.
-    pub fn label(&mut self, rect: Rect, text: impl Into<String>) -> LabelInfo {
-        let result = label(
-            LabelSpec {
-                rect,
-                text:       text.into(),
-                size:       16.0,
-                text_color: self.ctx.text_color,
+    pub fn label(&mut self, rect: Rect, text: &str) -> LabelInfo {
+        let spec = LabelSpec {
+            rect,
+            text: text.to_string(),
+            size: self.ctx.text_size,
+            text_color: self.ctx.text_color,
+        };
+        let res = label(spec, self.text_system);
+        self.emit(res)
+    }
+
+    /// Emit a text_edit widget.
+    pub fn text_edit(&mut self, state: TextEditState, rect: Rect, input: &Input) -> (TextEditInfo, TextEditState) {
+        let spec = TextEditSpec {
+            rect,
+            style: TextEditStyle {
+                text_size: self.ctx.text_size,
+                // you could merge theme colours here
+                ..Default::default()
             },
+        };
+        let res = text_edit(
+            state,
+            spec,
+            input,
+            self.ctx.time,
             self.text_system,
+            self.focus_sys,
         );
-        self.emit(result)
+        let state = res.state.clone();
+        (self.emit(res), state)
     }
 
     /// Draw a button and return its info, including interaction state.

@@ -24,4 +24,10 @@ pub trait TextSystem {
     /// Prepare the given string at the specified font size.
     /// Returns a layout containing the text's size and an opaque handle.
     fn prepare(&mut self, text: &str, size: f32) -> TextLayout;
+
+    /// Get the X offset (in logical pixels) of the character at the given byte index.
+    fn measure_byte_x(&self, handle: TextHandle, byte_index: usize) -> f32;
+
+    /// Find the closest byte index to the given X pixel offset.
+    fn hit_test_x(&self, handle: TextHandle, x_offset: f32) -> usize;
 }
