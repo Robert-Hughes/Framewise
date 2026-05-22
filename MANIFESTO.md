@@ -79,6 +79,18 @@ approach:
 - Layout and rendering are still computed on demand, per frame, from current state.
 - There is **no** library-owned authoritative widget tree.
 
+#### The Mouse Capture Problem
+A classic challenge in immediate-mode GUIs is "mouse capture". If a user clicks on a button and drags the mouse off it onto a second button, the second button shouldn't accidentally trigger a click when the mouse is released. Frameworks usually solve this by hashing strings or positions to generate global IDs, tracking an `active_id` in a central registry. 
+
+Framewise completely rejects global ID registries. Instead, we solve capture by pushing state into the application. Even simple widgets like buttons consume and return a `ButtonState`. The widget itself tracks whether it was the original target of a mouse press, elegantly handling dragging and hover logic purely locally. This requires slightly more boilerplate from the app, but results in a vastly more robust architecture that is completely immune to ID collisions.
+
+#### Alternative Considered: Stateless "Mouse Down Pos"
+We considered a stateless alternative to solve capture: storing the initial `mouse_down_pos` in the global `Input` struct, and having each widget check if its rectangle contains that position. This would allow simple buttons to remain entirely stateless and avoid the `ButtonState` boilerplate.
+
+However, we explicitly chose the app-owned `ButtonState` approach for two key reasons:
+1. **Consistency:** Complex widgets (like scrollable regions or text inputs) absolutely require app-owned state anyway. Keeping the architecture consistent—where *every* interactive widget owns its state—is cleaner than mixing stateless tricks with stateful widgets.
+2. **Robustness:** The stateless position trick can break in edge cases, such as when the UI layout shifts underneath the mouse while the button is held down (e.g. an element is inserted above it, moving the button out from under the original `mouse_down_pos`). By binding the active state directly to the specific widget's data struct, the capture is strictly guaranteed regardless of how the layout shifts.
+
 ### 6. Reusable UI Is Composed with Ordinary Rust Functions
 
 A "widget type" in Framewise is simply a function that produces a widget result. Custom
