@@ -47,6 +47,7 @@ not from hidden history, invalidation chains, or opaque retained trees.
   properties changed.
 - A large list and a small list have the same *meaning*; actual cost depends on what is
   visible and what is drawn.
+    * Currently things can be drawn "off screen" or hidden/clipped and might still contribute cost, we should check this
 - There is no separate "optimised mode" that silently changes semantics.
 
 ### 4. Widget Calls Are Explicit and Final for This Frame
@@ -326,11 +327,17 @@ Features to design and implement, roughly in dependency order:
 - [ ] Clipping and layering
 - [ ] Popups, menus, tooltips
 - [ ] Drag and drop
+  * Within app
+  * To/from OS
+  * Between different windows in the same app
 - [ ] Accessibility and tab order
     * Up/down/left/right for switching focus, as well as Tab?
     * Tabbing into a widget that's within a scroll area (maybe nested), should scroll to view it
 - IME stuff
 - Dialogs, blocking and non-blocking
+- tabs
+- graphics/images
+- animations - spinners, loading/progress bars
 
 * Window min/max sizing based on layout
 
