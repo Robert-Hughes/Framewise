@@ -85,8 +85,12 @@ For features requiring state (like Button hover/press tracking, or future TextEd
 2. **Library-Provided Opaque State:** The app wants the feature but doesn't care about the details. It stores a library-provided struct (e.g., `ButtonState`) in its data model. The app fulfills the "app owns the state" philosophy, but treats the struct opaquely.
 3. **App-Provided State:** The app implements a trait on its *existing* data. For example, for a text edit value, the app may already have a `String` field it wants to edit directly. It passes this string (or a wrapper implementing the required trait) to the widget, eliminating the need for redundant state synchronisation.
 
+#### Rob notes
+
+The state structs can be composed based on what that widget type can do, e.g. a FocusState struct might be common across lots of widget types. We can also share logic inside the widget functions like a "handle_focus" function that manipulates FocusState could be re-used by many widget types.
+
 #### The Mouse Capture Problem
-A classic challenge in immediate-mode GUIs is "mouse capture". If a user clicks on a button and drags the mouse off it onto a second button, the second button shouldn't accidentally trigger a click when the mouse is released. Frameworks usually solve this by hashing strings or positions to generate global IDs, tracking an `active_id` in a central registry. 
+A classic challenge in immediate-mode GUIs is "mouse capture". If a user clicks on a button and drags the mouse off it onto a second button, the second button shouldn't accidentally trigger a click when the mouse is released. Frameworks usually solve this by hashing strings or positions to generate global IDs, tracking an `active_id` in a central registry.
 
 Framewise completely rejects global ID registries. Instead, we solve capture by pushing state into the application. Even simple widgets like buttons consume and return a `ButtonState`. The widget itself tracks whether it was the original target of a mouse press, elegantly handling dragging and hover logic purely locally. This requires slightly more boilerplate from the app, but results in a vastly more robust architecture that is completely immune to ID collisions.
 
@@ -257,8 +261,8 @@ just an aspiration.
   first, since it was registered first. We need a clear rule for how draw order, z-order,
   and hit-test priority interact.
 
-- **Clipping** — for the most part, explicit clipping is rarely needed, as UIs generally 
-  shouldn't have overflowing content. The primary exception is scroll containers, which 
+- **Clipping** — for the most part, explicit clipping is rarely needed, as UIs generally
+  shouldn't have overflowing content. The primary exception is scroll containers, which
   will require some mechanism for scissor rects or clipping regions in the renderer.
 
 ---
@@ -278,10 +282,16 @@ Features to design and implement, roughly in dependency order:
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
+  * On tabbing in to a text edit, select all text. Not from mouse click though as that should move the caret to the position
+  * Right click text stuff like copy/paste
+  * Copy/paste keyboard shortcuts
 - [ ] Grid and table layouts
 - [ ] Clipping and layering
 - [ ] Popups, menus, tooltips
 - [ ] Drag and drop
 - [ ] Accessibility and tab order
+    * Up/down/left/right for switching focus, as well as Tab?
+- IME stuff
+- Dialogs, blocking and non-blocking
 
 * Window min/max sizing based on layout

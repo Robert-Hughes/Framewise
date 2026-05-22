@@ -48,6 +48,7 @@ pub struct TextEditState {
     pub focus_id: FocusId,
     pub is_dragging: bool,
     pub last_caret_move_time: f64,
+    pub was_focused: bool,
 }
 
 impl Default for TextEditState {
@@ -59,6 +60,7 @@ impl Default for TextEditState {
             focus_id: FocusId::new(),
             is_dragging: false,
             last_caret_move_time: 0.0,
+            was_focused: false,
         }
     }
 }
@@ -92,21 +94,28 @@ pub struct TextEditSpec {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+pub enum ClipboardAction {
+    Copy(String),
+    Cut(String),
+}
+
 pub struct TextEditResult {
     pub draw:   DrawCommands,
     pub layout: LayoutInfo,
     pub state:  TextEditState,
+    pub clipboard_action: Option<ClipboardAction>,
 }
 
 pub struct TextEditInfo {
     pub layout: LayoutInfo,
+    pub clipboard_action: Option<ClipboardAction>,
 }
 
 impl WidgetResult for TextEditResult {
     type Info = TextEditInfo;
 
     fn into_parts(self) -> (DrawCommands, TextEditInfo) {
-        (self.draw, TextEditInfo { layout: self.layout })
+        (self.draw, TextEditInfo { layout: self.layout, clipboard_action: self.clipboard_action })
     }
 }
 
@@ -222,13 +231,23 @@ pub fn text_edit<T: TextSystem>(
 ) -> TextEditResult {
     let mut draw = DrawCommands::new();
 
+    let mut clipboard_action = None;
+
     let focused = focus_sys.register(state.focus_id);
+    let just_focused = focused && !state.was_focused;
 
     let old_caret = state.caret_byte;
     let old_selection = state.selection_byte;
 
     // Hit test mouse
     let contains = spec.rect.contains(input.mouse_pos);
+    
+    if just_focused {
+        if !(contains && input.mouse_pressed) {
+            state.selection_byte = Some(0);
+            state.caret_byte = state.value.len();
+        }
+    }
     
     // Process keyboard events if focused
     if focused {
@@ -318,6 +337,30 @@ pub fn text_edit<T: TextSystem>(
                 TextEvent::SelectAll => {
                     state.selection_byte = Some(0);
                     state.caret_byte = state.value.len();
+                }
+                TextEvent::Copy => {
+                    if let Some(sel) = state.selection_byte {
+                        let start = state.caret_byte.min(sel);
+                        let end = state.caret_byte.max(sel);
+                        if start < end {
+                            clipboard_action = Some(ClipboardAction::Copy(state.value[start..end].to_string()));
+                        }
+                    }
+                }
+                TextEvent::Cut => {
+                    if let Some(sel) = state.selection_byte {
+                        let start = state.caret_byte.min(sel);
+                        let end = state.caret_byte.max(sel);
+                        if start < end {
+                            clipboard_action = Some(ClipboardAction::Cut(state.value[start..end].to_string()));
+                            state.remove_selection();
+                        }
+                    }
+                }
+                TextEvent::Paste(text) => {
+                    state.remove_selection();
+                    state.value.insert_str(state.caret_byte, &text);
+                    state.caret_byte += text.len();
                 }
             }
         }
@@ -455,10 +498,13 @@ pub fn text_edit<T: TextSystem>(
         }
     }
 
+    state.was_focused = focused || (contains && input.mouse_pressed);
+
     TextEditResult {
         draw,
         layout: LayoutInfo::new(spec.rect, content_rect),
         state,
+        clipboard_action,
     }
 }
 
@@ -477,11 +523,9 @@ mod tests {
             }
         }
         fn measure_byte_x(&self, _handle: TextHandle, byte_index: usize) -> f32 {
-            // Fake 10 pixels per byte
             byte_index as f32 * 10.0
         }
         fn hit_test_x(&self, _handle: TextHandle, x_offset: f32) -> usize {
-            // Fake 10 pixels per byte
             (x_offset / 10.0).round() as usize
         }
     }
@@ -500,7 +544,7 @@ mod tests {
         let mut state = TextEditState::new("");
         
         focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame(); // Apply focus shift
+        focus_sys.end_frame();
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Char('a'));
@@ -533,7 +577,8 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        state.caret_byte = 3; // After 'l'
+        state.caret_byte = 3;
+        state.was_focused = true;
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
@@ -549,7 +594,7 @@ mod tests {
         input.text_events.push(TextEvent::Delete);
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
-        assert_eq!(state.value, "heo"); // Deleted the 'l' after cursor
+        assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
     }
 
@@ -559,13 +604,12 @@ mod tests {
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         state.caret_byte = 1;
+        state.was_focused = true;
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
         let mut input = Input::default();
-        // Shift+Right to select "e"
         input.text_events.push(TextEvent::CaretRight { shift: true, ctrl: false });
-        // Shift+Right to select "l"
         input.text_events.push(TextEvent::CaretRight { shift: true, ctrl: false });
         
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
@@ -573,7 +617,6 @@ mod tests {
         assert_eq!(state.selection_byte, Some(1));
         assert_eq!(state.caret_byte, 3);
 
-        // Type 'a' to replace "el"
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
@@ -590,7 +633,7 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0); // 50px logical = byte 5
+        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
 
@@ -598,16 +641,15 @@ mod tests {
         state = res.state;
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
+        state.was_focused = true;
 
-        // Drag to right
         input.mouse_pressed = false;
-        input.mouse_pos.x += 30.0; // byte 8
+        input.mouse_pos.x += 30.0;
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
 
-        // Release
         input.mouse_down = false;
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
@@ -626,12 +668,12 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(20.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
-        input.mouse_click_count = 2; // Double click
+        input.mouse_click_count = 2;
 
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(0));
-        assert_eq!(state.caret_byte, 5); // Selected whole string
+        assert_eq!(state.caret_byte, 5);
     }
 
     #[test]
@@ -640,44 +682,37 @@ mod tests {
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         state.caret_byte = 5;
+        state.was_focused = true;
         
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
         let mut input = Input::default();
         
-        // At t=0.0, caret is idle
         let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
-        // At t=0.6, caret should be hidden (time_since_move = 0.6 -> fract = 0.6 >= 0.5 -> blink_on = false)
         let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should be hidden during off phase");
 
-        // Now move the cursor at t=0.6
         input.text_events.push(TextEvent::CaretLeft { shift: false, ctrl: false });
         let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
         state = res.state;
-        
-        // Since cursor moved, last_caret_move_time should become 0.6
         assert_eq!(state.last_caret_move_time, 0.6);
         
-        // And caret should immediately become visible again
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible immediately after moving");
         
-        // At t=1.0, time_since_move is 0.4, still visible
         input.text_events.clear();
         let res = text_edit(state.clone(), spec(), &input, 1.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-        // At t=1.2, time_since_move is 0.6, hidden again
         let res = text_edit(state.clone(), spec(), &input, 1.2, &mut text_sys, &mut focus_sys);
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
@@ -686,29 +721,101 @@ mod tests {
     #[test]
     fn test_word_boundaries() {
         let text = "hello world! 123";
-        // indices:
-        // h e l l o   w o r l d !   1 2 3
-        // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6
+        assert_eq!(word_bounds(text, 0), (0, 5));
+        assert_eq!(word_bounds(text, 2), (0, 5));
+        assert_eq!(word_bounds(text, 5), (5, 6));
+        assert_eq!(word_bounds(text, 6), (6, 11));
+        assert_eq!(word_bounds(text, 11), (11, 12));
+        assert_eq!(word_bounds(text, 13), (13, 16));
 
-        assert_eq!(word_bounds(text, 0), (0, 5)); // "hello"
-        assert_eq!(word_bounds(text, 2), (0, 5)); // "hello"
-        assert_eq!(word_bounds(text, 5), (5, 6)); // " "
-        assert_eq!(word_bounds(text, 6), (6, 11)); // "world"
-        assert_eq!(word_bounds(text, 11), (11, 12)); // "!"
-        assert_eq!(word_bounds(text, 13), (13, 16)); // "123"
-
-        // Right from start of "hello"
         assert_eq!(find_word_boundary(text, 0, true), 5);
-        // Right from space
         assert_eq!(find_word_boundary(text, 5, true), 6);
-        // Right from "world"
         assert_eq!(find_word_boundary(text, 6, true), 11);
 
-        // Left from end of "123"
         assert_eq!(find_word_boundary(text, 16, false), 13);
-        // Left from "!"
         assert_eq!(find_word_boundary(text, 12, false), 11);
-        // Left from end of "hello"
         assert_eq!(find_word_boundary(text, 5, false), 0);
+    }
+
+    #[test]
+    fn test_focus_select_all() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+
+        let input = Input::default();
+        
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+        
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert!(state.was_focused);
+        assert_eq!(state.selection_byte, Some(0));
+        assert_eq!(state.caret_byte, 11);
+    }
+
+    #[test]
+    fn test_mouse_focus_no_select_all() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+
+        let mut input = Input::default();
+        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        
+        focus_sys.end_frame();
+        focus_sys.begin_frame();
+        input.mouse_pressed = false;
+        
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+
+        assert!(state.was_focused);
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 5);
+    }
+
+    #[test]
+    fn test_clipboard_actions() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+        
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        state.selection_byte = Some(6);
+        state.caret_byte = 11;
+        state.was_focused = true;
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Copy);
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
+        assert_eq!(state.value, "hello world");
+
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Cut);
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
+        assert_eq!(state.value, "hello ");
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 6);
+
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Paste("rust".to_string()));
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert!(res.clipboard_action.is_none());
+        assert_eq!(state.value, "hello rust");
+        assert_eq!(state.caret_byte, 10);
     }
 }

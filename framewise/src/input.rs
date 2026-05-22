@@ -49,6 +49,9 @@ pub enum TextEvent {
     CaretHome { shift: bool },
     CaretEnd { shift: bool },
     SelectAll,
+    Copy,
+    Cut,
+    Paste(String),
 }
 
 impl Default for Input {

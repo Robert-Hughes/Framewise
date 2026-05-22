@@ -56,6 +56,7 @@ struct App {
     btn1:            SampleButton,
     btn2:            SampleButton,
     btn3:            SampleButton,
+    clipboard:       Option<arboard::Clipboard>,
 }
 
 impl App {
@@ -74,6 +75,7 @@ impl App {
             btn1:            Default::default(),
             btn2:            Default::default(),
             btn3:            Default::default(),
+            clipboard:       arboard::Clipboard::new().ok(),
         }
     }
 
@@ -149,9 +151,22 @@ impl App {
             println!("[sample] Panel button clicked");
         }
 
-        let text_rect = framewise::types::Rect::new(20.0, 200.0, 300.0, 40.0);
-        let (_, st4) = ui.text_edit(self.text_edit_state.clone(), text_rect, &self.input);
-        self.text_edit_state = st4;
+        // Text Edit ────────────────────────────────────────────────────────
+        let (info, new_te_state) = ui.text_edit(
+            self.text_edit_state.clone(),
+            Rect::new(20.0, 260.0, 300.0, 40.0),
+            &self.input,
+        );
+        self.text_edit_state = new_te_state;
+
+        if let Some(action) = info.clipboard_action {
+            if let Some(cb) = &mut self.clipboard {
+                match action {
+                    framewise::widgets::text_edit::ClipboardAction::Copy(text) => drop(cb.set_text(text)),
+                    framewise::widgets::text_edit::ClipboardAction::Cut(text) => drop(cb.set_text(text)),
+                }
+            }
+        }
 
         let cmds = ui.finish();
         self.focus_sys.end_frame();
@@ -203,7 +218,10 @@ impl ApplicationHandler for App {
                 );
             }
 
-            WindowEvent::MouseInput { state, .. } => {
+            WindowEvent::MouseInput { state, button, .. } => {
+                if button != winit::event::MouseButton::Left {
+                    return;
+                }
                 match state {
                     ElementState::Pressed => {
                         self.input.mouse_down    = true;
@@ -276,8 +294,20 @@ impl ApplicationHandler for App {
                         Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CaretHome { shift: self.modifiers.shift_key() }),
                         Key::Named(NamedKey::End)       => self.input.text_events.push(TextEvent::CaretEnd { shift: self.modifiers.shift_key() }),
                         Key::Character(s) => {
-                            if s == "a" && self.modifiers.control_key() {
-                                self.input.text_events.push(TextEvent::SelectAll);
+                            if self.modifiers.control_key() {
+                                match s.as_str() {
+                                    "a" | "A" => self.input.text_events.push(TextEvent::SelectAll),
+                                    "c" | "C" => self.input.text_events.push(TextEvent::Copy),
+                                    "x" | "X" => self.input.text_events.push(TextEvent::Cut),
+                                    "v" | "V" => {
+                                        if let Some(cb) = &mut self.clipboard {
+                                            if let Ok(text) = cb.get_text() {
+                                                self.input.text_events.push(TextEvent::Paste(text));
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
                             }
                         }
                         _ => {}
