@@ -129,14 +129,12 @@ impl TextSystem for SampleTextSystem {
         self.layout.append(&[&self.font], &TextStyle::new(text, size, 0));
 
         let mut width  = 0.0_f32;
-        let mut height = 0.0_f32;
+        let height = self.font.horizontal_line_metrics(size).map(|m| m.new_line_size).unwrap_or(size);
         
         let glyphs = self.layout.glyphs().to_vec();
         for g in &glyphs {
             let right  = g.x + g.width as f32;
-            let bottom = g.y + g.height as f32;
             if right > width { width = right; }
-            if bottom > height { height = bottom; }
             
             let key = GlyphKey { 
                 glyph_index: g.key.glyph_index, 

@@ -271,10 +271,10 @@ impl ApplicationHandler for App {
                     match &event.logical_key {
                         Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace),
                         Key::Named(NamedKey::Delete)    => self.input.text_events.push(TextEvent::Delete),
-                        Key::Named(NamedKey::ArrowLeft) => self.input.text_events.push(TextEvent::CursorLeft { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::ArrowRight)=> self.input.text_events.push(TextEvent::CursorRight { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CursorHome { shift: self.modifiers.shift_key() }),
-                        Key::Named(NamedKey::End)       => self.input.text_events.push(TextEvent::CursorEnd { shift: self.modifiers.shift_key() }),
+                        Key::Named(NamedKey::ArrowLeft) => self.input.text_events.push(TextEvent::CaretLeft { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
+                        Key::Named(NamedKey::ArrowRight)=> self.input.text_events.push(TextEvent::CaretRight { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
+                        Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CaretHome { shift: self.modifiers.shift_key() }),
+                        Key::Named(NamedKey::End)       => self.input.text_events.push(TextEvent::CaretEnd { shift: self.modifiers.shift_key() }),
                         Key::Character(s) => {
                             if s == "a" && self.modifiers.control_key() {
                                 self.input.text_events.push(TextEvent::SelectAll);

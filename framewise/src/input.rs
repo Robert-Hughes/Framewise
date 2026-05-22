@@ -44,10 +44,10 @@ pub enum TextEvent {
     Char(char),
     Backspace,
     Delete,
-    CursorLeft { shift: bool, ctrl: bool },
-    CursorRight { shift: bool, ctrl: bool },
-    CursorHome { shift: bool },
-    CursorEnd { shift: bool },
+    CaretLeft { shift: bool, ctrl: bool },
+    CaretRight { shift: bool, ctrl: bool },
+    CaretHome { shift: bool },
+    CaretEnd { shift: bool },
     SelectAll,
 }
 
