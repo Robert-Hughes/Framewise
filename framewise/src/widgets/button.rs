@@ -1,6 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     input::Input,
+    text::TextSystem,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetResult},
 };
@@ -15,7 +16,7 @@ pub struct ButtonStyle {
     pub pressed:       Color,
     pub border:        Color,
     pub border_width:  f32,
-    /// Colour used for the text-stub rectangle inside the button.
+    pub text_size:     f32,
     pub text_color:    Color,
 }
 
@@ -27,6 +28,7 @@ impl Default for ButtonStyle {
             pressed:      Color::rgb(0.18, 0.18, 0.22),
             border:       Color::rgb(0.50, 0.50, 0.58),
             border_width: 1.5,
+            text_size:    16.0,
             text_color:   Color::rgb(0.90, 0.90, 0.95),
         }
     }
@@ -36,7 +38,6 @@ impl Default for ButtonStyle {
 
 pub struct ButtonSpec {
     pub rect:  Rect,
-    /// Placeholder label — not yet rendered as real text.
     pub text:  String,
     pub style: ButtonStyle,
 }
@@ -81,7 +82,7 @@ impl WidgetResult for ButtonResult {
 ///
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
-pub fn button(spec: ButtonSpec, input: &Input) -> ButtonResult {
+pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_sys: &mut T) -> ButtonResult {
     let hovered = spec.rect.contains(input.mouse_pos);
     let pressed  = hovered && input.mouse_down;
     let clicked  = hovered && input.mouse_clicked;
@@ -109,11 +110,15 @@ pub fn button(spec: ButtonSpec, input: &Input) -> ButtonResult {
         });
     }
 
-    // Text stub in the inner content area.
-    let text_rect = spec.rect.inset(6.0);
-    draw.push(DrawCmd::TextStub {
-        rect:  text_rect,
+    // Text centered in the button.
+    let text_layout = text_sys.prepare(&spec.text, spec.style.text_size);
+    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
+    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+
+    draw.push(DrawCmd::Text {
+        rect:  Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
         color: spec.style.text_color,
+        handle: text_layout.handle,
     });
 
     ButtonResult {

@@ -170,6 +170,19 @@ caller. The final render step is a fast, dumb pass over the accumulated draw lis
 
 ---
 
+## Text Rendering and Predictability
+
+Text rendering is notoriously complex (shaping, hinting, atlas caching) and is a common source of hidden costs in immediate-mode GUIs. Framewise handles this by strictly separating **preparation** from **rendering**.
+
+To draw text, the widget building pass must have access to a `TextSystem` (provided by the application).
+
+- **Widget pass:** The widget asks the `TextSystem` to prepare a string. The text system shapes the string, updates its internal glyph atlas if there are cache misses, and returns a size and an opaque `TextHandle`. If this is slow, it will be easily attributable to the widget which was responsible for requesting this particular text. If this widget was just 'unlucky' and was the one that had the cache miss, then that might be awkward to figure out, will see how this plays out in practice.
+- **Render pass:** The library emits `DrawCmd::Text(TextHandle)`. The renderer blindly draws the pre-cached quads.
+
+Because the `Builder` takes the text system as a generic parameter (`Builder<'a, T: TextSystem>`), we guarantee **static dispatch** and maximum inlining, keeping the library zero-cost while maintaining complete renderer agnosticism.
+
+---
+
 ## Draw Pipeline
 
 ```
@@ -245,3 +258,5 @@ Features to design and implement, roughly in dependency order:
 - [ ] Popups, menus, tooltips
 - [ ] Drag and drop
 - [ ] Accessibility and tab order
+
+* Window min/max sizing based on layout

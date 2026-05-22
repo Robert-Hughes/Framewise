@@ -21,6 +21,7 @@
 pub mod builder;
 pub mod draw;
 pub mod input;
+pub mod text;
 pub mod types;
 pub mod widget;
 pub mod widgets;
@@ -30,6 +31,7 @@ pub mod widgets;
 pub use builder::{Builder, BuilderCtx};
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
+pub use text::{TextHandle, TextLayout, TextSystem};
 pub use types::{Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, WidgetResult};
 

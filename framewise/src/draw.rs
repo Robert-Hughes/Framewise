@@ -1,3 +1,4 @@
+use crate::text::TextHandle;
 use crate::types::{Color, Rect};
 
 /// A single drawing instruction produced by a widget.
@@ -13,9 +14,12 @@ pub enum DrawCmd {
     /// Draw the outline of a rectangle.
     StrokeRect { rect: Rect, color: Color, width: f32 },
 
-    /// Placeholder for a text draw. Rendered as a flat tinted rect until a
-    /// proper text pipeline is added.
-    TextStub { rect: Rect, color: Color },
+    /// Draw a piece of prepared text.
+    Text {
+        rect: Rect,
+        color: Color,
+        handle: TextHandle,
+    },
 }
 
 /// An ordered list of draw commands produced by one widget call.

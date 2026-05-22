@@ -1,7 +1,9 @@
 mod renderer;
+mod text;
 
-use framewise::{Builder, BuilderCtx, Input, Rect, Vec2};
+use framewise::{Builder, BuilderCtx, Color, Input, Rect, Vec2};
 use renderer::Renderer;
+use text::SampleTextSystem;
 use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
@@ -37,9 +39,8 @@ impl GpuState {
 struct App {
     window:    Option<Arc<Window>>,
     gpu:       Option<GpuState>,
+    text_sys:  Option<SampleTextSystem>,
     input:     Input,
-    /// Track whether the left button was *just* released this frame.
-    btn_was_down: bool,
 }
 
 impl App {
@@ -47,14 +48,17 @@ impl App {
         Self {
             window:       None,
             gpu:          None,
+            text_sys:     Some(SampleTextSystem::new()),
             input:        Input::new(),
-            btn_was_down: false,
         }
     }
 
-    fn draw_ui(&self) -> Vec<framewise::DrawCmd> {
-        let ctx = BuilderCtx::default();
-        let mut ui = Builder::new(ctx);
+    fn draw_ui(&self, text_sys: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+        let ctx = BuilderCtx {
+            text_color: Color::rgb(0.9, 0.9, 0.95),
+            ..Default::default()
+        };
+        let mut ui = Builder::new(ctx, text_sys);
 
         let win_size = self
             .gpu
@@ -163,20 +167,20 @@ impl ApplicationHandler for App {
                     ElementState::Pressed => {
                         self.input.mouse_down    = true;
                         self.input.mouse_clicked = false;
-                        self.btn_was_down        = true;
                     }
                     ElementState::Released => {
                         self.input.mouse_down    = false;
                         // Only set clicked=true for one frame (cleared in RedrawRequested).
                         self.input.mouse_clicked = true;
-                        self.btn_was_down        = false;
                     }
                 }
             }
 
             WindowEvent::RedrawRequested => {
                 // Build UI and render.
-                let cmds = self.draw_ui();
+                let mut text_sys = self.text_sys.take().unwrap();
+                text_sys.begin_frame();
+                let draw_cmds = self.draw_ui(&mut text_sys);
 
                 // Clear the one-frame clicked flag after UI has consumed it.
                 self.input.mouse_clicked = false;
@@ -199,8 +203,9 @@ impl ApplicationHandler for App {
                                 &gpu.queue,
                                 &view,
                                 &mut encoder,
-                                &cmds,
+                                &draw_cmds,
                                 (gpu.size.width, gpu.size.height),
+                                &mut text_sys,
                             );
 
                             gpu.queue.submit(std::iter::once(encoder.finish()));
@@ -211,6 +216,8 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
+                
+                self.text_sys = Some(text_sys);
 
                 // Request a continuous repaint so hover states update.
                 if let Some(win) = &self.window {

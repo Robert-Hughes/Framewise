@@ -1,5 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    text::TextSystem,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
 };
@@ -8,9 +9,8 @@ use crate::{
 
 pub struct LabelSpec {
     pub rect: Rect,
-    /// Placeholder — text rendering is not yet implemented.
     pub text: String,
-    /// Colour used for the text-stub rectangle.
+    pub size: f32,
     pub text_color: Color,
 }
 
@@ -36,16 +36,15 @@ impl WidgetResult for LabelResult {
 // ── Widget function ───────────────────────────────────────────────────────────
 
 /// Produce a label widget.
-///
-/// Text rendering is not yet implemented; this emits a `TextStub` draw command
-/// so the API shape and cost model are established without a font dependency.
-pub fn label(spec: LabelSpec) -> LabelResult {
+pub fn label<T: TextSystem>(spec: LabelSpec, text_sys: &mut T) -> LabelResult {
     let mut draw = DrawCommands::new();
 
-    // Stub: render a flat tinted rect where the text would appear.
-    draw.push(DrawCmd::TextStub {
+    let layout = text_sys.prepare(&spec.text, spec.size);
+
+    draw.push(DrawCmd::Text {
         rect:  spec.rect,
         color: spec.text_color,
+        handle: layout.handle,
     });
 
     LabelResult {

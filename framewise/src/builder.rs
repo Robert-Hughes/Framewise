@@ -1,6 +1,7 @@
 use crate::{
     draw::DrawCmd,
     input::Input,
+    text::TextSystem,
     types::{Color, Rect},
     widget::WidgetResult,
     widgets::{
@@ -47,31 +48,32 @@ impl Default for BuilderCtx {
 /// # Example
 ///
 /// ```ignore
-/// let mut ui = Builder::new(ctx);
+/// let mut ui = Builder::new(ctx, &mut text_sys);
 /// let btn = ui.button(rect, "OK", &input);
 /// if btn.clicked() { println!("clicked"); }
 /// let cmds = ui.finish();
 /// ```
-pub struct Builder {
+pub struct Builder<'a, T: TextSystem> {
     ctx:  BuilderCtx,
     cmds: Vec<DrawCmd>,
+    pub text: &'a mut T,
 }
 
-impl Builder {
+impl<'a, T: TextSystem> Builder<'a, T> {
     /// Create a new top-level builder with the given context.
-    pub fn new(ctx: BuilderCtx) -> Self {
-        Self { ctx, cmds: Vec::new() }
+    pub fn new(ctx: BuilderCtx, text: &'a mut T) -> Self {
+        Self { ctx, cmds: Vec::new(), text }
     }
 
     /// Create a child builder that inherits a copy of this builder's context.
     /// The child accumulates its own draw commands; call `merge_child` to
     /// incorporate them into the parent.
-    pub fn child(&self) -> Builder {
-        Builder { ctx: self.ctx.clone(), cmds: Vec::new() }
+    pub fn child(&mut self) -> Builder<'_, T> {
+        Builder { ctx: self.ctx.clone(), cmds: Vec::new(), text: &mut *self.text }
     }
 
     /// Extract a child builder's draw commands into this builder.
-    pub fn merge_child(&mut self, child: Builder) {
+    pub fn merge_child(&mut self, child: Builder<'_, T>) {
         self.cmds.extend(child.cmds);
     }
 
@@ -92,11 +94,15 @@ impl Builder {
 
     /// Draw a label (text stub) and return its info.
     pub fn label(&mut self, rect: Rect, text: impl Into<String>) -> LabelInfo {
-        let result = label(LabelSpec {
-            rect,
-            text:       text.into(),
-            text_color: self.ctx.text_color,
-        });
+        let result = label(
+            LabelSpec {
+                rect,
+                text:       text.into(),
+                size:       16.0,
+                text_color: self.ctx.text_color,
+            },
+            self.text,
+        );
         self.emit(result)
     }
 
@@ -114,6 +120,7 @@ impl Builder {
                 style: self.ctx.button_style,
             },
             input,
+            self.text,
         );
         self.emit(result)
     }
