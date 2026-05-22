@@ -234,7 +234,6 @@ pub fn text_edit<T: TextSystem>(
     // Mouse interaction
     if contains && input.mouse_pressed {
         focus_sys.take_focus(state.focus_id);
-        state.is_dragging = true;
         
         let relative_x = input.mouse_pos.x - content_rect.x;
         let clicked_byte = text_system.hit_test_x(handle, relative_x);
@@ -243,7 +242,6 @@ pub fn text_edit<T: TextSystem>(
         // Handling double/triple clicks
         if input.mouse_click_count == 2 {
             // Select word (simplified: just select all for now, or find word boundaries)
-            // For now, let's just select all on double click to keep it simple
             state.selection_byte = Some(0);
             state.cursor_byte = state.value.len();
         } else if input.mouse_click_count >= 3 {
@@ -253,6 +251,7 @@ pub fn text_edit<T: TextSystem>(
         } else {
             state.cursor_byte = clicked_byte;
             state.selection_byte = None;
+            state.is_dragging = true;
         }
     }
 
@@ -341,5 +340,178 @@ pub fn text_edit<T: TextSystem>(
         draw,
         layout: LayoutInfo::new(spec.rect, content_rect),
         state,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{TextHandle, TextLayout};
+    use crate::types::Vec2;
+
+    struct DummyTextSys;
+    impl TextSystem for DummyTextSys {
+        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
+            TextLayout {
+                handle: TextHandle(0),
+                size: Vec2::new(100.0, 16.0),
+            }
+        }
+        fn measure_byte_x(&self, _handle: TextHandle, byte_index: usize) -> f32 {
+            // Fake 10 pixels per byte
+            byte_index as f32 * 10.0
+        }
+        fn hit_test_x(&self, _handle: TextHandle, x_offset: f32) -> usize {
+            // Fake 10 pixels per byte
+            (x_offset / 10.0).round() as usize
+        }
+    }
+
+    fn spec() -> TextEditSpec {
+        TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+            style: TextEditStyle::default(),
+        }
+    }
+
+    #[test]
+    fn test_typing_and_cursor() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("");
+        
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame(); // Apply focus shift
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Char('a'));
+        input.text_events.push(TextEvent::Char('b'));
+        input.text_events.push(TextEvent::Char('c'));
+
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "abc");
+        assert_eq!(state.cursor_byte, 3);
+
+        // Move left
+        input.text_events.clear();
+        input.text_events.push(TextEvent::CursorLeft { shift: false, ctrl: false });
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.cursor_byte, 2);
+
+        // Insert at cursor
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Char('x'));
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "abxc");
+        assert_eq!(state.cursor_byte, 3);
+    }
+
+    #[test]
+    fn test_backspace_and_delete() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        state.cursor_byte = 3; // After 'l'
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Backspace);
+        
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "helo");
+        assert_eq!(state.cursor_byte, 2);
+
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Delete);
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "heo"); // Deleted the 'l' after cursor
+        assert_eq!(state.cursor_byte, 2);
+    }
+
+    #[test]
+    fn test_selection_and_replacement() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        state.cursor_byte = 1;
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        let mut input = Input::default();
+        // Shift+Right to select "e"
+        input.text_events.push(TextEvent::CursorRight { shift: true, ctrl: false });
+        // Shift+Right to select "l"
+        input.text_events.push(TextEvent::CursorRight { shift: true, ctrl: false });
+        
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.selection_byte, Some(1));
+        assert_eq!(state.cursor_byte, 3);
+
+        // Type 'a' to replace "el"
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Char('a'));
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "halo");
+        assert_eq!(state.cursor_byte, 2);
+        assert_eq!(state.selection_byte, None);
+    }
+
+    #[test]
+    fn test_mouse_clicking_and_dragging() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+
+        let mut input = Input::default();
+        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0); // 50px logical = byte 5
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.cursor_byte, 5);
+        assert!(state.is_dragging);
+
+        // Drag to right
+        input.mouse_pressed = false;
+        input.mouse_pos.x += 30.0; // byte 8
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.selection_byte, Some(5));
+        assert_eq!(state.cursor_byte, 8);
+
+        // Release
+        input.mouse_down = false;
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert!(!state.is_dragging);
+        assert_eq!(state.selection_byte, Some(5));
+        assert_eq!(state.cursor_byte, 8);
+    }
+
+    #[test]
+    fn test_double_click_selection() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+
+        let mut input = Input::default();
+        input.mouse_pos = crate::types::Vec2::new(20.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2; // Double click
+
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.selection_byte, Some(0));
+        assert_eq!(state.cursor_byte, 5); // Selected whole string
     }
 }
