@@ -161,16 +161,12 @@ impl App {
 
         // Scroll Layout inside the column
         let _scroll_lbl = col_ui.label(Vec2::new(300.0, 20.0), "Scrollable Area:");
-        
-        // Update scroll state from mouse wheel before laying out
-        // In a real app we'd want hit-testing first, but for the sample we just apply it globally.
-        self.scroll_state.offset_y -= self.input.scroll_delta.y * 30.0;
-        self.scroll_state.offset_y = self.scroll_state.offset_y.max(0.0).min(self.scroll_state.content_height.max(200.0) - 200.0);
 
         let scroll_cmds = {
             let mut scroll_ui = col_ui.child_with_layout(
                 Vec2::new(300.0, 200.0),
-                framewise::layout::ScrollLayout::with_spacing(&mut self.scroll_state, 10.0),
+                framewise::layout::ScrollLayout::with_spacing(&mut self.scroll_state, 10.0)
+                    .with_input(&self.input),
             );
             
             for i in 0..10 {

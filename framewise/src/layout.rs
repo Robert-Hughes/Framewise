@@ -135,15 +135,21 @@ pub struct ScrollState {
 pub struct ScrollLayout<'a> {
     pub state: &'a mut ScrollState,
     pub spacing: f32,
+    pub input: Option<&'a crate::input::Input>,
 }
 
 impl<'a> ScrollLayout<'a> {
     pub fn new(state: &'a mut ScrollState) -> Self {
-        Self { state, spacing: 0.0 }
+        Self { state, spacing: 0.0, input: None }
     }
 
     pub fn with_spacing(state: &'a mut ScrollState, spacing: f32) -> Self {
-        Self { state, spacing }
+        Self { state, spacing, input: None }
+    }
+
+    pub fn with_input(mut self, input: &'a crate::input::Input) -> Self {
+        self.input = Some(input);
+        self
     }
 }
 
@@ -152,6 +158,15 @@ impl<'a> Layout for ScrollLayout<'a> {
     type State = ScrollStateImpl<'a>;
 
     fn begin(self, bounds: Rect) -> Self::State {
+        // Apply scroll delta if hovered
+        if let Some(input) = self.input {
+            if bounds.contains(input.mouse_pos) && input.scroll_delta.y != 0.0 {
+                self.state.offset_y -= input.scroll_delta.y * 30.0;
+                let max_scroll = (self.state.content_height - bounds.h).max(0.0);
+                self.state.offset_y = self.state.offset_y.max(0.0).min(max_scroll);
+            }
+        }
+
         ScrollStateImpl {
             bounds,
             state: self.state,
