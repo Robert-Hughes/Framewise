@@ -79,6 +79,12 @@ approach:
 - Layout and rendering are still computed on demand, per frame, from current state.
 - There is **no** library-owned authoritative widget tree.
 
+#### State Storage Options
+For features requiring state (like Button hover/press tracking, or future TextEdit contents and caret position), Framewise aims to offer the app three flexible approaches to integrating that state, likely managed via traits:
+1. **Opt-Out (Null State):** The app chooses not to use the feature. A null implementation is passed, which incurs zero storage and simply disables the behaviour.
+2. **Library-Provided Opaque State:** The app wants the feature but doesn't care about the details. It stores a library-provided struct (e.g., `ButtonState`) in its data model. The app fulfills the "app owns the state" philosophy, but treats the struct opaquely.
+3. **App-Provided State:** The app implements a trait on its *existing* data. For example, for a text edit value, the app may already have a `String` field it wants to edit directly. It passes this string (or a wrapper implementing the required trait) to the widget, eliminating the need for redundant state synchronisation.
+
 #### The Mouse Capture Problem
 A classic challenge in immediate-mode GUIs is "mouse capture". If a user clicks on a button and drags the mouse off it onto a second button, the second button shouldn't accidentally trigger a click when the mouse is released. Frameworks usually solve this by hashing strings or positions to generate global IDs, tracking an `active_id` in a central registry. 
 
@@ -250,6 +256,10 @@ just an aspiration.
   stack) overlaps one drawn earlier, the earlier widget's hit region may still be tested
   first, since it was registered first. We need a clear rule for how draw order, z-order,
   and hit-test priority interact.
+
+- **Clipping** — for the most part, explicit clipping is rarely needed, as UIs generally 
+  shouldn't have overflowing content. The primary exception is scroll containers, which 
+  will require some mechanism for scissor rects or clipping regions in the renderer.
 
 ---
 
