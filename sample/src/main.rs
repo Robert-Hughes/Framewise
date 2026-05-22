@@ -44,8 +44,10 @@ struct SampleButton {
 
 struct App {
     window:    Option<Arc<Window>>,
-    gpu:       Option<GpuState>,
+    gpu:         Option<GpuState>,
     text_system: Option<SampleTextSystem>,
+    focus_sys:   framewise::focus::FocusSystem,
+    modifiers:   winit::keyboard::ModifiersState,
     input:       Input,
     btn1:        SampleButton,
     btn2:        SampleButton,
@@ -58,6 +60,8 @@ impl App {
             window:       None,
             gpu:          None,
             text_system:  Some(SampleTextSystem::new()),
+            focus_sys:    framewise::focus::FocusSystem::new(),
+            modifiers:    winit::keyboard::ModifiersState::default(),
             input:        Input::new(),
             btn1:         Default::default(),
             btn2:         Default::default(),
@@ -70,7 +74,8 @@ impl App {
             text_color: Color::rgb(0.9, 0.9, 0.95),
             ..Default::default()
         };
-        let mut ui = Builder::new(ctx, text_system);
+        self.focus_sys.begin_frame();
+        let mut ui = Builder::new(ctx, text_system, &mut self.focus_sys);
 
         let win_size = self
             .gpu
@@ -135,7 +140,9 @@ impl App {
             println!("[sample] Panel button clicked");
         }
 
-        ui.finish()
+        let cmds = ui.finish();
+        self.focus_sys.end_frame();
+        cmds
     }
 }
 
@@ -194,6 +201,23 @@ impl ApplicationHandler for App {
                         self.input.mouse_down    = false;
                         // Only set clicked=true for one frame (cleared in RedrawRequested).
                         self.input.mouse_clicked = true;
+                    }
+                }
+            }
+
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.modifiers = modifiers.state();
+            }
+
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed {
+                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) = event.physical_key {
+                        let direction = if self.modifiers.shift_key() {
+                            framewise::focus::FocusDirection::Prev
+                        } else {
+                            framewise::focus::FocusDirection::Next
+                        };
+                        self.focus_sys.request_shift(direction);
                     }
                 }
             }

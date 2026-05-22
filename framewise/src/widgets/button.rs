@@ -16,6 +16,7 @@ pub struct ButtonStyle {
     pub pressed:       Color,
     pub border:        Color,
     pub border_width:  f32,
+    pub focus_border:  Color,
     pub text_size:     f32,
     pub text_color:    Color,
 }
@@ -28,6 +29,7 @@ impl Default for ButtonStyle {
             pressed:      Color::rgb(0.18, 0.18, 0.22),
             border:       Color::rgb(0.50, 0.50, 0.58),
             border_width: 1.5,
+            focus_border: Color::rgb(0.60, 0.80, 1.00),
             text_size:    16.0,
             text_color:   Color::rgb(0.90, 0.90, 0.95),
         }
@@ -44,24 +46,36 @@ pub struct ButtonSpec {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct ButtonState {
     pub is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+impl Default for ButtonState {
+    fn default() -> Self {
+        Self {
+            is_active: false,
+            focus_id: crate::focus::FocusId::new(),
+        }
+    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct ButtonResult {
-    pub draw:   DrawCommands,
-    pub layout: LayoutInfo,
-    pub input:  InputInfo,
-    pub state:  ButtonState,
+    pub draw:    DrawCommands,
+    pub layout:  LayoutInfo,
+    pub input:   InputInfo,
+    pub state:   ButtonState,
+    pub focused: bool,
 }
 
 pub struct ButtonInfo {
-    pub layout: LayoutInfo,
-    pub input:  InputInfo,
-    pub state:  ButtonState,
+    pub layout:  LayoutInfo,
+    pub input:   InputInfo,
+    pub state:   ButtonState,
+    pub focused: bool,
 }
 
 impl ButtonInfo {
@@ -69,6 +83,8 @@ impl ButtonInfo {
     pub fn clicked(&self) -> bool { self.input.clicked }
     /// Shorthand for `self.input.hovered`.
     pub fn hovered(&self) -> bool { self.input.hovered }
+    /// True if the widget currently has keyboard focus.
+    pub fn focused(&self) -> bool { self.focused }
 }
 
 impl WidgetResult for ButtonResult {
@@ -78,9 +94,10 @@ impl WidgetResult for ButtonResult {
         (
             self.draw,
             ButtonInfo {
-                layout: self.layout,
-                input:  self.input,
-                state:  self.state,
+                layout:  self.layout,
+                input:   self.input,
+                state:   self.state,
+                focused: self.focused,
             },
         )
     }
@@ -92,7 +109,15 @@ impl WidgetResult for ButtonResult {
 ///
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
-pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
+pub fn button<T: crate::text::TextSystem>(
+    mut state: ButtonState, 
+    spec: ButtonSpec, 
+    input: &Input, 
+    text_system: &mut T,
+    focus_sys: &mut crate::focus::FocusSystem,
+) -> ButtonResult {
+    let focused = focus_sys.register(state.focus_id);
+
     let contains = spec.rect.contains(input.mouse_pos);
     
     if contains && input.mouse_pressed {
@@ -105,6 +130,10 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
 
     if !input.mouse_down {
         state.is_active = false;
+    }
+
+    if pressed {
+        focus_sys.take_focus(state.focus_id);
     }
 
     // Choose fill colour based on interaction state.
@@ -144,6 +173,14 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
     draw.push(DrawCmd::FillRect { rect: inner_shifted, color: inner_color });
 
     // Border.
+    if focused {
+        draw.push(DrawCmd::StrokeRect {
+            rect:  spec.rect.inset(-2.0),
+            color: spec.style.focus_border,
+            width: 2.0,
+        });
+    }
+
     if spec.style.border_width > 0.0 {
         draw.push(DrawCmd::StrokeRect {
             rect:  spec.rect,
@@ -168,6 +205,7 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
         layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
         input:  InputInfo { hovered, pressed, clicked },
         state,
+        focused,
     }
 }
 
@@ -203,22 +241,23 @@ mod tests {
         };
 
         // Frame 1: Mouse down on Btn1
+        let mut focus_sys = crate::focus::FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
             mouse_pressed: true,
             mouse_clicked: false,
         };
-        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state1 = res1.state;
         assert!(res1.input.pressed);
 
         // Frame 2: Mouse dragged over Btn2
         input.mouse_pressed = false;
         input.mouse_pos = Vec2::new(50.0, 125.0);
-        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state1 = res1.state;
-        let res2 = button(state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        let res2 = button(state2, btn2_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state2 = res2.state;
 
         assert!(!res2.input.pressed, "Btn2 should not be pressed when mouse is dragged over it");
@@ -227,9 +266,9 @@ mod tests {
         // Frame 3: Mouse released over Btn2
         input.mouse_down = false;
         input.mouse_clicked = true;
-        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state1 = res1.state;
-        let res2 = button(state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        let res2 = button(state2, btn2_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state2 = res2.state;
 
         assert!(!res2.input.clicked, "Btn2 should not be clicked if mouse down was not on Btn2");
@@ -248,13 +287,14 @@ mod tests {
         };
 
         // Frame 1: Mouse pressed
+        let mut focus_sys = crate::focus::FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
             mouse_pressed: true,
             mouse_clicked: false,
         };
-        let res = button(state, spec(), &input, &mut text_system).into_parts().1;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state = res.state;
         assert!(res.input.pressed);
 
@@ -262,7 +302,7 @@ mod tests {
         input.mouse_down = false;
         input.mouse_pressed = false;
         input.mouse_clicked = true;
-        let res = button(state, spec(), &input, &mut text_system).into_parts().1;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         
         assert!(res.input.clicked, "Button should register as clicked");
     }

@@ -179,9 +179,16 @@ caller. The final render step is a fast, dumb pass over the accumulated draw lis
 
 ## Input Focus
 
-> ⚠️ Not yet designed — see *Things Still to Figure Out* below.
+A core challenge of immediate-mode and one-pass GUI architectures is handling keyboard focus traversal (Tab / Shift+Tab) when the "next" widget might not have been evaluated yet.
 
----
+Framewise solves this elegantly by embracing a **one-frame delay**:
+1. Every focusable widget carries a `FocusId` in its app-owned state (like `ButtonState`). This ID is globally unique and persists across frames.
+2. The app stores a `FocusSystem` and passes it mutably into widgets.
+3. On **Frame N**, as widgets are evaluated, they register their `FocusId` with the `FocusSystem`. The system builds a sequential `current_frame_order`.
+4. If the user presses Tab, a shift is requested. At the **end of Frame N**, the `FocusSystem` finds the currently focused widget's index in the `current_frame_order` and picks the next (or previous) ID to become the new focus target.
+5. On **Frame N+1**, the newly targeted widget registers its ID, sees that it is the focus target, and draws its focus state.
+
+This gives the application total control over focus ordering. The default is implicit call order, but the app can explicitly insert overrides (`override_next`) to jump focus between disconnected parts of the UI without relying on string hashing or retaining a global UI tree.
 
 ## Text Rendering and Predictability
 
@@ -239,11 +246,6 @@ just an aspiration.
 
 ## Things Still to Figure Out
 
-- **Input focus** — how should Tab / Shift+Tab work given the one-pass traversal model?
-  Should some widget state be persistent (hybrid approach)? Can the currently-focused
-  widget consume a key event and prevent focus from moving? This needs more design work
-  before it can be specified.
-
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual
   stack) overlaps one drawn earlier, the earlier widget's hit region may still be tested
   first, since it was registered first. We need a clear rule for how draw order, z-order,
@@ -262,7 +264,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Hit-testing and pointer input
 - [ ] Buttons and toggles
 - [ ] Labels and text measurement
-- [ ] Input focus model (TBD — see *Things Still to Figure Out*)
+- [x] Input focus model
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)

@@ -57,19 +57,20 @@ pub struct Builder<'a, T: TextSystem> {
     ctx:  BuilderCtx,
     cmds: Vec<DrawCmd>,
     pub text_system: &'a mut T,
+    pub focus_sys:   &'a mut crate::focus::FocusSystem,
 }
 
 impl<'a, T: TextSystem> Builder<'a, T> {
     /// Create a new top-level builder with the given context.
-    pub fn new(ctx: BuilderCtx, text_system: &'a mut T) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system }
+    pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem) -> Self {
+        Self { ctx, cmds: Vec::new(), text_system, focus_sys }
     }
 
     /// Create a child builder that inherits a copy of this builder's context.
     /// The child accumulates its own draw commands; call `merge_child` to
     /// incorporate them into the parent.
     pub fn child(&mut self) -> Builder<'_, T> {
-        Builder { ctx: self.ctx.clone(), cmds: Vec::new(), text_system: &mut *self.text_system }
+        Builder { ctx: self.ctx.clone(), cmds: Vec::new(), text_system: &mut *self.text_system, focus_sys: &mut *self.focus_sys }
     }
 
     /// Extract a child builder's draw commands into this builder.
@@ -123,6 +124,7 @@ impl<'a, T: TextSystem> Builder<'a, T> {
             },
             input,
             self.text_system,
+            self.focus_sys,
         );
         self.emit(result)
     }
