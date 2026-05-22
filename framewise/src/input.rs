@@ -79,6 +79,18 @@ impl Input {
     pub fn new() -> Self {
         Self::default()
     }
+
+    /// Reset per-frame state (called at the end of the frame).
+    pub fn clear_frame_state(&mut self) {
+        self.mouse_pressed      = false;
+        self.mouse_clicked      = false;
+        self.key_pressed_enter  = false;
+        self.key_pressed_space  = false;
+        self.key_released_space = false;
+        self.text_events.clear();
+        self.scroll_delta       = Vec2::new(0.0, 0.0);
+        self.mouse_click_count  = 0;
+    }
 }
 
 /// A helper to track mouse clicks and determine double/triple clicks

@@ -161,7 +161,7 @@ impl<'a> Layout for ScrollLayout<'a> {
         // Apply scroll delta if hovered
         if let Some(input) = self.input {
             if bounds.contains(input.mouse_pos) && input.scroll_delta.y != 0.0 {
-                self.state.offset_y -= input.scroll_delta.y * 30.0;
+                self.state.offset_y -= input.scroll_delta.y * 10.0;
                 let max_scroll = (self.state.content_height - bounds.h).max(0.0);
                 self.state.offset_y = self.state.offset_y.max(0.0).min(max_scroll);
             }

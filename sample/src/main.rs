@@ -368,13 +368,7 @@ impl ApplicationHandler for App {
                 let draw_cmds = self.draw_ui(&mut text_system);
 
                 // Clear the one-frame flags after UI has consumed them.
-                self.input.mouse_pressed = false;
-                self.input.mouse_clicked = false;
-                self.input.key_pressed_enter = false;
-                self.input.key_pressed_space = false;
-                self.input.key_released_space = false;
-                self.input.text_events.clear();
-                self.input.mouse_click_count = 0;
+                self.input.clear_frame_state();
 
                 if let Some(gpu) = &mut self.gpu {
                     match gpu.surface.get_current_texture() {
