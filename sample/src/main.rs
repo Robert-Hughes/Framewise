@@ -287,8 +287,8 @@ impl ApplicationHandler for App {
                     use framewise::input::TextEvent;
 
                     match &event.logical_key {
-                        Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace),
-                        Key::Named(NamedKey::Delete)    => self.input.text_events.push(TextEvent::Delete),
+                        Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace { ctrl: self.modifiers.control_key() }),
+                        Key::Named(NamedKey::Delete) => self.input.text_events.push(TextEvent::Delete { ctrl: self.modifiers.control_key() }),
                         Key::Named(NamedKey::ArrowLeft) => self.input.text_events.push(TextEvent::CaretLeft { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
                         Key::Named(NamedKey::ArrowRight)=> self.input.text_events.push(TextEvent::CaretRight { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
                         Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CaretHome { shift: self.modifiers.shift_key() }),

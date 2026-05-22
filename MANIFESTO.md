@@ -134,6 +134,7 @@ There is no global layout engine that can surprise the application with non-obvi
 | Monolithic `draw_gui()` | Makes the expensive step opaque |
 | Mandatory widget IDs or namespaces | Complexity tax for users who do not need them |
 | Opt-in "virtualised list" vs. "real list" | A semantic distinction that should not exist |
+  * How does this work with our scroll areas - the app chooses how many widgets to put inside them, so can choose real vs. virtual still? Is this what we want?
 | Escape hatches that change semantics | `memoized`, `virtualised`, `cached` annotations |
 | Framework-owned lifecycle | Focus, visibility, destruction managed by library |
 

@@ -42,8 +42,8 @@ pub struct Input {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextEvent {
     Char(char),
-    Backspace,
-    Delete,
+    Backspace { ctrl: bool },
+    Delete { ctrl: bool },
     CaretLeft { shift: bool, ctrl: bool },
     CaretRight { shift: bool, ctrl: bool },
     CaretHome { shift: bool },

@@ -47,6 +47,7 @@ pub struct TextEditState {
     pub selection_byte: Option<usize>,
     pub focus_id: FocusId,
     pub is_dragging: bool,
+    pub drag_word_origin: Option<(usize, usize)>,
     pub last_caret_move_time: f64,
     pub was_focused: bool,
 }
@@ -59,6 +60,7 @@ impl Default for TextEditState {
             selection_byte: None,
             focus_id: FocusId::new(),
             is_dragging: false,
+            drag_word_origin: None,
             last_caret_move_time: 0.0,
             was_focused: false,
         }
@@ -260,9 +262,13 @@ pub fn text_edit<T: TextSystem>(
                         state.caret_byte += c.len_utf8();
                     }
                 }
-                TextEvent::Backspace => {
+                TextEvent::Backspace { ctrl } => {
                     if state.selection_byte.is_some() {
                         state.remove_selection();
+                    } else if *ctrl {
+                        let prev = find_word_boundary(&state.value, state.caret_byte, false);
+                        state.value.replace_range(prev..state.caret_byte, "");
+                        state.caret_byte = prev;
                     } else if state.caret_byte > 0 {
                         // Find previous char boundary
                         let mut prev = state.caret_byte - 1;
@@ -273,9 +279,12 @@ pub fn text_edit<T: TextSystem>(
                         state.caret_byte = prev;
                     }
                 }
-                TextEvent::Delete => {
+                TextEvent::Delete { ctrl } => {
                     if state.selection_byte.is_some() {
                         state.remove_selection();
+                    } else if *ctrl {
+                        let next = find_word_boundary(&state.value, state.caret_byte, true);
+                        state.value.replace_range(state.caret_byte..next, "");
                     } else if state.caret_byte < state.value.len() {
                         state.value.remove(state.caret_byte);
                     }
@@ -396,6 +405,8 @@ pub fn text_edit<T: TextSystem>(
             let (start, end) = word_bounds(&state.value, clicked_byte);
             state.selection_byte = Some(start);
             state.caret_byte = end;
+            state.is_dragging = true;
+            state.drag_word_origin = Some((start, end));
         } else if input.mouse_click_count >= 3 {
             // Select line
             state.selection_byte = Some(0);
@@ -404,6 +415,7 @@ pub fn text_edit<T: TextSystem>(
             state.caret_byte = clicked_byte;
             state.selection_byte = None;
             state.is_dragging = true;
+            state.drag_word_origin = None;
         }
     }
 
@@ -413,12 +425,24 @@ pub fn text_edit<T: TextSystem>(
             let current_byte = text_system.hit_test_x(handle, relative_x);
             let current_byte = current_byte.min(state.value.len());
             
-            if state.selection_byte.is_none() && current_byte != state.caret_byte {
-                state.selection_byte = Some(state.caret_byte);
+            if let Some((orig_start, orig_end)) = state.drag_word_origin {
+                let (cur_start, cur_end) = word_bounds(&state.value, current_byte);
+                if current_byte < orig_start {
+                    state.selection_byte = Some(orig_end);
+                    state.caret_byte = cur_start;
+                } else {
+                    state.selection_byte = Some(orig_start);
+                    state.caret_byte = cur_end;
+                }
+            } else {
+                if state.selection_byte.is_none() && current_byte != state.caret_byte {
+                    state.selection_byte = Some(state.caret_byte);
+                }
+                state.caret_byte = current_byte;
             }
-            state.caret_byte = current_byte;
         } else {
             state.is_dragging = false;
+            state.drag_word_origin = None;
         }
     }
 
@@ -583,7 +607,7 @@ mod tests {
         focus_sys.end_frame();
 
         let mut input = Input::default();
-        input.text_events.push(TextEvent::Backspace);
+        input.text_events.push(TextEvent::Backspace { ctrl: false });
         
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
@@ -591,11 +615,37 @@ mod tests {
         assert_eq!(state.caret_byte, 2);
 
         input.text_events.clear();
-        input.text_events.push(TextEvent::Delete);
+        input.text_events.push(TextEvent::Delete { ctrl: false });
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
+    }
+
+    #[test]
+    fn test_ctrl_backspace_and_delete() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+        state.caret_byte = 8; // "hello wo|rld"
+        state.was_focused = true;
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Backspace { ctrl: true });
+        
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "hello rld");
+        assert_eq!(state.caret_byte, 6); // end of "hello "
+
+        input.text_events.clear();
+        input.text_events.push(TextEvent::Delete { ctrl: true });
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        assert_eq!(state.value, "hello ");
+        assert_eq!(state.caret_byte, 6);
     }
 
     #[test]
@@ -659,21 +709,42 @@ mod tests {
     }
 
     #[test]
-    fn test_double_click_selection() {
+    fn test_double_click_selection_and_drag() {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
-        let mut state = TextEditState::new("hello");
+        let mut state = TextEditState::new("hello rust world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(20.0 + spec().style.padding + spec().style.border_width, 15.0);
+        // Click on "rust" (byte index 8 -> pixel 80)
+        input.mouse_pos = crate::types::Vec2::new(80.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
 
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
-        assert_eq!(state.selection_byte, Some(0));
-        assert_eq!(state.caret_byte, 5);
+        // Selection should be "rust" (6 to 10)
+        assert_eq!(state.selection_byte, Some(6));
+        assert_eq!(state.caret_byte, 10);
+        assert!(state.is_dragging);
+        assert_eq!(state.drag_word_origin, Some((6, 10)));
+
+        // Now drag right to "world" (byte index 14 -> pixel 140)
+        input.mouse_pressed = false;
+        input.mouse_pos.x = 140.0 + spec().style.padding + spec().style.border_width;
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        // Should select "rust world", so from 6 to 16
+        assert_eq!(state.selection_byte, Some(6)); // original start
+        assert_eq!(state.caret_byte, 16); // end of "world"
+
+        // Drag left to "hello" (byte index 2 -> pixel 20)
+        input.mouse_pos.x = 20.0 + spec().style.padding + spec().style.border_width;
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        // Should select "hello rust", so from 10 to 0
+        assert_eq!(state.selection_byte, Some(10)); // original end
+        assert_eq!(state.caret_byte, 0); // start of "hello"
     }
 
     #[test]
