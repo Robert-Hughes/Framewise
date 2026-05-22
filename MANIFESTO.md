@@ -297,15 +297,14 @@ Features to design and implement, roughly in dependency order:
   * Horizontal scrolling
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
-  * On tabbing in to a text edit, select all text. Not from mouse click though as that should move the caret to the position
   * Right click text stuff like copy/paste
-  * Copy/paste keyboard shortcuts
 - [ ] Grid and table layouts
 - [ ] Clipping and layering
 - [ ] Popups, menus, tooltips
 - [ ] Drag and drop
 - [ ] Accessibility and tab order
     * Up/down/left/right for switching focus, as well as Tab?
+    * Tabbing into a widget that's within a scroll area (maybe nested), should scroll to view it
 - IME stuff
 - Dialogs, blocking and non-blocking
 
