@@ -293,6 +293,8 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
+  * Mouse and keyboard interaction with scrollbar
+  * Horizontal scrolling
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
   * On tabbing in to a text edit, select all text. Not from mouse click though as that should move the caret to the position
