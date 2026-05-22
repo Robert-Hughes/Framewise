@@ -126,7 +126,11 @@ pub fn button<T: crate::text::TextSystem>(
 
     let hovered = contains && (!input.mouse_down || state.is_active);
     let pressed  = state.is_active && hovered && input.mouse_down;
-    let clicked  = state.is_active && hovered && input.mouse_clicked;
+    let mut clicked  = state.is_active && hovered && input.mouse_clicked;
+
+    if focused && (input.key_pressed_enter || input.key_pressed_space) {
+        clicked = true;
+    }
 
     if !input.mouse_down {
         state.is_active = false;
@@ -247,6 +251,7 @@ mod tests {
             mouse_down: true,
             mouse_pressed: true,
             mouse_clicked: false,
+            ..Default::default()
         };
         let res1 = button(state1, btn1_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state1 = res1.state;
@@ -293,6 +298,7 @@ mod tests {
             mouse_down: true,
             mouse_pressed: true,
             mouse_clicked: false,
+            ..Default::default()
         };
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state = res.state;
@@ -305,5 +311,37 @@ mod tests {
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         
         assert!(res.input.clicked, "Button should register as clicked");
+    }
+
+    #[test]
+    fn test_focused_button_clicked_by_keyboard() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        
+        let spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Register and take focus explicitly
+        let mut input = Input::default();
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        // Frame 2: Press Enter
+        input.key_pressed_enter = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.clicked, "Button should be clicked by Enter key");
+        
+        // Frame 3: Press Space
+        input.key_pressed_enter = false;
+        input.key_pressed_space = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        assert!(res.input.clicked, "Button should be clicked by Space key");
     }
 }

@@ -211,13 +211,22 @@ impl ApplicationHandler for App {
 
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state == ElementState::Pressed {
-                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) = event.physical_key {
-                        let direction = if self.modifiers.shift_key() {
-                            framewise::focus::FocusDirection::Prev
-                        } else {
-                            framewise::focus::FocusDirection::Next
-                        };
-                        self.focus_sys.request_shift(direction);
+                    match event.physical_key {
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
+                            let direction = if self.modifiers.shift_key() {
+                                framewise::focus::FocusDirection::Prev
+                            } else {
+                                framewise::focus::FocusDirection::Next
+                            };
+                            self.focus_sys.request_shift(direction);
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {
+                            self.input.key_pressed_enter = true;
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
+                            self.input.key_pressed_space = true;
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -228,9 +237,11 @@ impl ApplicationHandler for App {
                 text_system.begin_frame();
                 let draw_cmds = self.draw_ui(&mut text_system);
 
-                // Clear the one-frame clicked and pressed flags after UI has consumed them.
+                // Clear the one-frame flags after UI has consumed them.
                 self.input.mouse_pressed = false;
                 self.input.mouse_clicked = false;
+                self.input.key_pressed_enter = false;
+                self.input.key_pressed_space = false;
 
                 if let Some(gpu) = &mut self.gpu {
                     match gpu.surface.get_current_texture() {
