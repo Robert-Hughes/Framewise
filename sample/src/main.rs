@@ -36,14 +36,20 @@ impl GpuState {
     }
 }
 
+#[derive(Default)]
+struct SampleButton {
+    state: framewise::widgets::button::ButtonState,
+    clicks: u32,
+}
+
 struct App {
     window:    Option<Arc<Window>>,
     gpu:       Option<GpuState>,
     text_system: Option<SampleTextSystem>,
     input:       Input,
-    btn1_state:  framewise::widgets::button::ButtonState,
-    btn2_state:  framewise::widgets::button::ButtonState,
-    btn3_state:  framewise::widgets::button::ButtonState,
+    btn1:        SampleButton,
+    btn2:        SampleButton,
+    btn3:        SampleButton,
 }
 
 impl App {
@@ -53,9 +59,9 @@ impl App {
             gpu:          None,
             text_system:  Some(SampleTextSystem::new()),
             input:        Input::new(),
-            btn1_state:   Default::default(),
-            btn2_state:   Default::default(),
-            btn3_state:   Default::default(),
+            btn1:         Default::default(),
+            btn2:         Default::default(),
+            btn3:         Default::default(),
         }
     }
 
@@ -77,25 +83,27 @@ impl App {
 
         // Button 1 ─────────────────────────────────────────────────────────
         let btn1 = ui.button(
-            self.btn1_state,
+            self.btn1.state,
             Rect::new(24.0, 24.0, 140.0, 40.0),
-            "Button One",
+            format!("Button One ({})", self.btn1.clicks),
             &self.input,
         );
-        self.btn1_state = btn1.state;
+        self.btn1.state = btn1.state;
         if btn1.clicked() {
+            self.btn1.clicks += 1;
             println!("[sample] Button One clicked");
         }
 
         // Button 2 ─────────────────────────────────────────────────────────
         let btn2 = ui.button(
-            self.btn2_state,
+            self.btn2.state,
             Rect::new(24.0, 76.0, 140.0, 40.0),
-            "Button Two",
+            format!("Button Two ({})", self.btn2.clicks),
             &self.input,
         );
-        self.btn2_state = btn2.state;
+        self.btn2.state = btn2.state;
         if btn2.clicked() {
+            self.btn2.clicks += 1;
             println!("[sample] Button Two clicked");
         }
 
@@ -116,13 +124,14 @@ impl App {
 
         // A button inside the panel.
         let btn3 = ui.button(
-            self.btn3_state,
+            self.btn3.state,
             Rect::new(content.x, content.y, 120.0, 32.0),
-            "Panel button",
+            format!("Panel button ({})", self.btn3.clicks),
             &self.input,
         );
-        self.btn3_state = btn3.state;
+        self.btn3.state = btn3.state;
         if btn3.clicked() {
+            self.btn3.clicks += 1;
             println!("[sample] Panel button clicked");
         }
 
