@@ -130,3 +130,76 @@ impl FocusSystem {
         self.current_frame_order.clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_focus_system_basic_flow() {
+        let mut sys = FocusSystem::new();
+        let id1 = FocusId::new();
+        let id2 = FocusId::new();
+        let id3 = FocusId::new();
+
+        // Frame 1
+        sys.begin_frame();
+        assert!(!sys.register(id1));
+        assert!(!sys.register(id2));
+        assert!(!sys.register(id3));
+        
+        // Take focus explicitly
+        sys.take_focus(id2);
+        sys.end_frame();
+
+        // Frame 2
+        sys.begin_frame();
+        assert!(!sys.register(id1));
+        assert!(sys.register(id2), "id2 should have focus");
+        assert!(!sys.register(id3));
+
+        // Request shift Next
+        sys.request_shift(FocusDirection::Next);
+        sys.end_frame();
+
+        // Frame 3
+        sys.begin_frame();
+        assert!(!sys.register(id1));
+        assert!(!sys.register(id2));
+        assert!(sys.register(id3), "id3 should have focus after shifting next from id2");
+        
+        // Request shift Prev
+        sys.request_shift(FocusDirection::Prev);
+        sys.end_frame();
+
+        // Frame 4
+        sys.begin_frame();
+        assert!(!sys.register(id1));
+        assert!(sys.register(id2), "id2 should have focus after shifting prev from id3");
+    }
+
+    #[test]
+    fn test_focus_system_custom_override() {
+        let mut sys = FocusSystem::new();
+        let id1 = FocusId::new();
+        let id2 = FocusId::new();
+        let id3 = FocusId::new();
+
+        sys.override_next(id1, id3);
+
+        sys.take_focus(id1);
+        
+        sys.begin_frame();
+        sys.register(id1);
+        sys.register(id2);
+        sys.register(id3);
+        sys.request_shift(FocusDirection::Next);
+        sys.end_frame();
+
+        // Should jump from id1 to id3 because of override
+        sys.begin_frame();
+        assert!(!sys.register(id1));
+        assert!(!sys.register(id2));
+        assert!(sys.register(id3), "Focus should jump to id3 based on custom override");
+    }
+}

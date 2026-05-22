@@ -52,3 +52,42 @@ pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult
         layout: LayoutInfo::tight(spec.rect),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{TextLayout, TextHandle};
+    use crate::types::Vec2;
+
+    struct DummyTextSys;
+    impl TextSystem for DummyTextSys {
+        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
+            TextLayout { size: Vec2::new(10.0, 10.0), handle: TextHandle(1) }
+        }
+    }
+
+    #[test]
+    fn test_label_draws_text() {
+        let mut sys = DummyTextSys;
+        let spec = LabelSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Hello".to_string(),
+            size: 16.0,
+            text_color: Color::rgb(1.0, 1.0, 1.0),
+        };
+        let res = label(spec, &mut sys);
+        
+        let (draw, info) = res.into_parts();
+        assert_eq!(info.layout.bounds.w, 100.0);
+        
+        // Should have one draw command for the text
+        assert_eq!(draw.0.len(), 1);
+        match &draw.0[0] {
+            DrawCmd::Text { rect, color: _, handle } => {
+                assert_eq!(rect.x, 0.0);
+                assert_eq!(handle.0, 1);
+            }
+            _ => panic!("Expected text command"),
+        }
+    }
+}

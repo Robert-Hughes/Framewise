@@ -85,3 +85,51 @@ pub fn frame(spec: FrameSpec) -> FrameResult {
         layout: LayoutInfo::new(spec.rect, content),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_frame_layout_and_draw() {
+        let spec = FrameSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 50.0),
+            style: FrameStyle {
+                background: Color::rgb(1.0, 1.0, 1.0),
+                border: Color::rgb(0.5, 0.5, 0.5),
+                border_width: 2.0,
+                padding: 3.0,
+            },
+        };
+        
+        let res = frame(spec);
+        let (draw, info) = res.into_parts();
+        
+        // Bounds should be exactly the requested rect
+        assert_eq!(info.layout.bounds.x, 10.0);
+        assert_eq!(info.layout.bounds.y, 10.0);
+        assert_eq!(info.layout.bounds.w, 100.0);
+        assert_eq!(info.layout.bounds.h, 50.0);
+        
+        // Content rect should be inset by border_width + padding = 5.0
+        let content = info.content_rect();
+        assert_eq!(content.x, 15.0);
+        assert_eq!(content.y, 15.0);
+        assert_eq!(content.w, 90.0);
+        assert_eq!(content.h, 40.0);
+        
+        // Should draw background and border
+        assert_eq!(draw.0.len(), 2);
+        match &draw.0[0] {
+            DrawCmd::FillRect { rect, .. } => assert_eq!(rect.x, 10.0),
+            _ => panic!("Expected FillRect"),
+        }
+        match &draw.0[1] {
+            DrawCmd::StrokeRect { rect, width, .. } => {
+                assert_eq!(rect.x, 10.0);
+                assert_eq!(width, &2.0);
+            }
+            _ => panic!("Expected StrokeRect"),
+        }
+    }
+}

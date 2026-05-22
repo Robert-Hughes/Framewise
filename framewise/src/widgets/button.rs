@@ -344,4 +344,49 @@ mod tests {
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         assert!(res.input.clicked, "Button should be clicked by Space key");
     }
+
+    #[test]
+    fn test_hover_and_press_state() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        
+        let spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Mouse outside
+        let mut input = Input {
+            mouse_pos: Vec2::new(150.0, 150.0),
+            ..Default::default()
+        };
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(!res.input.hovered);
+        assert!(!res.input.pressed);
+
+        // Frame 2: Mouse inside, not down
+        input.mouse_pos = Vec2::new(50.0, 25.0);
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.hovered, "Should be hovered");
+        assert!(!res.input.pressed, "Should not be pressed");
+
+        // Frame 3: Mouse down inside
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.hovered, "Should be hovered while pressed down");
+        assert!(res.input.pressed, "Should be pressed");
+
+        // Frame 4: Drag outside
+        input.mouse_pos = Vec2::new(150.0, 150.0);
+        input.mouse_pressed = false;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        assert!(!res.input.hovered, "Should lose hover when dragged out");
+        assert!(!res.input.pressed, "Should lose pressed state when dragged out");
+    }
 }
