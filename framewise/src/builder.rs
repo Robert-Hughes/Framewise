@@ -54,10 +54,10 @@ impl Default for BuilderCtx {
 /// # Example
 ///
 /// ```ignore
-/// let mut ui = Builder::new(ctx, &mut text_system);
-/// let btn = ui.button(rect, "OK", &input);
+/// let mut builder = Builder::new(ctx, &mut text_system);
+/// let btn = builder.button(rect, "OK", &input);
 /// if btn.clicked() { println!("clicked"); }
-/// let cmds = ui.finish();
+/// let cmds = builder.finish();
 /// ```
 pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> {
     ctx:  BuilderCtx,

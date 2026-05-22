@@ -98,7 +98,7 @@ impl App {
             .map(|g| (g.size.width as f32, g.size.height as f32))
             .unwrap_or((800.0, 600.0));
 
-        let mut ui = Builder::new(
+        let mut builder = Builder::new(
             ctx,
             text_system,
             &mut self.focus_sys,
@@ -106,16 +106,16 @@ impl App {
         );
 
         // Background frame covering the whole window.
-        let _root = ui.frame(Rect::new(0.0, 0.0, win_size.0, win_size.1));
+        let _root = builder.frame(Rect::new(0.0, 0.0, win_size.0, win_size.1));
 
         // Nested Layouts Example ───────────────────────────────────────────
         
-        let mut col_ui = ui.child_with_layout(
+        let mut col_builder = builder.child_with_layout(
             Rect::new(24.0, 24.0, 400.0, 500.0),
             framewise::layout::ColumnLayout { spacing: 16.0 },
         );
 
-        let btn1 = col_ui.button(
+        let btn1 = col_builder.button(
             self.btn1.state,
             Vec2::new(140.0, 40.0),
             format!("Button One ({})", self.btn1.clicks),
@@ -128,11 +128,11 @@ impl App {
 
         // Inner row layout inside the column
         let child_cmds = {
-            let mut row_ui = col_ui.child_with_layout(
+            let mut row_builder = col_builder.child_with_layout(
                 Vec2::new(400.0, 40.0),
                 framewise::layout::RowLayout { spacing: 10.0 },
             );
-            let btn2 = row_ui.button(
+            let btn2 = row_builder.button(
                 self.btn2.state,
                 Vec2::new(140.0, 40.0),
                 format!("Button Two ({})", self.btn2.clicks),
@@ -143,16 +143,16 @@ impl App {
                 self.btn2.clicks += 1;
             }
 
-            let _lbl = row_ui.label(
+            let _lbl = row_builder.label(
                 Vec2::new(220.0, 40.0),
                 "A label in a row layout",
             );
-            row_ui.finish()
+            row_builder.finish()
         };
-        col_ui.append_cmds(child_cmds);
+        col_builder.append_cmds(child_cmds);
 
         // Text Edit
-        let (info, new_te_state) = col_ui.text_edit(
+        let (info, new_te_state) = col_builder.text_edit(
             self.text_edit_state.clone(),
             Vec2::new(300.0, 40.0),
             &self.input,
@@ -160,7 +160,7 @@ impl App {
         self.text_edit_state = new_te_state;
 
         // Scroll Layout inside the column
-        let _scroll_lbl = col_ui.label(Vec2::new(300.0, 20.0), "Scrollable Area:");
+        let _scroll_lbl = col_builder.label(Vec2::new(300.0, 20.0), "Scrollable Area:");
 
         let scroll_cmds = {
             // 10 labels * 30px + 10 spaces * 10px = 400px.
@@ -168,7 +168,7 @@ impl App {
             // Total content height = 442px.
             let content_height = 442.0;
             
-            let mut scroll_ui = col_ui.scroll_area(
+            let mut scroll_builder = col_builder.scroll_area(
                 Vec2::new(300.0, 200.0),
                 content_height,
                 &mut self.scroll_state,
@@ -177,10 +177,10 @@ impl App {
             );
             
             for i in 0..10 {
-                let _ = scroll_ui.label(Vec2::new(280.0, 30.0), &format!("Scrollable item #{}", i));
+                let _ = scroll_builder.label(Vec2::new(280.0, 30.0), &format!("Scrollable item #{}", i));
             }
             
-            let btn3 = scroll_ui.button(
+            let btn3 = scroll_builder.button(
                 self.btn3.state,
                 Vec2::new(120.0, 32.0),
                 format!("Scroll Btn ({})", self.btn3.clicks),
@@ -190,11 +190,11 @@ impl App {
             if btn3.clicked() {
                 self.btn3.clicks += 1;
             }
-            scroll_ui.finish()
+            scroll_builder.finish()
         };
-        col_ui.append_cmds(scroll_cmds);
-        let col_cmds = col_ui.finish();
-        ui.append_cmds(col_cmds);
+        col_builder.append_cmds(scroll_cmds);
+        let col_cmds = col_builder.finish();
+        builder.append_cmds(col_cmds);
 
         if let Some(action) = info.clipboard_action {
             if let Some(cb) = &mut self.clipboard {
@@ -205,7 +205,7 @@ impl App {
             }
         }
 
-        let cmds = ui.finish();
+        let cmds = builder.finish();
         self.focus_sys.end_frame();
         cmds
     }
