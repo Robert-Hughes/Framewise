@@ -1,0 +1,7 @@
+[package]
+name = "framewise"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust GUI library where the app is always in control."
+
+[dependencies]

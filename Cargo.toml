@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "framewise",
+    "sample",
+]
+resolver = "2"

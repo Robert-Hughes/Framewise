@@ -1,0 +1,125 @@
+/// Core geometric and colour types.
+///
+/// These are plain data structs with no dependencies. All coordinates are in
+/// logical pixels (f32) with the origin at the top-left of the window.
+
+// ── Vec2 ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2 {
+    pub const ZERO: Vec2 = Vec2 { x: 0.0, y: 0.0 };
+
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+// ── Rect ─────────────────────────────────────────────────────────────────────
+
+/// An axis-aligned rectangle, stored as origin + size.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+impl Rect {
+    pub const ZERO: Rect = Rect { x: 0.0, y: 0.0, w: 0.0, h: 0.0 };
+
+    pub const fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self { x, y, w, h }
+    }
+
+    /// Construct from left / top / right / bottom edges.
+    pub fn from_ltrb(l: f32, t: f32, r: f32, b: f32) -> Self {
+        Self { x: l, y: t, w: r - l, h: b - t }
+    }
+
+    pub fn right(&self) -> f32 { self.x + self.w }
+    pub fn bottom(&self) -> f32 { self.y + self.h }
+
+    pub fn top_left(&self)     -> Vec2 { Vec2::new(self.x, self.y) }
+    pub fn bottom_right(&self) -> Vec2 { Vec2::new(self.right(), self.bottom()) }
+    pub fn center(&self)       -> Vec2 { Vec2::new(self.x + self.w * 0.5, self.y + self.h * 0.5) }
+
+    /// Returns true if `pos` falls inside this rect (inclusive of edges).
+    pub fn contains(&self, pos: Vec2) -> bool {
+        pos.x >= self.x
+            && pos.x <= self.right()
+            && pos.y >= self.y
+            && pos.y <= self.bottom()
+    }
+
+    /// Shrink the rect by `amount` on all sides.
+    pub fn inset(&self, amount: f32) -> Self {
+        Self {
+            x: self.x + amount,
+            y: self.y + amount,
+            w: (self.w - amount * 2.0).max(0.0),
+            h: (self.h - amount * 2.0).max(0.0),
+        }
+    }
+}
+
+// ── Color ─────────────────────────────────────────────────────────────────────
+
+/// An RGBA colour with components in [0.0, 1.0].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Color {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+}
+
+impl Color {
+    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
+
+    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
+        Self { r, g, b, a: 1.0 }
+    }
+
+    pub const BLACK:       Color = Color::rgb(0.0, 0.0, 0.0);
+    pub const WHITE:       Color = Color::rgb(1.0, 1.0, 1.0);
+    pub const TRANSPARENT: Color = Color::new(0.0, 0.0, 0.0, 0.0);
+
+    /// Construct from 0–255 integer components.
+    pub fn from_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self {
+            r: r as f32 / 255.0,
+            g: g as f32 / 255.0,
+            b: b as f32 / 255.0,
+            a: a as f32 / 255.0,
+        }
+    }
+
+    /// Blend towards `other` by `t` (0.0 = self, 1.0 = other).
+    pub fn lerp(&self, other: Color, t: f32) -> Self {
+        let t = t.clamp(0.0, 1.0);
+        Self {
+            r: self.r + (other.r - self.r) * t,
+            g: self.g + (other.g - self.g) * t,
+            b: self.b + (other.b - self.b) * t,
+            a: self.a + (other.a - self.a) * t,
+        }
+    }
+
+    /// Multiply RGB by `factor` (brightness adjustment, clamped to [0, 1]).
+    pub fn darken(&self, factor: f32) -> Self {
+        Self {
+            r: (self.r * factor).clamp(0.0, 1.0),
+            g: (self.g * factor).clamp(0.0, 1.0),
+            b: (self.b * factor).clamp(0.0, 1.0),
+            a: self.a,
+        }
+    }
+}

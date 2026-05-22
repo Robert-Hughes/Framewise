@@ -1,0 +1,17 @@
+[package]
+name = "sample"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "sample"
+path = "src/main.rs"
+
+[dependencies]
+framewise = { path = "../framewise" }
+winit    = "0.30"
+wgpu     = "24"
+pollster = "0.4"
+bytemuck = { version = "1", features = ["derive"] }
+log      = "0.4"
+env_logger = "0.11"
