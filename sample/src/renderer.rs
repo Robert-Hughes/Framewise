@@ -245,6 +245,16 @@ impl Renderer {
         let mut quad_verts: Vec<Vertex> = Vec::new();
         let mut text_verts: Vec<TextVertex> = Vec::new();
 
+        enum RenderCommand {
+            DrawQuads(std::ops::Range<u32>),
+            DrawText(std::ops::Range<u32>),
+            SetScissor(Rect),
+        }
+
+        let mut render_cmds = Vec::new();
+        let mut current_quad_start = 0;
+        let mut current_text_start = 0;
+
         for cmd in cmds {
             match cmd {
                 DrawCmd::FillRect { rect, color } => {
@@ -258,7 +268,36 @@ impl Renderer {
                         push_text_run(&mut text_verts, *rect, *color, run, text_system, window_size);
                     }
                 }
+                DrawCmd::PushClip { rect } => {
+                    if quad_verts.len() as u32 > current_quad_start {
+                        render_cmds.push(RenderCommand::DrawQuads(current_quad_start..quad_verts.len() as u32));
+                        current_quad_start = quad_verts.len() as u32;
+                    }
+                    if text_verts.len() as u32 > current_text_start {
+                        render_cmds.push(RenderCommand::DrawText(current_text_start..text_verts.len() as u32));
+                        current_text_start = text_verts.len() as u32;
+                    }
+                    render_cmds.push(RenderCommand::SetScissor(*rect));
+                }
+                DrawCmd::PopClip => {
+                    if quad_verts.len() as u32 > current_quad_start {
+                        render_cmds.push(RenderCommand::DrawQuads(current_quad_start..quad_verts.len() as u32));
+                        current_quad_start = quad_verts.len() as u32;
+                    }
+                    if text_verts.len() as u32 > current_text_start {
+                        render_cmds.push(RenderCommand::DrawText(current_text_start..text_verts.len() as u32));
+                        current_text_start = text_verts.len() as u32;
+                    }
+                    render_cmds.push(RenderCommand::SetScissor(Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32)));
+                }
             }
+        }
+
+        if quad_verts.len() as u32 > current_quad_start {
+            render_cmds.push(RenderCommand::DrawQuads(current_quad_start..quad_verts.len() as u32));
+        }
+        if text_verts.len() as u32 > current_text_start {
+            render_cmds.push(RenderCommand::DrawText(current_text_start..text_verts.len() as u32));
         }
 
         if quad_verts.is_empty() && text_verts.is_empty() {
@@ -298,17 +337,44 @@ impl Renderer {
             occlusion_query_set:      None,
         });
 
-        if let Some(vbuf) = quad_vbuf {
-            pass.set_pipeline(&self.quad_pipeline);
-            pass.set_vertex_buffer(0, vbuf.slice(..));
-            pass.draw(0..quad_verts.len() as u32, 0..1);
-        }
+        let mut last_pipeline = 0; // 1 = quads, 2 = text
 
-        if let Some(vbuf) = text_vbuf {
-            pass.set_pipeline(&self.text_pipeline);
-            pass.set_bind_group(0, &self.atlas_bind_group, &[]);
-            pass.set_vertex_buffer(0, vbuf.slice(..));
-            pass.draw(0..text_verts.len() as u32, 0..1);
+        for rc in render_cmds {
+            match rc {
+                RenderCommand::DrawQuads(range) => {
+                    if last_pipeline != 1 {
+                        pass.set_pipeline(&self.quad_pipeline);
+                        pass.set_vertex_buffer(0, quad_vbuf.as_ref().unwrap().slice(..));
+                        last_pipeline = 1;
+                    }
+                    pass.draw(range, 0..1);
+                }
+                RenderCommand::DrawText(range) => {
+                    if last_pipeline != 2 {
+                        pass.set_pipeline(&self.text_pipeline);
+                        pass.set_bind_group(0, &self.atlas_bind_group, &[]);
+                        pass.set_vertex_buffer(0, text_vbuf.as_ref().unwrap().slice(..));
+                        last_pipeline = 2;
+                    }
+                    pass.draw(range, 0..1);
+                }
+                RenderCommand::SetScissor(r) => {
+                    let x = r.x.max(0.0) as u32;
+                    let y = r.y.max(0.0) as u32;
+                    let right = (r.x + r.w).min(window_size.0 as f32);
+                    let bottom = (r.y + r.h).min(window_size.1 as f32);
+                    let w = if right > x as f32 { (right - x as f32) as u32 } else { 0 };
+                    let h = if bottom > y as f32 { (bottom - y as f32) as u32 } else { 0 };
+                    
+                    if w > 0 && h > 0 {
+                        pass.set_scissor_rect(x, y, w, h);
+                    } else {
+                        // Degenerate scissor: set to 1x1 outside window to effectively hide it
+                        // Or just set to 1x1 at 0,0 and rely on no overlapping geometry
+                        pass.set_scissor_rect(0, 0, 1, 1);
+                    }
+                }
+            }
         }
     }
 }

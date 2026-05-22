@@ -1,7 +1,13 @@
 mod renderer;
 mod text;
 
-use framewise::{Builder, BuilderCtx, Color, Input, Rect, Vec2};
+use framewise::{
+    builder::{Builder, BuilderCtx},
+    draw::DrawCmd,
+    input::{Input, TextEvent},
+    layout::Layout,
+    types::{Color, Rect, Vec2},
+};
 use renderer::Renderer;
 use text::SampleTextSystem;
 use std::sync::Arc;
@@ -57,6 +63,7 @@ struct App {
     btn2:            SampleButton,
     btn3:            SampleButton,
     clipboard:       Option<arboard::Clipboard>,
+    scroll_state:    framewise::layout::ScrollState,
 }
 
 impl App {
@@ -76,88 +83,117 @@ impl App {
             btn2:            Default::default(),
             btn3:            Default::default(),
             clipboard:       arboard::Clipboard::new().ok(),
+            scroll_state:    framewise::layout::ScrollState::default(),
         }
     }
 
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+        self.focus_sys.begin_frame();
         let ctx = BuilderCtx {
             text_color: Color::rgb(0.9, 0.9, 0.95),
             time: self.start_time.elapsed().as_secs_f64(),
             ..Default::default()
         };
-        self.focus_sys.begin_frame();
-        let mut ui = Builder::new(ctx, text_system, &mut self.focus_sys);
-
         let win_size = self
             .gpu
             .as_ref()
             .map(|g| (g.size.width as f32, g.size.height as f32))
             .unwrap_or((800.0, 600.0));
 
+        let mut ui = Builder::new(
+            ctx,
+            text_system,
+            &mut self.focus_sys,
+            framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_size.0, win_size.1)),
+        );
+
         // Background frame covering the whole window.
         let _root = ui.frame(Rect::new(0.0, 0.0, win_size.0, win_size.1));
 
-        // Button 1 ─────────────────────────────────────────────────────────
-        let btn1 = ui.button(
+        // Nested Layouts Example ───────────────────────────────────────────
+        
+        let mut col_ui = ui.child_with_layout(
+            Rect::new(24.0, 24.0, 400.0, 500.0),
+            framewise::layout::ColumnLayout { spacing: 16.0 },
+        );
+
+        let btn1 = col_ui.button(
             self.btn1.state,
-            Rect::new(24.0, 24.0, 140.0, 40.0),
+            Vec2::new(140.0, 40.0),
             format!("Button One ({})", self.btn1.clicks),
             &self.input,
         );
         self.btn1.state = btn1.state;
         if btn1.clicked() {
             self.btn1.clicks += 1;
-            println!("[sample] Button One clicked");
         }
 
-        // Button 2 ─────────────────────────────────────────────────────────
-        let btn2 = ui.button(
-            self.btn2.state,
-            Rect::new(24.0, 76.0, 140.0, 40.0),
-            format!("Button Two ({})", self.btn2.clicks),
-            &self.input,
-        );
-        self.btn2.state = btn2.state;
-        if btn2.clicked() {
-            self.btn2.clicks += 1;
-            println!("[sample] Button Two clicked");
-        }
+        // Inner row layout inside the column
+        let child_cmds = {
+            let mut row_ui = col_ui.child_with_layout(
+                Vec2::new(400.0, 40.0),
+                framewise::layout::RowLayout { spacing: 10.0 },
+            );
+            let btn2 = row_ui.button(
+                self.btn2.state,
+                Vec2::new(140.0, 40.0),
+                format!("Button Two ({})", self.btn2.clicks),
+                &self.input,
+            );
+            self.btn2.state = btn2.state;
+            if btn2.clicked() {
+                self.btn2.clicks += 1;
+            }
 
-        // Label stub next to button 1 ──────────────────────────────────────
-        let _lbl = ui.label(
-            Rect::new(
-                btn1.layout.bounds.right() + 16.0,
-                btn1.layout.bounds.y,
-                220.0,
-                btn1.layout.bounds.h,
-            ),
-            "A label placeholder",
-        );
+            let _lbl = row_ui.label(
+                Vec2::new(220.0, 40.0),
+                "A label in a row layout",
+            );
+            row_ui.finish()
+        };
+        col_ui.append_cmds(child_cmds);
 
-        // Inner framed panel ───────────────────────────────────────────────
-        let panel = ui.frame(Rect::new(24.0, 136.0, 360.0, 120.0));
-        let content = panel.content_rect();
-
-        // A button inside the panel.
-        let btn3 = ui.button(
-            self.btn3.state,
-            Rect::new(content.x, content.y, 120.0, 32.0),
-            format!("Panel button ({})", self.btn3.clicks),
-            &self.input,
-        );
-        self.btn3.state = btn3.state;
-        if btn3.clicked() {
-            self.btn3.clicks += 1;
-            println!("[sample] Panel button clicked");
-        }
-
-        // Text Edit ────────────────────────────────────────────────────────
-        let (info, new_te_state) = ui.text_edit(
+        // Text Edit
+        let (info, new_te_state) = col_ui.text_edit(
             self.text_edit_state.clone(),
-            Rect::new(20.0, 260.0, 300.0, 40.0),
+            Vec2::new(300.0, 40.0),
             &self.input,
         );
         self.text_edit_state = new_te_state;
+
+        // Scroll Layout inside the column
+        let _scroll_lbl = col_ui.label(Vec2::new(300.0, 20.0), "Scrollable Area:");
+        
+        // Update scroll state from mouse wheel before laying out
+        // In a real app we'd want hit-testing first, but for the sample we just apply it globally.
+        self.scroll_state.offset_y -= self.input.scroll_delta.y * 30.0;
+        self.scroll_state.offset_y = self.scroll_state.offset_y.max(0.0).min(self.scroll_state.content_height.max(200.0) - 200.0);
+
+        let scroll_cmds = {
+            let mut scroll_ui = col_ui.child_with_layout(
+                Vec2::new(300.0, 200.0),
+                framewise::layout::ScrollLayout::with_spacing(&mut self.scroll_state, 10.0),
+            );
+            
+            for i in 0..10 {
+                let _ = scroll_ui.label(Vec2::new(280.0, 30.0), &format!("Scrollable item #{}", i));
+            }
+            
+            let btn3 = scroll_ui.button(
+                self.btn3.state,
+                Vec2::new(120.0, 32.0),
+                format!("Scroll Btn ({})", self.btn3.clicks),
+                &self.input,
+            );
+            self.btn3.state = btn3.state;
+            if btn3.clicked() {
+                self.btn3.clicks += 1;
+            }
+            scroll_ui.finish()
+        };
+        col_ui.append_cmds(scroll_cmds);
+        let col_cmds = col_ui.finish();
+        ui.append_cmds(col_cmds);
 
         if let Some(action) = info.clipboard_action {
             if let Some(cb) = &mut self.clipboard {
@@ -216,6 +252,17 @@ impl ApplicationHandler for App {
                     position.x as f32,
                     position.y as f32,
                 );
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                match delta {
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                        self.input.scroll_delta = Vec2::new(x, y);
+                    }
+                    winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                        self.input.scroll_delta = Vec2::new(pos.x as f32 / 20.0, pos.y as f32 / 20.0);
+                    }
+                }
             }
 
             WindowEvent::MouseInput { state, button, .. } => {

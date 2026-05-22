@@ -22,6 +22,7 @@ pub mod builder;
 pub mod draw;
 pub mod focus;
 pub mod input;
+pub mod layout;
 pub mod text;
 pub mod types;
 pub mod widget;

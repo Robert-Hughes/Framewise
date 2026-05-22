@@ -20,6 +20,10 @@ pub enum DrawCmd {
         color: Color,
         handle: TextHandle,
     },
+    PushClip {
+        rect: Rect,
+    },
+    PopClip,
 }
 
 /// An ordered list of draw commands produced by one widget call.

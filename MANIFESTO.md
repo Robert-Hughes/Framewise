@@ -113,12 +113,23 @@ fn photo_row(photo: &Photo, bounds: Rect, ui: &mut Builder, input: &Input) -> Ph
 }
 ```
 
-### 7. No Magic Layout Engine
+### 7. Explicit, Trait-Based Layout (No Magic)
 
-Layout is performed explicitly by the application. The library provides helpers for common
-patterns (rows, columns, splits, scroll regions, alignment), but these helpers are at most
-linear in the widgets they operate on, and the application may perform layout calculations
-independently before calling any widget functions.
+Layout is performed explicitly by the application, but we decouple the **configuration** of a layout from its **mutable state**. This avoids the "pyramid of doom" closure nesting found in many immediate-mode libraries, while maintaining pure, linear predictability.
+
+We define two traits:
+1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget (e.g. `Vec2` for width/height) and provides a `begin(bounds)` method to instantiate the layout's state.
+2. **`LayoutState`**: The mutable engine that lives inside the `Builder`. It accumulates positions as widgets are added.
+
+Widget functions on the builder take `layout_params: S::Params` instead of a hardcoded `Rect`. There is **no explicit measuring pass** required from the widget side—the layout dictates the `Rect` from the provided parameters.
+
+#### Example Layouts:
+- **`ManualLayout`**: `Params = Rect`. This is an explicit layout where the app specifies exact rectangles. If this layout is nested (e.g. inside a scroll view), it simply treats its bounding box's `top_left` as an offset, ensuring explicit rectangles are still correctly shifted relative to their parent!
+- **`ColumnLayout`**: `Params = Vec2`. Stacks widgets vertically, keeping a Y-axis cursor.
+- **`RowLayout`**: `Params = Vec2`. Stacks widgets horizontally, keeping an X-axis cursor.
+- **`ScrollLayout`**: `Params = Vec2`. A layout configuration that takes an external `&mut ScrollState`. It applies the scroll offset to the `Rect`s returned by its internal layout pass, and automatically pushes a scissor `clip_rect` into the drawing commands.
+
+Because `ScrollLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input! We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
 
 There is no global layout engine that can surprise the application with non-obvious cost.
 

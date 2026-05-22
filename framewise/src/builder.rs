@@ -10,6 +10,7 @@ use crate::{
         label::{label, LabelInfo, LabelSpec},
         text_edit::{text_edit, TextEditInfo, TextEditSpec, TextEditState, TextEditStyle},
     },
+    layout::LayoutState,
 };
 
 // ── BuilderCtx ────────────────────────────────────────────────────────────────
@@ -58,29 +59,52 @@ impl Default for BuilderCtx {
 /// if btn.clicked() { println!("clicked"); }
 /// let cmds = ui.finish();
 /// ```
-pub struct Builder<'a, T: TextSystem> {
+pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> {
     ctx:  BuilderCtx,
     cmds: Vec<DrawCmd>,
     pub text_system: &'a mut T,
     pub focus_sys:   &'a mut crate::focus::FocusSystem,
+    pub layout_state: S,
 }
 
-impl<'a, T: TextSystem> Builder<'a, T> {
+impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, T, S> {
     /// Create a new top-level builder with the given context.
-    pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system, focus_sys }
-    }
-
-    /// Create a child builder that inherits a copy of this builder's context.
-    /// The child accumulates its own draw commands; call `merge_child` to
-    /// incorporate them into the parent.
-    pub fn child(&mut self) -> Builder<'_, T> {
-        Builder { ctx: self.ctx.clone(), cmds: Vec::new(), text_system: &mut *self.text_system, focus_sys: &mut *self.focus_sys }
+    pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem, layout_state: S) -> Self {
+        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state }
     }
 
     /// Extract a child builder's draw commands into this builder.
-    pub fn merge_child(&mut self, child: Builder<'_, T>) {
+    pub fn merge_child<ChildS: crate::layout::LayoutState>(&mut self, child: Builder<'_, T, ChildS>) {
         self.cmds.extend(child.cmds);
+    }
+
+    /// Append a list of draw commands directly. Useful when a child builder has been finished.
+    pub fn append_cmds(&mut self, mut cmds: Vec<DrawCmd>) {
+        self.cmds.append(&mut cmds);
+    }
+
+    /// Creates a child builder with a new layout configuration. The parent builder allocates
+    /// bounds using `parent_params` and passes them to the new layout's `begin` method.
+    pub fn child_with_layout<L: crate::layout::Layout>(
+        &mut self,
+        parent_params: S::Params,
+        layout_config: L,
+    ) -> Builder<'_, T, L::State> {
+        let bounds = self.layout_state.layout(parent_params);
+        let mut new_state = layout_config.begin(bounds);
+        
+        let mut cmds = Vec::new();
+        if let Some(clip) = new_state.clip_rect() {
+            cmds.push(DrawCmd::PushClip { rect: clip });
+        }
+        
+        Builder {
+            ctx: self.ctx.clone(),
+            cmds,
+            text_system: &mut *self.text_system,
+            focus_sys: &mut *self.focus_sys,
+            layout_state: new_state,
+        }
     }
 
     /// Consume any `WidgetResult`: extract its draw commands into the
@@ -92,14 +116,18 @@ impl<'a, T: TextSystem> Builder<'a, T> {
     }
 
     /// Consume the builder and return all accumulated draw commands.
-    pub fn finish(self) -> Vec<DrawCmd> {
+    pub fn finish(mut self) -> Vec<DrawCmd> {
+        if self.layout_state.clip_rect().is_some() {
+            self.cmds.push(DrawCmd::PopClip);
+        }
         self.cmds
     }
 
     // ── Convenience widget methods ─────────────────────────────────────────
 
     /// Draw a label (text stub) and return its info.
-    pub fn label(&mut self, rect: Rect, text: &str) -> LabelInfo {
+    pub fn label(&mut self, params: S::Params, text: &str) -> LabelInfo {
+        let rect = self.layout_state.layout(params);
         let spec = LabelSpec {
             rect,
             text: text.to_string(),
@@ -111,7 +139,8 @@ impl<'a, T: TextSystem> Builder<'a, T> {
     }
 
     /// Emit a text_edit widget.
-    pub fn text_edit(&mut self, state: TextEditState, rect: Rect, input: &Input) -> (TextEditInfo, TextEditState) {
+    pub fn text_edit(&mut self, state: TextEditState, params: S::Params, input: &Input) -> (TextEditInfo, TextEditState) {
+        let rect = self.layout_state.layout(params);
         let spec = TextEditSpec {
             rect,
             style: TextEditStyle {
@@ -136,10 +165,11 @@ impl<'a, T: TextSystem> Builder<'a, T> {
     pub fn button(
         &mut self,
         state: crate::widgets::button::ButtonState,
-        rect:  Rect,
+        params: S::Params,
         text:  impl Into<String>,
         input: &Input,
     ) -> ButtonInfo {
+        let rect = self.layout_state.layout(params);
         let result = button(
             state,
             ButtonSpec {
@@ -154,8 +184,9 @@ impl<'a, T: TextSystem> Builder<'a, T> {
         self.emit(result)
     }
 
-    /// Draw a frame (bordered background) and return its info.
-    pub fn frame(&mut self, rect: Rect) -> FrameInfo {
+    /// Draw a panel frame and return its info.
+    pub fn frame(&mut self, params: S::Params) -> FrameInfo {
+        let rect = self.layout_state.layout(params);
         let result = frame(FrameSpec {
             rect,
             style: self.ctx.frame_style,

@@ -37,6 +37,9 @@ pub struct Input {
 
     /// The number of consecutive mouse clicks (1 = single, 2 = double, 3 = triple).
     pub mouse_click_count: u32,
+
+    /// Mouse scroll wheel delta for the current frame.
+    pub scroll_delta: Vec2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,7 +60,7 @@ pub enum TextEvent {
 impl Default for Input {
     fn default() -> Self {
         Self {
-            mouse_pos: Vec2::ZERO,
+            mouse_pos: Vec2::new(0.0, 0.0),
             mouse_down: false,
             mouse_pressed: false,
             mouse_clicked: false,
@@ -67,6 +70,7 @@ impl Default for Input {
             key_released_space: false,
             text_events: Vec::new(),
             mouse_click_count: 0,
+            scroll_delta: Vec2::new(0.0, 0.0),
         }
     }
 }
@@ -74,5 +78,81 @@ impl Default for Input {
 impl Input {
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+/// A helper to track mouse clicks and determine double/triple clicks
+/// based on time and distance thresholds.
+#[derive(Debug, Clone)]
+pub struct ClickTracker {
+    pub last_click_time: Option<std::time::Instant>,
+    pub last_click_pos: Vec2,
+    pub click_count: u32,
+}
+
+impl Default for ClickTracker {
+    fn default() -> Self {
+        Self {
+            last_click_time: None,
+            last_click_pos: Vec2::new(0.0, 0.0),
+            click_count: 0,
+        }
+    }
+}
+
+impl ClickTracker {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register_click(&mut self, pos: Vec2, now: std::time::Instant) -> u32 {
+        let is_double_click = if let Some(last_time) = self.last_click_time {
+            let elapsed = now.duration_since(last_time).as_millis();
+            let dx = pos.x - self.last_click_pos.x;
+            let dy = pos.y - self.last_click_pos.y;
+            let dist_sq = dx * dx + dy * dy;
+            // 300ms time threshold, 5px radius distance threshold (25px squared)
+            elapsed < 300 && dist_sq < 25.0
+        } else {
+            false
+        };
+
+        if is_double_click {
+            self.click_count += 1;
+        } else {
+            self.click_count = 1;
+        }
+
+        self.last_click_time = Some(now);
+        self.last_click_pos = pos;
+        self.click_count
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_click_tracker_distance() {
+        let mut tracker = ClickTracker::new();
+        let start = std::time::Instant::now();
+        
+        // First click
+        let count = tracker.register_click(Vec2::new(10.0, 10.0), start);
+        assert_eq!(count, 1);
+        
+        // Second click, far away (should reset to 1)
+        let count = tracker.register_click(Vec2::new(100.0, 100.0), start + Duration::from_millis(100));
+        assert_eq!(count, 1, "Click was far away, should not be a double click");
+        
+        // Third click, close by and quick (should be a double click)
+        let count = tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(150));
+        assert_eq!(count, 2, "Click was close, should be a double click");
+        
+        // Fourth click, close by but too late (should reset to 1)
+        let count = tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(500));
+        assert_eq!(count, 1, "Click was too late, should reset");
     }
 }
