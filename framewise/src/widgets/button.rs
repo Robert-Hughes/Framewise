@@ -98,13 +98,14 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
     if contains && input.mouse_pressed {
         state.is_active = true;
     }
+
+    let hovered = contains && (!input.mouse_down || state.is_active);
+    let pressed  = state.is_active && hovered && input.mouse_down;
+    let clicked  = state.is_active && hovered && input.mouse_clicked;
+
     if !input.mouse_down {
         state.is_active = false;
     }
-
-    let hovered = contains && (!input.mouse_down || state.is_active);
-    let pressed  = state.is_active && hovered;
-    let clicked  = state.is_active && hovered && input.mouse_clicked;
 
     // Choose fill colour based on interaction state.
     let fill = if pressed {
@@ -233,5 +234,36 @@ mod tests {
 
         assert!(!res2.input.clicked, "Btn2 should not be clicked if mouse down was not on Btn2");
         assert!(!res1.input.clicked, "Btn1 should not be clicked since mouse was released outside");
+    }
+
+    #[test]
+    fn test_click_triggers_clicked_state() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        
+        let spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Mouse pressed
+        let mut input = Input {
+            mouse_pos: Vec2::new(50.0, 25.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_clicked: false,
+        };
+        let res = button(state, spec(), &input, &mut text_system).into_parts().1;
+        state = res.state;
+        assert!(res.input.pressed);
+
+        // Frame 2: Mouse released
+        input.mouse_down = false;
+        input.mouse_pressed = false;
+        input.mouse_clicked = true;
+        let res = button(state, spec(), &input, &mut text_system).into_parts().1;
+        
+        assert!(res.input.clicked, "Button should register as clicked");
     }
 }
