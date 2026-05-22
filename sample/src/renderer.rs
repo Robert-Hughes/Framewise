@@ -254,6 +254,7 @@ impl Renderer {
         let mut render_cmds = Vec::new();
         let mut current_quad_start = 0;
         let mut current_text_start = 0;
+        let mut clip_stack: Vec<Rect> = Vec::new();
 
         for cmd in cmds {
             match cmd {
@@ -277,7 +278,13 @@ impl Renderer {
                         render_cmds.push(RenderCommand::DrawText(current_text_start..text_verts.len() as u32));
                         current_text_start = text_verts.len() as u32;
                     }
-                    render_cmds.push(RenderCommand::SetScissor(*rect));
+                    let new_clip = if let Some(current) = clip_stack.last() {
+                        current.intersect(rect)
+                    } else {
+                        *rect
+                    };
+                    clip_stack.push(new_clip);
+                    render_cmds.push(RenderCommand::SetScissor(new_clip));
                 }
                 DrawCmd::PopClip => {
                     if quad_verts.len() as u32 > current_quad_start {
@@ -288,7 +295,9 @@ impl Renderer {
                         render_cmds.push(RenderCommand::DrawText(current_text_start..text_verts.len() as u32));
                         current_text_start = text_verts.len() as u32;
                     }
-                    render_cmds.push(RenderCommand::SetScissor(Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32)));
+                    clip_stack.pop();
+                    let new_clip = clip_stack.last().copied().unwrap_or_else(|| Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32));
+                    render_cmds.push(RenderCommand::SetScissor(new_clip));
                 }
             }
         }

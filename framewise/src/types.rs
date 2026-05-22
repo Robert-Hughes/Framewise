@@ -66,6 +66,20 @@ impl Rect {
             h: (self.h - amount * 2.0).max(0.0),
         }
     }
+
+    /// Computes the intersection of this rect with another.
+    pub fn intersect(&self, other: &Self) -> Self {
+        let x = self.x.max(other.x);
+        let y = self.y.max(other.y);
+        let right = self.right().min(other.right());
+        let bottom = self.bottom().min(other.bottom());
+        Self {
+            x,
+            y,
+            w: (right - x).max(0.0),
+            h: (bottom - y).max(0.0),
+        }
+    }
 }
 
 // ── Color ─────────────────────────────────────────────────────────────────────
