@@ -49,6 +49,7 @@ struct App {
     focus_sys:       framewise::focus::FocusSystem,
     start_time:      std::time::Instant,
     last_click_time: std::time::Instant,
+    click_count:     u32,
     text_edit_state: framewise::widgets::text_edit::TextEditState,
     modifiers:       winit::keyboard::ModifiersState,
     input:           Input,
@@ -66,6 +67,7 @@ impl App {
             focus_sys:       framewise::focus::FocusSystem::new(),
             start_time:      std::time::Instant::now(),
             last_click_time: std::time::Instant::now(),
+            click_count:     0,
             text_edit_state: framewise::widgets::text_edit::TextEditState::new("Hello, TextEdit!"),
             modifiers:       winit::keyboard::ModifiersState::default(),
             input:           Input::new(),
@@ -94,9 +96,6 @@ impl App {
         let _root = ui.frame(Rect::new(0.0, 0.0, win_size.0, win_size.1));
 
         // Button 1 ─────────────────────────────────────────────────────────
-        let text_rect = framewise::types::Rect::new(20.0, 200.0, 300.0, 40.0);
-        let (_, st4) = ui.text_edit(self.text_edit_state.clone(), text_rect, &self.input);
-        self.text_edit_state = st4;
         let btn1 = ui.button(
             self.btn1.state,
             Rect::new(24.0, 24.0, 140.0, 40.0),
@@ -149,6 +148,10 @@ impl App {
             self.btn3.clicks += 1;
             println!("[sample] Panel button clicked");
         }
+
+        let text_rect = framewise::types::Rect::new(20.0, 200.0, 300.0, 40.0);
+        let (_, st4) = ui.text_edit(self.text_edit_state.clone(), text_rect, &self.input);
+        self.text_edit_state = st4;
 
         let cmds = ui.finish();
         self.focus_sys.end_frame();
@@ -206,13 +209,14 @@ impl ApplicationHandler for App {
                         self.input.mouse_down    = true;
                         self.input.mouse_pressed = true;
                         self.input.mouse_clicked = false;
-                        
+
                         let now = std::time::Instant::now();
                         if now.duration_since(self.last_click_time).as_millis() < 300 {
-                            self.input.mouse_click_count += 1;
+                            self.click_count += 1;
                         } else {
-                            self.input.mouse_click_count = 1;
+                            self.click_count = 1;
                         }
+                        self.input.mouse_click_count = self.click_count;
                         self.last_click_time = now;
                     }
                     ElementState::Released => {
@@ -263,7 +267,7 @@ impl ApplicationHandler for App {
                 if event.state == ElementState::Pressed {
                     use winit::keyboard::{Key, NamedKey};
                     use framewise::input::TextEvent;
-                    
+
                     match &event.logical_key {
                         Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace),
                         Key::Named(NamedKey::Delete)    => self.input.text_events.push(TextEvent::Delete),
@@ -278,7 +282,7 @@ impl ApplicationHandler for App {
                         }
                         _ => {}
                     }
-                    
+
                     if let Some(text) = &event.text {
                         if !self.modifiers.control_key() && !self.modifiers.alt_key() {
                             for c in text.chars() {
@@ -337,7 +341,7 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
-                
+
                 self.text_system = Some(text_system);
 
                 // Request a continuous repaint so hover states update.
