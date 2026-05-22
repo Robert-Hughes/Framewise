@@ -82,7 +82,7 @@ impl WidgetResult for ButtonResult {
 ///
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
-pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_sys: &mut T) -> ButtonResult {
+pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
     let hovered = spec.rect.contains(input.mouse_pos);
     let pressed  = hovered && input.mouse_down;
     let clicked  = hovered && input.mouse_clicked;
@@ -111,7 +111,7 @@ pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_sys: &mut T) 
     }
 
     // Text centered in the button.
-    let text_layout = text_sys.prepare(&spec.text, spec.style.text_size);
+    let text_layout = text_system.prepare(&spec.text, spec.style.text_size);
     let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
     let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
 

@@ -36,10 +36,10 @@ impl WidgetResult for LabelResult {
 // ── Widget function ───────────────────────────────────────────────────────────
 
 /// Produce a label widget.
-pub fn label<T: TextSystem>(spec: LabelSpec, text_sys: &mut T) -> LabelResult {
+pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
     let mut draw = DrawCommands::new();
 
-    let layout = text_sys.prepare(&spec.text, spec.size);
+    let layout = text_system.prepare(&spec.text, spec.size);
 
     draw.push(DrawCmd::Text {
         rect:  spec.rect,

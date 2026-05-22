@@ -217,9 +217,9 @@ impl Renderer {
         encoder:      &mut wgpu::CommandEncoder,
         cmds:         &[DrawCmd],
         window_size:  (u32, u32),
-        text_sys:     &mut crate::text::SampleTextSystem,
+        text_system:  &mut crate::text::SampleTextSystem,
     ) {
-        if text_sys.atlas_dirty {
+        if text_system.atlas_dirty {
             queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &self.atlas_texture,
@@ -227,19 +227,19 @@ impl Renderer {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                &text_sys.atlas_data,
+                &text_system.atlas_data,
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(text_sys.atlas_size),
-                    rows_per_image: Some(text_sys.atlas_size),
+                    bytes_per_row: Some(text_system.atlas_size),
+                    rows_per_image: Some(text_system.atlas_size),
                 },
                 wgpu::Extent3d {
-                    width: text_sys.atlas_size,
-                    height: text_sys.atlas_size,
+                    width: text_system.atlas_size,
+                    height: text_system.atlas_size,
                     depth_or_array_layers: 1,
                 },
             );
-            text_sys.atlas_dirty = false;
+            text_system.atlas_dirty = false;
         }
 
         let mut quad_verts: Vec<Vertex> = Vec::new();
@@ -254,8 +254,8 @@ impl Renderer {
                     push_stroked_rect(&mut quad_verts, *rect, *color, *width, window_size);
                 }
                 DrawCmd::Text { rect, color, handle } => {
-                    if let Some(run) = text_sys.runs.get(handle.0) {
-                        push_text_run(&mut text_verts, *rect, *color, run, text_sys, window_size);
+                    if let Some(run) = text_system.runs.get(handle.0) {
+                        push_text_run(&mut text_verts, *rect, *color, run, text_system, window_size);
                     }
                 }
             }
@@ -382,15 +382,15 @@ fn push_text_run(
     rect:        Rect,
     color:       Color,
     run:         &crate::text::CachedLayout,
-    text_sys:    &crate::text::SampleTextSystem,
+    text_system: &crate::text::SampleTextSystem,
     (sw, sh):    (u32, u32),
 ) {
     let c = color_arr(color);
-    let atlas_size = text_sys.atlas_size as f32;
+    let atlas_size = text_system.atlas_size as f32;
 
     for g in &run.glyphs {
         let key = crate::text::GlyphKey { glyph_index: g.key.glyph_index, size: (g.key.px * 10.0) as u32 };
-        if let Some(info) = text_sys.glyph_cache.get(&key) {
+        if let Some(info) = text_system.glyph_cache.get(&key) {
             let src = &info.atlas_rect;
             if src.w == 0 || src.h == 0 { continue; } // Space character
             

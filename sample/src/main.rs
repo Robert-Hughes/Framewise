@@ -39,7 +39,7 @@ impl GpuState {
 struct App {
     window:    Option<Arc<Window>>,
     gpu:       Option<GpuState>,
-    text_sys:  Option<SampleTextSystem>,
+    text_system:  Option<SampleTextSystem>,
     input:     Input,
 }
 
@@ -48,17 +48,17 @@ impl App {
         Self {
             window:       None,
             gpu:          None,
-            text_sys:     Some(SampleTextSystem::new()),
+            text_system:     Some(SampleTextSystem::new()),
             input:        Input::new(),
         }
     }
 
-    fn draw_ui(&self, text_sys: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+    fn draw_ui(&self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
         let ctx = BuilderCtx {
             text_color: Color::rgb(0.9, 0.9, 0.95),
             ..Default::default()
         };
-        let mut ui = Builder::new(ctx, text_sys);
+        let mut ui = Builder::new(ctx, text_system);
 
         let win_size = self
             .gpu
@@ -178,9 +178,9 @@ impl ApplicationHandler for App {
 
             WindowEvent::RedrawRequested => {
                 // Build UI and render.
-                let mut text_sys = self.text_sys.take().unwrap();
-                text_sys.begin_frame();
-                let draw_cmds = self.draw_ui(&mut text_sys);
+                let mut text_system = self.text_system.take().unwrap();
+                text_system.begin_frame();
+                let draw_cmds = self.draw_ui(&mut text_system);
 
                 // Clear the one-frame clicked flag after UI has consumed it.
                 self.input.mouse_clicked = false;
@@ -205,7 +205,7 @@ impl ApplicationHandler for App {
                                 &mut encoder,
                                 &draw_cmds,
                                 (gpu.size.width, gpu.size.height),
-                                &mut text_sys,
+                                &mut text_system,
                             );
 
                             gpu.queue.submit(std::iter::once(encoder.finish()));
@@ -217,7 +217,7 @@ impl ApplicationHandler for App {
                     }
                 }
                 
-                self.text_sys = Some(text_sys);
+                self.text_system = Some(text_system);
 
                 // Request a continuous repaint so hover states update.
                 if let Some(win) = &self.window {
