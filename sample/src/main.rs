@@ -67,20 +67,35 @@ struct App {
     modifiers:       winit::keyboard::ModifiersState,
     input:           Input,
     clipboard:       Option<arboard::Clipboard>,
-    
+
     // Layout demo state
     sidebar_scroll:  framewise::widgets::scroll_area::ScrollState,
     main_scroll:     framewise::widgets::scroll_area::ScrollState,
     nested_outer_scroll: framewise::widgets::scroll_area::ScrollState,
-    nested_inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    nested_rows:     [NestedRowState; 3],
     sidebar_btns:    [SampleButton; 20],
     main_btns:       [SampleButton; 30],
     grid_btns:       [SampleButton; 16],
     top_btn1:        SampleButton,
     top_btn2:        SampleButton,
-    nested_btn1:     SampleButton,
-    nested_btn2:     SampleButton,
-    nested_inner_btns: [SampleButton; 3],
+}
+
+struct NestedRowState {
+    inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    btn1: SampleButton,
+    btn2: SampleButton,
+    inner_btns: [SampleButton; 3],
+}
+
+impl Default for NestedRowState {
+    fn default() -> Self {
+        Self {
+            inner_scroll: Default::default(),
+            btn1: Default::default(),
+            btn2: Default::default(),
+            inner_btns: std::array::from_fn(|_| SampleButton::default()),
+        }
+    }
 }
 
 impl App {
@@ -99,15 +114,12 @@ impl App {
             sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
             main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
             nested_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
-            nested_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            nested_rows:     std::array::from_fn(|_| NestedRowState::default()),
             sidebar_btns:    std::array::from_fn(|_| SampleButton::default()),
             main_btns:       std::array::from_fn(|_| SampleButton::default()),
             grid_btns:       std::array::from_fn(|_| SampleButton::default()),
             top_btn1:        SampleButton::default(),
             top_btn2:        SampleButton::default(),
-            nested_btn1:     SampleButton::default(),
-            nested_btn2:     SampleButton::default(),
-            nested_inner_btns: std::array::from_fn(|_| SampleButton::default()),
         }
     }
 
@@ -210,7 +222,7 @@ impl App {
 
                     let btn1 = header_row.button(std::mem::take(&mut self.top_btn1.state), Vec2::new(100.0, 40.0), "Profile", &self.input);
                     self.top_btn1.state = btn1.state;
-                    
+
                     let btn2 = header_row.button(std::mem::take(&mut self.top_btn2.state), Vec2::new(100.0, 40.0), "Settings", &self.input);
                     self.top_btn2.state = btn2.state;
 
@@ -224,7 +236,7 @@ impl App {
                         Vec2::new(win_size.0 - 240.0, 200.0),
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                     );
-                    
+
                     grid_col.label(Vec2::new(400.0, 20.0), "DASHBOARD GRID");
 
                     for row in 0..4 {
@@ -281,49 +293,61 @@ impl App {
                 // Nested Scroll Area Demo
                 content_col.label(Vec2::new(400.0, 20.0), "NESTED SCROLL DEMO");
                 let nested_cmds = {
-                    let outer_content_height = 150.0; // Row layout height is max of children
+                    let outer_content_height = 3.0 * 150.0 + 2.0 * 10.0; // 3 rows
                     let mut outer_scroll = content_col.scroll_area(
-                        Vec2::new(win_size.0 - 240.0, 150.0),
+                        Vec2::new(win_size.0 - 240.0, 300.0),
                         outer_content_height,
                         &mut self.nested_outer_scroll,
-                        framewise::layout::RowLayout { spacing: 10.0 },
+                        framewise::layout::ColumnLayout { spacing: 10.0 },
                         &self.input,
                     );
 
-                    let btn1 = outer_scroll.button(std::mem::take(&mut self.nested_btn1.state), Vec2::new(100.0, 150.0), "Outer Btn 1", &self.input);
-                    let clicked1 = btn1.clicked();
-                    self.nested_btn1.state = btn1.state;
-                    if clicked1 { self.nested_btn1.clicks += 1; }
-
-                    let inner_cmds = {
-                        let inner_content_height = 3.0 * 60.0 + 2.0 * 10.0;
-                        let mut inner_scroll = outer_scroll.scroll_area(
-                            Vec2::new(150.0, 150.0),
-                            inner_content_height,
-                            &mut self.nested_inner_scroll,
-                            framewise::layout::ColumnLayout { spacing: 10.0 },
-                            &self.input,
+                    for i in 0..3 {
+                        let row_state = &mut self.nested_rows[i];
+                        
+                        let mut row_builder = outer_scroll.child_with_layout(
+                            Vec2::new(win_size.0 - 260.0, 150.0),
+                            framewise::layout::RowLayout { spacing: 10.0 }
                         );
 
-                        for i in 0..3 {
-                            let btn = inner_scroll.button(
-                                std::mem::take(&mut self.nested_inner_btns[i].state),
-                                Vec2::new(130.0, 60.0),
-                                format!("Inner {}", i + 1),
+                        let btn1 = row_builder.button(std::mem::take(&mut row_state.btn1.state), Vec2::new(100.0, 150.0), format!("Row {} Btn 1", i+1), &self.input);
+                        let clicked1 = btn1.clicked();
+                        row_state.btn1.state = btn1.state;
+                        if clicked1 { row_state.btn1.clicks += 1; }
+
+                        let inner_cmds = {
+                            let inner_content_height = 3.0 * 60.0 + 2.0 * 10.0;
+                            let mut inner_scroll = row_builder.scroll_area(
+                                Vec2::new(150.0, 150.0),
+                                inner_content_height,
+                                &mut row_state.inner_scroll,
+                                framewise::layout::ColumnLayout { spacing: 10.0 },
                                 &self.input,
                             );
-                            let clicked = btn.clicked();
-                            self.nested_inner_btns[i].state = btn.state;
-                            if clicked { self.nested_inner_btns[i].clicks += 1; }
-                        }
-                        inner_scroll.finish()
-                    };
-                    outer_scroll.append_cmds(inner_cmds);
 
-                    let btn2 = outer_scroll.button(std::mem::take(&mut self.nested_btn2.state), Vec2::new(100.0, 150.0), "Outer Btn 2", &self.input);
-                    let clicked2 = btn2.clicked();
-                    self.nested_btn2.state = btn2.state;
-                    if clicked2 { self.nested_btn2.clicks += 1; }
+                            for j in 0..3 {
+                                let btn = inner_scroll.button(
+                                    std::mem::take(&mut row_state.inner_btns[j].state),
+                                    Vec2::new(130.0, 60.0),
+                                    format!("Inner {}", j + 1),
+                                    &self.input,
+                                );
+                                let clicked = btn.clicked();
+                                row_state.inner_btns[j].state = btn.state;
+                                if clicked { row_state.inner_btns[j].clicks += 1; }
+                            }
+                            inner_scroll.finish()
+                        };
+                        row_builder.append_cmds(inner_cmds);
+
+                        let btn2 = row_builder.button(std::mem::take(&mut row_state.btn2.state), Vec2::new(100.0, 150.0), format!("Row {} Btn 2", i+1), &self.input);
+                        let clicked2 = btn2.clicked();
+                        row_state.btn2.state = btn2.state;
+                        if clicked2 { row_state.btn2.clicks += 1; }
+                        
+                        let row_cmds = row_builder.finish();
+                        outer_scroll.append_cmds(row_cmds);
+                    }
 
                     outer_scroll.finish()
                 };
@@ -332,7 +356,7 @@ impl App {
                 content_col.finish()
             };
             main_row.append_cmds(content_cmds);
-            
+
             main_row.finish()
         };
         builder.append_cmds(root_cmds);
