@@ -170,6 +170,7 @@ Widget results are composed from common building blocks:
 
 - **`DrawCommands`** — ordered draw commands for the renderer.
 - **`LayoutInfo`** — resolved bounds, content bounds.
+    * Is there any point this returning also the overall bounds, as that's always passed in directly when calling a widget function!!
 - **`InputInfo`** — hovered, pressed, clicked, dragged, focused.
 - **`ValueInfo<T>`** — widget-specific semantic result (e.g. trackbar value).
 
@@ -307,3 +308,13 @@ Features to design and implement, roughly in dependency order:
 - Dialogs, blocking and non-blocking
 
 * Window min/max sizing based on layout
+
+## Scroll Areas and Clip Rects
+
+Recent design decisions have decoupled layouts from input handling and clipping.
+
+-   **Decorator Layouts**: Layouts like \OffsetLayout<L>\ are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
+-   **Widget-Driven Clipping**: Scroll Areas are implemented as low-level widgets. The widget explicitly calculates scroll bounds, handles mouse wheel interactions, and pushes a \PushClip\ command to the draw list.
+-   **Builder Scope Management**: The \Builder\ handles closing scopes. If a widget pushes a clip, the child builder created for that scope is flagged with \
+eeds_pop_clip = true\, ensuring a \PopClip\ is safely appended when \inish()\ is called.
+

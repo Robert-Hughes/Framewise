@@ -62,7 +62,7 @@ struct App {
     btn2:            SampleButton,
     btn3:            SampleButton,
     clipboard:       Option<arboard::Clipboard>,
-    scroll_state:    framewise::layout::ScrollState,
+    scroll_state:    framewise::widgets::scroll_area::ScrollState,
 }
 
 impl App {
@@ -77,11 +77,11 @@ impl App {
             text_edit_state: framewise::widgets::text_edit::TextEditState::new("Hello, TextEdit!"),
             modifiers:       winit::keyboard::ModifiersState::default(),
             input:           Input::new(),
-            btn1:            Default::default(),
-            btn2:            Default::default(),
-            btn3:            Default::default(),
+            btn1:            SampleButton::default(),
+            btn2:            SampleButton::default(),
+            btn3:            SampleButton::default(),
             clipboard:       arboard::Clipboard::new().ok(),
-            scroll_state:    framewise::layout::ScrollState::default(),
+            scroll_state:    framewise::widgets::scroll_area::ScrollState::default(),
         }
     }
 
@@ -163,10 +163,17 @@ impl App {
         let _scroll_lbl = col_ui.label(Vec2::new(300.0, 20.0), "Scrollable Area:");
 
         let scroll_cmds = {
-            let mut scroll_ui = col_ui.child_with_layout(
+            // 10 labels * 30px + 10 spaces * 10px = 400px.
+            // 1 button * 32px + 1 space * 10px = 42px.
+            // Total content height = 442px.
+            let content_height = 442.0;
+            
+            let mut scroll_ui = col_ui.scroll_area(
                 Vec2::new(300.0, 200.0),
-                framewise::layout::ScrollLayout::with_spacing(&mut self.scroll_state, 10.0)
-                    .with_input(&self.input),
+                content_height,
+                &mut self.scroll_state,
+                framewise::layout::ColumnLayout { spacing: 10.0 },
+                &self.input,
             );
             
             for i in 0..10 {

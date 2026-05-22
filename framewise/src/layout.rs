@@ -13,11 +13,6 @@ pub trait LayoutState {
 
     /// Calculate the screen-space rectangle for a widget given the parameters.
     fn layout(&mut self, layout_params: Self::Params) -> Rect;
-
-    /// Optional: the clip rectangle for this layout, used for input hit-testing.
-    fn clip_rect(&self) -> Option<Rect> {
-        None
-    }
 }
 
 // ── ManualLayout ──────────────────────────────────────────────────────────
@@ -124,83 +119,38 @@ impl LayoutState for RowState {
     }
 }
 
-// ── ScrollLayout ──────────────────────────────────────────────────────────
+// ── OffsetLayout ──────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Default)]
-pub struct ScrollState {
+/// A pure decorator layout that shifts coordinates on the Y axis.
+pub struct OffsetLayout<L> {
     pub offset_y: f32,
-    pub content_height: f32,
+    pub inner: L,
 }
 
-pub struct ScrollLayout<'a> {
-    pub state: &'a mut ScrollState,
-    pub spacing: f32,
-    pub input: Option<&'a crate::input::Input>,
-}
-
-impl<'a> ScrollLayout<'a> {
-    pub fn new(state: &'a mut ScrollState) -> Self {
-        Self { state, spacing: 0.0, input: None }
-    }
-
-    pub fn with_spacing(state: &'a mut ScrollState, spacing: f32) -> Self {
-        Self { state, spacing, input: None }
-    }
-
-    pub fn with_input(mut self, input: &'a crate::input::Input) -> Self {
-        self.input = Some(input);
-        self
-    }
-}
-
-impl<'a> Layout for ScrollLayout<'a> {
-    type Params = Vec2;
-    type State = ScrollStateImpl<'a>;
+impl<L: Layout> Layout for OffsetLayout<L> {
+    type Params = L::Params;
+    type State = OffsetState<L::State>;
 
     fn begin(self, bounds: Rect) -> Self::State {
-        // Apply scroll delta if hovered
-        if let Some(input) = self.input {
-            if bounds.contains(input.mouse_pos) && input.scroll_delta.y != 0.0 {
-                self.state.offset_y -= input.scroll_delta.y * 10.0;
-                let max_scroll = (self.state.content_height - bounds.h).max(0.0);
-                self.state.offset_y = self.state.offset_y.max(0.0).min(max_scroll);
-            }
-        }
-
-        ScrollStateImpl {
-            bounds,
-            state: self.state,
-            spacing: self.spacing,
-            current_y: bounds.y,
+        OffsetState {
+            offset_y: self.offset_y,
+            inner: self.inner.begin(bounds),
         }
     }
 }
 
-pub struct ScrollStateImpl<'a> {
-    bounds: Rect,
-    state: &'a mut ScrollState,
-    spacing: f32,
-    current_y: f32, // represents logical Y ignoring scroll offset
+pub struct OffsetState<InnerS> {
+    offset_y: f32,
+    inner: InnerS,
 }
 
-impl<'a> LayoutState for ScrollStateImpl<'a> {
-    type Params = Vec2;
+impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
+    type Params = InnerS::Params;
 
-    fn layout(&mut self, layout_params: Vec2) -> Rect {
-        let r = Rect::new(
-            self.bounds.x,
-            self.current_y - self.state.offset_y,
-            layout_params.x,
-            layout_params.y,
-        );
-        self.current_y += layout_params.y + self.spacing;
-        // Update content height tracking
-        self.state.content_height = self.state.content_height.max(self.current_y - self.bounds.y);
+    fn layout(&mut self, layout_params: Self::Params) -> Rect {
+        let mut r = self.inner.layout(layout_params);
+        r.y -= self.offset_y;
         r
-    }
-
-    fn clip_rect(&self) -> Option<Rect> {
-        Some(self.bounds)
     }
 }
 
@@ -238,19 +188,21 @@ mod tests {
     }
 
     #[test]
-    fn test_scroll_layout() {
-        let mut scroll = ScrollState { offset_y: 15.0, content_height: 0.0 };
+    fn test_offset_layout() {
+        let offset = OffsetLayout {
+            offset_y: 15.0,
+            inner: ColumnLayout { spacing: 10.0 },
+        };
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
-        let mut state = ScrollLayout::new(&mut scroll).begin(bounds);
+        let mut state = offset.begin(bounds);
 
         let r1 = state.layout(Vec2::new(50.0, 20.0));
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         assert_eq!(r1, Rect::new(10.0, -5.0, 50.0, 20.0));
 
         let r2 = state.layout(Vec2::new(40.0, 30.0));
-        // Logic Y is 30.0. Actual Y = 30.0 - 15.0 = 15.0
-        assert_eq!(r2, Rect::new(10.0, 15.0, 40.0, 30.0));
-
-        assert_eq!(state.clip_rect(), Some(bounds));
+        // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
+        assert_eq!(r2, Rect::new(10.0, 25.0, 40.0, 30.0));
     }
 }
+

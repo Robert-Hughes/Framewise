@@ -65,12 +65,13 @@ pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     pub text_system: &'a mut T,
     pub focus_sys:   &'a mut crate::focus::FocusSystem,
     pub layout_state: S,
+    pub needs_pop_clip: bool,
 }
 
 impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, T, S> {
     /// Create a new top-level builder with the given context.
     pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem, layout_state: S) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state }
+        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, needs_pop_clip: false }
     }
 
     /// Extract a child builder's draw commands into this builder.
@@ -91,19 +92,24 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         layout_config: L,
     ) -> Builder<'_, T, L::State> {
         let bounds = self.layout_state.layout(parent_params);
-        let mut new_state = layout_config.begin(bounds);
-        
-        let mut cmds = Vec::new();
-        if let Some(clip) = new_state.clip_rect() {
-            cmds.push(DrawCmd::PushClip { rect: clip });
-        }
+        self.child_with_manual_bounds(bounds, layout_config)
+    }
+
+    /// Creates a child builder with a specific bounding box, bypassing the parent layout.
+    pub fn child_with_manual_bounds<L: crate::layout::Layout>(
+        &mut self,
+        bounds: Rect,
+        layout_config: L,
+    ) -> Builder<'_, T, L::State> {
+        let new_state = layout_config.begin(bounds);
         
         Builder {
             ctx: self.ctx.clone(),
-            cmds,
+            cmds: Vec::new(),
             text_system: &mut *self.text_system,
             focus_sys: &mut *self.focus_sys,
             layout_state: new_state,
+            needs_pop_clip: false,
         }
     }
 
@@ -117,13 +123,38 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
     /// Consume the builder and return all accumulated draw commands.
     pub fn finish(mut self) -> Vec<DrawCmd> {
-        if self.layout_state.clip_rect().is_some() {
+        if self.needs_pop_clip {
             self.cmds.push(DrawCmd::PopClip);
         }
         self.cmds
     }
 
     // ── Convenience widget methods ─────────────────────────────────────────
+
+    /// Creates a scroll area child builder.
+    pub fn scroll_area<L: crate::layout::Layout>(
+        &mut self,
+        params: S::Params,
+        content_height: f32,
+        state: &'a mut crate::widgets::scroll_area::ScrollState,
+        inner_layout: L,
+        input: &Input,
+    ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
+        let bounds = self.layout_state.layout(params);
+        let (scroll_cmds, content_bounds, offset_layout) = crate::widgets::scroll_area::scroll_area(
+            bounds,
+            content_height,
+            state,
+            inner_layout,
+            input,
+        );
+
+        self.append_cmds(scroll_cmds);
+
+        let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
+        child.needs_pop_clip = true;
+        child
+    }
 
     /// Draw a label (text stub) and return its info.
     pub fn label(&mut self, params: S::Params, text: &str) -> LabelInfo {
