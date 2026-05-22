@@ -39,8 +39,11 @@ impl GpuState {
 struct App {
     window:    Option<Arc<Window>>,
     gpu:       Option<GpuState>,
-    text_system:  Option<SampleTextSystem>,
-    input:     Input,
+    text_system: Option<SampleTextSystem>,
+    input:       Input,
+    btn1_state:  framewise::widgets::button::ButtonState,
+    btn2_state:  framewise::widgets::button::ButtonState,
+    btn3_state:  framewise::widgets::button::ButtonState,
 }
 
 impl App {
@@ -48,12 +51,15 @@ impl App {
         Self {
             window:       None,
             gpu:          None,
-            text_system:     Some(SampleTextSystem::new()),
+            text_system:  Some(SampleTextSystem::new()),
             input:        Input::new(),
+            btn1_state:   Default::default(),
+            btn2_state:   Default::default(),
+            btn3_state:   Default::default(),
         }
     }
 
-    fn draw_ui(&self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+    fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
         let ctx = BuilderCtx {
             text_color: Color::rgb(0.9, 0.9, 0.95),
             ..Default::default()
@@ -71,6 +77,7 @@ impl App {
 
         // Button 1 ─────────────────────────────────────────────────────────
         let btn1 = ui.button(
+            &mut self.btn1_state,
             Rect::new(24.0, 24.0, 140.0, 40.0),
             "Button One",
             &self.input,
@@ -81,6 +88,7 @@ impl App {
 
         // Button 2 ─────────────────────────────────────────────────────────
         let btn2 = ui.button(
+            &mut self.btn2_state,
             Rect::new(24.0, 76.0, 140.0, 40.0),
             "Button Two",
             &self.input,
@@ -106,6 +114,7 @@ impl App {
 
         // A button inside the panel.
         let btn3 = ui.button(
+            &mut self.btn3_state,
             Rect::new(content.x, content.y, 120.0, 32.0),
             "Panel button",
             &self.input,
@@ -166,6 +175,7 @@ impl ApplicationHandler for App {
                 match state {
                     ElementState::Pressed => {
                         self.input.mouse_down    = true;
+                        self.input.mouse_pressed = true;
                         self.input.mouse_clicked = false;
                     }
                     ElementState::Released => {
@@ -182,7 +192,8 @@ impl ApplicationHandler for App {
                 text_system.begin_frame();
                 let draw_cmds = self.draw_ui(&mut text_system);
 
-                // Clear the one-frame clicked flag after UI has consumed it.
+                // Clear the one-frame clicked and pressed flags after UI has consumed them.
+                self.input.mouse_pressed = false;
                 self.input.mouse_clicked = false;
 
                 if let Some(gpu) = &mut self.gpu {

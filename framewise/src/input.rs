@@ -14,6 +14,9 @@ pub struct Input {
     /// True while the primary (left) mouse button is held down.
     pub mouse_down: bool,
 
+    /// True on the single frame the primary mouse button was pressed.
+    pub mouse_pressed: bool,
+
     /// True on the single frame the primary mouse button was released.
     pub mouse_clicked: bool,
 }
@@ -23,6 +26,7 @@ impl Default for Input {
         Self {
             mouse_pos: Vec2::ZERO,
             mouse_down: false,
+            mouse_pressed: false,
             mouse_clicked: false,
         }
     }

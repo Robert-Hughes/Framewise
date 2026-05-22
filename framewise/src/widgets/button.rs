@@ -42,6 +42,13 @@ pub struct ButtonSpec {
     pub style: ButtonStyle,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default)]
+pub struct ButtonState {
+    pub is_active: bool,
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct ButtonResult {
@@ -82,10 +89,19 @@ impl WidgetResult for ButtonResult {
 ///
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
-pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
-    let hovered = spec.rect.contains(input.mouse_pos);
-    let pressed  = hovered && input.mouse_down;
-    let clicked  = hovered && input.mouse_clicked;
+pub fn button<T: TextSystem>(state: &mut ButtonState, spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
+    let contains = spec.rect.contains(input.mouse_pos);
+    
+    if contains && input.mouse_pressed {
+        state.is_active = true;
+    }
+    if !input.mouse_down {
+        state.is_active = false;
+    }
+
+    let hovered = contains && (!input.mouse_down || state.is_active);
+    let pressed  = state.is_active && hovered;
+    let clicked  = state.is_active && hovered && input.mouse_clicked;
 
     // Choose fill colour based on interaction state.
     let fill = if pressed {
@@ -125,5 +141,66 @@ pub fn button<T: TextSystem>(spec: ButtonSpec, input: &Input, text_system: &mut 
         draw,
         layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
         input:  InputInfo { hovered, pressed, clicked },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text::{TextSystem, TextLayout, TextHandle};
+    use crate::types::Vec2;
+
+    struct DummyTextSys;
+    impl TextSystem for DummyTextSys {
+        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
+            TextLayout { size: Vec2::new(0.0, 0.0), handle: TextHandle(0) }
+        }
+    }
+
+    #[test]
+    fn test_drag_off_and_release_does_not_click_other_button() {
+        let mut text_system = DummyTextSys;
+        
+        let mut state1 = ButtonState::default();
+        let mut state2 = ButtonState::default();
+
+        let btn1_spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn1".to_string(),
+            style: ButtonStyle::default(),
+        };
+        let btn2_spec = || ButtonSpec {
+            rect: Rect::new(0.0, 100.0, 100.0, 50.0),
+            text: "Btn2".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Mouse down on Btn1
+        let mut input = Input {
+            mouse_pos: Vec2::new(50.0, 25.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_clicked: false,
+        };
+        let res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        assert!(res1.input.pressed);
+
+        // Frame 2: Mouse dragged over Btn2
+        input.mouse_pressed = false;
+        input.mouse_pos = Vec2::new(50.0, 125.0);
+        let _res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res2 = button(&mut state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+
+        assert!(!res2.input.pressed, "Btn2 should not be pressed when mouse is dragged over it");
+        assert!(!res2.input.hovered, "Btn2 should not be hovered while dragging another widget");
+
+        // Frame 3: Mouse released over Btn2
+        input.mouse_down = false;
+        input.mouse_clicked = true;
+        let res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res2 = button(&mut state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+
+        assert!(!res2.input.clicked, "Btn2 should not be clicked if mouse down was not on Btn2");
+        assert!(!res1.input.clicked, "Btn1 should not be clicked since mouse was released outside");
     }
 }
