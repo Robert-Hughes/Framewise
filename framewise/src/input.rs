@@ -23,8 +23,14 @@ pub struct Input {
     /// True on the single frame the Enter key was pressed.
     pub key_pressed_enter: bool,
 
+    /// True while the Spacebar is held down.
+    pub key_down_space: bool,
+
     /// True on the single frame the Spacebar was pressed.
     pub key_pressed_space: bool,
+
+    /// True on the single frame the Spacebar was released.
+    pub key_released_space: bool,
 }
 
 impl Default for Input {
@@ -35,7 +41,9 @@ impl Default for Input {
             mouse_pressed: false,
             mouse_clicked: false,
             key_pressed_enter: false,
+            key_down_space: false,
             key_pressed_space: false,
+            key_released_space: false,
         }
     }
 }

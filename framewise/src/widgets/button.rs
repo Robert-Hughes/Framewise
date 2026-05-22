@@ -48,7 +48,11 @@ pub struct ButtonSpec {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ButtonState {
+    /// True if the mouse was pressed while hovering this button, until the mouse is released.
     pub is_active: bool,
+    /// True if the spacebar was pressed while this button was focused, until space or focus is lost.
+    pub space_is_active: bool,
+    /// Globally unique ID for tracking keyboard focus.
     pub focus_id: crate::focus::FocusId,
 }
 
@@ -56,6 +60,7 @@ impl Default for ButtonState {
     fn default() -> Self {
         Self {
             is_active: false,
+            space_is_active: false,
             focus_id: crate::focus::FocusId::new(),
         }
     }
@@ -125,16 +130,30 @@ pub fn button<T: crate::text::TextSystem>(
     }
 
     let hovered = contains && (!input.mouse_down || state.is_active);
-    let pressed  = state.is_active && hovered && input.mouse_down;
-    let mut clicked  = state.is_active && hovered && input.mouse_clicked;
+    let mut clicked = state.is_active && hovered && input.mouse_clicked;
 
-    if focused && (input.key_pressed_enter || input.key_pressed_space) {
+    // Trigger click on Enter (immediate) or Space release (if it was active)
+    if focused && input.key_pressed_enter {
+        clicked = true;
+    }
+    if state.space_is_active && input.key_released_space {
         clicked = true;
     }
 
+    // Update space activation state
+    if !focused || !input.key_down_space {
+        state.space_is_active = false;
+    }
+    if focused && input.key_pressed_space {
+        state.space_is_active = true;
+    }
+
+    // Update mouse activation state
     if !input.mouse_down {
         state.is_active = false;
     }
+
+    let pressed = (state.is_active && hovered && input.mouse_down) || state.space_is_active;
 
     if pressed {
         focus_sys.take_focus(state.focus_id);
@@ -218,6 +237,7 @@ mod tests {
     use super::*;
     use crate::text::{TextSystem, TextLayout, TextHandle};
     use crate::types::Vec2;
+    use crate::focus::FocusId;
 
     struct DummyTextSys;
     impl TextSystem for DummyTextSys {
@@ -314,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_focused_button_clicked_by_keyboard() {
+    fn test_enter_clicks_button() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
@@ -335,14 +355,7 @@ mod tests {
         // Frame 2: Press Enter
         input.key_pressed_enter = true;
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
-        state = res.state;
         assert!(res.input.clicked, "Button should be clicked by Enter key");
-        
-        // Frame 3: Press Space
-        input.key_pressed_enter = false;
-        input.key_pressed_space = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
-        assert!(res.input.clicked, "Button should be clicked by Space key");
     }
 
     #[test]
@@ -388,5 +401,89 @@ mod tests {
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         assert!(!res.input.hovered, "Should lose hover when dragged out");
         assert!(!res.input.pressed, "Should lose pressed state when dragged out");
+    }
+
+    #[test]
+    fn test_spacebar_click() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        
+        let spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Focus
+        let mut input = Input::default();
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        // Frame 2: Space down
+        input.key_down_space = true;
+        input.key_pressed_space = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.pressed, "Button should be visually pressed while space is down");
+        assert!(!res.input.clicked, "Button should not be clicked yet");
+        
+        // Frame 3: Space held
+        input.key_pressed_space = false;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.pressed, "Button should remain pressed");
+        assert!(!res.input.clicked, "Button should not be clicked yet");
+
+        // Frame 4: Space released
+        input.key_down_space = false;
+        input.key_released_space = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        assert!(!res.input.pressed, "Button should not be pressed");
+        assert!(res.input.clicked, "Button should be clicked on release");
+    }
+
+    #[test]
+    fn test_spacebar_loses_focus_does_not_click() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        
+        let spec = || ButtonSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+        };
+
+        // Frame 1: Focus
+        let mut input = Input::default();
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        // Frame 2: Space down
+        input.key_down_space = true;
+        input.key_pressed_space = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(res.input.pressed);
+
+        // Frame 3: Lose focus!
+        input.key_pressed_space = false;
+        focus_sys.take_focus(FocusId::new()); // Give focus to something else
+        focus_sys.end_frame();
+        
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        state = res.state;
+        assert!(!res.input.pressed, "Should lose pressed state when focus lost");
+
+        // Frame 4: Release space
+        input.key_down_space = false;
+        input.key_released_space = true;
+        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
+        assert!(!res.input.clicked, "Should not click because it lost focus");
     }
 }

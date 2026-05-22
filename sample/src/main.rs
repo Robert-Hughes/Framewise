@@ -210,9 +210,9 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.state == ElementState::Pressed {
-                    match event.physical_key {
-                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
+                match event.physical_key {
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
+                        if event.state == ElementState::Pressed {
                             let direction = if self.modifiers.shift_key() {
                                 framewise::focus::FocusDirection::Prev
                             } else {
@@ -220,14 +220,27 @@ impl ApplicationHandler for App {
                             };
                             self.focus_sys.request_shift(direction);
                         }
-                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {
+                    }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {
+                        if event.state == ElementState::Pressed {
                             self.input.key_pressed_enter = true;
                         }
-                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
-                            self.input.key_pressed_space = true;
-                        }
-                        _ => {}
                     }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
+                        match event.state {
+                            ElementState::Pressed => {
+                                if !self.input.key_down_space {
+                                    self.input.key_pressed_space = true;
+                                }
+                                self.input.key_down_space = true;
+                            }
+                            ElementState::Released => {
+                                self.input.key_down_space = false;
+                                self.input.key_released_space = true;
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
 
@@ -242,6 +255,7 @@ impl ApplicationHandler for App {
                 self.input.mouse_clicked = false;
                 self.input.key_pressed_enter = false;
                 self.input.key_pressed_space = false;
+                self.input.key_released_space = false;
 
                 if let Some(gpu) = &mut self.gpu {
                     match gpu.surface.get_current_texture() {
