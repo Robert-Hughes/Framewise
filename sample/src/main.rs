@@ -54,8 +54,7 @@ struct App {
     text_system:     Option<SampleTextSystem>,
     focus_sys:       framewise::focus::FocusSystem,
     start_time:      std::time::Instant,
-    last_click_time: std::time::Instant,
-    click_count:     u32,
+    click_tracker:   framewise::input::ClickTracker,
     text_edit_state: framewise::widgets::text_edit::TextEditState,
     modifiers:       winit::keyboard::ModifiersState,
     input:           Input,
@@ -74,8 +73,7 @@ impl App {
             text_system:     Some(SampleTextSystem::new()),
             focus_sys:       framewise::focus::FocusSystem::new(),
             start_time:      std::time::Instant::now(),
-            last_click_time: std::time::Instant::now(),
-            click_count:     0,
+            click_tracker:   framewise::input::ClickTracker::new(),
             text_edit_state: framewise::widgets::text_edit::TextEditState::new("Hello, TextEdit!"),
             modifiers:       winit::keyboard::ModifiersState::default(),
             input:           Input::new(),
@@ -276,13 +274,8 @@ impl ApplicationHandler for App {
                         self.input.mouse_clicked = false;
 
                         let now = std::time::Instant::now();
-                        if now.duration_since(self.last_click_time).as_millis() < 300 {
-                            self.click_count += 1;
-                        } else {
-                            self.click_count = 1;
-                        }
-                        self.input.mouse_click_count = self.click_count;
-                        self.last_click_time = now;
+                        let count = self.click_tracker.register_click(self.input.mouse_pos, now);
+                        self.input.mouse_click_count = count;
                     }
                     ElementState::Released => {
                         self.input.mouse_down    = false;
