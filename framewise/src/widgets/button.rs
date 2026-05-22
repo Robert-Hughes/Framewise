@@ -117,8 +117,30 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
 
     let mut draw = DrawCommands::new();
 
-    // Background fill.
+    // Background fill (outer frame).
     draw.push(DrawCmd::FillRect { rect: spec.rect, color: fill });
+
+    // Calculate press offset
+    let offset = if pressed { 2.0 } else { 0.0 };
+
+    // Inner frame
+    // We add a bit of padding inside the border for the inner frame.
+    let inner_padding = spec.style.border_width + 2.0;
+    let inner_rect = spec.rect.inset(inner_padding);
+    let inner_shifted = Rect::new(
+        inner_rect.x + offset,
+        inner_rect.y + offset,
+        inner_rect.w,
+        inner_rect.h,
+    );
+
+    // Lighten the inner frame slightly to give a 3D bevel effect
+    let inner_color = Color::rgb(
+        (fill.r + 0.04).min(1.0),
+        (fill.g + 0.04).min(1.0),
+        (fill.b + 0.05).min(1.0),
+    );
+    draw.push(DrawCmd::FillRect { rect: inner_shifted, color: inner_color });
 
     // Border.
     if spec.style.border_width > 0.0 {
@@ -129,10 +151,10 @@ pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &I
         });
     }
 
-    // Text centered in the button.
+    // Text centered in the button, shifted by the press offset.
     let text_layout = text_system.prepare(&spec.text, spec.style.text_size);
-    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
-    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5 + offset;
+    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5 + offset;
 
     draw.push(DrawCmd::Text {
         rect:  Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
