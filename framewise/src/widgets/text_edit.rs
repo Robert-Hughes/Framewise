@@ -47,6 +47,7 @@ pub struct TextEditState {
     pub selection_byte: Option<usize>,
     pub focus_id: FocusId,
     pub is_dragging: bool,
+    pub last_cursor_move_time: f64,
 }
 
 impl Default for TextEditState {
@@ -57,6 +58,7 @@ impl Default for TextEditState {
             selection_byte: None,
             focus_id: FocusId::new(),
             is_dragging: false,
+            last_cursor_move_time: 0.0,
         }
     }
 }
@@ -121,6 +123,9 @@ pub fn text_edit<T: TextSystem>(
     let mut draw = DrawCommands::new();
 
     let focused = focus_sys.register(state.focus_id);
+
+    let old_cursor = state.cursor_byte;
+    let old_selection = state.selection_byte;
 
     // Hit test mouse
     let contains = spec.rect.contains(input.mouse_pos);
@@ -270,6 +275,10 @@ pub fn text_edit<T: TextSystem>(
         }
     }
 
+    if state.cursor_byte != old_cursor || state.selection_byte != old_selection {
+        state.last_cursor_move_time = time;
+    }
+
     // Drawing Background
     draw.push(DrawCmd::FillRect { rect: spec.rect, color: spec.style.background });
 
@@ -319,8 +328,14 @@ pub fn text_edit<T: TextSystem>(
 
     // Caret
     if focused && state.selection_byte.map_or(true, |s| s == state.cursor_byte) {
-        // Blink at 1Hz (0.5s on, 0.5s off)
-        let blink_on = (time * 2.0).fract() < 0.5;
+        let time_since_move = time - state.last_cursor_move_time;
+        // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
+        let blink_on = if time_since_move < 0.5 {
+            true
+        } else {
+            time_since_move.fract() < 0.5
+        };
+        
         if blink_on {
             let cursor_x = text_system.measure_byte_x(handle, state.cursor_byte);
             let caret_rect = Rect::new(
@@ -513,5 +528,54 @@ mod tests {
         state = res.state;
         assert_eq!(state.selection_byte, Some(0));
         assert_eq!(state.cursor_byte, 5); // Selected whole string
+    }
+
+    #[test]
+    fn test_caret_blink_reset_on_move() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        state.cursor_byte = 5;
+        
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+
+        let mut input = Input::default();
+        
+        // At t=0.0, caret is idle
+        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        assert!(has_caret, "Caret should be visible initially");
+
+        // At t=0.6, caret should be hidden (time_since_move = 0.6 -> fract = 0.6 >= 0.5 -> blink_on = false)
+        let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        assert!(!has_caret, "Caret should be hidden during off phase");
+
+        // Now move the cursor at t=0.6
+        input.text_events.push(TextEvent::CursorLeft { shift: false, ctrl: false });
+        let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        
+        // Since cursor moved, last_cursor_move_time should become 0.6
+        assert_eq!(state.last_cursor_move_time, 0.6);
+        
+        // And caret should immediately become visible again
+        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        assert!(has_caret, "Caret should be visible immediately after moving");
+        
+        // At t=1.0, time_since_move is 0.4, still visible
+        input.text_events.clear();
+        let res = text_edit(state.clone(), spec(), &input, 1.0, &mut text_sys, &mut focus_sys);
+        state = res.state;
+        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        assert!(has_caret, "Caret should stay visible for 0.5s after moving");
+
+        // At t=1.2, time_since_move is 0.6, hidden again
+        let res = text_edit(state.clone(), spec(), &input, 1.2, &mut text_sys, &mut focus_sys);
+        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        assert!(!has_caret, "Caret should hide after 0.5s of idle");
     }
 }
