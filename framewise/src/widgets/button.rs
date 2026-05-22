@@ -44,7 +44,7 @@ pub struct ButtonSpec {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ButtonState {
     pub is_active: bool,
 }
@@ -55,11 +55,13 @@ pub struct ButtonResult {
     pub draw:   DrawCommands,
     pub layout: LayoutInfo,
     pub input:  InputInfo,
+    pub state:  ButtonState,
 }
 
 pub struct ButtonInfo {
     pub layout: LayoutInfo,
     pub input:  InputInfo,
+    pub state:  ButtonState,
 }
 
 impl ButtonInfo {
@@ -78,6 +80,7 @@ impl WidgetResult for ButtonResult {
             ButtonInfo {
                 layout: self.layout,
                 input:  self.input,
+                state:  self.state,
             },
         )
     }
@@ -89,7 +92,7 @@ impl WidgetResult for ButtonResult {
 ///
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
-pub fn button<T: TextSystem>(state: &mut ButtonState, spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
+pub fn button<T: TextSystem>(mut state: ButtonState, spec: ButtonSpec, input: &Input, text_system: &mut T) -> ButtonResult {
     let contains = spec.rect.contains(input.mouse_pos);
     
     if contains && input.mouse_pressed {
@@ -141,6 +144,7 @@ pub fn button<T: TextSystem>(state: &mut ButtonState, spec: ButtonSpec, input: &
         draw,
         layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
         input:  InputInfo { hovered, pressed, clicked },
+        state,
     }
 }
 
@@ -182,14 +186,17 @@ mod tests {
             mouse_pressed: true,
             mouse_clicked: false,
         };
-        let res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        state1 = res1.state;
         assert!(res1.input.pressed);
 
         // Frame 2: Mouse dragged over Btn2
         input.mouse_pressed = false;
         input.mouse_pos = Vec2::new(50.0, 125.0);
-        let _res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
-        let res2 = button(&mut state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        state1 = res1.state;
+        let res2 = button(state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        state2 = res2.state;
 
         assert!(!res2.input.pressed, "Btn2 should not be pressed when mouse is dragged over it");
         assert!(!res2.input.hovered, "Btn2 should not be hovered while dragging another widget");
@@ -197,8 +204,10 @@ mod tests {
         // Frame 3: Mouse released over Btn2
         input.mouse_down = false;
         input.mouse_clicked = true;
-        let res1 = button(&mut state1, btn1_spec(), &input, &mut text_system).into_parts().1;
-        let res2 = button(&mut state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        let res1 = button(state1, btn1_spec(), &input, &mut text_system).into_parts().1;
+        state1 = res1.state;
+        let res2 = button(state2, btn2_spec(), &input, &mut text_system).into_parts().1;
+        state2 = res2.state;
 
         assert!(!res2.input.clicked, "Btn2 should not be clicked if mouse down was not on Btn2");
         assert!(!res1.input.clicked, "Btn1 should not be clicked since mouse was released outside");

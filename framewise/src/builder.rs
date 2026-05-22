@@ -109,7 +109,7 @@ impl<'a, T: TextSystem> Builder<'a, T> {
     /// Draw a button and return its info, including interaction state.
     pub fn button(
         &mut self,
-        state: &mut crate::widgets::button::ButtonState,
+        state: crate::widgets::button::ButtonState,
         rect:  Rect,
         text:  impl Into<String>,
         input: &Input,

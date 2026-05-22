@@ -77,22 +77,24 @@ impl App {
 
         // Button 1 ─────────────────────────────────────────────────────────
         let btn1 = ui.button(
-            &mut self.btn1_state,
+            self.btn1_state,
             Rect::new(24.0, 24.0, 140.0, 40.0),
             "Button One",
             &self.input,
         );
+        self.btn1_state = btn1.state;
         if btn1.clicked() {
             println!("[sample] Button One clicked");
         }
 
         // Button 2 ─────────────────────────────────────────────────────────
         let btn2 = ui.button(
-            &mut self.btn2_state,
+            self.btn2_state,
             Rect::new(24.0, 76.0, 140.0, 40.0),
             "Button Two",
             &self.input,
         );
+        self.btn2_state = btn2.state;
         if btn2.clicked() {
             println!("[sample] Button Two clicked");
         }
@@ -114,11 +116,12 @@ impl App {
 
         // A button inside the panel.
         let btn3 = ui.button(
-            &mut self.btn3_state,
+            self.btn3_state,
             Rect::new(content.x, content.y, 120.0, 32.0),
             "Panel button",
             &self.input,
         );
+        self.btn3_state = btn3.state;
         if btn3.clicked() {
             println!("[sample] Panel button clicked");
         }

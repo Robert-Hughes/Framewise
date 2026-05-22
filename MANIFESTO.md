@@ -73,8 +73,9 @@ refusing to support it (which produces awkward workarounds), Framewise takes a *
 approach:
 
 - The application stores durable widget state in its own data model — focus keys, text
-  edit buffers, scroll positions, etc.
-- Widget functions receive a mutable reference to this app-owned persistent state.
+  edit buffers, scroll positions, active drag states, etc.
+- Widget functions receive this state *by value* and return the modified state as part of their result.
+- This purely functional pattern `(State, Input) -> (DrawCommands, NewState)` avoids borrow checker conflicts that plague GUI libraries requiring mutable borrows during layout.
 - Layout and rendering are still computed on demand, per frame, from current state.
 - There is **no** library-owned authoritative widget tree.
 
