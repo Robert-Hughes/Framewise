@@ -33,6 +33,8 @@ pub struct FocusSystem {
     current_frame_order: Vec<FocusId>,
     pending_shift: Option<FocusDirection>,
     custom_order: HashMap<FocusId, FocusId>, // map id -> next id
+    active_hover_id: Option<FocusId>,
+    next_hover_id: Option<FocusId>,
 }
 
 impl Default for FocusSystem {
@@ -48,6 +50,8 @@ impl FocusSystem {
             current_frame_order: Vec::new(),
             pending_shift: None,
             custom_order: HashMap::new(),
+            active_hover_id: None,
+            next_hover_id: None,
         }
     }
 
@@ -85,8 +89,21 @@ impl FocusSystem {
         self.focused_id.is_some()
     }
 
+    /// Register an ephemeral hover claim. Because of top-down evaluation,
+    /// inner scopes evaluate later and will naturally overwrite parent claims.
+    pub fn register_scroll_hover(&mut self, id: FocusId) {
+        self.next_hover_id = Some(id);
+    }
+
+    /// Check if this ID won the hover claim in the previous frame.
+    pub fn is_active_scroll(&self, id: FocusId) -> bool {
+        self.active_hover_id == Some(id)
+    }
+
     /// Resolves any pending focus shifts using the order built this frame.
     pub fn end_frame(&mut self) {
+        self.active_hover_id = self.next_hover_id.take();
+
         if let Some(direction) = self.pending_shift.take() {
             if !self.current_frame_order.is_empty() {
                 let new_focus = match self.focused_id {

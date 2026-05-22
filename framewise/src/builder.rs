@@ -147,6 +147,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             state,
             inner_layout,
             input,
+            &mut *self.focus_sys,
         );
 
         self.append_cmds(scroll_cmds);

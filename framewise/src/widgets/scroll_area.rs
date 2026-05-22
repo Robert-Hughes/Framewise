@@ -6,9 +6,19 @@ use crate::{
     layout::Layout,
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ScrollState {
+    pub id: crate::focus::FocusId,
     pub offset_y: f32,
+}
+
+impl Default for ScrollState {
+    fn default() -> Self {
+        Self {
+            id: crate::focus::FocusId::new(),
+            offset_y: 0.0,
+        }
+    }
 }
 
 pub fn scroll_area<L: Layout>(
@@ -17,12 +27,17 @@ pub fn scroll_area<L: Layout>(
     state: &mut ScrollState,
     inner_layout: L,
     input: &Input,
+    focus_sys: &mut crate::focus::FocusSystem,
 ) -> (Vec<DrawCmd>, Rect, OffsetLayout<L>) {
     let mut cmds = Vec::new();
 
     // 1. Process mouse wheel (if hovered inside bounds)
-    if bounds.contains(input.mouse_pos) && input.scroll_delta.y != 0.0 {
-        state.offset_y -= input.scroll_delta.y * 30.0;
+    if bounds.contains(input.mouse_pos) {
+        focus_sys.register_scroll_hover(state.id);
+        
+        if focus_sys.is_active_scroll(state.id) && input.scroll_delta.y != 0.0 {
+            state.offset_y -= input.scroll_delta.y * 30.0;
+        }
     }
 
     // 2. Clamp offset_y
@@ -86,12 +101,18 @@ mod tests {
     #[test]
     fn test_scroll_area_math() {
         let bounds = Rect::new(0.0, 0.0, 100.0, 100.0);
-        let mut state = ScrollState { offset_y: 50.0 };
+        let mut state = ScrollState { offset_y: 50.0, ..Default::default() };
         let mut input = Input::new();
         input.scroll_delta = Vec2::new(0.0, 1.0); // scroll up
         input.mouse_pos = Vec2::new(10.0, 10.0);
 
-        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input);
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        // Since we evaluate once, it won't be active yet. Let's register it to be active next frame.
+        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys);
+        focus_sys.end_frame();
+        
+        // Next frame it will scroll
+        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys);
         
         // 50.0 - 1.0*30 = 20.0
         assert_eq!(state.offset_y, 20.0);
@@ -106,5 +127,66 @@ mod tests {
             DrawCmd::PushClip { rect } => assert_eq!(*rect, content_bounds),
             _ => panic!("Last command should be PushClip"),
         }
+    }
+
+    #[test]
+    fn test_nested_scroll_areas() {
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(50.0, 50.0, 100.0, 100.0); // Inside outer
+        
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        
+        let mut input = Input::new();
+        input.scroll_delta = Vec2::new(0.0, -1.0); // Scroll down (delta -1 -> offset +30)
+        input.mouse_pos = Vec2::new(75.0, 75.0); // Hovering over INNER scroll area
+
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1: Register hover claims
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys);
+        focus_sys.end_frame(); // Locks inner_state as the active scroll for next frame
+
+        // Frame 2: Process scroll wheel
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys);
+
+        // Expect: Inner scrolled by 30
+        assert_eq!(inner_state.offset_y, 30.0);
+        
+        // Expect: Outer should NOT scroll because inner consumed it
+        assert_eq!(outer_state.offset_y, 0.0, "Outer should not scroll when inner is hovered");
+    }
+
+    #[test]
+    fn test_outer_scroll_area_with_inner_present() {
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(50.0, 50.0, 100.0, 100.0); // Inside outer
+        
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        
+        let mut input = Input::new();
+        input.scroll_delta = Vec2::new(0.0, -1.0); // Scroll down
+        // Hovering over OUTER scroll area, but OUTSIDE the inner scroll area
+        input.mouse_pos = Vec2::new(25.0, 25.0); 
+
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1: Register hover claims
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys);
+        focus_sys.end_frame(); // Locks outer_state as active because inner didn't claim it!
+
+        // Frame 2: Process scroll wheel
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys);
+
+        // Expect: Outer scrolled by 30
+        assert_eq!(outer_state.offset_y, 30.0);
+        
+        // Expect: Inner should NOT scroll
+        assert_eq!(inner_state.offset_y, 0.0);
     }
 }
