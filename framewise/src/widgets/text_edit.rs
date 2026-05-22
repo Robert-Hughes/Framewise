@@ -40,7 +40,7 @@ impl Default for TextEditStyle {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TextEditState {
     pub value: String,
     pub caret_byte: usize,
@@ -111,13 +111,14 @@ pub struct TextEditResult {
 pub struct TextEditInfo {
     pub layout: LayoutInfo,
     pub clipboard_action: Option<ClipboardAction>,
+    pub state: TextEditState,
 }
 
 impl WidgetResult for TextEditResult {
     type Info = TextEditInfo;
 
     fn into_parts(self) -> (DrawCommands, TextEditInfo) {
-        (self.draw, TextEditInfo { layout: self.layout, clipboard_action: self.clipboard_action })
+        (self.draw, TextEditInfo { layout: self.layout, clipboard_action: self.clipboard_action, state: self.state })
     }
 }
 
@@ -760,18 +761,18 @@ mod tests {
 
         let mut input = Input::default();
         
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
-        let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should be hidden during off phase");
 
         input.text_events.push(TextEvent::CaretLeft { shift: false, ctrl: false });
-        let res = text_edit(state.clone(), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.last_caret_move_time, 0.6);
         
@@ -779,12 +780,12 @@ mod tests {
         assert!(has_caret, "Caret should be visible immediately after moving");
         
         input.text_events.clear();
-        let res = text_edit(state.clone(), spec(), &input, 1.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 1.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-        let res = text_edit(state.clone(), spec(), &input, 1.2, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 1.2, &mut text_sys, &mut focus_sys);
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
     }
@@ -819,7 +820,7 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
         
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, Some(0));
@@ -837,14 +838,14 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         
         focus_sys.end_frame();
         focus_sys.begin_frame();
         input.mouse_pressed = false;
         
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
 
         assert!(state.was_focused);
@@ -867,14 +868,14 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
         assert_eq!(state.value, "hello world");
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
@@ -883,7 +884,7 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = text_edit(state.clone(), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");

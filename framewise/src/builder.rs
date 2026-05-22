@@ -170,7 +170,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Emit a text_edit widget.
-    pub fn text_edit(&mut self, state: TextEditState, params: S::Params, input: &Input) -> (TextEditInfo, TextEditState) {
+    pub fn text_edit(&mut self, state: TextEditState, params: S::Params, input: &Input) -> TextEditInfo {
         let rect = self.layout_state.layout(params);
         let spec = TextEditSpec {
             rect,
@@ -188,8 +188,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             self.text_system,
             self.focus_sys,
         );
-        let state = res.state.clone();
-        (self.emit(res), state)
+        self.emit(res)
     }
 
     /// Draw a button and return its info, including interaction state.

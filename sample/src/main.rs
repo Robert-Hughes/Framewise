@@ -42,7 +42,6 @@ impl GpuState {
     }
 }
 
-#[derive(Clone, Copy)]
 struct SampleButton {
     state:  framewise::widgets::button::ButtonState,
     clicks: u32,
@@ -94,9 +93,9 @@ impl App {
             clipboard:       arboard::Clipboard::new().ok(),
             sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
             main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
-            sidebar_btns:    [SampleButton::default(); 20],
-            main_btns:       [SampleButton::default(); 30],
-            grid_btns:       [SampleButton::default(); 16],
+            sidebar_btns:    std::array::from_fn(|_| SampleButton::default()),
+            main_btns:       std::array::from_fn(|_| SampleButton::default()),
+            grid_btns:       std::array::from_fn(|_| SampleButton::default()),
             top_btn1:        SampleButton::default(),
             top_btn2:        SampleButton::default(),
         }
@@ -153,13 +152,14 @@ impl App {
 
                     for i in 0..20 {
                         let btn = sidebar_scroll.button(
-                            self.sidebar_btns[i].state,
+                            std::mem::take(&mut self.sidebar_btns[i].state),
                             Vec2::new(180.0, 32.0),
                             format!("Menu Item {}", i + 1),
                             &self.input,
                         );
+                        let clicked = btn.clicked();
                         self.sidebar_btns[i].state = btn.state;
-                        if btn.clicked() { self.sidebar_btns[i].clicks += 1; }
+                        if clicked { self.sidebar_btns[i].clicks += 1; }
                     }
                     sidebar_scroll.finish()
                 };
@@ -182,12 +182,12 @@ impl App {
                         framewise::layout::RowLayout { spacing: 10.0 },
                     );
 
-                    let (info, te_state) = header_row.text_edit(
-                        self.text_edit_state.clone(),
+                    let info = header_row.text_edit(
+                        std::mem::take(&mut self.text_edit_state),
                         Vec2::new(300.0, 40.0),
                         &self.input,
                     );
-                    self.text_edit_state = te_state;
+                    self.text_edit_state = info.state;
 
                     if let Some(action) = info.clipboard_action {
                         if let Some(cb) = &mut self.clipboard {
@@ -198,10 +198,10 @@ impl App {
                         }
                     }
 
-                    let btn1 = header_row.button(self.top_btn1.state, Vec2::new(100.0, 40.0), "Profile", &self.input);
+                    let btn1 = header_row.button(std::mem::take(&mut self.top_btn1.state), Vec2::new(100.0, 40.0), "Profile", &self.input);
                     self.top_btn1.state = btn1.state;
                     
-                    let btn2 = header_row.button(self.top_btn2.state, Vec2::new(100.0, 40.0), "Settings", &self.input);
+                    let btn2 = header_row.button(std::mem::take(&mut self.top_btn2.state), Vec2::new(100.0, 40.0), "Settings", &self.input);
                     self.top_btn2.state = btn2.state;
 
                     header_row.finish()
@@ -226,7 +226,7 @@ impl App {
                             for col in 0..4 {
                                 let idx = row * 4 + col;
                                 let btn = grid_row.button(
-                                    self.grid_btns[idx].state,
+                                    std::mem::take(&mut self.grid_btns[idx].state),
                                     Vec2::new(120.0, 32.0),
                                     format!("Grid [{},{}]", row, col),
                                     &self.input,
@@ -255,13 +255,14 @@ impl App {
 
                     for i in 0..30 {
                         let btn = main_scroll.button(
-                            self.main_btns[i].state,
+                            std::mem::take(&mut self.main_btns[i].state),
                             Vec2::new(win_size.0 - 280.0, 50.0),
                             format!("Feed Item #{} - Very Important Notification", i + 1),
                             &self.input,
                         );
+                        let clicked = btn.clicked();
                         self.main_btns[i].state = btn.state;
-                        if btn.clicked() { self.main_btns[i].clicks += 1; }
+                        if clicked { self.main_btns[i].clicks += 1; }
                     }
                     main_scroll.finish()
                 };

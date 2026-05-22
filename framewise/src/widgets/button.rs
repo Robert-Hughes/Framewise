@@ -46,7 +46,7 @@ pub struct ButtonSpec {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ButtonState {
     /// True if the mouse was pressed while hovering this button, until the mouse is released.
     pub is_active: bool,
