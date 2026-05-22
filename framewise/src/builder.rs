@@ -28,6 +28,7 @@ pub struct BuilderCtx {
     pub frame_style:  FrameStyle,
     pub text_size:    f32,
     pub time:         f64,
+    pub clip_rect:    Option<Rect>,
 }
 
 impl Default for BuilderCtx {
@@ -41,6 +42,7 @@ impl Default for BuilderCtx {
             frame_style:  FrameStyle::default(),
             text_size:    14.0,
             time:         0.0,
+            clip_rect:    None,
         }
     }
 }
@@ -148,12 +150,22 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             inner_layout,
             input,
             &mut *self.focus_sys,
+            self.ctx.clip_rect,
         );
 
         self.append_cmds(scroll_cmds);
 
+        let parent_clip = self.ctx.clip_rect;
         let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
         child.needs_pop_clip = true;
+        
+        let new_clip = if let Some(pc) = parent_clip {
+            pc.intersect(&content_bounds)
+        } else {
+            content_bounds
+        };
+        child.ctx.clip_rect = Some(new_clip);
+
         child
     }
 
@@ -180,6 +192,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
                 // you could merge theme colours here
                 ..Default::default()
             },
+            clip_rect: self.ctx.clip_rect,
         };
         let res = text_edit(
             state,
@@ -207,6 +220,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
                 rect,
                 text:  text.into(),
                 style: self.ctx.button_style,
+                clip_rect: self.ctx.clip_rect,
             },
             input,
             self.text_system,
@@ -215,7 +229,6 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         self.emit(result)
     }
 
-    /// Draw a panel frame and return its info.
     pub fn frame(&mut self, params: S::Params) -> FrameInfo {
         let rect = self.layout_state.layout(params);
         let result = frame(FrameSpec {
@@ -223,5 +236,118 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             style: self.ctx.frame_style,
         });
         self.emit(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::input::Input;
+    use crate::types::{Vec2, Rect};
+    use crate::layout::{ManualLayout, Layout};
+    use crate::focus::FocusSystem;
+
+    struct DummyTextSystem;
+    impl crate::text::TextSystem for DummyTextSystem {
+        fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
+            crate::text::TextLayout {
+                size: Vec2::new(10.0, 10.0),
+                handle: crate::text::TextHandle(0),
+            }
+        }
+        fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 {
+            0.0
+        }
+        fn hit_test_x(&self, _handle: crate::text::TextHandle, _x_offset: f32) -> usize {
+            0
+        }
+    }
+
+    #[test]
+    fn test_clipped_hit_testing() {
+        let mut text_sys = DummyTextSystem;
+        let mut focus_sys = FocusSystem::new();
+        focus_sys.begin_frame();
+
+        let mut input = Input::new();
+        // Mouse is placed at Y=20.
+        input.mouse_pos = Vec2::new(15.0, 20.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        let ctx = BuilderCtx::default();
+        let mut builder = Builder::new(ctx, &mut text_sys, &mut focus_sys, ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)));
+
+        // Create a scroll area positioned at Y=50, Height=100 (so it clips everything above Y=50).
+        let mut scroll_state = crate::widgets::scroll_area::ScrollState::default();
+        let mut scroll_area = builder.scroll_area(
+            Rect::new(10.0, 50.0, 100.0, 100.0), 
+            500.0, 
+            &mut scroll_state, 
+            ManualLayout, 
+            &input
+        );
+
+        // Place a button INSIDE the scroll area, but position its mathematical Rect at Y=-30 (relative)
+        // Since ManualLayout adds the parent's top_left (Y=50), the absolute Y will be 50 - 30 = 20!
+        // This simulates a button that has scrolled UP and OUT of the scroll area bounds (Y=50..150).
+        let btn_state = crate::widgets::button::ButtonState::default();
+        let btn_info = scroll_area.button(btn_state, Rect::new(0.0, -30.0, 50.0, 20.0), "Btn", &input);
+        
+        scroll_area.finish();
+        builder.finish();
+
+        // The button's absolute mathematical bounds (Y=20) contains the mouse (Y=20).
+        // However, the button is rendered inside a scroll area that clips at Y=50!
+        assert_eq!(btn_info.state.is_active, false, "Button was clicked even though it was clipped out of view!");
+    }
+
+    #[test]
+    fn test_nested_clip_rect_intersections() {
+        // Complex nested layout test: a builder with a clip rect creates a child scroll area, 
+        // which creates another child scroll area. We verify the clip rects intersect correctly.
+        let mut text_sys = DummyTextSystem;
+        let mut focus_sys = FocusSystem::new();
+        focus_sys.begin_frame();
+
+        let input = Input::new();
+        
+        let mut ctx = BuilderCtx::default();
+        // Start with an artificial clip rect for the whole app
+        ctx.clip_rect = Some(Rect::new(20.0, 20.0, 500.0, 500.0));
+        
+        let mut builder = Builder::new(ctx, &mut text_sys, &mut focus_sys, ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)));
+
+        // Outer scroll area: at 50,50, size 200x200
+        let mut outer_state = crate::widgets::scroll_area::ScrollState::default();
+        let mut outer = builder.scroll_area(
+            Rect::new(50.0, 50.0, 200.0, 200.0), 
+            1000.0, 
+            &mut outer_state, 
+            ManualLayout, 
+            &input
+        );
+
+        // Parent clip was 20..520 (x,y). Outer bounds is 50..250. 
+        // Inner content bounds should be 50,50 to 238,250 (12px scrollbar).
+        // Intersection should be exactly the inner content bounds.
+        assert_eq!(outer.ctx.clip_rect, Some(Rect::new(50.0, 50.0, 188.0, 200.0)));
+
+        // Inner scroll area: at 100,100, size 200x200 (extends beyond outer!)
+        let mut inner_state = crate::widgets::scroll_area::ScrollState::default();
+        let inner = outer.scroll_area(
+            Rect::new(100.0, 100.0, 200.0, 200.0), 
+            1000.0, 
+            &mut inner_state, 
+            ManualLayout, 
+            &input
+        );
+
+        // Outer clip was 50,50, w:188, h:200 => right:238, bottom:250
+        // Inner bounds is relative to outer content_bounds (50,50), so inner starts at 150,150.
+        // Inner content_bounds is w:188, h:200 => right:338, bottom:350.
+        // Intersection of (50..238, 50..250) and (150..338, 150..350):
+        // x=150, y=150, right=238, bottom=250 => w=88, h=100.
+        assert_eq!(inner.ctx.clip_rect, Some(Rect::new(150.0, 150.0, 88.0, 100.0)));
     }
 }

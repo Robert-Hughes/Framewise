@@ -92,6 +92,7 @@ impl TextEditState {
 pub struct TextEditSpec {
     pub rect:  Rect,
     pub style: TextEditStyle,
+    pub clip_rect: Option<Rect>,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -243,7 +244,8 @@ pub fn text_edit<T: TextSystem>(
     let old_selection = state.selection_byte;
 
     // Hit test mouse
-    let contains = spec.rect.contains(input.mouse_pos);
+    let is_visible = spec.clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+    let contains = spec.rect.contains(input.mouse_pos) && is_visible;
     
     if just_focused {
         if !(contains && input.mouse_pressed) {
@@ -559,6 +561,7 @@ mod tests {
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
             style: TextEditStyle::default(),
+            clip_rect: None,
         }
     }
 

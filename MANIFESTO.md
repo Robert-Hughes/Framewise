@@ -318,6 +318,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Scrolling and scroll regions
   * Mouse and keyboard interaction with scrollbar
   * Horizontal scrolling
+  * Nested scrolling - if reaches end then it should scroll the next outer
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
   * Right click text stuff like copy/paste
