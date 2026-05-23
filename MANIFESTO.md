@@ -324,6 +324,8 @@ Features to design and implement, roughly in dependency order:
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
   * Right click text stuff like copy/paste
+  * Scrolling and clipping
+  * Multi-line editing
 - [ ] Grid and table layouts
 - [ ] Clipping and layering
 - [ ] Popups, menus, tooltips

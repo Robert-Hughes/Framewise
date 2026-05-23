@@ -51,6 +51,9 @@ pub struct FocusSystem {
     next_pgdn_id: Option<FocusId>,
     active_pgup_id: Option<FocusId>,
     active_pgdn_id: Option<FocusId>,
+
+    #[cfg(debug_assertions)]
+    seen_ids: std::collections::HashSet<FocusId>,
 }
 
 impl Default for FocusSystem {
@@ -76,17 +79,29 @@ impl FocusSystem {
             next_pgdn_id: None,
             active_pgup_id: None,
             active_pgdn_id: None,
+            #[cfg(debug_assertions)]
+            seen_ids: std::collections::HashSet::new(),
         }
     }
 
     pub fn begin_frame(&mut self) {
         self.keyboard_scroll_scopes.clear();
         self.focused_scroll_path.clear();
+        
+        #[cfg(debug_assertions)]
+        self.seen_ids.clear();
     }
 
     /// Register a widget in the current frame's focus order.
     /// Returns true if the widget currently has focus.
     pub fn register(&mut self, id: FocusId) -> bool {
+        #[cfg(debug_assertions)]
+        {
+            if !self.seen_ids.insert(id) && !cfg!(test) {
+                panic!("FocusId {:?} registered twice in the same frame! This usually means widget state is being reused incorrectly.", id);
+            }
+        }
+        
         self.current_frame_order.push(id);
         let has_focus = self.focused_id == Some(id);
         if has_focus {
