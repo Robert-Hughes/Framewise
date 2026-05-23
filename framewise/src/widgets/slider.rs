@@ -539,20 +539,54 @@ mod tests {
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
-        
+
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
         focus_sys.take_focus(state.focus_id);
 
+        // Up decrements
         input.key_pressed_up = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 45.0);
 
+        // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
+
+        // Left decrements (same as Up)
+        input.key_pressed_down = false;
+        input.key_pressed_left = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 45.0);
+
+        // Right increments (same as Down)
+        input.key_pressed_left = false;
+        input.key_pressed_right = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 50.0);
+
+        // Left/Right also work on a horizontal slider
+        input.key_pressed_right = false;
+        let horiz_spec = SliderSpec {
+            orientation: Orientation::Horizontal,
+            rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+            ..spec.clone()
+        };
+        let mut horiz_state = SliderState::default();
+        focus_sys.take_focus(horiz_state.focus_id);
+        let mut horiz_value = 50.0_f32;
+
+        input.key_pressed_left = true;
+        slider(&mut horiz_state, &mut horiz_value, horiz_spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(horiz_value, 45.0);
+
+        input.key_pressed_left = false;
+        input.key_pressed_right = true;
+        slider(&mut horiz_state, &mut horiz_value, horiz_spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(horiz_value, 50.0);
     }
 
     #[test]

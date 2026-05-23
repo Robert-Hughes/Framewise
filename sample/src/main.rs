@@ -1009,6 +1009,16 @@ impl ApplicationHandler for App {
                             self.input.key_pressed_down = true;
                         }
                     }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowLeft) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_left = true;
+                        }
+                    }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowRight) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_right = true;
+                        }
+                    }
                     _ => {}
                 }
 

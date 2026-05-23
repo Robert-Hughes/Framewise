@@ -65,10 +65,9 @@ Features to design and implement, roughly in dependency order:
 - Middle-click hold-and-drag pan; middle-click without holding.
 - Click-and-drag pan (touch / mobile).
 - "Flinging" (momentum scrolling).
-- Arrow key scrolling — should work if slider is focused at the very least (somewhat
-  working, not for horizontal). Possibly also when an inner widget is focused? Not sure if
-  arrow keys should be used for focus-swapping too.
-- Home / End key when a child widget is focused?
+- Consider if arrow keys, home and end should manipulate scroll bars when an inner widget is focused?
+  - Clashes with potential use of arrow keys for changing focus navigation
+  arrow keys should be used for chaing focus
 
 ---
 
