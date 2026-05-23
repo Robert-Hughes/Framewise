@@ -586,6 +586,55 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// Focused widget lives OUTSIDE any scroll scope. PgDn must not scroll the
+    /// nearby scroll area (it's not in focus's path).
+    #[test]
+    fn test_pgdn_with_focus_outside_scope() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+
+        struct DummyTextSystem;
+        impl crate::text::TextSystem for DummyTextSystem {
+            fn prepare(&mut self, _t: &str, _s: f32) -> crate::text::TextLayout {
+                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: Vec2::ZERO }
+            }
+            fn measure_byte_x(&self, _h: crate::text::TextHandle, _b: usize) -> f32 { 0.0 }
+            fn hit_test_x(&self, _h: crate::text::TextHandle, _x: f32) -> usize { 0 }
+        }
+        let mut text_sys = DummyTextSystem;
+        focus_sys.take_focus(btn_state.focus_id);
+
+        for _ in 0..2 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.key_pressed_page_down = true;
+
+            // Button rendered OUTSIDE the scroll area's begin/finish.
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(500.0, 500.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_state = info.state;
+
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(state.offset.y, 0.0, "Focus outside scope must not drive pgdn into the area");
+    }
+
     /// Combined input: an active slider drag plus a wheel tick in the same frame.
     /// The drag is authoritative — drag math sets `offset` last, so wheel changes
     /// applied earlier are overwritten and the result tracks the mouse exactly.
