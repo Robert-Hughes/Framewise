@@ -41,6 +41,16 @@ pub struct FocusSystem {
     next_scroll_up_id: Option<FocusId>,
     /// Downward-scroll claim being accumulated this frame.
     next_scroll_down_id: Option<FocusId>,
+
+    // Keyboard scroll scopes
+    keyboard_scroll_scopes: Vec<FocusId>,
+    focused_scroll_path: Vec<FocusId>,
+
+    // Keyboard Page Up / Page Down directional claims
+    next_pgup_id: Option<FocusId>,
+    next_pgdn_id: Option<FocusId>,
+    active_pgup_id: Option<FocusId>,
+    active_pgdn_id: Option<FocusId>,
 }
 
 impl Default for FocusSystem {
@@ -60,19 +70,29 @@ impl FocusSystem {
             active_scroll_down_id: None,
             next_scroll_up_id: None,
             next_scroll_down_id: None,
+            keyboard_scroll_scopes: Vec::new(),
+            focused_scroll_path: Vec::new(),
+            next_pgup_id: None,
+            next_pgdn_id: None,
+            active_pgup_id: None,
+            active_pgdn_id: None,
         }
     }
 
     pub fn begin_frame(&mut self) {
-        // As requested, clearing is done in end_frame.
-        // This is left empty for future use.
+        self.keyboard_scroll_scopes.clear();
+        self.focused_scroll_path.clear();
     }
 
     /// Register a widget in the current frame's focus order.
     /// Returns true if the widget currently has focus.
     pub fn register(&mut self, id: FocusId) -> bool {
         self.current_frame_order.push(id);
-        self.focused_id == Some(id)
+        let has_focus = self.focused_id == Some(id);
+        if has_focus {
+            self.focused_scroll_path = self.keyboard_scroll_scopes.clone();
+        }
+        has_focus
     }
 
     /// Explicitly take focus (e.g. when a widget is clicked).
@@ -124,10 +144,49 @@ impl FocusSystem {
         self.active_scroll_down_id == Some(id)
     }
 
+    /// Push a new keyboard scroll scope (e.g. entering a scroll area).
+    pub fn push_keyboard_scroll_scope(&mut self, id: FocusId) {
+        self.keyboard_scroll_scopes.push(id);
+    }
+
+    /// Pop a keyboard scroll scope, returning the ID.
+    pub fn pop_keyboard_scroll_scope(&mut self) -> Option<FocusId> {
+        self.keyboard_scroll_scopes.pop()
+    }
+
+    /// Returns the active scroll scope path for the focused widget.
+    pub fn focused_scroll_path(&self) -> &[FocusId] {
+        &self.focused_scroll_path
+    }
+
+    /// Claim the Page Up scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgup(&mut self, id: FocusId) {
+        if self.next_pgup_id.is_none() {
+            self.next_pgup_id = Some(id);
+        }
+    }
+
+    /// Claim the Page Down scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgdn(&mut self, id: FocusId) {
+        if self.next_pgdn_id.is_none() {
+            self.next_pgdn_id = Some(id);
+        }
+    }
+
+    pub fn is_active_pgup(&self, id: FocusId) -> bool {
+        self.active_pgup_id == Some(id)
+    }
+
+    pub fn is_active_pgdn(&self, id: FocusId) -> bool {
+        self.active_pgdn_id == Some(id)
+    }
+
     /// Resolves any pending focus shifts using the order built this frame.
     pub fn end_frame(&mut self) {
         self.active_scroll_up_id = self.next_scroll_up_id.take();
         self.active_scroll_down_id = self.next_scroll_down_id.take();
+        self.active_pgup_id = self.next_pgup_id.take();
+        self.active_pgdn_id = self.next_pgdn_id.take();
 
         if let Some(direction) = self.pending_shift.take() {
             if !self.current_frame_order.is_empty() {

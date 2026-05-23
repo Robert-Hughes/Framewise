@@ -67,13 +67,13 @@ pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     pub text_system: &'a mut T,
     pub focus_sys:   &'a mut crate::focus::FocusSystem,
     pub layout_state: S,
-    pub needs_pop_clip: bool,
+    pub scroll_scope: Option<crate::widgets::scroll_area::ScrollAreaScope>,
 }
 
 impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, T, S> {
     /// Create a new top-level builder with the given context.
     pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem, layout_state: S) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, needs_pop_clip: false }
+        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, scroll_scope: None }
     }
 
     /// Extract a child builder's draw commands into this builder.
@@ -108,10 +108,10 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         Builder {
             ctx: self.ctx.clone(),
             cmds: Vec::new(),
-            text_system: &mut *self.text_system,
+            text_system: self.text_system,
             focus_sys: &mut *self.focus_sys,
             layout_state: new_state,
-            needs_pop_clip: false,
+            scroll_scope: None,
         }
     }
 
@@ -143,7 +143,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             thumb_size_ratio: None, // Generic slider doesn't resize thumb based on content
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: self.ctx.clip_rect,
-            claim_hover_scroll_at_ends: true, // Standalone: always block scroll propagation
+            claim_scroll_at_ends: true, // Standalone: always block scroll propagation
         };
         let cmds = crate::widgets::slider::slider(
             state,
@@ -158,9 +158,11 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
     /// Consume the builder and return all accumulated draw commands.
     pub fn finish(mut self) -> Vec<DrawCmd> {
-        if self.needs_pop_clip {
-            self.cmds.push(DrawCmd::PopClip);
+        if let Some(scope) = self.scroll_scope.take() {
+            let post_cmds = scope.finish(self.focus_sys);
+            self.cmds.extend(post_cmds);
         }
+
         self.cmds
     }
 
@@ -176,7 +178,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         input: &Input,
     ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
         let bounds = self.layout_state.layout(params);
-        let (scroll_cmds, content_bounds, offset_layout) = crate::widgets::scroll_area::scroll_area(
+        let (pre_cmds, scope, content_bounds, offset_layout) = crate::widgets::scroll_area::begin_scroll_area(
             bounds,
             content_height,
             state,
@@ -187,11 +189,11 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             self.ctx.time,
         );
 
-        self.append_cmds(scroll_cmds);
+        self.append_cmds(pre_cmds);
 
         let parent_clip = self.ctx.clip_rect;
         let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
-        child.needs_pop_clip = true;
+        child.scroll_scope = Some(scope);
         
         let new_clip = if let Some(pc) = parent_clip {
             pc.intersect(&content_bounds)
@@ -383,5 +385,8 @@ mod tests {
         // Intersection of (50..238, 50..250) and (150..338, 150..350):
         // x=150, y=150, right=238, bottom=250 => w=88, h=100.
         assert_eq!(inner.ctx.clip_rect, Some(Rect::new(150.0, 150.0, 88.0, 100.0)));
+        
+        inner.finish();
+        outer.finish();
     }
 }

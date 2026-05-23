@@ -45,7 +45,7 @@ pub struct SliderSpec {
     /// Set to `false` for the internal scrollbar slider inside `ScrollArea`,
     /// so that when the content is fully scrolled the parent can hand off
     /// the event to an outer scroll area.
-    pub claim_hover_scroll_at_ends: bool,
+    pub claim_scroll_at_ends: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -139,7 +139,7 @@ pub fn slider(
         let at_min = *value <= min;
         let at_max = *value >= max;
 
-        if spec.claim_hover_scroll_at_ends {
+        if spec.claim_scroll_at_ends {
             // Standalone slider: always claim both directions, preventing
             // scroll from ever propagating to a parent scroll area.
             focus_sys.claim_scroll_up(state.focus_id);
@@ -196,10 +196,21 @@ pub fn slider(
     
     // Keyboard Input (if focused)
     if focused {
-        if input.key_pressed_page_up {
+        let at_min = *value <= min;
+        let at_max = *value >= max;
+
+        if spec.claim_scroll_at_ends {
+            focus_sys.claim_pgup(state.focus_id);
+            focus_sys.claim_pgdn(state.focus_id);
+        } else {
+            if !at_min { focus_sys.claim_pgup(state.focus_id); }
+            if !at_max { focus_sys.claim_pgdn(state.focus_id); }
+        }
+
+        if input.key_pressed_page_up && focus_sys.is_active_pgup(state.focus_id) {
             *value = (*value - spec.page_step).clamp(min, max);
         }
-        if input.key_pressed_page_down {
+        if input.key_pressed_page_down && focus_sys.is_active_pgdn(state.focus_id) {
             *value = (*value + spec.page_step).clamp(min, max);
         }
         if input.key_pressed_up {
@@ -266,7 +277,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true,
+            claim_scroll_at_ends: true,
         };
         
         let mut input = Input::new();
@@ -275,14 +286,25 @@ mod tests {
         // Must be focused to receive keyboard events
         focus_sys.take_focus(state.focus_id);
 
+        // Frame 1: register claims
+        focus_sys.begin_frame();
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Frame 2: Page Up
+        focus_sys.begin_frame();
         input.key_pressed_page_up = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 30.0);
+        focus_sys.end_frame();
 
+        // Frame 3: Page Down
+        focus_sys.begin_frame();
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
+        focus_sys.end_frame();
         
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
@@ -308,7 +330,7 @@ mod tests {
             thumb_size_ratio: None, // Will use style.width (12.0) but maxed to 20.0 for thumb_h
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true,
+            claim_scroll_at_ends: true,
         };
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
@@ -347,7 +369,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true,
+            claim_scroll_at_ends: true,
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
@@ -396,7 +418,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true,
+            claim_scroll_at_ends: true,
         };
         
         let mut input = Input::new();
@@ -427,7 +449,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true,
+            claim_scroll_at_ends: true,
         };
 
         let mut input = Input::new();
@@ -464,7 +486,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: claim_at_ends,
+            claim_scroll_at_ends: claim_at_ends,
         }
     }
 

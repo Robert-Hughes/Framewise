@@ -23,7 +23,48 @@ impl Default for ScrollState {
     }
 }
 
-pub fn scroll_area<L: Layout>(
+pub struct ScrollAreaScope {
+    pub id: crate::focus::FocusId,
+    pub content_bounds: Rect,
+    at_top: bool,
+    at_bottom: bool,
+    is_finished: bool,
+}
+
+impl Drop for ScrollAreaScope {
+    fn drop(&mut self) {
+        if !self.is_finished && !std::thread::panicking() {
+            panic!("ScrollAreaScope dropped without calling finish()! This leaks focus state and clip rects.");
+        }
+    }
+}
+
+impl ScrollAreaScope {
+    pub fn finish(
+        mut self,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> Vec<DrawCmd> {
+        self.is_finished = true;
+        let mut post_cmds = Vec::new();
+        post_cmds.push(DrawCmd::PopClip);
+
+        let popped = focus_sys.pop_keyboard_scroll_scope();
+        debug_assert_eq!(popped, Some(self.id), "ScrollAreaScope finished out of order!");
+
+        if focus_sys.focused_scroll_path().contains(&self.id) {
+            if !self.at_top {
+                focus_sys.claim_pgup(self.id);
+            }
+            if !self.at_bottom {
+                focus_sys.claim_pgdn(self.id);
+            }
+        }
+
+        post_cmds
+    }
+}
+
+pub fn begin_scroll_area<L: Layout>(
     bounds: Rect,
     content_height: f32,
     state: &mut ScrollState,
@@ -32,8 +73,10 @@ pub fn scroll_area<L: Layout>(
     focus_sys: &mut crate::focus::FocusSystem,
     clip_rect: Option<Rect>,
     time: f64,
-) -> (Vec<DrawCmd>, Rect, OffsetLayout<L>) {
-    let mut cmds = Vec::new();
+) -> (Vec<DrawCmd>, ScrollAreaScope, Rect, OffsetLayout<L>) {
+    let mut pre_cmds = Vec::new();
+
+    focus_sys.push_keyboard_scroll_scope(state.id);
 
     let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
 
@@ -55,6 +98,17 @@ pub fn scroll_area<L: Layout>(
         if input.scroll_delta.y < 0.0 && focus_sys.is_active_scroll_down(state.id) {
             state.offset_y -= input.scroll_delta.y * 30.0;
         }
+    }
+
+    let at_top_before = state.offset_y <= 0.0;
+    let at_bottom_before = state.offset_y >= max_scroll;
+
+    // Process page up / down (if active from previous frame's claim)
+    if input.key_pressed_page_up && focus_sys.is_active_pgup(state.id) {
+        state.offset_y -= bounds.h;
+    }
+    if input.key_pressed_page_down && focus_sys.is_active_pgdn(state.id) {
+        state.offset_y += bounds.h;
     }
 
     // 2. Clamp offset_y
@@ -84,7 +138,7 @@ pub fn scroll_area<L: Layout>(
             clip_rect,
             // This internal scrollbar defers to the directional claim system
             // so scroll propagates to an outer area when we hit the end.
-            claim_hover_scroll_at_ends: false,
+            claim_scroll_at_ends: false,
         };
         
         let slider_cmds = crate::widgets::slider::slider(
@@ -95,24 +149,51 @@ pub fn scroll_area<L: Layout>(
             time,
             focus_sys,
         );
-        cmds.extend(slider_cmds);
+        pre_cmds.extend(slider_cmds);
     }
 
     // 7. Push clip rect for the content
-    cmds.push(DrawCmd::PushClip { rect: content_bounds });
+    pre_cmds.push(DrawCmd::PushClip { rect: content_bounds });
 
     let offset_layout = OffsetLayout {
         offset_y: state.offset_y,
         inner: inner_layout,
     };
 
-    (cmds, content_bounds, offset_layout)
+    let scope = ScrollAreaScope {
+        id: state.id,
+        content_bounds,
+        at_top: state.offset_y <= 0.0,
+        at_bottom: state.offset_y >= max_scroll,
+        is_finished: false,
+    };
+
+    (pre_cmds, scope, content_bounds, offset_layout)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::layout::ManualLayout;
+
+    // Helper to keep test calls the same
+    fn scroll_area<L: crate::layout::Layout>(
+        bounds: Rect,
+        content_height: f32,
+        state: &mut ScrollState,
+        inner_layout: L,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+        clip_rect: Option<Rect>,
+        time: f64,
+    ) -> (Vec<DrawCmd>, Rect, crate::layout::OffsetLayout<L>) {
+        let (mut pre_cmds, scope, cb, layout) = begin_scroll_area(
+            bounds, content_height, state, inner_layout, input, focus_sys, clip_rect, time
+        );
+        let post_cmds = scope.finish(focus_sys);
+        pre_cmds.extend(post_cmds);
+        (pre_cmds, cb, layout)
+    }
 
     #[test]
     fn test_scroll_area_math() {
@@ -137,11 +218,15 @@ mod tests {
         // Width should be shrunk by 12.0
         assert_eq!(content_bounds.w, 88.0);
 
-        // Should have FillRect, FillRect, PushClip
-        assert_eq!(cmds.len(), 3);
+        // Should have FillRect, FillRect, PushClip, PopClip
+        assert_eq!(cmds.len(), 4);
         match cmds.last().unwrap() {
+            DrawCmd::PopClip => (),
+            _ => panic!("Last command should be PopClip"),
+        }
+        match &cmds[2] {
             DrawCmd::PushClip { rect } => assert_eq!(*rect, content_bounds),
-            _ => panic!("Last command should be PushClip"),
+            _ => panic!("Command 2 should be PushClip"),
         }
     }
 
@@ -221,7 +306,7 @@ mod tests {
             thumb_size_ratio: None,
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true, // standalone slider
+            claim_scroll_at_ends: true, // standalone slider
         };
         
         let mut input = Input::new();
@@ -398,7 +483,7 @@ mod tests {
             thumb_size_ratio: None,
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: None,
-            claim_hover_scroll_at_ends: true, // standalone: always block
+            claim_scroll_at_ends: true, // standalone: always block
         };
 
         let mut input = Input::new();
