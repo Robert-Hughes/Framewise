@@ -43,6 +43,8 @@ pub struct SliderState {
     pub is_dragging: bool,
     pub drag_start_mouse_y: f32,
     pub drag_start_val: f32,
+    pub is_track_clicking: bool,
+    pub next_repeat_time: f64,
 }
 
 impl Default for SliderState {
@@ -52,6 +54,8 @@ impl Default for SliderState {
             is_dragging: false,
             drag_start_mouse_y: 0.0,
             drag_start_val: 0.0,
+            is_track_clicking: false,
+            next_repeat_time: 0.0,
         }
     }
 }
@@ -61,6 +65,7 @@ pub fn slider(
     value: &mut f32,
     spec: SliderSpec,
     input: &Input,
+    time: f64,
     focus_sys: &mut FocusSystem,
 ) -> Vec<DrawCmd> {
     let focused = focus_sys.register(state.focus_id);
@@ -113,6 +118,11 @@ pub fn slider(
         }
     }
     
+    // Track click release
+    if state.is_track_clicking && !input.mouse_down {
+        state.is_track_clicking = false;
+    }
+
     // Mouse clicks
     if input.mouse_pressed && is_visible {
         if thumb_rect.contains(input.mouse_pos) {
@@ -129,6 +139,22 @@ pub fn slider(
                 *value = (*value + spec.page_step).clamp(min, max);
             }
             focus_sys.take_focus(state.focus_id);
+            state.is_track_clicking = true;
+            state.next_repeat_time = time + 0.5; // 500ms initial delay
+        }
+    } else if state.is_track_clicking && time >= state.next_repeat_time {
+        if track_rect.contains(input.mouse_pos) {
+            if input.mouse_pos.y < thumb_rect.y {
+                *value = (*value - spec.page_step).clamp(min, max);
+                state.next_repeat_time = time + 0.05; // 50ms repeat delay
+            } else if input.mouse_pos.y > thumb_rect.bottom() {
+                *value = (*value + spec.page_step).clamp(min, max);
+                state.next_repeat_time = time + 0.05;
+            } else {
+                state.is_track_clicking = false;
+            }
+        } else {
+            state.is_track_clicking = false;
         }
     }
     
@@ -197,22 +223,22 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
 
         input.key_pressed_page_up = true;
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 30.0);
 
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
         
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 0.0);
         
         input.key_pressed_home = false;
         input.key_pressed_end = true;
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 100.0);
     }
 
@@ -240,16 +266,64 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
         
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_y, 10.0);
 
         // 2. Drag down by 40px (mouse y = 50)
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
-        slider(&mut state, &mut value, spec.clone(), &input, &mut focus_sys);
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         
         // 40 / 80 usable track = 0.5 ratio = 50 value
         assert_eq!(value, 50.0);
+    }
+
+    #[test]
+    fn test_slider_track_click_hold() {
+        let mut state = SliderState::default();
+        let mut value = 0.0;
+        let spec = SliderSpec {
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0), // track height 100
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+        };
+        // Thumb starts at y=0..20
+        let mut input = Input::new();
+        let mut focus_sys = FocusSystem::new();
+
+        // 1. Initial click at bottom of track (y=80)
+        input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        
+        // Frame 1: time=0.0. Should page down by 20.0
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 20.0);
+        assert!(state.is_track_clicking);
+        assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
+        
+        // Frame 2: time=0.4 (before repeat). No change.
+        input.mouse_pressed = false;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.4, &mut focus_sys);
+        assert_eq!(value, 20.0);
+        
+        // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
+        slider(&mut state, &mut value, spec.clone(), &input, 0.5, &mut focus_sys);
+        assert_eq!(value, 40.0);
+        assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
+        
+        // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
+        slider(&mut state, &mut value, spec.clone(), &input, 0.6, &mut focus_sys);
+        assert_eq!(value, 60.0);
+        
+        // Release mouse -> track clicking ends
+        input.mouse_down = false;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
+        assert!(!state.is_track_clicking);
     }
 }

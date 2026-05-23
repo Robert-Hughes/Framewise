@@ -148,6 +148,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             value,
             spec,
             input,
+            self.ctx.time,
             self.focus_sys,
         );
         self.append_cmds(cmds);
@@ -181,6 +182,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             input,
             &mut *self.focus_sys,
             self.ctx.clip_rect,
+            self.ctx.time,
         );
 
         self.append_cmds(scroll_cmds);

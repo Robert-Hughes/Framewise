@@ -31,6 +31,7 @@ pub fn scroll_area<L: Layout>(
     input: &Input,
     focus_sys: &mut crate::focus::FocusSystem,
     clip_rect: Option<Rect>,
+    time: f64,
 ) -> (Vec<DrawCmd>, Rect, OffsetLayout<L>) {
     let mut cmds = Vec::new();
 
@@ -76,6 +77,7 @@ pub fn scroll_area<L: Layout>(
             &mut state.offset_y,
             slider_spec,
             input,
+            time,
             focus_sys,
         );
         cmds.extend(slider_cmds);
@@ -107,11 +109,11 @@ mod tests {
 
         let mut focus_sys = crate::focus::FocusSystem::new();
         // Since we evaluate once, it won't be active yet. Let's register it to be active next frame.
-        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys, None);
+        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0);
         focus_sys.end_frame();
         
         // Next frame it will scroll
-        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys, None);
+        let (cmds, content_bounds, offset_layout) = scroll_area(bounds, 200.0, &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0);
         
         // 50.0 - 1.0*30 = 20.0
         assert_eq!(state.offset_y, 20.0);
@@ -143,13 +145,13 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
 
         // Frame 1: Register hover claims
-        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None);
-        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None);
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
         focus_sys.end_frame(); // Locks inner_state as the active scroll for next frame
 
         // Frame 2: Process scroll wheel
-        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None);
-        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None);
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
 
         // Expect: Inner scrolled by 30
         assert_eq!(inner_state.offset_y, 30.0);
@@ -174,13 +176,13 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
 
         // Frame 1: Register hover claims
-        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None);
-        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None);
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
         focus_sys.end_frame(); // Locks outer_state as active because inner didn't claim it!
 
         // Frame 2: Process scroll wheel
-        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None);
-        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None);
+        scroll_area(outer_bounds, 400.0, &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, 400.0, &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
 
         // Expect: Outer scrolled by 30
         assert_eq!(outer_state.offset_y, 30.0);
