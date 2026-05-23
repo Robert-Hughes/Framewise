@@ -112,7 +112,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
     let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
 
-    if bounds.contains(input.mouse_pos) && is_visible {
+    if content_bounds.contains(input.mouse_pos) && is_visible {
         let at_top    = state.offset.y <= 0.0;
         let at_bottom = state.offset.y >= max_scroll.y;
         let at_left   = state.offset.x <= 0.0;
@@ -490,5 +490,59 @@ mod bug_test {
         println!("outer offset: {}", outer_state.offset.y);
         println!("inner1 offset: {}", inner_state1.offset.y);
         println!("inner2 offset: {}", inner_state2.offset.y);
+    }
+}
+
+
+#[cfg(test)]
+mod mouse_wheel_bug_test {
+    use crate::widgets::scroll_area::*;
+    use crate::types::*;
+    use crate::input::Input;
+    use crate::layout::*;
+    use crate::focus::*;
+    
+    #[test]
+    fn test_mouse_wheel_leak() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        
+        let mut state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            
+            // Hover over the horizontal scrollbar (bottom area)
+            // bounds: (0, 0, 400, 400)
+            // scrollbar width: 12
+            // content bounds: (0, 0, 388, 388)
+            // horizontal scrollbar rect: (0, 388, 388, 12)
+            input.mouse_pos = Vec2::new(50.0, 390.0); 
+
+            if frame == 1 {
+                // Mouse wheel down
+                input.scroll_delta.y = -1.0;
+            } else {
+                input.scroll_delta.y = 0.0;
+            }
+
+            if frame == 0 {
+                state.offset.x = 200.0; 
+                state.offset.y = 0.0;
+            }
+
+            let (_, scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0),
+                Vec2::new(600.0, 800.0), 
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+
+        assert_eq!(state.offset.x, 200.0);
+        assert_eq!(state.offset.y, 0.0, "Scroll leaked into vertical axis!");
     }
 }
