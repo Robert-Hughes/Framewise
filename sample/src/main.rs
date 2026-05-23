@@ -78,6 +78,8 @@ struct App {
     grid_btns:       [SampleButton; 16],
     top_btn1:        SampleButton,
     top_btn2:        SampleButton,
+    standalone_slider_state: framewise::widgets::slider::SliderState,
+    standalone_slider_val: f32,
 }
 
 struct NestedRowState {
@@ -120,6 +122,8 @@ impl App {
             grid_btns:       std::array::from_fn(|_| SampleButton::default()),
             top_btn1:        SampleButton::default(),
             top_btn2:        SampleButton::default(),
+            standalone_slider_state: framewise::widgets::slider::SliderState::default(),
+            standalone_slider_val: 50.0,
         }
     }
 
@@ -262,6 +266,29 @@ impl App {
                     grid_col.finish()
                 };
                 content_col.append_cmds(grid_cmds);
+
+                // Standalone Slider Demo
+                let slider_cmds = {
+                    let mut slider_row = content_col.child_with_layout(
+                        Vec2::new(win_size.0 - 240.0, 100.0),
+                        framewise::layout::RowLayout { spacing: 20.0 },
+                    );
+                    
+                    slider_row.label(Vec2::new(150.0, 20.0), &format!("Slider Value: {:.1}", self.standalone_slider_val));
+                    
+                    slider_row.slider(
+                        &mut self.standalone_slider_state,
+                        &mut self.standalone_slider_val,
+                        0.0,
+                        100.0,
+                        20.0,
+                        Vec2::new(30.0, 100.0),
+                        &self.input,
+                    );
+                    
+                    slider_row.finish()
+                };
+                content_col.append_cmds(slider_cmds);
 
                 // Main Scroll Area
                 content_col.label(Vec2::new(400.0, 20.0), "MAIN FEED");
