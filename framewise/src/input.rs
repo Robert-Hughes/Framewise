@@ -99,6 +99,10 @@ impl Input {
         self.text_events.clear();
         self.scroll_delta       = Vec2::new(0.0, 0.0);
         self.mouse_click_count  = 0;
+        self.key_pressed_page_up = false;
+        self.key_pressed_page_down = false;
+        self.key_pressed_home = false;
+        self.key_pressed_end = false;
     }
 }
 
