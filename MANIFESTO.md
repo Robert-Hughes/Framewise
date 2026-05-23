@@ -317,8 +317,13 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
-  * Clarify behaviour in 2D scroll region when page down with horizontal scroll bar focused and it reaches its end, then the vertical scroll bar starts moving before an outer scroll area. Is this good? At least define it?
+  * Clarify behaviour in 2D scroll region when page down with horizontal scroll bar focused and it reaches its end, then the vertical scroll bar starts moving before an outer scroll area. Is this good? At least define it? ONly seems to happen with horizontal bar, vertical one never 'leaks' into horizontal one. This happens with both pgup/down and mouse wheel.
+  * Click and hold to repeatedly page down on a slider - if it get clamped at the end then it can jump back and forth every frame!
+  * Slider click on the trackbar then drag, should snap to cursor
   * Middle click hold and drag, middle click panning without holding
+  * Click and drag based pan (touch based, mobile)
+  * 'Flinging'
+
 - [ ] Splitters and drag handles
   * Including three/four way meeting points. Maybe a generic grid layout?? Or some kind of hierarchical thing
 - [ ] Text editing (`TextEditState`)
@@ -339,7 +344,8 @@ Features to design and implement, roughly in dependency order:
 - Dialogs, blocking and non-blocking
 - tabs
 - graphics/images
-- animations - spinners, loading/progress bars
+- animations - spinners, loading/progress bars.
+  * Animated scrolling pageup/down
 
 * Window min/max sizing based on layout
 

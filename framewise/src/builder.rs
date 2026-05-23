@@ -1,7 +1,6 @@
 use crate::{
     draw::DrawCmd,
     input::Input,
-    text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::WidgetResult,
     widgets::{
@@ -62,7 +61,7 @@ impl Default for BuilderCtx {
 /// let cmds = builder.finish();
 /// ```
 pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> {
-    ctx:  BuilderCtx,
+    pub ctx:  BuilderCtx,
     cmds: Vec<DrawCmd>,
     pub text_system: &'a mut T,
     pub focus_sys:   &'a mut crate::focus::FocusSystem,

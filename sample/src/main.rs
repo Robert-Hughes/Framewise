@@ -144,7 +144,8 @@ impl App {
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
         self.focus_sys.begin_frame();
         let ctx = BuilderCtx {
-            text_color: Color::rgb(0.9, 0.9, 0.95),
+            text_color: Color::rgb(1.0, 1.0, 1.0),
+            bg_color: Color::rgb(0.05, 0.15, 0.30),
             time: self.start_time.elapsed().as_secs_f64(),
             ..Default::default()
         };
@@ -177,6 +178,9 @@ impl App {
                     Vec2::new(200.0, win_size.1 - 20.0),
                     framewise::layout::ColumnLayout { spacing: 10.0 },
                 );
+                sidebar_col.ctx.button_style.background = Color::rgb(0.60, 0.10, 0.80);
+                sidebar_col.ctx.button_style.hovered = Color::rgb(0.70, 0.20, 0.90);
+                sidebar_col.ctx.button_style.pressed = Color::rgb(0.50, 0.05, 0.70);
 
                 sidebar_col.label(Vec2::new(200.0, 20.0), "NAVIGATION");
 
@@ -193,6 +197,8 @@ impl App {
                     );
 
                     for i in 0..20 {
+                        let shade = (i % 2) as f32 * 0.15;
+                        sidebar_scroll.ctx.button_style.background = Color::rgb(0.60 + shade, 0.10 + shade, 0.80 + shade);
                         let btn = sidebar_scroll.button(
                             std::mem::take(&mut self.sidebar_btns[i].state),
                             Vec2::new(180.0, 32.0),
@@ -223,6 +229,9 @@ impl App {
                         Vec2::new(win_size.0 - 240.0, 40.0),
                         framewise::layout::RowLayout { spacing: 10.0 },
                     );
+                    header_row.ctx.button_style.background = Color::rgb(0.90, 0.40, 0.10);
+                    header_row.ctx.button_style.hovered = Color::rgb(1.00, 0.50, 0.20);
+                    header_row.ctx.button_style.pressed = Color::rgb(0.80, 0.30, 0.00);
 
                     let info = header_row.text_edit(
                         std::mem::take(&mut self.text_edit_state),
@@ -256,6 +265,9 @@ impl App {
                         Vec2::new(win_size.0 - 240.0, 200.0),
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                     );
+                    grid_col.ctx.button_style.background = Color::rgb(0.00, 0.60, 0.70);
+                    grid_col.ctx.button_style.hovered = Color::rgb(0.10, 0.70, 0.80);
+                    grid_col.ctx.button_style.pressed = Color::rgb(0.00, 0.50, 0.60);
 
                     grid_col.label(Vec2::new(400.0, 20.0), "DASHBOARD GRID");
 
@@ -267,6 +279,8 @@ impl App {
                             );
                             for col in 0..4 {
                                 let idx = row * 4 + col;
+                                let shade = ((row + col) % 2) as f32 * 0.15;
+                                grid_row.ctx.button_style.background = Color::rgb(0.00 + shade, 0.60 + shade, 0.70 + shade);
                                 let btn = grid_row.button(
                                     std::mem::take(&mut self.grid_btns[idx].state),
                                     Vec2::new(120.0, 32.0),
@@ -320,8 +334,13 @@ impl App {
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                         &self.input,
                     );
+                    main_scroll.ctx.button_style.background = Color::rgb(0.80, 0.20, 0.20);
+                    main_scroll.ctx.button_style.hovered = Color::rgb(0.90, 0.30, 0.30);
+                    main_scroll.ctx.button_style.pressed = Color::rgb(0.70, 0.10, 0.10);
 
                     for i in 0..30 {
+                        let shade = (i % 2) as f32 * 0.15;
+                        main_scroll.ctx.button_style.background = Color::rgb(0.80 + shade, 0.20 + shade, 0.20 + shade);
                         let btn = main_scroll.button(
                             std::mem::take(&mut self.main_btns[i].state),
                             Vec2::new(win_size.0 - 280.0, 50.0),
@@ -366,6 +385,14 @@ impl App {
                             Vec2::new(800.0, row_h),
                             framewise::layout::RowLayout { spacing: 10.0 }
                         );
+                        let (base_r, base_g, base_b) = match i {
+                            0 => (0.40, 0.80, 0.10), // Lime green
+                            1 => (0.90, 0.20, 0.60), // Hot pink
+                            _ => (0.10, 0.50, 0.90), // Vivid blue
+                        };
+                        row_builder.ctx.button_style.background = Color::rgb(base_r, base_g, base_b);
+                        row_builder.ctx.button_style.hovered = Color::rgb(base_r + 0.1, base_g + 0.1, base_b + 0.1);
+                        row_builder.ctx.button_style.pressed = Color::rgb(base_r - 0.1, base_g - 0.1, base_b - 0.1);
 
                         // Left button
                         let btn1 = row_builder.button(
@@ -392,6 +419,8 @@ impl App {
                             );
 
                             for j in 0..6 {
+                                let shade = (j % 2) as f32 * 0.15;
+                                inner_scroll.ctx.button_style.background = Color::rgb(base_r + shade, base_g + shade, base_b + shade);
                                 let btn = inner_scroll.button(
                                     std::mem::take(&mut row_state.inner_btns[j].state),
                                     Vec2::new(100.0, 45.0),
@@ -420,6 +449,8 @@ impl App {
                             );
 
                             for j in 0..10 {
+                                let shade = (j % 2) as f32 * 0.15;
+                                horiz_scroll.ctx.button_style.background = Color::rgb(base_r + shade, base_g + shade, base_b + shade);
                                 let btn = horiz_scroll.button(
                                     std::mem::take(&mut row_state.horiz_btns[j].state),
                                     Vec2::new(80.0, row_h - 25.0), // make room for scrollbar
@@ -451,6 +482,8 @@ impl App {
                             for j in 0..48 {
                                 let x = (j % 8) as f32 * 88.0;
                                 let y = (j / 8) as f32 * 53.0;
+                                let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
+                                both_scroll.ctx.button_style.background = Color::rgb(base_r + shade, base_g + shade, base_b + shade);
                                 
                                 let btn = both_scroll.button(
                                     std::mem::take(&mut row_state.both_btns[j].state),
