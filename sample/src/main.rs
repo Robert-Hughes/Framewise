@@ -401,7 +401,7 @@ impl ApplicationHandler for App {
         // Create the window.
         let attrs = Window::default_attributes()
             .with_title("Framewise Sample")
-            .with_inner_size(PhysicalSize::new(800u32, 600u32));
+            .with_inner_size(PhysicalSize::new(1280u32, 720u32));
 
         let window = Arc::new(
             event_loop.create_window(attrs).expect("failed to create window"),
