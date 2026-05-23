@@ -10,6 +10,7 @@ use crate::{
 pub struct ScrollState {
     pub id: crate::focus::FocusId,
     pub offset_y: f32,
+    pub slider_state: crate::widgets::slider::SliderState,
 }
 
 impl Default for ScrollState {
@@ -17,6 +18,7 @@ impl Default for ScrollState {
         Self {
             id: crate::focus::FocusId::new(),
             offset_y: 0.0,
+            slider_state: crate::widgets::slider::SliderState::default(),
         }
     }
 }
@@ -55,34 +57,28 @@ pub fn scroll_area<L: Layout>(
     let content_bounds = Rect::new(bounds.x, bounds.y, (bounds.w - scrollbar_w).max(0.0), bounds.h);
     let track_rect = Rect::new(content_bounds.right(), bounds.y, scrollbar_w, bounds.h);
 
-    // 5. Draw scrollbar track
-    cmds.push(DrawCmd::FillRect {
-        rect: track_rect,
-        color: Color::rgb(0.15, 0.15, 0.18),
-    });
-
-    // 6. Calculate scrollbar thumb
+    // 5. Calculate scrollbar thumb and draw slider
     if content_height > bounds.h {
         let view_ratio = (bounds.h / content_height).min(1.0);
-        let thumb_h = (bounds.h * view_ratio).max(20.0); // min thumb size
-        let scroll_ratio = state.offset_y / max_scroll;
-        let thumb_y = bounds.y + scroll_ratio * (bounds.h - thumb_h);
-
-        let thumb_rect = Rect::new(track_rect.x + 2.0, thumb_y, scrollbar_w - 4.0, thumb_h);
         
-        // Let's do simple dragging for thumb?
-        // To keep it simple, we just draw the thumb. Dragging requires persistent UI ID / focus system.
-        // We can add simple clicking/dragging later if needed.
-
-        let mut thumb_color = Color::rgb(0.4, 0.4, 0.45);
-        if thumb_rect.contains(input.mouse_pos) {
-            thumb_color = Color::rgb(0.5, 0.5, 0.55);
-        }
-
-        cmds.push(DrawCmd::FillRect {
-            rect: thumb_rect,
-            color: thumb_color,
-        });
+        let slider_spec = crate::widgets::slider::SliderSpec {
+            rect: track_rect,
+            min: 0.0,
+            max: max_scroll,
+            page_step: bounds.h,
+            thumb_size_ratio: Some(view_ratio),
+            style: crate::widgets::slider::SliderStyle::default(),
+            clip_rect,
+        };
+        
+        let slider_cmds = crate::widgets::slider::slider(
+            &mut state.slider_state,
+            &mut state.offset_y,
+            slider_spec,
+            input,
+            focus_sys,
+        );
+        cmds.extend(slider_cmds);
     }
 
     // 7. Push clip rect for the content

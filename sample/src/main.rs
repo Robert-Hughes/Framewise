@@ -478,6 +478,26 @@ impl ApplicationHandler for App {
                             }
                         }
                     }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageUp) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_page_up = true;
+                        }
+                    }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageDown) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_page_down = true;
+                        }
+                    }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Home) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_home = true;
+                        }
+                    }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::End) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_end = true;
+                        }
+                    }
                     _ => {}
                 }
 

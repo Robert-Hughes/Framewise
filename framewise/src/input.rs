@@ -40,6 +40,11 @@ pub struct Input {
 
     /// Mouse scroll wheel delta for the current frame.
     pub scroll_delta: Vec2,
+
+    pub key_pressed_page_up: bool,
+    pub key_pressed_page_down: bool,
+    pub key_pressed_home: bool,
+    pub key_pressed_end: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,7 +75,11 @@ impl Default for Input {
             key_released_space: false,
             text_events: Vec::new(),
             mouse_click_count: 0,
-            scroll_delta: Vec2::new(0.0, 0.0),
+            scroll_delta: Vec2::ZERO,
+            key_pressed_page_up: false,
+            key_pressed_page_down: false,
+            key_pressed_home: false,
+            key_pressed_end: false,
         }
     }
 }

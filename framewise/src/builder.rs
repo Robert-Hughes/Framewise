@@ -123,6 +123,36 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         info
     }
 
+    pub fn slider(
+        &mut self,
+        state: &mut crate::widgets::slider::SliderState,
+        value: &mut f32,
+        min: f32,
+        max: f32,
+        page_step: f32,
+        params: S::Params,
+        input: &Input,
+    ) {
+        let rect = self.layout_state.layout(params);
+        let spec = crate::widgets::slider::SliderSpec {
+            rect,
+            min,
+            max,
+            page_step,
+            thumb_size_ratio: None, // Generic slider doesn't resize thumb based on content
+            style: crate::widgets::slider::SliderStyle::default(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let cmds = crate::widgets::slider::slider(
+            state,
+            value,
+            spec,
+            input,
+            self.focus_sys,
+        );
+        self.append_cmds(cmds);
+    }
+
     /// Consume the builder and return all accumulated draw commands.
     pub fn finish(mut self) -> Vec<DrawCmd> {
         if self.needs_pop_clip {
