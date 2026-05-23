@@ -313,6 +313,10 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         inner: inner_layout,
     };
 
+    // at_* is snapshotted AFTER this frame's scroll actions are applied so that
+    // reaching the limit on a press releases the corresponding claim next frame,
+    // letting the very next PgUp/PgDn press bubble to the parent. Pre-action
+    // snapshotting would force a release+repress to bubble.
     let scope = ScrollAreaScope {
         id: state.id,
         content_bounds,
