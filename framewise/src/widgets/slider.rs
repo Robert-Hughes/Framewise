@@ -126,6 +126,15 @@ pub fn slider(
         state.is_track_clicking = false;
     }
 
+    // Mouse wheel scrolling
+    if is_visible && track_rect.contains(input.mouse_pos) {
+        focus_sys.register_scroll_hover(state.focus_id);
+        
+        if focus_sys.is_active_scroll(state.focus_id) && input.scroll_delta.y != 0.0 {
+            *value = (*value - input.scroll_delta.y * spec.step).clamp(min, max);
+        }
+    }
+
     // Mouse clicks
     if input.mouse_pressed && is_visible {
         if thumb_rect.contains(input.mouse_pos) {
@@ -376,5 +385,43 @@ mod tests {
         input.key_pressed_down = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
+    }
+
+    #[test]
+    fn test_slider_mouse_wheel() {
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let spec = SliderSpec {
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+        };
+        
+        let mut input = Input::new();
+        let mut focus_sys = FocusSystem::new();
+
+        // Hover over the slider track
+        input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
+        
+        // Frame 1: Register hover
+        focus_sys.begin_frame();
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+        
+        assert_eq!(value, 50.0); // Hasn't scrolled yet, scroll_delta is 0
+
+        // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
+        input.scroll_delta.y = 2.0;
+        focus_sys.begin_frame();
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // value = 50.0 - 2.0 * 5.0 = 40.0
+        assert_eq!(value, 40.0);
     }
 }

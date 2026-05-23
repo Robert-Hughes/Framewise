@@ -319,9 +319,9 @@ Features to design and implement, roughly in dependency order:
 - [ ] Scrolling and scroll regions
   * Mouse and keyboard interaction with scrollbar
   * Horizontal scrolling
-  * Nested scrolling - if reaches end then it should scroll the next outer
-  * Mouse wheel on regular sliders
-  * Focus indication on sliders
+  * Nested scrolling - if reaches end then it should scroll the next outer. Smae for mouse wheel and pg up/down. May need focus system registration of pg up/down. Maybe registration is specific for up/down scrolling.
+  * Mouse wheel on regular sliders. May need to register for hover scroll to stop a scroll area from using the wheel wheel. Test nested slider inside scroll area!
+
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
   * Right click text stuff like copy/paste

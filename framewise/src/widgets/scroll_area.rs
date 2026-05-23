@@ -191,4 +191,46 @@ mod tests {
         // Expect: Inner should NOT scroll
         assert_eq!(inner_state.offset_y, 0.0);
     }
+
+    #[test]
+    fn test_slider_in_scroll_area() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut scroll_state = ScrollState::default();
+        let mut slider_state = crate::widgets::slider::SliderState::default();
+        let mut slider_value = 50.0;
+        let slider_spec = crate::widgets::slider::SliderSpec {
+            rect: Rect::new(10.0, 10.0, 20.0, 100.0), // Inside scroll area
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: crate::widgets::slider::SliderStyle::default(),
+            clip_rect: None,
+        };
+        
+        let mut input = Input::new();
+        input.scroll_delta = Vec2::new(0.0, 1.0); // positive delta
+        input.mouse_pos = Vec2::new(15.0, 15.0); // Inside slider
+
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1: Register hover claims
+        focus_sys.begin_frame();
+        scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame(); // Inner slider wins!
+
+        // Frame 2: Process scroll wheel
+        focus_sys.begin_frame();
+        scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Inner slider should have consumed the scroll
+        assert_eq!(slider_value, 45.0);
+        
+        // Scroll area should NOT have scrolled
+        assert_eq!(scroll_state.offset_y, 0.0, "Scroll area should not double-scroll");
+    }
 }
