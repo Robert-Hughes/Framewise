@@ -1545,11 +1545,11 @@ mod nested_bubbling_tests {
     //             inner horiz slider track: x=0..188, y=138..150
     //
     // Expected invariant: wheel/keyboard events always propagate to the outer area when the inner
-    // area is at its limit on the relevant axis. 4 of 6 currently pass; 2 fail (horiz cases).
+    // area is at its limit on the relevant axis.
 
     // 24. Mouse Wheel / Nested 2D / Vertical slider at top → outer scrolls up
     //     Mouse (194,50): in outer content_bounds, outside inner content_bounds, on inner vert slider.
-    //     Inner vert slider at_min: skips scroll_up → outer wins it. PASSES.
+    //     Inner vert slider at_min: skips scroll_up → outer wins it.
     #[test]
     fn test_nested_2d_mouse_vert_slider_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
@@ -1586,11 +1586,7 @@ mod nested_bubbling_tests {
     // 25. Mouse Wheel / Nested 2D / Horizontal slider at left → outer scrolls left
     //     Mouse (50,144): in outer content_bounds, outside inner content_bounds, on inner horiz slider.
     //     Inner horiz slider at_min: skips scroll_left → outer wins scroll_left.
-    //     BUT: outer is non-fallback 2D → needs_h only fires on delta.x, not delta.y.
-    //     delta.y=1.0 (vertical wheel, which horiz slider uses as horizontal fallback) cannot
-    //     drive outer's horizontal axis without a fix that remaps delta.y→dx in this context.
-    //     FAILS: inner horiz slider unconditionally claims scroll_up, and even if outer wins
-    //     scroll_left the dx=0 prevents horizontal scroll from firing.
+    //     Outer 2D remaps delta.y → dx because it won scroll_left but not scroll_up/down.
     #[test]
     fn test_nested_2d_mouse_horiz_slider_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
@@ -1621,14 +1617,12 @@ mod nested_bubbling_tests {
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner horiz at left, should not change");
-        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (horizontal bubble). \
-            FAILS: inner horiz slider unconditionally claims scroll_up, blocking delta.y from reaching outer, \
-            and outer non-fallback 2D cannot remap delta.y to horizontal scroll.");
+        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (horizontal bubble).");
     }
 
     // 26. Mouse Wheel / Nested 2D / Inner content at top → outer scrolls up
     //     Mouse (50,50): inside both content_bounds. Inner at_top skips scroll_up → outer wins.
-    //     PASSES (same logic as test 21, included for completeness of the suite).
+    //     (Same logic as test 21, included for completeness of the suite.)
     #[test]
     fn test_nested_2d_mouse_content_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
@@ -1666,7 +1660,6 @@ mod nested_bubbling_tests {
     //     Slider at_max: skips pgdn_vert, unconditionally claims pgup/pgdn_horiz.
     //     inner_scope.finish(): at_bottom skips pgdn_vert; horiz already taken.
     //     outer_scope.finish(): pgdn_vert not yet taken → outer wins → outer scrolls down.
-    //     PASSES.
     #[test]
     fn test_nested_2d_keyboard_vert_slider_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
@@ -1712,11 +1705,8 @@ mod nested_bubbling_tests {
 
     // 28. Keyboard / Nested 2D / Horizontal slider focused, at right → outer scrolls right
     //     Slider at_max: skips pgdn_horiz, unconditionally claims pgup/pgdn_vert.
-    //     inner_scope.finish(): pgdn_vert already taken; pgdn_horiz not taken → inner_scope wins it.
-    //     outer_scope.finish(): pgdn_horiz already taken by inner_scope; pgdn_vert taken by slider.
-    //     Outer wins nothing → outer does not scroll.
-    //     FAILS: inner_scope.finish() for 2D areas must conditionally claim pgdn_horiz (not at_right)
-    //     instead of unconditionally. And outer's action block must check is_active_pgdn_horiz for 2D.
+    //     inner_scope.finish() (2D): at_right skips pgdn_horiz; at_bottom skips pgdn_vert (already taken anyway).
+    //     outer_scope.finish() (2D): pgdn_horiz not taken → outer wins → outer scrolls right.
     #[test]
     fn test_nested_2d_keyboard_horiz_slider_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
@@ -1757,16 +1747,12 @@ mod nested_bubbling_tests {
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 200.0, "Inner horiz at right, slider should not move");
-        assert!(outer_state.offset.x > 50.0, "Outer should scroll right. \
-            FAILS: inner_scope.finish() unconditionally claims pgdn_horiz even when inner is at_right, \
-            blocking outer. Fix: 2D areas must conditionally claim both axes in scope.finish(), \
-            and begin_scroll_area must check is_active_pgdn_horiz for non-fallback 2D areas.");
+        assert!(outer_state.offset.x > 50.0, "Outer should scroll right.");
     }
 
     // 29. Keyboard / Nested 2D / Inner widget focused, inner at bottom → outer scrolls down
     //     No slider claims. inner_scope.finish(): at_bottom skips pgdn_vert, unconditionally wins pgdn_horiz.
     //     outer_scope.finish(): pgdn_vert not yet taken → outer wins → outer scrolls down.
-    //     PASSES.
     #[test]
     fn test_nested_2d_keyboard_content_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
