@@ -320,6 +320,8 @@ Features to design and implement, roughly in dependency order:
   * Mouse and keyboard interaction with scrollbar
   * Horizontal scrolling
   * Nested scrolling - if reaches end then it should scroll the next outer
+  * Mouse wheel on regular sliders
+  * Focus indication on sliders
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
   * Right click text stuff like copy/paste

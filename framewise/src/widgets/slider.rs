@@ -11,6 +11,7 @@ pub struct SliderStyle {
     pub thumb_color: Color,
     pub thumb_hover_color: Color,
     pub thumb_drag_color: Color,
+    pub focus_outline_color: Color,
     pub width: f32, // Width of track
 }
 
@@ -21,6 +22,7 @@ impl Default for SliderStyle {
             thumb_color: Color::rgb(0.4, 0.4, 0.45),
             thumb_hover_color: Color::rgb(0.5, 0.5, 0.55),
             thumb_drag_color: Color::rgb(0.6, 0.6, 0.65),
+            focus_outline_color: Color::rgb(0.2, 0.5, 0.9),
             width: 12.0,
         }
     }
@@ -175,6 +177,15 @@ pub fn slider(
     }
     
     // 3. Drawing
+    // Focus Outline
+    if focused {
+        cmds.push(DrawCmd::StrokeRect {
+            rect: track_rect.inset(-2.0),
+            color: spec.style.focus_outline_color,
+            width: 2.0,
+        });
+    }
+
     // Track
     cmds.push(DrawCmd::FillRect {
         rect: track_rect,
