@@ -60,15 +60,17 @@ enum ScrollMode {
 }
 
 impl ScrollMode {
-    fn resolve(needs_v: bool, needs_h: bool, max_scroll_y: f32) -> Self {
-        let degenerate_v = !needs_v || max_scroll_y == 0.0;
-        match (needs_v, needs_h) {
+    fn resolve(needs_v: bool, needs_h: bool, max_scroll: Vec2) -> Self {
+        // "Live" = scrollbar present AND content actually overflows. A scrollbar
+        // drawn over fitting content (e.g. Always-visible with no overflow)
+        // must NOT block a parent's wheel — there's nothing to scroll here.
+        let live_v = needs_v && max_scroll.y > 0.0;
+        let live_h = needs_h && max_scroll.x > 0.0;
+        match (live_v, live_h) {
             (false, false) => ScrollMode::None,
             (true, false)  => ScrollMode::Vert,
-            (_, true) if degenerate_v => ScrollMode::Horiz,
+            (false, true)  => ScrollMode::Horiz,
             (true, true)   => ScrollMode::Both,
-            // (false, true) handled above (degenerate_v is true when !needs_v).
-            _ => ScrollMode::Horiz,
         }
     }
 }
@@ -172,7 +174,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
     let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
 
-    let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll.y);
+    let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll);
 
     if content_bounds.contains(input.mouse_pos) && is_visible {
         let at_top    = state.offset.y <= 0.0;
@@ -582,6 +584,72 @@ mod tests {
             focus_sys.end_frame();
         }
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
+    }
+
+    /// Auto-visibility with content that fits: no scrollbar drawn, no claims,
+    /// parent wheel must pass through.
+    #[test]
+    fn test_auto_degenerate_does_not_block_parent() {
+        let mut outer = ScrollState::default();
+        let mut inner = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            // Inner Auto+fits — no scrollbar, no claim.
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 200.0),
+                ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
+                &mut inner, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner.offset.y, 0.0);
+        assert!(outer.offset.y > 0.0, "Outer should scroll through fit-content Auto child");
+    }
+
+    /// Always-visible scrollbars over content that fits: scrollbars drawn but
+    /// they are no-ops — must NOT block a parent's wheel either.
+    #[test]
+    fn test_always_visible_but_fits_does_not_block_parent() {
+        let mut outer = ScrollState::default();
+        let mut inner = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            // Inner Always+fits: scrollbars drawn, no scroll possible.
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(150.0, 150.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner.offset.y, 0.0);
+        assert!(outer.offset.y > 0.0, "Outer should scroll past inner's no-op scrollbars");
     }
 
     /// Mouse entirely outside the scroll area's bounds: no claim, no scroll.
