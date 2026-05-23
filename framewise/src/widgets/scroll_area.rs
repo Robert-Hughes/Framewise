@@ -525,6 +525,34 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// clip_rect masks hover-driven scroll: mouse inside content_bounds but outside
+    /// the clip → no claim, no scroll.
+    #[test]
+    fn test_clip_rect_masks_scroll() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Clip excludes the bottom-right quadrant. Mouse lands at (150,150) — inside
+        // content_bounds but outside this clip.
+        let clip = Rect::new(0.0, 0.0, 100.0, 100.0);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(150.0, 150.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(200.0, 400.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, Some(clip), 0.0,
+            );
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(state.offset.y, 0.0, "Wheel outside clip must not scroll");
+    }
+
     /// Home/End act when the scrollbar slider is focused (slider's own keyboard handler).
     /// They do not propagate from child widgets via the scope — that's intentional.
     #[test]
