@@ -89,6 +89,8 @@ struct NestedRowState {
     inner_btns: [SampleButton; 6],
     slider_state: framewise::widgets::slider::SliderState,
     slider_val: f32,
+    horiz_slider_state: framewise::widgets::slider::SliderState,
+    horiz_slider_val: f32,
 }
 
 impl Default for NestedRowState {
@@ -98,8 +100,10 @@ impl Default for NestedRowState {
             btn1: Default::default(),
             btn2: Default::default(),
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
-            slider_state: framewise::widgets::slider::SliderState::default(),
+            slider_state: Default::default(),
             slider_val: 50.0,
+            horiz_slider_state: Default::default(),
+            horiz_slider_val: 50.0,
         }
     }
 }
@@ -286,6 +290,7 @@ impl App {
                         0.0,
                         100.0,
                         20.0,
+                        framewise::widgets::slider::Orientation::Vertical,
                         Vec2::new(30.0, 100.0),
                         &self.input,
                     );
@@ -394,7 +399,18 @@ impl App {
                             &mut row_state.slider_state,
                             &mut row_state.slider_val,
                             0.0, 100.0, 20.0,
+                            framewise::widgets::slider::Orientation::Vertical,
                             Vec2::new(30.0, row_h),
+                            &self.input,
+                        );
+
+                        // Horizontal slider
+                        row_builder.slider(
+                            &mut row_state.horiz_slider_state,
+                            &mut row_state.horiz_slider_val,
+                            0.0, 100.0, 20.0,
+                            framewise::widgets::slider::Orientation::Horizontal,
+                            Vec2::new(100.0, 30.0),
                             &self.input,
                         );
 

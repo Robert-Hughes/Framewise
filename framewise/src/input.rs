@@ -47,6 +47,8 @@ pub struct Input {
     pub key_pressed_end: bool,
     pub key_pressed_up: bool,
     pub key_pressed_down: bool,
+    pub key_pressed_left: bool,
+    pub key_pressed_right: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +86,8 @@ impl Default for Input {
             key_pressed_end: false,
             key_pressed_up: false,
             key_pressed_down: false,
+            key_pressed_left: false,
+            key_pressed_right: false,
         }
     }
 }
@@ -98,6 +102,10 @@ impl Input {
         self.mouse_pressed      = false;
         self.mouse_clicked      = false;
         self.key_pressed_enter  = false;
+        self.key_pressed_up     = false;
+        self.key_pressed_down   = false;
+        self.key_pressed_left   = false;
+        self.key_pressed_right  = false;
         self.key_pressed_space  = false;
         self.key_released_space = false;
         self.text_events.clear();

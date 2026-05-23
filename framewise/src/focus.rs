@@ -37,10 +37,14 @@ pub struct FocusSystem {
     active_scroll_up_id: Option<FocusId>,
     /// Winner of the downward-scroll hover claim from the previous frame.
     active_scroll_down_id: Option<FocusId>,
+    active_scroll_left_id: Option<FocusId>,
+    active_scroll_right_id: Option<FocusId>,
     /// Upward-scroll claim being accumulated this frame.
     next_scroll_up_id: Option<FocusId>,
     /// Downward-scroll claim being accumulated this frame.
     next_scroll_down_id: Option<FocusId>,
+    next_scroll_left_id: Option<FocusId>,
+    next_scroll_right_id: Option<FocusId>,
 
     // Keyboard scroll scopes
     keyboard_scroll_scopes: Vec<FocusId>,
@@ -71,8 +75,12 @@ impl FocusSystem {
             custom_order: HashMap::new(),
             active_scroll_up_id: None,
             active_scroll_down_id: None,
+            active_scroll_left_id: None,
+            active_scroll_right_id: None,
             next_scroll_up_id: None,
             next_scroll_down_id: None,
+            next_scroll_left_id: None,
+            next_scroll_right_id: None,
             keyboard_scroll_scopes: Vec::new(),
             focused_scroll_path: Vec::new(),
             next_pgup_id: None,
@@ -149,6 +157,14 @@ impl FocusSystem {
         self.next_scroll_down_id = Some(id);
     }
 
+    pub fn claim_scroll_left(&mut self, id: FocusId) {
+        self.next_scroll_left_id = Some(id);
+    }
+
+    pub fn claim_scroll_right(&mut self, id: FocusId) {
+        self.next_scroll_right_id = Some(id);
+    }
+
     /// Returns true if this widget won the upward-scroll claim in the previous frame.
     pub fn is_active_scroll_up(&self, id: FocusId) -> bool {
         self.active_scroll_up_id == Some(id)
@@ -157,6 +173,14 @@ impl FocusSystem {
     /// Returns true if this widget won the downward-scroll claim in the previous frame.
     pub fn is_active_scroll_down(&self, id: FocusId) -> bool {
         self.active_scroll_down_id == Some(id)
+    }
+
+    pub fn is_active_scroll_left(&self, id: FocusId) -> bool {
+        self.active_scroll_left_id == Some(id)
+    }
+
+    pub fn is_active_scroll_right(&self, id: FocusId) -> bool {
+        self.active_scroll_right_id == Some(id)
     }
 
     /// Push a new keyboard scroll scope (e.g. entering a scroll area).
@@ -198,8 +222,11 @@ impl FocusSystem {
 
     /// Resolves any pending focus shifts using the order built this frame.
     pub fn end_frame(&mut self) {
+        // Transfer hover scroll claims
         self.active_scroll_up_id = self.next_scroll_up_id.take();
         self.active_scroll_down_id = self.next_scroll_down_id.take();
+        self.active_scroll_left_id = self.next_scroll_left_id.take();
+        self.active_scroll_right_id = self.next_scroll_right_id.take();
         self.active_pgup_id = self.next_pgup_id.take();
         self.active_pgdn_id = self.next_pgdn_id.take();
 

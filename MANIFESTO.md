@@ -318,10 +318,8 @@ Features to design and implement, roughly in dependency order:
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
   * Horizontal scrolling
-  * Nested scrolling - if reaches end then it should scroll the next outer. Smae for mouse wheel and pg up/down. May need focus system registration of pg up/down. Maybe registration is specific for up/down scrolling.
-  * Page up/down when focused on e.g. a button with a scroll area should scroll that area
-
 - [ ] Splitters and drag handles
+  * Including three/four way meeting points. Maybe a generic grid layout?? Or some kind of hierarchical thing
 - [ ] Text editing (`TextEditState`)
   * Right click text stuff like copy/paste
   * Scrolling and clipping

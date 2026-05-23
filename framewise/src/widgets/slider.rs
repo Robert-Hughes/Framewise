@@ -2,7 +2,7 @@ use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
-    types::{Color, Rect},
+    types::{Color, Rect, Vec2},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -12,7 +12,7 @@ pub struct SliderStyle {
     pub thumb_hover_color: Color,
     pub thumb_drag_color: Color,
     pub focus_outline_color: Color,
-    pub width: f32, // Width of track
+    pub thickness: f32, // Width (for vertical) or height (for horizontal) of track
 }
 
 impl Default for SliderStyle {
@@ -23,9 +23,15 @@ impl Default for SliderStyle {
             thumb_hover_color: Color::rgb(0.5, 0.5, 0.55),
             thumb_drag_color: Color::rgb(0.6, 0.6, 0.65),
             focus_outline_color: Color::rgb(0.2, 0.5, 0.9),
-            width: 12.0,
+            thickness: 12.0,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Orientation {
+    Vertical,
+    Horizontal,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,6 +41,7 @@ pub struct SliderSpec {
     pub max: f32,
     pub page_step: f32,
     pub step: f32,
+    pub orientation: Orientation,
     pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
     pub style: SliderStyle,
     pub clip_rect: Option<Rect>,
@@ -52,7 +59,7 @@ pub struct SliderSpec {
 pub struct SliderState {
     pub focus_id: FocusId,
     pub is_dragging: bool,
-    pub drag_start_mouse_y: f32,
+    pub drag_start_mouse_coord: f32,
     pub drag_start_val: f32,
     pub is_track_clicking: bool,
     pub next_repeat_time: f64,
@@ -63,7 +70,7 @@ impl Default for SliderState {
         Self {
             focus_id: FocusId::new(),
             is_dragging: false,
-            drag_start_mouse_y: 0.0,
+            drag_start_mouse_coord: 0.0,
             drag_start_val: 0.0,
             is_track_clicking: false,
             next_repeat_time: 0.0,
@@ -92,17 +99,19 @@ pub fn slider(
     
     // 1. Calculate Thumb Rect
     let track_rect = spec.rect;
-    let track_h = track_rect.h;
+    let is_vert = spec.orientation == Orientation::Vertical;
+    
+    let track_len = if is_vert { track_rect.h } else { track_rect.w };
     
     // Use proportional thumb size, or fallback to fixed size
-    let thumb_h = if let Some(ratio) = spec.thumb_size_ratio {
-        (track_h * ratio.clamp(0.0, 1.0)).max(20.0)
+    let thumb_len = if let Some(ratio) = spec.thumb_size_ratio {
+        (track_len * ratio.clamp(0.0, 1.0)).max(20.0)
     } else {
-        spec.style.width.max(20.0)
+        spec.style.thickness.max(20.0)
     };
     
-    // Usable track length for the thumb's top edge
-    let usable_track = (track_h - thumb_h).max(0.0);
+    // Usable track length for the thumb's top/left edge
+    let usable_track = (track_len - thumb_len).max(0.0);
     
     let val_ratio = if range > 0.0 {
         (*value - min) / range
@@ -110,8 +119,21 @@ pub fn slider(
         0.0
     };
     
-    let thumb_y = track_rect.y + (val_ratio * usable_track);
-    let thumb_rect = Rect::new(track_rect.x + 2.0, thumb_y, (spec.style.width - 4.0).max(1.0), thumb_h);
+    let thumb_pos = (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
+    let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
+    let cross_size = (track_cross_size - 4.0).max(1.0);
+    
+    let thumb_rect = if is_vert {
+        Rect::new(track_rect.x + 2.0, thumb_pos, cross_size, thumb_len)
+    } else {
+        Rect::new(thumb_pos, track_rect.y + 2.0, thumb_len, cross_size)
+    };
+    
+    // Helper to get main coordinate
+    let get_coord = |v: crate::types::Vec2| if is_vert { v.y } else { v.x };
+    let mouse_coord = get_coord(input.mouse_pos);
+    let thumb_start = get_coord(Vec2::new(thumb_rect.x, thumb_rect.y));
+    let thumb_end = if is_vert { thumb_rect.bottom() } else { thumb_rect.right() };
     
     // 2. Input Handling
     
@@ -123,8 +145,8 @@ pub fn slider(
     // Drag update
     if state.is_dragging {
         if usable_track > 0.0 {
-            let delta_y = input.mouse_pos.y - state.drag_start_mouse_y;
-            let val_delta = (delta_y / usable_track) * range;
+            let delta = mouse_coord - state.drag_start_mouse_coord;
+            let val_delta = (delta / usable_track) * range;
             *value = (state.drag_start_val + val_delta).clamp(min, max);
         }
     }
@@ -138,24 +160,53 @@ pub fn slider(
     if is_visible && track_rect.contains(input.mouse_pos) {
         let at_min = *value <= min;
         let at_max = *value >= max;
+        
+        let scroll_delta = if is_vert {
+            input.scroll_delta.y
+        } else {
+            // For horizontal sliders, listen to horizontal wheel delta. 
+            // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
+            if input.scroll_delta.x != 0.0 { input.scroll_delta.x } else { input.scroll_delta.y }
+        };
 
         if spec.claim_scroll_at_ends {
-            // Standalone slider: always claim both directions, preventing
-            // scroll from ever propagating to a parent scroll area.
-            focus_sys.claim_scroll_up(state.focus_id);
-            focus_sys.claim_scroll_down(state.focus_id);
+            if is_vert {
+                focus_sys.claim_scroll_up(state.focus_id);
+                focus_sys.claim_scroll_down(state.focus_id);
+            } else {
+                focus_sys.claim_scroll_left(state.focus_id);
+                focus_sys.claim_scroll_right(state.focus_id);
+                focus_sys.claim_scroll_up(state.focus_id);
+                focus_sys.claim_scroll_down(state.focus_id);
+            }
         } else {
-            // Scrollbar-within-scroll-area: only claim directions we can move,
-            // so a parent can take the other direction when we're at the limit.
-            if !at_min { focus_sys.claim_scroll_up(state.focus_id); }
-            if !at_max { focus_sys.claim_scroll_down(state.focus_id); }
+            if is_vert {
+                if !at_min { focus_sys.claim_scroll_up(state.focus_id); }
+                if !at_max { focus_sys.claim_scroll_down(state.focus_id); }
+            } else {
+                if !at_min { 
+                    focus_sys.claim_scroll_left(state.focus_id);
+                    focus_sys.claim_scroll_up(state.focus_id); 
+                }
+                if !at_max { 
+                    focus_sys.claim_scroll_right(state.focus_id); 
+                    focus_sys.claim_scroll_down(state.focus_id);
+                }
+            }
         }
 
-        if input.scroll_delta.y > 0.0 && focus_sys.is_active_scroll_up(state.focus_id) {
-            *value = (*value - input.scroll_delta.y * spec.step).clamp(min, max);
+        let is_active_up_left = if is_vert { focus_sys.is_active_scroll_up(state.focus_id) } else { 
+            focus_sys.is_active_scroll_left(state.focus_id) || focus_sys.is_active_scroll_up(state.focus_id) 
+        };
+        let is_active_down_right = if is_vert { focus_sys.is_active_scroll_down(state.focus_id) } else { 
+            focus_sys.is_active_scroll_right(state.focus_id) || focus_sys.is_active_scroll_down(state.focus_id) 
+        };
+
+        if scroll_delta > 0.0 && is_active_up_left {
+            *value = (*value - scroll_delta * spec.step).clamp(min, max);
         }
-        if input.scroll_delta.y < 0.0 && focus_sys.is_active_scroll_down(state.focus_id) {
-            *value = (*value - input.scroll_delta.y * spec.step).clamp(min, max);
+        if scroll_delta < 0.0 && is_active_down_right {
+            *value = (*value - scroll_delta * spec.step).clamp(min, max);
         }
     }
 
@@ -164,14 +215,14 @@ pub fn slider(
         if thumb_rect.contains(input.mouse_pos) {
             // Clicked thumb -> start dragging
             state.is_dragging = true;
-            state.drag_start_mouse_y = input.mouse_pos.y;
+            state.drag_start_mouse_coord = mouse_coord;
             state.drag_start_val = *value;
             focus_sys.take_focus(state.focus_id);
         } else if track_rect.contains(input.mouse_pos) {
             // Clicked track -> page up/down towards mouse
-            if input.mouse_pos.y < thumb_rect.y {
+            if mouse_coord < thumb_start {
                 *value = (*value - spec.page_step).clamp(min, max);
-            } else if input.mouse_pos.y > thumb_rect.bottom() {
+            } else if mouse_coord > thumb_end {
                 *value = (*value + spec.page_step).clamp(min, max);
             }
             focus_sys.take_focus(state.focus_id);
@@ -180,10 +231,10 @@ pub fn slider(
         }
     } else if state.is_track_clicking && time >= state.next_repeat_time {
         if track_rect.contains(input.mouse_pos) {
-            if input.mouse_pos.y < thumb_rect.y {
+            if mouse_coord < thumb_start {
                 *value = (*value - spec.page_step).clamp(min, max);
                 state.next_repeat_time = time + 0.05; // 50ms repeat delay
-            } else if input.mouse_pos.y > thumb_rect.bottom() {
+            } else if mouse_coord > thumb_end {
                 *value = (*value + spec.page_step).clamp(min, max);
                 state.next_repeat_time = time + 0.05;
             } else {
@@ -213,10 +264,10 @@ pub fn slider(
         if input.key_pressed_page_down && focus_sys.is_active_pgdn(state.focus_id) {
             *value = (*value + spec.page_step).clamp(min, max);
         }
-        if input.key_pressed_up {
+        if input.key_pressed_up || input.key_pressed_left {
             *value = (*value - spec.step).clamp(min, max);
         }
-        if input.key_pressed_down {
+        if input.key_pressed_down || input.key_pressed_right {
             *value = (*value + spec.step).clamp(min, max);
         }
         if input.key_pressed_home {
@@ -269,6 +320,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 50.0;
         let spec = SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0),
             min: 0.0,
             max: 100.0,
@@ -322,6 +374,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 0.0;
         let spec = SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0), // track height 100
             min: 0.0,
             max: 100.0, // range 100
@@ -345,7 +398,7 @@ mod tests {
         
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert!(state.is_dragging);
-        assert_eq!(state.drag_start_mouse_y, 10.0);
+        assert_eq!(state.drag_start_mouse_coord, 10.0);
 
         // 2. Drag down by 40px (mouse y = 50)
         input.mouse_pressed = false;
@@ -361,6 +414,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 0.0;
         let spec = SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0), // track height 100
             min: 0.0,
             max: 100.0,
@@ -410,6 +464,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 50.0;
         let spec = SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0),
             min: 0.0,
             max: 100.0,
@@ -441,6 +496,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 50.0;
         let spec = SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0),
             min: 0.0,
             max: 100.0,
@@ -478,6 +534,7 @@ mod tests {
     // Helper to build a standard test spec.
     fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
         SliderSpec {
+            orientation: Orientation::Vertical,
             rect: Rect::new(0.0, 0.0, 20.0, 100.0),
             min,
             max,

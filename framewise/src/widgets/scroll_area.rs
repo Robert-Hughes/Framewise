@@ -128,6 +128,7 @@ pub fn begin_scroll_area<L: Layout>(
         let view_ratio = (bounds.h / content_height).min(1.0);
         
         let slider_spec = crate::widgets::slider::SliderSpec {
+            orientation: crate::widgets::slider::Orientation::Vertical,
             rect: track_rect,
             min: 0.0,
             max: max_scroll,
@@ -298,6 +299,7 @@ mod tests {
         let mut slider_state = crate::widgets::slider::SliderState::default();
         let mut slider_value = 50.0;
         let slider_spec = crate::widgets::slider::SliderSpec {
+            orientation: crate::widgets::slider::Orientation::Vertical,
             rect: Rect::new(10.0, 10.0, 20.0, 100.0), // Inside scroll area
             min: 0.0,
             max: 100.0,
@@ -475,6 +477,7 @@ mod tests {
         let mut slider_state = crate::widgets::slider::SliderState::default();
         let mut slider_value = 0.0_f32; // at min
         let slider_spec = crate::widgets::slider::SliderSpec {
+            orientation: crate::widgets::slider::Orientation::Vertical,
             rect: Rect::new(10.0, 10.0, 20.0, 100.0),
             min: 0.0,
             max: 100.0,
@@ -508,4 +511,49 @@ mod tests {
         assert_eq!(slider_value, 0.0);
         assert_eq!(scroll_state.offset_y, 50.0, "scroll area must not steal the event");
     }
+
+    #[test]
+    fn test_horizontal_slider_blocks_vertical_scroll_area() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut scroll_state = ScrollState { offset_y: 50.0, ..Default::default() };
+        let mut slider_state = crate::widgets::slider::SliderState::default();
+        let mut slider_value = 50.0_f32;
+        let slider_spec = crate::widgets::slider::SliderSpec {
+            orientation: crate::widgets::slider::Orientation::Horizontal,
+            rect: Rect::new(10.0, 10.0, 100.0, 20.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: crate::widgets::slider::SliderStyle::default(),
+            clip_rect: None,
+            claim_scroll_at_ends: true,
+        };
+
+        let mut input = Input::new();
+        // Mouse is scrolling vertically, over the horizontal slider
+        input.scroll_delta = Vec2::new(0.0, 1.0); // scroll up (which translates to left on slider)
+        input.mouse_pos = Vec2::new(50.0, 15.0); // inside horizontal slider
+
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1
+        focus_sys.begin_frame();
+        let _ = scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Frame 2
+        focus_sys.begin_frame();
+        let _ = scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Slider value should change (50 - 1.0 * 5.0 = 45.0)
+        assert_eq!(slider_value, 45.0);
+        // Scroll area should NOT scroll, offset remains 50.0
+        assert_eq!(scroll_state.offset_y, 50.0);
+    }
+
 }
