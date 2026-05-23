@@ -62,6 +62,7 @@ pub struct SliderState {
     pub drag_start_mouse_coord: f32,
     pub drag_start_val: f32,
     pub is_track_clicking: bool,
+    pub track_click_start_coord: f32,
     pub next_repeat_time: f64,
 }
 
@@ -73,6 +74,7 @@ impl Default for SliderState {
             drag_start_mouse_coord: 0.0,
             drag_start_val: 0.0,
             is_track_clicking: false,
+            track_click_start_coord: 0.0,
             next_repeat_time: 0.0,
         }
     }
@@ -137,11 +139,13 @@ pub fn slider(
     
     // 2. Input Handling
     
+    const TRACK_DRAG_THRESHOLD: f32 = 4.0;
+
     // Drag release
     if state.is_dragging && !input.mouse_down {
         state.is_dragging = false;
     }
-    
+
     // Drag update
     if state.is_dragging {
         if usable_track > 0.0 {
@@ -150,12 +154,27 @@ pub fn slider(
             *value = (state.drag_start_val + val_delta).clamp(min, max);
         }
     }
-    
+
     // Track click release
     if state.is_track_clicking && !input.mouse_down {
         state.is_track_clicking = false;
     }
 
+    // Track click → drag transition: mouse moved past threshold
+    if state.is_track_clicking && input.mouse_down {
+        if (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
+            if usable_track > 0.0 {
+                let track_start = if is_vert { track_rect.y } else { track_rect.x };
+                let snapped = (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
+                *value = (min + (snapped / usable_track) * range).clamp(min, max);
+                state.drag_start_mouse_coord = mouse_coord;
+                state.drag_start_val = *value;
+            }
+            state.is_dragging = true;
+            state.is_track_clicking = false;
+        }
+    }
+    
     // Mouse wheel scrolling — suppressed during an active drag so that drag
     // motion is authoritative (otherwise wheel ticks would stack on top of
     // the drag-projected value).
@@ -237,13 +256,14 @@ pub fn slider(
             }
             focus_sys.take_focus(state.focus_id);
             state.is_track_clicking = true;
-            state.next_repeat_time = time + 0.5; // 500ms initial delay
+            state.track_click_start_coord = mouse_coord;
+            state.next_repeat_time = time + 0.5;
         }
     } else if state.is_track_clicking && time >= state.next_repeat_time {
         if track_rect.contains(input.mouse_pos) {
             if mouse_coord < thumb_start {
                 *value = (*value - spec.page_step).clamp(min, max);
-                state.next_repeat_time = time + 0.05; // 50ms repeat delay
+                state.next_repeat_time = time + 0.05;
             } else if mouse_coord > thumb_end {
                 *value = (*value + spec.page_step).clamp(min, max);
                 state.next_repeat_time = time + 0.05;
@@ -463,27 +483,27 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        
+
         // Frame 1: time=0.0. Should page down by 20.0
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 20.0);
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
-        
+
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
         slider(&mut state, &mut value, spec.clone(), &input, 0.4, &mut focus_sys);
         assert_eq!(value, 20.0);
-        
+
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
         slider(&mut state, &mut value, spec.clone(), &input, 0.5, &mut focus_sys);
         assert_eq!(value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
-        
+
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
         slider(&mut state, &mut value, spec.clone(), &input, 0.6, &mut focus_sys);
         assert_eq!(value, 60.0);
-        
+
         // Release mouse -> track clicking ends
         input.mouse_down = false;
         slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
@@ -560,6 +580,54 @@ mod tests {
 
         // value = 50.0 - 2.0 * 5.0 = 40.0
         assert_eq!(value, 40.0);
+    }
+
+    /// Track: y=0..100, thumb_len=20, usable=80, value=0 → thumb at y=0..20.
+    /// Click empty track at y=50 → page step to 20.0, is_track_clicking.
+    /// Move mouse by 5px (> 4px threshold) to y=55 → snaps:
+    ///   thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25, switches to drag.
+    /// Then drag to y=65 → delta=10 → val_delta=12.5 → value=68.75.
+    #[test]
+    fn test_track_click_snaps_and_drags() {
+        let mut state = SliderState::default();
+        let mut value = 0.0_f32;
+        let spec = SliderSpec {
+            orientation: Orientation::Vertical,
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+            claim_scroll_at_ends: true,
+        };
+        let mut input = Input::new();
+        let mut focus_sys = FocusSystem::new();
+
+        // Frame 1: click empty track at y=50 (thumb is at y=0..20) → page step
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert!(state.is_track_clicking, "should be track-clicking after initial track click");
+        assert!(!state.is_dragging, "should not yet be dragging");
+        assert_eq!(value, 20.0, "page step should fire on click");
+
+        // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
+        input.mouse_pressed = false;
+        input.mouse_pos.y = 55.0;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert!(state.is_dragging, "should switch to dragging after threshold exceeded");
+        assert!(!state.is_track_clicking, "track clicking should end");
+        // snap: thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25
+        assert!((value - 56.25).abs() < 0.01, "snap to 56.25, got {value}");
+
+        // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
+        input.mouse_pos.y = 65.0;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert!((value - 68.75).abs() < 0.01, "drag to 68.75, got {value}");
     }
 
     // Helper to build a standard test spec.
