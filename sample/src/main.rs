@@ -85,13 +85,15 @@ struct App {
     double_horiz_btns: [SampleButton; 20],
     right_panel_scroll: framewise::widgets::scroll_area::ScrollState,
 
-    // Triple-nested: outer_vert -> middle_horiz -> inner_vert
+    // Quad-nested: outer_vert -> middle_horiz -> inner_vert -> innermost_horiz
     triple_outer_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_middle_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_inner_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_inner_btns: [SampleButton; 12],
     triple_inner_slider_state: framewise::widgets::slider::SliderState,
     triple_inner_slider_val: f32,
+    triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState,
+    triple_innermost_btns: [SampleButton; 5],
 }
 
 struct NestedRowState {
@@ -160,6 +162,8 @@ impl App {
             triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
             triple_inner_slider_state: framewise::widgets::slider::SliderState::default(),
             triple_inner_slider_val: 50.0,
+            triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            triple_innermost_btns: std::array::from_fn(|_| SampleButton::default()),
         }
     }
 
@@ -607,19 +611,15 @@ impl App {
 
                 // Triple-Nested Scroll Demo: outer_vert -> middle_horiz -> inner_vert
                 //
-                // Explore cross-axis leakage:
-                //   Mouse on inner content  -> horizontal BLOCKS leakage (fallback claim)
-                //   Mouse on inner slider   -> horizontal does NOT block (slider outside content_bounds)
-                //   Keyboard on inner btn   -> horizontal partially blocks (only when it has horiz room)
-                //   Keyboard on inner slider -> same as above
                 content_col.label(
                     Vec2::new(inner_w, 20.0),
-                    "TRIPLE NESTED: outer[vert] > middle[horiz] > inner[vert]  |  Explore cross-axis leakage",
+                    "QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation",
                 );
                 let triple_cmds = {
                     let outer_y = self.triple_outer_scroll.offset.y;
                     let middle_x = self.triple_middle_scroll.offset.x;
                     let inner_y = self.triple_inner_scroll.offset.y;
+                    let innermost_x = self.triple_innermost_scroll.offset.x;
 
                     // Outer vertical scroll area (taller content)
                     let mut outer_scroll = content_col.scroll_area(
@@ -633,10 +633,8 @@ impl App {
                     );
 
                     outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), &format!(
-                        "OUTER VERT scroll offset: {:.0}  |  MIDDLE HORIZ: {:.0}  |  INNER VERT: {:.0}",
-                        outer_y,
-                        middle_x,
-                        inner_y,
+                        "OUTER[V]: {:.0}  |  MIDDLE[H]: {:.0}  |  INNER[V]: {:.0}  |  INNERMOST[H]: {:.0}",
+                        outer_y, middle_x, inner_y, innermost_x,
                     ));
 
                     // Middle horizontal scroll area inside outer vertical
@@ -656,7 +654,8 @@ impl App {
 
                         // Inner vertical scroll area inside middle horizontal
                         let inner_cmds = {
-                            let inner_content_h = 12.0 * 35.0 + 11.0 * 6.0;
+                            // 12 btns + innermost horiz row: 13 items, 12 gaps
+                            let inner_content_h = 12.0 * 35.0 + 50.0 + 12.0 * 6.0;
                             let mut inner_scroll = middle_scroll.scroll_area(
                                 Vec2::new(200.0, 130.0),
                                 Vec2::new(200.0, inner_content_h),
@@ -681,6 +680,36 @@ impl App {
                                 self.triple_inner_btns[j].state = btn.state;
                                 if clicked { self.triple_inner_btns[j].clicks += 1; }
                             }
+
+                            // Innermost horizontal scroll area — 4th nesting level
+                            let innermost_cmds = {
+                                let innermost_content_w = 5.0 * 80.0 + 4.0 * 6.0; // 424px
+                                let mut innermost_scroll = inner_scroll.scroll_area(
+                                    Vec2::new(165.0, 50.0),
+                                    Vec2::new(innermost_content_w, 50.0),
+                                    framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                    framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                                    &mut self.triple_innermost_scroll,
+                                    framewise::layout::RowLayout { spacing: 6.0 },
+                                    &self.input,
+                                );
+                                for k in 0..5 {
+                                    innermost_scroll.ctx.button_style.background = Color::rgb(0.60, 0.25 + k as f32 * 0.06, 0.10);
+                                    innermost_scroll.ctx.button_style.hovered    = Color::rgb(0.70, 0.35 + k as f32 * 0.06, 0.20);
+                                    let btn = innermost_scroll.button(
+                                        std::mem::take(&mut self.triple_innermost_btns[k].state),
+                                        Vec2::new(80.0, 26.0),
+                                        format!("IH {}", k + 1),
+                                        &self.input,
+                                    );
+                                    let clicked = btn.clicked();
+                                    self.triple_innermost_btns[k].state = btn.state;
+                                    if clicked { self.triple_innermost_btns[k].clicks += 1; }
+                                }
+                                innermost_scroll.finish()
+                            };
+                            inner_scroll.append_cmds(innermost_cmds);
+
                             inner_scroll.finish()
                         };
                         middle_scroll.append_cmds(inner_cmds);

@@ -940,4 +940,467 @@ mod nested_bubbling_tests {
         assert_eq!(inner_state.offset.y, 100.0, "Inner slider at max, should not change");
         assert_eq!(outer_state.offset.x, 0.0, "Outer horiz must NOT receive pgdn (cross-axis isolation)");
     }
+
+    // ── Triple nested: outer VERTICAL → middle HORIZONTAL → inner VERTICAL ───────────────
+    //
+    // Geometry (all tests):
+    //   outer_vert:   bounds=(0,0,400,400)  content=(400,800)  v=Always h=None
+    //                 content_bounds=(0,0,388,400)  vert-slider at x=388
+    //   middle_horiz: bounds=(0,0,388,300)  content=(800,300)  h=Always v=None  [fallback]
+    //                 content_bounds=(0,0,388,288)  horiz-slider at y=288
+    //   inner_vert:   bounds=(0,0,200,288)  content=(200,600)  v=Always h=None
+    //                 content_bounds=(0,0,188,288)  vert-slider at x=188
+    //                 max_scroll.y = 312
+    //
+    // Middle_horiz is a "fallback" area (h-only). Its unconditional scroll_up/down claims block
+    // events from reaching outer_vert, and inner_vert's unconditional scroll_left/right claims
+    // prevent middle from acting via the scroll_left action path.
+    // Result: middle_horiz is a complete bidirectional blocker — outer_vert never fires.
+    //
+    // WHY THIS MATTERS: if events could tunnel through middle_horiz and reach outer_vert, the
+    // user would see vertical scrolling in a container they've mentally left. Worse, it would
+    // skip the axis change entirely: a vertical action taken while inside a horizontally-scrolling
+    // context would scroll something vertically above it — a disorienting axis jump that breaks
+    // the user's spatial model of which scroll area they are controlling.
+
+    // 13. Mouse Wheel / Triple Nested / Inner content, inner at top
+    //     Upward wheel on inner_vert content while inner is at top.
+    //     Middle absorbs scroll_up (fallback claim). Inner claims scroll_left (blocks middle action).
+    //     Outer never reached. If middle failed to block, outer_vert would scroll vertically —
+    //     skipping the horizontal context entirely, confusing axis jump.
+    #[test]
+    fn test_triple_nested_mouse_content_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0); // inside all three content areas
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at top — skips scroll_up claim
+                middle_state.offset.x = 50.0;  // must NOT scroll
+                outer_state.offset.y = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
+        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+    }
+
+    // 14. Mouse Wheel / Triple Nested / Inner slider, inner slider at top (at_min)
+    //     Upward wheel on inner_vert slider track while slider is at_min.
+    //     Slider skips scroll_up (conditional), claims scroll_left (unconditional).
+    //     Middle absorbs scroll_up but cannot act (scroll_left taken, scroll_up path removed).
+    //     Outer never reached. If middle failed to block, outer_vert would scroll vertically —
+    //     skipping the horizontal context entirely, confusing axis jump.
+    #[test]
+    fn test_triple_nested_mouse_scrollbar_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // mouse (195,50): inside outer (0,0,388,400) and middle (0,0,388,288) content areas,
+        //                 outside inner content (0,0,188,288), on inner slider track (188,0,12,288)
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(195.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at_min — slider skips scroll_up claim
+                middle_state.offset.x = 50.0;  // must NOT scroll
+                outer_state.offset.y = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
+        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+    }
+
+    // 15. Keyboard / Triple Nested / Content focus, inner at bottom
+    //     pgdn with focus inside inner_vert at bottom.
+    //     Inner scope claims pgdn_horiz (blocks middle). Middle scope claims pgdn_vert (blocks outer).
+    //     Outer never reached. If middle failed to block, outer_vert would scroll down — the user
+    //     pressed pgdn expecting the inner context and outer_vert jumps instead, an axis skip.
+    #[test]
+    fn test_triple_nested_keyboard_content_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut text_sys = DummyTextSystem;
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+        focus_sys.take_focus(btn_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 312.0;  // at bottom (content=600, view=288 → max=312)
+                middle_state.offset.x = 50.0;  // must NOT scroll right
+                outer_state.offset.y = 50.0;   // must NOT scroll down
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state = info.state;
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 312.0, "Inner vert already at bottom");
+        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll right (cross-axis)");
+        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll down (middle fully blocks)");
+    }
+
+    // 16. Keyboard / Triple Nested / Slider focus, inner slider at max
+    //     pgdn with inner_vert slider focused and at max.
+    //     Slider skips pgdn_vert (at_max), claims pgdn_horiz (blocks middle from acting).
+    //     Inner scope claims pgdn_horiz (already taken). Middle scope claims pgdn_vert (blocks outer).
+    //     Outer never reached. If middle failed to block, outer_vert would scroll down — the slider
+    //     is at its limit so pgdn appears to do nothing locally, then outer_vert jumps unexpectedly.
+    #[test]
+    fn test_triple_nested_keyboard_scrollbar_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // Pre-render inner once to get slider focus_id
+        focus_sys.begin_frame();
+        let (_, inner_scope, _, _) = begin_scroll_area(
+            Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+        );
+        inner_scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+
+        focus_sys.take_focus(inner_state.vert_slider_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 312.0;  // at max
+                middle_state.offset.x = 50.0;  // must NOT scroll
+                outer_state.offset.y = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 312.0, "Inner slider already at max");
+        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+    }
+
+    // ── Reversed triple nested: outer HORIZONTAL → middle VERTICAL → inner HORIZONTAL ────
+    //
+    // Geometry (all tests):
+    //   outer_horiz:  bounds=(0,0,400,400)  content=(800,400)  h=Always v=None  [fallback]
+    //                 content_bounds=(0,0,400,388)  horiz-slider at y=388
+    //                 max_scroll.x = 400
+    //   middle_vert:  bounds=(0,0,400,388)  content=(400,800)  v=Always h=None
+    //                 content_bounds=(0,0,388,388)  vert-slider at x=388
+    //                 max_scroll.y = 412
+    //   inner_horiz:  bounds=(0,0,388,200)  content=(800,200)  h=Always v=None  [fallback]
+    //                 content_bounds=(0,0,388,188)  horiz-slider at y=188
+    //                 max_scroll.x = 412
+    //
+    // Symmetric to the v→h→v case above. middle_vert now unconditionally claims scroll_left/right
+    // (change 1), blocking outer_horiz from winning scroll_left. inner_horiz unconditionally claims
+    // scroll_up/down (fallback), blocking middle_vert from firing.
+    // Result: middle_vert is a complete bidirectional blocker — outer_horiz never fires.
+    //
+    // WHY THIS MATTERS: without blocking, a horizontal event on inner_horiz at its limit would
+    // skip middle_vert and scroll outer_horiz — an unexpected jump into a container the user has
+    // mentally left, disorienting because outer_horiz is the same axis as inner_horiz.
+
+    // 17. Mouse Wheel / Reversed Triple / Inner content, inner at left (at_min)
+    //     Upward wheel (remapped to leftward) on inner_horiz content while inner is at_left.
+    //     Middle claims scroll_left (blocks outer). Inner claims scroll_up/down (blocks middle action).
+    //     Outer never reached.
+    #[test]
+    fn test_reversed_triple_nested_mouse_content_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // mouse (50,50): inside all three content areas
+        // inner.offset.x=0 (at_left): content block skips scroll_left → middle absorbs it
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.x = 0.0;    // at left — skips scroll_left claim
+                middle_state.offset.y = 50.0;  // must NOT scroll
+                outer_state.offset.x = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
+        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+    }
+
+    // 18. Mouse Wheel / Reversed Triple / Inner slider, inner slider at left (at_min)
+    //     Upward wheel on inner_horiz slider track while slider is at_min.
+    //     Slider skips scroll_left (conditional), claims scroll_up/down (unconditional).
+    //     Middle claims scroll_left (blocks outer). Outer never reached.
+    #[test]
+    fn test_reversed_triple_nested_mouse_scrollbar_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // inner horiz slider track: x=0..388, y=188..200
+        // mouse (50,195): inside outer (0,0,400,388) and middle (0,0,388,388) content areas,
+        //                 outside inner content (0,0,388,188), on inner horiz slider track
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 195.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.x = 0.0;    // at_min — slider skips scroll_left claim
+                middle_state.offset.y = 50.0;  // must NOT scroll
+                outer_state.offset.x = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
+        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+    }
+
+    // 19. Keyboard / Reversed Triple / Content focus, inner at right (at_max)
+    //     pgdn with focus inside inner_horiz at right limit.
+    //     Inner scope claims pgdn_vert (blocks middle). Middle scope claims pgdn_horiz (blocks outer).
+    //     Outer never reached.
+    #[test]
+    fn test_reversed_triple_nested_keyboard_content_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut text_sys = DummyTextSystem;
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+        focus_sys.take_focus(btn_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.x = 412.0;  // at right (content=800, view=388 → max=412)
+                middle_state.offset.y = 50.0;  // must NOT scroll down
+                outer_state.offset.x = 50.0;   // must NOT scroll right
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state = info.state;
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 412.0, "Inner horiz already at right");
+        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll down (cross-axis)");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll right (middle fully blocks)");
+    }
+
+    // 20. Keyboard / Reversed Triple / Slider focus, inner slider at right (at_max)
+    //     pgdn with inner_horiz slider focused and at max.
+    //     Slider skips pgdn_horiz (at_max), claims pgdn_vert (blocks middle from acting).
+    //     Middle scope claims pgdn_horiz (blocks outer). Outer never reached.
+    #[test]
+    fn test_reversed_triple_nested_keyboard_scrollbar_middle_blocks() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut middle_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // Pre-render inner once to get horiz slider focus_id
+        focus_sys.begin_frame();
+        let (_, inner_scope, _, _) = begin_scroll_area(
+            Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
+            ScrollbarVisibility::Always, ScrollbarVisibility::None,
+            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+        );
+        inner_scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+
+        focus_sys.take_focus(inner_state.horiz_slider_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.x = 412.0;  // at max
+                middle_state.offset.y = 50.0;  // must NOT scroll
+                outer_state.offset.x = 50.0;   // must NOT scroll
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, middle_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            middle_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 412.0, "Inner slider already at max");
+        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+    }
 }
