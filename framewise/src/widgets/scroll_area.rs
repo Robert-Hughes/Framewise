@@ -584,6 +584,26 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// When content shrinks, an existing offset past the new max must clamp.
+    #[test]
+    fn test_offset_clamps_on_content_shrink() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        state.offset.y = 500.0; // ahead of any plausible max
+        let input = Input::new();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 250.0), // content shrunk: max_scroll.y = 50
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        assert_eq!(state.offset.y, 50.0, "Offset must clamp to new max_scroll.y");
+    }
+
     /// Non-zero bounds.x/y must shift content_bounds, mouse hit-test, and the
     /// slider track. Mouse hit at the absolute coordinate inside the offset
     /// content_bounds should still trigger scroll.
