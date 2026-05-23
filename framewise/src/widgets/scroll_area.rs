@@ -524,6 +524,53 @@ mod tests {
         }
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
+
+    /// Home/End act when the scrollbar slider is focused (slider's own keyboard handler).
+    /// They do not propagate from child widgets via the scope — that's intentional.
+    #[test]
+    fn test_home_end_on_focused_slider() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let input = Input::new();
+
+        // Pre-render to materialise the vertical slider's focus_id.
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        focus_sys.take_focus(state.vert_slider_state.focus_id);
+
+        // End → offset jumps to max.
+        let mut input = Input::new();
+        input.key_pressed_end = true;
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        assert_eq!(state.offset.y, 800.0, "End on focused slider jumps to max_scroll");
+
+        // Home → offset jumps to 0.
+        let mut input = Input::new();
+        input.key_pressed_home = true;
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        assert_eq!(state.offset.y, 0.0, "Home on focused slider jumps to 0");
+    }
 }
 
 
