@@ -317,10 +317,11 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
-  * What about 2D -> 2D
-    * Sample app
-    * tests?
-  * Anything else? Maybe ask Opus. Can any of the logic be simplified given the behaviour we have? What about the tests - lots of duplication!
+  * We've been working a lot on scrolling behaviour and propagation recently. We've added a bunch of tests. Check if there's anything we might have missed - incorrect or confusing behaviour or inconsistent for the user.
+
+  Also check the design/implementation of the scrolling logic - can it be simplified?
+
+  Also check the test coverage we have - are we missing anything? Can the tests be simplified?
 
   * Click and hold to repeatedly page down on a slider - if it get clamped at the end then it can jump back and forth every frame!
   * Slider click on the trackbar then drag, should snap to cursor

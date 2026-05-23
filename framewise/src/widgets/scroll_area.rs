@@ -39,6 +39,7 @@ pub struct ScrollAreaScope {
     at_left: bool,
     at_right: bool,
     fallback: bool,
+    is_2d: bool,
     is_finished: bool,
 }
 
@@ -76,8 +77,15 @@ impl ScrollAreaScope {
                 // orthogonal keystrokes from "leaking" out and scrolling a parent vertical area.
                 focus_sys.claim_pgup_vert(self.id);
                 focus_sys.claim_pgdn_vert(self.id);
+            } else if self.is_2d {
+                // 2D scroll area: conditionally claim both axes.
+                // This enables same-axis bubbling in both directions when at a limit.
+                if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
+                if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
+                if !self.at_left   { focus_sys.claim_pgup_horiz(self.id); }
+                if !self.at_right  { focus_sys.claim_pgdn_horiz(self.id); }
             } else {
-                // Vertical scroll area:
+                // Pure-vertical scroll area:
                 // We map PgUp/PgDn to vertical scrolling.
                 // We conditionally claim the vertical scroll actions only if we have room to scroll.
                 // This allows vertical PgUp/PgDn to bubble up to parent vertical scroll areas if we are at the limit!
@@ -85,7 +93,7 @@ impl ScrollAreaScope {
                 if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
 
                 // Crucially, we UNCONDITIONALLY claim the horizontal PgUp/PgDn actions!
-                // This completely isolates this vertical scope from the horizontal axis, preventing 
+                // This completely isolates this vertical scope from the horizontal axis, preventing
                 // orthogonal keystrokes from "leaking" out and scrolling a parent horizontal area.
                 focus_sys.claim_pgup_horiz(self.id);
                 focus_sys.claim_pgdn_horiz(self.id);
@@ -177,6 +185,18 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         if needs_h {
             let mut dx = input.scroll_delta.x;
             if fallback && dx == 0.0 { dx = input.scroll_delta.y; }
+            // For 2D areas: if we won scroll_left/right but not scroll_up/down (inner horiz
+            // slider blocked vert), remap delta.y to horizontal scroll. Enables bubbling from
+            // a nested horiz slider at its extent.
+            if needs_v && !fallback && dx == 0.0 && input.scroll_delta.y != 0.0 {
+                let won_horiz = focus_sys.is_active_scroll_left(state.id)
+                    || focus_sys.is_active_scroll_right(state.id);
+                let own_vert = focus_sys.is_active_scroll_up(state.id)
+                    || focus_sys.is_active_scroll_down(state.id);
+                if won_horiz && !own_vert {
+                    dx = input.scroll_delta.y;
+                }
+            }
             // Only fire on scroll_left/right — scroll_up/down are claimed purely to block
             // parent vertical areas and must not double as a horizontal-remap trigger.
             if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
@@ -194,15 +214,25 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     if input.key_pressed_page_up {
         if fallback && focus_sys.is_active_pgup_horiz(state.id) {
             state.offset.x -= bounds.w;
-        } else if !fallback && focus_sys.is_active_pgup_vert(state.id) {
-            state.offset.y -= bounds.h;
+        } else if !fallback {
+            if focus_sys.is_active_pgup_vert(state.id) {
+                state.offset.y -= bounds.h;
+            }
+            if needs_v && needs_h && focus_sys.is_active_pgup_horiz(state.id) {
+                state.offset.x -= bounds.w;
+            }
         }
     }
     if input.key_pressed_page_down {
         if fallback && focus_sys.is_active_pgdn_horiz(state.id) {
             state.offset.x += bounds.w;
-        } else if !fallback && focus_sys.is_active_pgdn_vert(state.id) {
-            state.offset.y += bounds.h;
+        } else if !fallback {
+            if focus_sys.is_active_pgdn_vert(state.id) {
+                state.offset.y += bounds.h;
+            }
+            if needs_v && needs_h && focus_sys.is_active_pgdn_horiz(state.id) {
+                state.offset.x += bounds.w;
+            }
         }
     }
 
@@ -280,6 +310,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         at_left: state.offset.x <= 0.0,
         at_right: state.offset.x >= max_scroll.x,
         fallback,
+        is_2d: needs_v && needs_h,
         is_finished: false,
     };
 
