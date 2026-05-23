@@ -2,8 +2,7 @@ use crate::{
     draw::DrawCmd,
     input::Input,
     layout::OffsetLayout,
-    types::{Color, Rect, Vec2},
-    layout::Layout,
+    types::{Rect, Vec2},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -393,3 +392,103 @@ mod tests {
     }
 }
 
+
+
+#[cfg(test)]
+mod bug_test {
+    use crate::widgets::scroll_area::*;
+    use crate::types::*;
+    use crate::input::Input;
+    use crate::layout::*;
+    use crate::focus::*;
+    
+    #[test]
+    fn test_pgdn_bug() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        
+        // We need a dummy text system
+        struct DummyTextSystem;
+        impl crate::text::TextSystem for DummyTextSystem {
+            fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
+                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: Vec2::ZERO }
+            }
+            fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
+            fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
+        }
+        let mut text_sys = DummyTextSystem;
+
+        let mut outer_state = ScrollState::default();
+        let mut inner_state1 = ScrollState::default();
+        let mut inner_state2 = ScrollState::default();
+        
+        let mut btn_state1 = crate::widgets::button::ButtonState::default();
+        let mut btn_state2 = crate::widgets::button::ButtonState::default();
+
+        // Focus btn_state1 initially
+        focus_sys.take_focus(btn_state1.focus_id);
+
+        for _frame in 0..3 {
+            focus_sys.begin_frame();
+            
+            input.key_pressed_page_down = true;
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 1000.0, 1000.0),
+                Vec2::new(1000.0, 2000.0), // outer can scroll down
+                ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            // Inner 1 (at extreme!)
+            // Its height is 100, content is 100. So it cannot scroll down.
+            let (_, inner_scope1, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 100.0),
+                Vec2::new(200.0, 100.0), 
+                ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
+                &mut inner_state1, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            let info1 = crate::widgets::button::button(
+                std::mem::take(&mut btn_state1),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "btn1".into(),
+                    style: crate::widgets::button::ButtonStyle::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state1 = info1.state;
+            inner_scope1.finish(&mut focus_sys);
+
+            // Inner 2 (can scroll down!)
+            let (_, inner_scope2, _, _) = begin_scroll_area(
+                Rect::new(200.0, 0.0, 200.0, 100.0),
+                Vec2::new(200.0, 500.0), 
+                ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
+                &mut inner_state2, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            
+            let info2 = crate::widgets::button::button(
+                std::mem::take(&mut btn_state2),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "btn2".into(),
+                    style: crate::widgets::button::ButtonStyle::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state2 = info2.state;
+            inner_scope2.finish(&mut focus_sys);
+
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+
+        println!("outer offset: {}", outer_state.offset.y);
+        println!("inner1 offset: {}", inner_state1.offset.y);
+        println!("inner2 offset: {}", inner_state2.offset.y);
+    }
+}
