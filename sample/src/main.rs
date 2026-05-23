@@ -80,6 +80,10 @@ struct App {
     top_btn2:        SampleButton,
     standalone_slider_state: framewise::widgets::slider::SliderState,
     standalone_slider_val: f32,
+    double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState,
+    double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    double_horiz_btns: [SampleButton; 20],
+    right_panel_scroll: framewise::widgets::scroll_area::ScrollState,
 }
 
 struct NestedRowState {
@@ -138,6 +142,10 @@ impl App {
             top_btn2:        SampleButton::default(),
             standalone_slider_state: framewise::widgets::slider::SliderState::default(),
             standalone_slider_val: 50.0,
+            double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
+            right_panel_scroll: framewise::widgets::scroll_area::ScrollState::default(),
         }
     }
 
@@ -218,15 +226,21 @@ impl App {
 
             // -- MAIN CONTENT (Right Column) --
             let content_cmds = {
-                let mut content_col = main_row.child_with_layout(
+                let mut content_col = main_row.scroll_area(
                     Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
+                    Vec2::new(win_size.0 - 240.0, 1600.0),
+                    framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                    framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    &mut self.right_panel_scroll,
                     framewise::layout::ColumnLayout { spacing: 15.0 },
+                    &self.input,
                 );
+                let inner_w = win_size.0 - 240.0 - 15.0;
 
                 // Top Header Row
                 let header_cmds = {
                     let mut header_row = content_col.child_with_layout(
-                        Vec2::new(win_size.0 - 240.0, 40.0),
+                        Vec2::new(inner_w, 40.0),
                         framewise::layout::RowLayout { spacing: 10.0 },
                     );
                     header_row.ctx.button_style.background = Color::rgb(0.90, 0.40, 0.10);
@@ -262,7 +276,7 @@ impl App {
                 // Nested Grid Area (4 Rows of 4 Buttons)
                 let grid_cmds = {
                     let mut grid_col = content_col.child_with_layout(
-                        Vec2::new(win_size.0 - 240.0, 200.0),
+                        Vec2::new(inner_w, 200.0),
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                     );
                     grid_col.ctx.button_style.background = Color::rgb(0.00, 0.60, 0.70);
@@ -274,7 +288,7 @@ impl App {
                     for row in 0..4 {
                         let row_cmds = {
                             let mut grid_row = grid_col.child_with_layout(
-                                Vec2::new(win_size.0 - 240.0, 32.0),
+                                Vec2::new(inner_w, 32.0),
                                 framewise::layout::RowLayout { spacing: 10.0 },
                             );
                             for col in 0..4 {
@@ -300,7 +314,7 @@ impl App {
                 // Standalone Slider Demo
                 let slider_cmds = {
                     let mut slider_row = content_col.child_with_layout(
-                        Vec2::new(win_size.0 - 240.0, 100.0),
+                        Vec2::new(inner_w, 100.0),
                         framewise::layout::RowLayout { spacing: 20.0 },
                     );
 
@@ -326,8 +340,8 @@ impl App {
                 let scroll_cmds = {
                     let content_height = 30.0 * 50.0 + 30.0 * 10.0; // 30 items * 50h + 10 spacing
                     let mut main_scroll = content_col.scroll_area(
-                        Vec2::new(win_size.0 - 240.0, 250.0),
-                        Vec2::new(win_size.0 - 240.0, content_height),
+                        Vec2::new(inner_w, 250.0),
+                        Vec2::new(inner_w, content_height),
                         framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         &mut self.main_scroll,
@@ -369,7 +383,7 @@ impl App {
                     let row_h = 160.0;
                     let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
                     let mut outer_scroll = content_col.scroll_area(
-                        Vec2::new(win_size.0 - 240.0, 300.0),
+                        Vec2::new(inner_w, 300.0),
                         Vec2::new(800.0, outer_content_height), // 800 is wide enough for all elements
                         framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
@@ -528,6 +542,54 @@ impl App {
                     outer_scroll.finish()
                 };
                 content_col.append_cmds(nested_cmds);
+
+                // Double Horizontal Scroll Demo
+                content_col.label(Vec2::new(400.0, 20.0), "DOUBLE HORIZONTAL SCROLL DEMO");
+                let d_horiz_cmds = {
+                    let mut outer_scroll = content_col.scroll_area(
+                        Vec2::new(inner_w, 150.0),
+                        Vec2::new(2000.0, 150.0),
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                        &mut self.double_horiz_outer_scroll,
+                        framewise::layout::RowLayout { spacing: 20.0 },
+                        &self.input,
+                    );
+                    
+                    // Left spacer/button
+                    outer_scroll.button(Default::default(), Vec2::new(100.0, 100.0), "Outer L", &self.input);
+
+                    // Inner horizontal scroll area
+                    let inner_cmds = {
+                        let mut inner_scroll = outer_scroll.scroll_area(
+                            Vec2::new(600.0, 120.0),
+                            Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0),
+                            framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                            framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                            &mut self.double_horiz_inner_scroll,
+                            framewise::layout::RowLayout { spacing: 8.0 },
+                            &self.input,
+                        );
+
+                        for j in 0..20 {
+                            let btn = inner_scroll.button(
+                                std::mem::take(&mut self.double_horiz_btns[j].state),
+                                Vec2::new(60.0, 80.0),
+                                format!("H {}", j + 1),
+                                &self.input,
+                            );
+                            self.double_horiz_btns[j].state = btn.state;
+                        }
+                        inner_scroll.finish()
+                    };
+                    outer_scroll.append_cmds(inner_cmds);
+
+                    // Right spacer/button
+                    outer_scroll.button(Default::default(), Vec2::new(300.0, 100.0), "Outer R", &self.input);
+
+                    outer_scroll.finish()
+                };
+                content_col.append_cmds(d_horiz_cmds);
 
                 content_col.finish()
             };
