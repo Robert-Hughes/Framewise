@@ -237,7 +237,7 @@ pub fn text_edit<T: TextSystem>(
 
     let mut clipboard_action = None;
 
-    let focused = focus_sys.register(state.focus_id, spec.rect);
+    let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
     let just_focused = focused && !state.was_focused;
 
     let old_caret = state.caret_byte;

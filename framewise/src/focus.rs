@@ -165,7 +165,7 @@ impl FocusSystem {
     /// Register a widget in the current frame's focus order.
     /// `rect` is the widget's bounding box in window space; it is used for
     /// spatial arrow-key navigation. Returns true if this widget currently has focus.
-    pub fn register(&mut self, id: FocusId, rect: Rect) -> bool {
+    pub fn register(&mut self, id: FocusId, rect: Rect, clip_rect: Option<Rect>) -> bool {
         #[cfg(debug_assertions)]
         {
             if !self.seen_ids.insert(id) && !cfg!(test) {
@@ -174,7 +174,17 @@ impl FocusSystem {
         }
 
         self.current_frame_order.push(id);
-        self.current_frame_rects.insert(id, rect);
+
+        // Only insert into the spatial map if at least one pixel of the widget
+        // is inside the clip rect. Fully-clipped widgets are excluded from
+        // directional navigation but remain in Tab order (linear).
+        let spatially_visible = clip_rect.map_or(true, |c| {
+            let i = rect.intersect(&c);
+            i.w > 0.0 && i.h > 0.0
+        });
+        if spatially_visible {
+            self.current_frame_rects.insert(id, rect);
+        }
 
         let has_focus = self.focused_id == Some(id);
         if has_focus {
@@ -526,35 +536,35 @@ mod tests {
 
         // Frame 1
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0)));
-        assert!(!sys.register(id2, r(0.0, 50.0)));
-        assert!(!sys.register(id3, r(0.0, 100.0)));
+        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(!sys.register(id2, r(0.0, 50.0), None));
+        assert!(!sys.register(id3, r(0.0, 100.0), None));
 
         sys.take_focus(id2);
         sys.end_frame();
 
         // Frame 2
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0)));
-        assert!(sys.register(id2, r(0.0, 50.0)), "id2 should have focus");
-        assert!(!sys.register(id3, r(0.0, 100.0)));
+        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(sys.register(id2, r(0.0, 50.0), None), "id2 should have focus");
+        assert!(!sys.register(id3, r(0.0, 100.0), None));
 
         sys.request_shift(FocusDirection::Next);
         sys.end_frame();
 
         // Frame 3
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0)));
-        assert!(!sys.register(id2, r(0.0, 50.0)));
-        assert!(sys.register(id3, r(0.0, 100.0)), "id3 should have focus after Next from id2");
+        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(!sys.register(id2, r(0.0, 50.0), None));
+        assert!(sys.register(id3, r(0.0, 100.0), None), "id3 should have focus after Next from id2");
 
         sys.request_shift(FocusDirection::Prev);
         sys.end_frame();
 
         // Frame 4
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0)));
-        assert!(sys.register(id2, r(0.0, 50.0)), "id2 should have focus after Prev from id3");
+        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(sys.register(id2, r(0.0, 50.0), None), "id2 should have focus after Prev from id3");
     }
 
     #[test]
@@ -568,16 +578,16 @@ mod tests {
         sys.take_focus(id1);
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0));
-        sys.register(id2, r(0.0, 50.0));
-        sys.register(id3, r(0.0, 100.0));
+        sys.register(id1, r(0.0, 0.0), None);
+        sys.register(id2, r(0.0, 50.0), None);
+        sys.register(id3, r(0.0, 100.0), None);
         sys.request_shift(FocusDirection::Next);
         sys.end_frame();
 
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0)));
-        assert!(!sys.register(id2, r(0.0, 50.0)));
-        assert!(sys.register(id3, r(0.0, 100.0)), "Focus should jump to id3 via custom override");
+        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(!sys.register(id2, r(0.0, 50.0), None));
+        assert!(sys.register(id3, r(0.0, 100.0), None), "Focus should jump to id3 via custom override");
     }
 
     // ── handle_traversal tests ─────────────────────────────────────────────────
@@ -594,14 +604,14 @@ mod tests {
         sys.take_focus(id1);
 
         sys.begin_frame();
-        let focused1 = sys.register(id1, r(0.0, 0.0));
+        let focused1 = sys.register(id1, r(0.0, 0.0), None);
         sys.handle_traversal(focused1, &input, keys);
-        sys.register(id2, r(0.0, 50.0));
+        sys.register(id2, r(0.0, 50.0), None);
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0));
-        let has2 = sys.register(id2, r(0.0, 50.0));
+        let has1 = sys.register(id1, r(0.0, 0.0), None);
+        let has2 = sys.register(id2, r(0.0, 50.0), None);
         sys.end_frame();
         (has1, has2)
     }
@@ -627,14 +637,14 @@ mod tests {
         input.modifier_shift = true;
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0));
-        let focused2 = sys.register(id2, r(0.0, 50.0));
+        sys.register(id1, r(0.0, 0.0), None);
+        let focused2 = sys.register(id2, r(0.0, 50.0), None);
         sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0));
-        let has2 = sys.register(id2, r(0.0, 50.0));
+        let has1 = sys.register(id1, r(0.0, 0.0), None);
+        let has2 = sys.register(id2, r(0.0, 50.0), None);
         sys.end_frame();
         assert!(has1, "id1 should gain focus after Shift+Tab from id2");
         assert!(!has2);
@@ -719,14 +729,14 @@ mod tests {
         input.key_pressed_right = true;
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0));
-        let focused2 = sys.register(id2, r(0.0, 50.0));
+        sys.register(id1, r(0.0, 0.0), None);
+        let focused2 = sys.register(id2, r(0.0, 50.0), None);
         sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0));
-        sys.register(id2, r(0.0, 50.0));
+        let has1 = sys.register(id1, r(0.0, 0.0), None);
+        sys.register(id2, r(0.0, 50.0), None);
         sys.end_frame();
         assert!(has1, "Unfocused widget must not trigger traversal");
     }
@@ -756,7 +766,7 @@ mod tests {
         let mut input = crate::input::Input::default();
         key_fn(&mut input);
         for (i, &(id, rect)) in rects.iter().enumerate() {
-            let focused = sys.register(id, rect);
+            let focused = sys.register(id, rect, None);
             if i == focused_idx {
                 sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
             }
@@ -767,7 +777,7 @@ mod tests {
         sys.begin_frame();
         let mut focus_result = rects[focused_idx].0; // default: unchanged
         for &(id, rect) in rects {
-            if sys.register(id, rect) {
+            if sys.register(id, rect, None) {
                 focus_result = id;
             }
         }
@@ -891,14 +901,76 @@ mod tests {
         sys.begin_frame();
         let mut input = crate::input::Input::default();
         input.key_pressed_down = true;
-        let focused = sys.register(id, r(0.0, 0.0));
+        let focused = sys.register(id, r(0.0, 0.0), None);
         sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let still_focused = sys.register(id, r(0.0, 0.0));
+        let still_focused = sys.register(id, r(0.0, 0.0), None);
         sys.end_frame();
         assert!(still_focused, "Single widget should remain focused when no nav target exists");
+    }
+
+    #[test]
+    fn test_fully_clipped_widget_excluded_from_spatial_nav() {
+        // id_clipped is registered with a clip_rect that has zero intersection
+        // with its rect → excluded from directional nav.
+        // id_visible is below id_focus; id_clipped is between them but clipped.
+        // Down from id_focus must skip id_clipped and pick id_visible.
+        let id_focus   = FocusId::new();
+        let id_clipped = FocusId::new();
+        let id_visible = FocusId::new();
+        let clip = Rect::new(0.0, 0.0, 80.0, 40.0); // clip only covers y=0..40
+
+        let mut sys = FocusSystem::new();
+        sys.take_focus(id_focus);
+
+        sys.begin_frame();
+        let mut input = crate::input::Input::default();
+        input.key_pressed_down = true;
+        let focused = sys.register(id_focus, r(0.0, 0.0), None); // y=0, inside clip
+        sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
+        // id_clipped: rect at y=50 is fully outside clip y=0..40 → excluded from spatial map
+        sys.register(id_clipped, r(0.0, 50.0), Some(clip));
+        sys.register(id_visible, r(0.0, 100.0), None);
+        sys.end_frame();
+
+        sys.begin_frame();
+        sys.register(id_focus,   r(0.0, 0.0),   None);
+        sys.register(id_clipped, r(0.0, 50.0),  Some(clip));
+        let got_visible = sys.register(id_visible, r(0.0, 100.0), None);
+        sys.end_frame();
+
+        assert!(got_visible, "Fully clipped widget excluded: Down must pick id_visible");
+    }
+
+    #[test]
+    fn test_partially_clipped_widget_included_in_spatial_nav() {
+        // id_partial overlaps the clip rect by one pixel row → still navigable.
+        let id_focus   = FocusId::new();
+        let id_partial = FocusId::new();
+        let clip = Rect::new(0.0, 0.0, 80.0, 55.0); // clip covers y=0..55
+
+        // id_partial rect is y=50..80 — 5px overlap with clip → included.
+        let rect_partial = Rect::new(0.0, 50.0, 80.0, 30.0);
+
+        let mut sys = FocusSystem::new();
+        sys.take_focus(id_focus);
+
+        sys.begin_frame();
+        let mut input = crate::input::Input::default();
+        input.key_pressed_down = true;
+        let focused = sys.register(id_focus, r(0.0, 0.0), None);
+        sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
+        sys.register(id_partial, rect_partial, Some(clip));
+        sys.end_frame();
+
+        sys.begin_frame();
+        sys.register(id_focus,   r(0.0, 0.0),  None);
+        let got_partial = sys.register(id_partial, rect_partial, Some(clip));
+        sys.end_frame();
+
+        assert!(got_partial, "Partially clipped widget must remain reachable via directional nav");
     }
 
     #[test]

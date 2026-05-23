@@ -100,7 +100,7 @@ pub fn slider(
     
     // 1. Calculate Thumb Rect
     let track_rect = spec.rect;
-    let focused = focus_sys.register(state.focus_id, track_rect);
+    let focused = focus_sys.register(state.focus_id, track_rect, spec.clip_rect);
     let is_vert = spec.orientation == Orientation::Vertical;
     
     let track_len = if is_vert { track_rect.h } else { track_rect.w };

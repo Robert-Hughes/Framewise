@@ -945,6 +945,183 @@ focus_sys.take_focus(btn_state.focus_id);
         assert_eq!(state.offset.y, 0.0, "Wheel outside clip must not scroll");
     }
 
+    /// Spatial navigation must not land on a widget that is clipped by its scroll area.
+    ///
+    /// A button inside a scroll area but below the visible viewport (content overflow)
+    /// registers at a screen-space rect between the clip boundary and btn_start. Its
+    /// axial distance from btn_start is smaller than the visible button's, so the
+    /// spatial algorithm currently picks it — even though it is not on screen.
+    ///
+    /// Layout (screen-space y, all x-aligned so lateral gap = 0):
+    ///   0..100   scroll area viewport / clip
+    ///     20..50   btn_visible  (inside clip, score 180 from btn_start)
+    ///   120..150   btn_clipped  (content overflows below clip, score 80 — WINS WRONGLY)
+    ///  200..230   btn_start    (outside scroll area, focused)
+    ///
+    /// Up from btn_start: currently picks btn_clipped (lower score). Should pick btn_visible.
+    #[test]
+    fn test_spatial_nav_skips_widget_clipped_by_scroll_area() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut scroll_state = ScrollState::default();
+        let mut btn_visible_state = crate::widgets::button::ButtonState::default();
+        let mut btn_clipped_state = crate::widgets::button::ButtonState::default();
+        let mut btn_start_state = crate::widgets::button::ButtonState::default();
+        let mut text_sys = DummyTextSystem;
+
+        let btn_visible_id = btn_visible_state.focus_id;
+
+        focus_sys.take_focus(btn_start_state.focus_id);
+
+        // Scroll area: y=0..100, content 300px tall — overflows without scrolling.
+        // needs_v=true (Auto), needs_h=false (None) → content_bounds = (0,0,188,100).
+        let scroll_bounds = Rect::new(0.0, 0.0, 200.0, 100.0);
+        let content_size = Vec2::new(200.0, 300.0);
+
+        for frame in 0..2 {
+            let mut input = Input::new();
+            if frame == 1 {
+                input.key_pressed_up = true;
+            }
+
+            focus_sys.begin_frame();
+
+            let (_, scope, content_bounds, _) = begin_scroll_area(
+                scroll_bounds, content_size,
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+
+            // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
+            let res = crate::widgets::button::button(
+                std::mem::take(&mut btn_visible_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 20.0, 80.0, 30.0),
+                    text: "visible".into(),
+                    style: Default::default(),
+                    clip_rect: Some(content_bounds),
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_visible_state = res.state;
+
+            // btn_clipped: OUTSIDE the clip rect (y=120..150, clip y=0..100).
+            // Screen rect is in the gap between the scroll area and btn_start —
+            // axial score from btn_start = 80, beating btn_visible's 180.
+            let res = crate::widgets::button::button(
+                std::mem::take(&mut btn_clipped_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 120.0, 80.0, 30.0),
+                    text: "clipped".into(),
+                    style: Default::default(),
+                    clip_rect: Some(content_bounds),
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_clipped_state = res.state;
+
+            scope.finish(&mut focus_sys);
+
+            // btn_start: below the scroll area, no clip.
+            let res = crate::widgets::button::button(
+                std::mem::take(&mut btn_start_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 200.0, 80.0, 30.0),
+                    text: "start".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_start_state = res.state;
+
+            focus_sys.end_frame();
+        }
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(btn_visible_id),
+            "Up from btn_start must skip the clipped widget and land on btn_visible"
+        );
+    }
+
+    /// A widget that partially overlaps the scroll area clip rect is still
+    /// reachable via directional navigation — only fully-clipped widgets are excluded.
+    ///
+    /// Layout (screen-space y):
+    ///   0..100   scroll area viewport / clip (content_bounds with v-scrollbar = 0..100)
+    ///     70..100  btn_partial (y=70..100, exactly at bottom edge — 30px visible)
+    ///  150..180   btn_start  (below scroll area, focused)
+    ///
+    /// Up from btn_start must land on btn_partial (partially visible, not excluded).
+    #[test]
+    fn test_spatial_nav_reaches_partially_clipped_widget() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut scroll_state = ScrollState::default();
+        let mut btn_partial_state = crate::widgets::button::ButtonState::default();
+        let mut btn_start_state = crate::widgets::button::ButtonState::default();
+        let mut text_sys = DummyTextSystem;
+
+        let btn_partial_id = btn_partial_state.focus_id;
+
+        focus_sys.take_focus(btn_start_state.focus_id);
+
+        // Scroll area: y=0..100, content 300px tall → clip = (0,0,188,100).
+        let scroll_bounds = Rect::new(0.0, 0.0, 200.0, 100.0);
+        let content_size = Vec2::new(200.0, 300.0);
+
+        for frame in 0..2 {
+            let mut input = Input::new();
+            if frame == 1 {
+                input.key_pressed_up = true;
+            }
+
+            focus_sys.begin_frame();
+
+            let (_, scope, content_bounds, _) = begin_scroll_area(
+                scroll_bounds, content_size,
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+
+            // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
+            // 30px overlap → must be included in spatial nav.
+            let res = crate::widgets::button::button(
+                std::mem::take(&mut btn_partial_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 70.0, 80.0, 30.0),
+                    text: "partial".into(),
+                    style: Default::default(),
+                    clip_rect: Some(content_bounds),
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_partial_state = res.state;
+
+            scope.finish(&mut focus_sys);
+
+            // btn_start: below the scroll area.
+            let res = crate::widgets::button::button(
+                std::mem::take(&mut btn_start_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 150.0, 80.0, 30.0),
+                    text: "start".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_start_state = res.state;
+
+            focus_sys.end_frame();
+        }
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(btn_partial_id),
+            "Up from btn_start must reach the partially-visible widget"
+        );
+    }
+
     /// Home/End act when the scrollbar slider is focused (slider's own keyboard handler).
     /// They do not propagate from child widgets via the scope — that's intentional.
     #[test]

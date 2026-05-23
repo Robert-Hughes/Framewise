@@ -98,6 +98,6 @@ Features to design and implement, roughly in dependency order:
 
 ## Accessibility
 
-- Up / down / left / right for switching focus has no scroll-area awareness (navigation doesn't cross scroll area boundaries specially)
-  - Currently can select invisible widgets!
+- Up / down / left / right for switching focus is quite poor, especially with scroll containers, partially visible widgets.
+  - did a little work on this already and there's some tests but it's not good yet.
 - Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)

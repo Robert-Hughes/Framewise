@@ -122,7 +122,7 @@ pub fn button<T: crate::text::TextSystem>(
     text_system: &mut T,
     focus_sys: &mut crate::focus::FocusSystem,
 ) -> ButtonResult {
-    let focused = focus_sys.register(state.focus_id, spec.rect);
+    let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
 
     let is_visible = spec.clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
     let contains = spec.rect.contains(input.mouse_pos) && is_visible;
