@@ -317,7 +317,10 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
-  * Clarify behaviour in 2D scroll region when page down with horizontal scroll bar focused and it reaches its end, then the vertical scroll bar starts moving before an outer scroll area. Is this good? At least define it? ONly seems to happen with horizontal bar, vertical one never 'leaks' into horizontal one. This happens with both pgup/down and mouse wheel.
+  * In a complex nested scroll area case with vertical -> horizontal -> vertical and you scroll the inner vertical container, what's the leakage behaviour - does it leak to the outer vertical one or not at all cos the horizontal one blocks it? (Give me answers for both mouse and keyboard, focus on the inner scroll area or on the slider itself - 4 cases, each might behave differently).
+  In addition, add such a case to the sample app so I can explore the behavour.
+  * [ignore = "Currently leaking cross-axis!"]
+
   * Click and hold to repeatedly page down on a slider - if it get clamped at the end then it can jump back and forth every frame!
   * Slider click on the trackbar then drag, should snap to cursor
   * Middle click hold and drag, middle click panning without holding
