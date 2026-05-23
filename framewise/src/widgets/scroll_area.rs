@@ -5,6 +5,17 @@ use crate::{
     types::{Rect, Vec2},
 };
 
+/// Pixels of scroll per wheel "line" (winit `LineDelta` unit).
+///
+/// Windows exposes the user setting via `SPI_GETWHEELSCROLLLINES` (default 3),
+/// but the actual pixel size is up to the app. Browsers, GTK, and most editors
+/// use 30–40 px/line; we pick 30. macOS and trackpads deliver pixel-precise
+/// deltas via `PixelDelta` and the embedder is expected to convert to lines.
+///
+/// TODO: read `SPI_GETWHEELSCROLLLINES` (Windows) / equivalent (X11/Wayland)
+/// when a cross-platform crate exposes it.
+const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScrollbarVisibility {
     None,
@@ -176,10 +187,10 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         }
 
         if needs_v && focus_sys.is_active_scroll_up(state.id) && input.scroll_delta.y > 0.0 {
-            state.offset.y -= input.scroll_delta.y * 30.0;
+            state.offset.y -= input.scroll_delta.y * SCROLL_PIXELS_PER_LINE;
         }
         if needs_v && focus_sys.is_active_scroll_down(state.id) && input.scroll_delta.y < 0.0 {
-            state.offset.y -= input.scroll_delta.y * 30.0;
+            state.offset.y -= input.scroll_delta.y * SCROLL_PIXELS_PER_LINE;
         }
 
         if needs_h {
@@ -200,10 +211,10 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             // Only fire on scroll_left/right — scroll_up/down are claimed purely to block
             // parent vertical areas and must not double as a horizontal-remap trigger.
             if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
-                state.offset.x -= dx * 30.0;
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
             }
             if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
-                state.offset.x -= dx * 30.0;
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
             }
         }
     }
