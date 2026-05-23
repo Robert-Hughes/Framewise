@@ -139,6 +139,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             min,
             max,
             page_step,
+            step: page_step / 10.0,
             thumb_size_ratio: None, // Generic slider doesn't resize thumb based on content
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: self.ctx.clip_rect,

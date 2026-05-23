@@ -45,6 +45,8 @@ pub struct Input {
     pub key_pressed_page_down: bool,
     pub key_pressed_home: bool,
     pub key_pressed_end: bool,
+    pub key_pressed_up: bool,
+    pub key_pressed_down: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +82,8 @@ impl Default for Input {
             key_pressed_page_down: false,
             key_pressed_home: false,
             key_pressed_end: false,
+            key_pressed_up: false,
+            key_pressed_down: false,
         }
     }
 }
@@ -103,6 +107,8 @@ impl Input {
         self.key_pressed_page_down = false;
         self.key_pressed_home = false;
         self.key_pressed_end = false;
+        self.key_pressed_up = false;
+        self.key_pressed_down = false;
     }
 }
 

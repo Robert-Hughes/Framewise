@@ -34,6 +34,7 @@ pub struct SliderSpec {
     pub min: f32,
     pub max: f32,
     pub page_step: f32,
+    pub step: f32,
     pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
     pub style: SliderStyle,
     pub clip_rect: Option<Rect>,
@@ -168,6 +169,12 @@ pub fn slider(
         if input.key_pressed_page_down {
             *value = (*value + spec.page_step).clamp(min, max);
         }
+        if input.key_pressed_up {
+            *value = (*value - spec.step).clamp(min, max);
+        }
+        if input.key_pressed_down {
+            *value = (*value + spec.step).clamp(min, max);
+        }
         if input.key_pressed_home {
             *value = min;
         }
@@ -222,6 +229,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             page_step: 20.0,
+            step: 5.0,
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
@@ -262,6 +270,7 @@ mod tests {
             min: 0.0,
             max: 100.0, // range 100
             page_step: 20.0,
+            step: 5.0,
             thumb_size_ratio: None, // Will use style.width (12.0) but maxed to 20.0 for thumb_h
             style: SliderStyle::default(),
             clip_rect: None,
@@ -299,6 +308,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             page_step: 20.0,
+            step: 5.0,
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
@@ -336,5 +346,35 @@ mod tests {
         input.mouse_down = false;
         slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
         assert!(!state.is_track_clicking);
+    }
+
+    #[test]
+    fn test_slider_arrow_keys() {
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let spec = SliderSpec {
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+        };
+        
+        let mut input = Input::new();
+        let mut focus_sys = FocusSystem::new();
+
+        focus_sys.take_focus(state.focus_id);
+
+        input.key_pressed_up = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 45.0);
+
+        input.key_pressed_up = false;
+        input.key_pressed_down = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 50.0);
     }
 }

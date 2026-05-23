@@ -67,6 +67,7 @@ pub fn scroll_area<L: Layout>(
             min: 0.0,
             max: max_scroll,
             page_step: bounds.h,
+            step: 40.0,
             thumb_size_ratio: Some(view_ratio),
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect,
