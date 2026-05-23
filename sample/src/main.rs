@@ -84,6 +84,14 @@ struct App {
     double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState,
     double_horiz_btns: [SampleButton; 20],
     right_panel_scroll: framewise::widgets::scroll_area::ScrollState,
+
+    // Triple-nested: outer_vert -> middle_horiz -> inner_vert
+    triple_outer_scroll: framewise::widgets::scroll_area::ScrollState,
+    triple_middle_scroll: framewise::widgets::scroll_area::ScrollState,
+    triple_inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    triple_inner_btns: [SampleButton; 12],
+    triple_inner_slider_state: framewise::widgets::slider::SliderState,
+    triple_inner_slider_val: f32,
 }
 
 struct NestedRowState {
@@ -146,6 +154,12 @@ impl App {
             double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             right_panel_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            triple_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            triple_middle_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            triple_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
+            triple_inner_slider_state: framewise::widgets::slider::SliderState::default(),
+            triple_inner_slider_val: 50.0,
         }
     }
 
@@ -590,6 +604,112 @@ impl App {
                     outer_scroll.finish()
                 };
                 content_col.append_cmds(d_horiz_cmds);
+
+                // Triple-Nested Scroll Demo: outer_vert -> middle_horiz -> inner_vert
+                //
+                // Explore cross-axis leakage:
+                //   Mouse on inner content  -> horizontal BLOCKS leakage (fallback claim)
+                //   Mouse on inner slider   -> horizontal does NOT block (slider outside content_bounds)
+                //   Keyboard on inner btn   -> horizontal partially blocks (only when it has horiz room)
+                //   Keyboard on inner slider -> same as above
+                content_col.label(
+                    Vec2::new(inner_w, 20.0),
+                    "TRIPLE NESTED: outer[vert] > middle[horiz] > inner[vert]  |  Explore cross-axis leakage",
+                );
+                let triple_cmds = {
+                    let outer_y = self.triple_outer_scroll.offset.y;
+                    let middle_x = self.triple_middle_scroll.offset.x;
+                    let inner_y = self.triple_inner_scroll.offset.y;
+
+                    // Outer vertical scroll area (taller content)
+                    let mut outer_scroll = content_col.scroll_area(
+                        Vec2::new(inner_w, 220.0),
+                        Vec2::new(inner_w, 500.0),
+                        framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        &mut self.triple_outer_scroll,
+                        framewise::layout::ColumnLayout { spacing: 10.0 },
+                        &self.input,
+                    );
+
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), &format!(
+                        "OUTER VERT scroll offset: {:.0}  |  MIDDLE HORIZ: {:.0}  |  INNER VERT: {:.0}",
+                        outer_y,
+                        middle_x,
+                        inner_y,
+                    ));
+
+                    // Middle horizontal scroll area inside outer vertical
+                    let middle_cmds = {
+                        let middle_content_w = 1400.0;
+                        let mut middle_scroll = outer_scroll.scroll_area(
+                            Vec2::new(inner_w - 15.0, 160.0),
+                            Vec2::new(middle_content_w, 160.0),
+                            framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                            framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                            &mut self.triple_middle_scroll,
+                            framewise::layout::RowLayout { spacing: 10.0 },
+                            &self.input,
+                        );
+
+                        middle_scroll.label(Vec2::new(200.0, 130.0), "[ horiz padding ]");
+
+                        // Inner vertical scroll area inside middle horizontal
+                        let inner_cmds = {
+                            let inner_content_h = 12.0 * 35.0 + 11.0 * 6.0;
+                            let mut inner_scroll = middle_scroll.scroll_area(
+                                Vec2::new(200.0, 130.0),
+                                Vec2::new(200.0, inner_content_h),
+                                framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                &mut self.triple_inner_scroll,
+                                framewise::layout::ColumnLayout { spacing: 6.0 },
+                                &self.input,
+                            );
+
+                            for j in 0..12 {
+                                let shade = (j % 2) as f32 * 0.12;
+                                inner_scroll.ctx.button_style.background = Color::rgb(0.10 + shade, 0.50 + shade, 0.30 + shade);
+                                inner_scroll.ctx.button_style.hovered = Color::rgb(0.20 + shade, 0.60 + shade, 0.40 + shade);
+                                let btn = inner_scroll.button(
+                                    std::mem::take(&mut self.triple_inner_btns[j].state),
+                                    Vec2::new(165.0, 35.0),
+                                    format!("Inner V {}", j + 1),
+                                    &self.input,
+                                );
+                                let clicked = btn.clicked();
+                                self.triple_inner_btns[j].state = btn.state;
+                                if clicked { self.triple_inner_btns[j].clicks += 1; }
+                            }
+                            inner_scroll.finish()
+                        };
+                        middle_scroll.append_cmds(inner_cmds);
+
+                        // Inner vertical slider (focus on this to test keyboard case 4)
+                        middle_scroll.slider(
+                            &mut self.triple_inner_slider_state,
+                            &mut self.triple_inner_slider_val,
+                            0.0, 100.0, 20.0,
+                            framewise::widgets::slider::Orientation::Vertical,
+                            Vec2::new(30.0, 130.0),
+                            &self.input,
+                        );
+
+                        middle_scroll.label(Vec2::new(200.0, 130.0), "[ horiz padding ]");
+
+                        middle_scroll.finish()
+                    };
+                    outer_scroll.append_cmds(middle_cmds);
+
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), "[ outer vert padding row ]");
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), "[ outer vert padding row ]");
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), "[ outer vert padding row ]");
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), "[ outer vert padding row ]");
+                    outer_scroll.label(Vec2::new(inner_w - 15.0, 20.0), "[ outer vert padding row ]");
+
+                    outer_scroll.finish()
+                };
+                content_col.append_cmds(triple_cmds);
 
                 content_col.finish()
             };
