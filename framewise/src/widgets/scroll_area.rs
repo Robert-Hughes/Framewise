@@ -798,9 +798,14 @@ mod nested_bubbling_tests {
         assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert content");
     }
 
-    // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track
-    //     Vertical wheel on inner vert scrollbar → only inner slider should scroll.
-    //     Bug: outer claims scroll_left uncontested; fallback maps delta.y → outer scrolls too.
+    // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track, inner at top (at_min)
+    //     Vertical wheel on inner vert scrollbar when inner is already at top.
+    //     Bug: inner slider doesn't claim scroll_up when at_min (conditional claim), so outer
+    //     retains active_scroll_up from its fallback claim and fires via fallback dx=delta.y.
+    //
+    //     The bug is NOT visible when inner is mid-scroll (inner slider claims scroll_up,
+    //     overwriting outer's claim). It only triggers at the limit — matching what the
+    //     sample app demonstrates.
     #[test]
     fn test_outer_horiz_inner_vert_mouse_scrollbar_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
@@ -809,13 +814,14 @@ mod nested_bubbling_tests {
         let mut inner_state = ScrollState::default();
 
         // inner vert slider track: x=188..200, y=0..200
-        // mouse (195,50): in outer content_bounds, outside inner content_bounds, on inner slider
+        // mouse (195,50): in outer content_bounds (0,0,400,188), outside inner content_bounds (0,0,188,200)
+        // inner.offset.y=0 (at_min): slider skips claim_scroll_up → outer retains active_scroll_up
         for frame in 0..3 {
             focus_sys.begin_frame();
             input.mouse_pos = Vec2::new(195.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 50.0;
+                inner_state.offset.y = 0.0; // at top — triggers the bug
                 outer_state.offset.x = 50.0;
             }
             let (_, outer_scope, _, _) = begin_scroll_area(
@@ -832,7 +838,7 @@ mod nested_bubbling_tests {
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert!(inner_state.offset.y < 50.0, "Inner vert slider should scroll up");
+        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top, cannot scroll further");
         assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert scrollbar");
     }
 
