@@ -129,8 +129,9 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             if !at_left   { focus_sys.claim_scroll_left(state.id); }
             if !at_right  { focus_sys.claim_scroll_right(state.id); }
             if fallback {
-                if !at_left { focus_sys.claim_scroll_up(state.id); }
-                if !at_right { focus_sys.claim_scroll_down(state.id); }
+                // Always claim vertical scrolling to prevent parent vertical scroll areas from leaking
+                focus_sys.claim_scroll_up(state.id);
+                focus_sys.claim_scroll_down(state.id);
             }
         }
 
@@ -544,5 +545,69 @@ mod mouse_wheel_bug_test {
 
         assert_eq!(state.offset.x, 200.0);
         assert_eq!(state.offset.y, 0.0, "Scroll leaked into vertical axis!");
+    }
+}
+
+
+#[cfg(test)]
+mod nested_mouse_wheel_leak_test {
+    use crate::widgets::scroll_area::*;
+    use crate::types::*;
+    use crate::input::Input;
+    use crate::layout::*;
+    use crate::focus::*;
+    
+    #[test]
+    fn test_nested_mouse_wheel_leak() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            
+            // Hover over the inner scroll area
+            // Outer bounds: (0, 0, 400, 400)
+            // Inner bounds: (0, 0, 400, 200)
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+
+            if frame == 1 {
+                // Mouse wheel up (which implies moving content down, or moving offset up/left)
+                input.scroll_delta.y = 1.0;
+            } else {
+                input.scroll_delta.y = 0.0;
+            }
+
+            // Outer: Vertical only
+            if frame == 0 {
+                inner_state.offset.x = 0.0; 
+                outer_state.offset.y = 100.0; 
+            }
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0),
+                Vec2::new(400.0, 800.0), 
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 200.0),
+                Vec2::new(800.0, 200.0), 
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+
+        // Inner should not have moved
+        assert_eq!(inner_state.offset.x, 0.0);
+        // Outer SHOULD NOT have moved either because the wheel was over a horizontal area that was exhausted
+        assert_eq!(outer_state.offset.y, 100.0, "Scroll leaked from horizontal inner to vertical outer!");
     }
 }
