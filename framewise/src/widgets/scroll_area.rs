@@ -150,14 +150,18 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
     let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
 
+    // `fallback`: horizontal-only area that remaps vertical wheel events to
+    // horizontal scrolling (the user's wheel is the only horizontal input device
+    // available). True iff a horizontal scrollbar exists and vertical scrolling
+    // is degenerate (no v scrollbar, or v content fits).
+    let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
+    let fallback = needs_h && is_degenerate_v;
+
     if content_bounds.contains(input.mouse_pos) && is_visible {
         let at_top    = state.offset.y <= 0.0;
         let at_bottom = state.offset.y >= max_scroll.y;
         let at_left   = state.offset.x <= 0.0;
         let at_right  = state.offset.x >= max_scroll.x;
-
-        let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
-        let fallback = needs_h && is_degenerate_v;
 
         if needs_v {
             if !at_top    { focus_sys.claim_scroll_up(state.id); }
@@ -218,9 +222,6 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             }
         }
     }
-
-    let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
-    let fallback = needs_h && is_degenerate_v;
 
     if input.key_pressed_page_up {
         if fallback && focus_sys.is_active_pgup_horiz(state.id) {
