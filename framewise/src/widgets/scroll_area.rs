@@ -391,8 +391,37 @@ fn apply_page_keys(
 
 
 #[cfg(test)]
+mod test_helpers {
+    use crate::focus::FocusSystem;
+    use crate::types::Vec2;
+
+    pub struct DummyTextSystem;
+    impl crate::text::TextSystem for DummyTextSystem {
+        fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
+            crate::text::TextLayout {
+                handle: crate::text::TextHandle(0),
+                size: Vec2::ZERO,
+            }
+        }
+        fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
+        fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
+    }
+
+    /// Run `n` frames against `focus_sys`, wrapping each in begin/end_frame.
+    /// `body` receives the frame index and the FocusSystem.
+    pub fn frames(focus_sys: &mut FocusSystem, n: usize, mut body: impl FnMut(usize, &mut FocusSystem)) {
+        for frame in 0..n {
+            focus_sys.begin_frame();
+            body(frame, focus_sys);
+            focus_sys.end_frame();
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use super::test_helpers::{DummyTextSystem, frames};
     use crate::layout::ManualLayout;
 
     // Helper to keep test calls the same
@@ -495,16 +524,8 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
         
-        struct DummyTextSystem;
-        impl crate::text::TextSystem for DummyTextSystem {
-            fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
-                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: crate::types::Vec2::ZERO }
-            }
-            fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
-            fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
-        }
         let mut text_sys = DummyTextSystem;
-        
+
         focus_sys.take_focus(btn_state.focus_id);
 
         for _ in 0..2 {
@@ -549,16 +570,8 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        struct DummyTextSystem;
-        impl crate::text::TextSystem for DummyTextSystem {
-            fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
-                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: crate::types::Vec2::ZERO }
-            }
-            fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
-            fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
-        }
         let mut text_sys = DummyTextSystem;
-        focus_sys.take_focus(btn_state.focus_id);
+focus_sys.take_focus(btn_state.focus_id);
 
         // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
         // content_bounds = (0,0,188,188). PgDn step must be 188, not bounds.h=200.
@@ -595,14 +608,6 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        struct DummyTextSystem;
-        impl crate::text::TextSystem for DummyTextSystem {
-            fn prepare(&mut self, _t: &str, _s: f32) -> crate::text::TextLayout {
-                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: Vec2::ZERO }
-            }
-            fn measure_byte_x(&self, _h: crate::text::TextHandle, _b: usize) -> f32 { 0.0 }
-            fn hit_test_x(&self, _h: crate::text::TextHandle, _x: f32) -> usize { 0 }
-        }
         let mut text_sys = DummyTextSystem;
         focus_sys.take_focus(btn_state.focus_id);
 
@@ -753,19 +758,17 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        for frame in 0..3 {
-            focus_sys.begin_frame();
+        frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(500.0, 500.0); // far outside
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut state, ManualLayout, &input, fs, None, 0.0,
             );
-            scope.finish(&mut focus_sys);
-            focus_sys.end_frame();
-        }
+            scope.finish(fs);
+        });
         assert_eq!(state.offset.y, 0.0, "Wheel outside bounds must not scroll");
     }
 
@@ -777,8 +780,7 @@ mod tests {
         let mut b = ScrollState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        for frame in 0..3 {
-            focus_sys.begin_frame();
+        frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside A only
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
@@ -786,18 +788,17 @@ mod tests {
             let (_, scope_a, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut a, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut a, ManualLayout, &input, fs, None, 0.0,
             );
-            scope_a.finish(&mut focus_sys);
+            scope_a.finish(fs);
 
             let (_, scope_b, _, _) = begin_scroll_area(
                 Rect::new(300.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut b, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut b, ManualLayout, &input, fs, None, 0.0,
             );
-            scope_b.finish(&mut focus_sys);
-            focus_sys.end_frame();
-        }
+            scope_b.finish(fs);
+        });
         assert!(a.offset.y > 0.0, "Hovered sibling A should scroll");
         assert_eq!(b.offset.y, 0.0, "Non-hovered sibling B must not scroll");
     }
@@ -810,19 +811,17 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        for frame in 0..3 {
-            focus_sys.begin_frame();
+        frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta = if frame == 1 { Vec2::new(-1.0, -1.0) } else { Vec2::ZERO };
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut state, ManualLayout, &input, fs, None, 0.0,
             );
-            scope.finish(&mut focus_sys);
-            focus_sys.end_frame();
-        }
+            scope.finish(fs);
+        });
         assert!(state.offset.x > 0.0, "dx should advance horizontal");
         assert!(state.offset.y > 0.0, "dy should advance vertical");
         assert_eq!(state.offset.x, state.offset.y, "equal-magnitude deltas → equal offsets");
@@ -905,19 +904,17 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
 
         // 2D scroll area: content_bounds=(0,0,188,188). Corner is (188..200, 188..200).
-        for frame in 0..3 {
-            focus_sys.begin_frame();
+        frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(194.0, 194.0); // inside corner, outside content_bounds
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut state, ManualLayout, &input, fs, None, 0.0,
             );
-            scope.finish(&mut focus_sys);
-            focus_sys.end_frame();
-        }
+            scope.finish(fs);
+        });
         assert_eq!(state.offset.y, 0.0, "Wheel in scrollbar corner dead zone must not scroll");
         assert_eq!(state.offset.x, 0.0, "Wheel in scrollbar corner dead zone must not scroll horizontally");
     }
@@ -934,19 +931,17 @@ mod tests {
         // content_bounds but outside this clip.
         let clip = Rect::new(0.0, 0.0, 100.0, 100.0);
 
-        for frame in 0..3 {
-            focus_sys.begin_frame();
+        frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(150.0, 150.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 400.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, Some(clip), 0.0,
+                &mut state, ManualLayout, &input, fs, Some(clip), 0.0,
             );
-            scope.finish(&mut focus_sys);
-            focus_sys.end_frame();
-        }
+            scope.finish(fs);
+        });
         assert_eq!(state.offset.y, 0.0, "Wheel outside clip must not scroll");
     }
 
@@ -1145,15 +1140,7 @@ mod nested_bubbling_tests {
         assert_eq!(outer_state.offset.y, 100.0, "Should not leak cross-axis");
     }
 
-    // Dummy Text System for Keyboard tests
-    struct DummyTextSystem;
-    impl crate::text::TextSystem for DummyTextSystem {
-        fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
-            crate::text::TextLayout { handle: crate::text::TextHandle(0), size: Vec2::ZERO }
-        }
-        fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
-        fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
-    }
+    use super::test_helpers::DummyTextSystem;
 
     // 5. Keyboard / Inner Content / Same-axis (Bubble)
     #[test]
