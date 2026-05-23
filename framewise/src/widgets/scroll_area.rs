@@ -49,7 +49,7 @@ pub struct ScrollAreaScope {
     at_bottom: bool,
     at_left: bool,
     at_right: bool,
-    fallback: bool,
+    horiz_uses_vert_wheel: bool,
     is_2d: bool,
     is_finished: bool,
 }
@@ -75,7 +75,7 @@ impl ScrollAreaScope {
         debug_assert_eq!(popped, Some(self.id), "ScrollAreaScope finished out of order!");
 
         if focus_sys.focused_scroll_path().contains(&self.id) {
-            if self.fallback {
+            if self.horiz_uses_vert_wheel {
                 // Horizontal scroll area:
                 // We map PgUp/PgDn to horizontal scrolling.
                 // We conditionally claim the horizontal scroll actions only if we have room to scroll.
@@ -150,12 +150,12 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
     let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
 
-    // `fallback`: horizontal-only area that remaps vertical wheel events to
+    // `horiz_uses_vert_wheel`: horizontal-only area that remaps vertical wheel events to
     // horizontal scrolling (the user's wheel is the only horizontal input device
     // available). True iff a horizontal scrollbar exists and vertical scrolling
     // is degenerate (no v scrollbar, or v content fits).
     let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
-    let fallback = needs_h && is_degenerate_v;
+    let horiz_uses_vert_wheel = needs_h && is_degenerate_v;
 
     if content_bounds.contains(input.mouse_pos) && is_visible {
         let at_top    = state.offset.y <= 0.0;
@@ -167,8 +167,8 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             if !at_top    { focus_sys.claim_scroll_up(state.id); }
             if !at_bottom { focus_sys.claim_scroll_down(state.id); }
             // For pure-vert areas (no horizontal slider): unconditionally claim horizontal
-            // scroll directions to block a parent horizontal fallback area from interpreting
-            // vertical wheel events as horizontal scroll. Mirrors what the fallback horizontal
+            // scroll directions to block a parent horiz_uses_vert_wheel area from interpreting
+            // vertical wheel events as horizontal scroll. Mirrors what a horiz_uses_vert_wheel
             // area does for scroll_up/down.
             // Not needed for 2D areas (needs_h=true): the needs_h block below handles
             // scroll_left/right conditionally, and unconditional claiming would break
@@ -181,7 +181,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         if needs_h {
             if !at_left   { focus_sys.claim_scroll_left(state.id); }
             if !at_right  { focus_sys.claim_scroll_right(state.id); }
-            if fallback {
+            if horiz_uses_vert_wheel {
                 // Crucially, we UNCONDITIONALLY claim the vertical mouse wheel actions!
                 // This completely isolates this horizontal scope from the vertical axis, preventing
                 // orthogonal wheel events from "leaking" out and scrolling a parent vertical area.
@@ -199,11 +199,11 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
 
         if needs_h {
             let mut dx = input.scroll_delta.x;
-            if fallback && dx == 0.0 { dx = input.scroll_delta.y; }
+            if horiz_uses_vert_wheel && dx == 0.0 { dx = input.scroll_delta.y; }
             // For 2D areas: if we won scroll_left/right but not scroll_up/down (inner horiz
             // slider blocked vert), remap delta.y to horizontal scroll. Enables bubbling from
             // a nested horiz slider at its extent.
-            if needs_v && !fallback && dx == 0.0 && input.scroll_delta.y != 0.0 {
+            if needs_v && !horiz_uses_vert_wheel && dx == 0.0 && input.scroll_delta.y != 0.0 {
                 let won_horiz = focus_sys.is_active_scroll_left(state.id)
                     || focus_sys.is_active_scroll_right(state.id);
                 let own_vert = focus_sys.is_active_scroll_up(state.id)
@@ -224,9 +224,9 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     }
 
     if input.key_pressed_page_up {
-        if fallback && focus_sys.is_active_pgup_horiz(state.id) {
+        if horiz_uses_vert_wheel && focus_sys.is_active_pgup_horiz(state.id) {
             state.offset.x -= content_bounds.w;
-        } else if !fallback {
+        } else if !horiz_uses_vert_wheel {
             if focus_sys.is_active_pgup_vert(state.id) {
                 state.offset.y -= content_bounds.h;
             }
@@ -236,9 +236,9 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         }
     }
     if input.key_pressed_page_down {
-        if fallback && focus_sys.is_active_pgdn_horiz(state.id) {
+        if horiz_uses_vert_wheel && focus_sys.is_active_pgdn_horiz(state.id) {
             state.offset.x += content_bounds.w;
-        } else if !fallback {
+        } else if !horiz_uses_vert_wheel {
             if focus_sys.is_active_pgdn_vert(state.id) {
                 state.offset.y += content_bounds.h;
             }
@@ -325,7 +325,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         at_bottom: state.offset.y >= max_scroll.y,
         at_left: state.offset.x <= 0.0,
         at_right: state.offset.x >= max_scroll.x,
-        fallback,
+        horiz_uses_vert_wheel,
         is_2d: needs_v && needs_h,
         is_finished: false,
     };
@@ -430,7 +430,7 @@ mod tests {
     }
 
         #[test]
-    fn test_pgup_pgdn_fallback() {
+    fn test_pgup_pgdn_horiz_uses_vert_wheel() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
         
@@ -966,14 +966,14 @@ mod nested_bubbling_tests {
     // ── Reversed axis: outer HORIZONTAL, inner VERTICAL ──────────────────────
     //
     // Bug: outer_horiz always wins scroll_left (inner_vert never claims it).
-    // The fallback path maps delta.y → dx and fires whenever is_active_scroll_left
+    // The horiz_uses_vert_wheel path maps delta.y → dx and fires whenever is_active_scroll_left
     // is true, so outer scrolls horizontally at the same time as inner scrolls
     // vertically — both fire on every vertical wheel tick.
 
     // 9. Mouse Wheel / Outer Horiz → Inner Vert / Content area, inner at top (at_min)
     //    Vertical wheel on inner vert content when inner is already at top.
     //    Bug: inner content block skips claim_scroll_up (at_top), so outer retains
-    //    active_scroll_up from its fallback claim and fires via fallback dx=delta.y.
+    //    active_scroll_up from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
     #[test]
     fn test_outer_horiz_inner_vert_mouse_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
@@ -1014,7 +1014,7 @@ mod nested_bubbling_tests {
     // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track, inner at top (at_min)
     //     Vertical wheel on inner vert scrollbar when inner is already at top.
     //     Bug: inner slider doesn't claim scroll_up when at_min (conditional claim), so outer
-    //     retains active_scroll_up from its fallback claim and fires via fallback dx=delta.y.
+    //     retains active_scroll_up from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
     //
     //     The bug is NOT visible when inner is mid-scroll (inner slider claims scroll_up,
     //     overwriting outer's claim). It only triggers at the limit — matching what the
@@ -1057,7 +1057,7 @@ mod nested_bubbling_tests {
 
     // 11. Keyboard / Outer Horiz → Inner Vert / Content focus, inner at bottom
     //     pgdn with inner at bottom → outer horiz should NOT receive pgdn (cross-axis).
-    //     Bug: outer_horiz.finish() claims pgdn via fallback (!at_right) and scrolls right.
+    //     Bug: outer_horiz.finish() claims pgdn via horiz_uses_vert_wheel (!at_right) and scrolls right.
     #[test]
     fn test_outer_horiz_inner_vert_keyboard_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
@@ -1101,7 +1101,7 @@ mod nested_bubbling_tests {
 
     // 12. Keyboard / Outer Horiz → Inner Vert / Slider focus, slider at max
     //     pgdn with inner vert slider at max → outer horiz must NOT scroll right.
-    //     Bug: slider doesn't claim, inner scope doesn't claim, outer claims via fallback.
+    //     Bug: slider doesn't claim, inner scope doesn't claim, outer claims via horiz_uses_vert_wheel.
     #[test]
     fn test_outer_horiz_inner_vert_keyboard_scrollbar_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
@@ -1150,13 +1150,13 @@ mod nested_bubbling_tests {
     // Geometry (all tests):
     //   outer_vert:   bounds=(0,0,400,400)  content=(400,800)  v=Always h=None
     //                 content_bounds=(0,0,388,400)  vert-slider at x=388
-    //   middle_horiz: bounds=(0,0,388,300)  content=(800,300)  h=Always v=None  [fallback]
+    //   middle_horiz: bounds=(0,0,388,300)  content=(800,300)  h=Always v=None  [horiz_uses_vert_wheel]
     //                 content_bounds=(0,0,388,288)  horiz-slider at y=288
     //   inner_vert:   bounds=(0,0,200,288)  content=(200,600)  v=Always h=None
     //                 content_bounds=(0,0,188,288)  vert-slider at x=188
     //                 max_scroll.y = 312
     //
-    // Middle_horiz is a "fallback" area (h-only). Its unconditional scroll_up/down claims block
+    // Middle_horiz is a "horiz_uses_vert_wheel" area (h-only). Its unconditional scroll_up/down claims block
     // events from reaching outer_vert, and inner_vert's unconditional scroll_left/right claims
     // prevent middle from acting via the scroll_left action path.
     // Result: middle_horiz is a complete bidirectional blocker — outer_vert never fires.
@@ -1169,7 +1169,7 @@ mod nested_bubbling_tests {
 
     // 13. Mouse Wheel / Triple Nested / Inner content, inner at top
     //     Upward wheel on inner_vert content while inner is at top.
-    //     Middle absorbs scroll_up (fallback claim). Inner claims scroll_left (blocks middle action).
+    //     Middle absorbs scroll_up (horiz_uses_vert_wheel claim). Inner claims scroll_left (blocks middle action).
     //     Outer never reached. If middle failed to block, outer_vert would scroll vertically —
     //     skipping the horizontal context entirely, confusing axis jump.
     #[test]
@@ -1381,19 +1381,19 @@ mod nested_bubbling_tests {
     // ── Reversed triple nested: outer HORIZONTAL → middle VERTICAL → inner HORIZONTAL ────
     //
     // Geometry (all tests):
-    //   outer_horiz:  bounds=(0,0,400,400)  content=(800,400)  h=Always v=None  [fallback]
+    //   outer_horiz:  bounds=(0,0,400,400)  content=(800,400)  h=Always v=None  [horiz_uses_vert_wheel]
     //                 content_bounds=(0,0,400,388)  horiz-slider at y=388
     //                 max_scroll.x = 400
     //   middle_vert:  bounds=(0,0,400,388)  content=(400,800)  v=Always h=None
     //                 content_bounds=(0,0,388,388)  vert-slider at x=388
     //                 max_scroll.y = 412
-    //   inner_horiz:  bounds=(0,0,388,200)  content=(800,200)  h=Always v=None  [fallback]
+    //   inner_horiz:  bounds=(0,0,388,200)  content=(800,200)  h=Always v=None  [horiz_uses_vert_wheel]
     //                 content_bounds=(0,0,388,188)  horiz-slider at y=188
     //                 max_scroll.x = 412
     //
     // Symmetric to the v→h→v case above. middle_vert now unconditionally claims scroll_left/right
     // (change 1), blocking outer_horiz from winning scroll_left. inner_horiz unconditionally claims
-    // scroll_up/down (fallback), blocking middle_vert from firing.
+    // scroll_up/down (horiz_uses_vert_wheel), blocking middle_vert from firing.
     // Result: middle_vert is a complete bidirectional blocker — outer_horiz never fires.
     //
     // WHY THIS MATTERS: without blocking, a horizontal event on inner_horiz at its limit would
@@ -1671,8 +1671,8 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        // inner_2d is a fallback area (needs_h=true, needs_v=true, not degenerate_v — NOT fallback)
-        // Actually inner has both axes, so it's NOT a fallback. Horizontal scroll_delta.x needed.
+        // inner_2d has both axes (needs_h=true, needs_v=true), so it's NOT a horiz_uses_vert_wheel
+        // area. Horizontal scroll_delta.x is needed to drive the horizontal axis.
         // Use scroll_delta.x to drive horizontal scrolling directly.
         for frame in 0..3 {
             focus_sys.begin_frame();
@@ -1764,7 +1764,7 @@ mod nested_bubbling_tests {
         for frame in 0..3 {
             focus_sys.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 144.0); // on inner horiz slider track
-            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 }; // vertical wheel, horiz slider uses as fallback
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 }; // vertical wheel; horiz slider remaps
             if frame == 0 {
                 inner_state.offset.x = 0.0;    // at left — horiz slider skips scroll_left
                 outer_state.offset.x = 100.0;  // outer has room to scroll left
