@@ -85,6 +85,12 @@ struct App {
     double_horiz_btns: [SampleButton; 20],
     right_panel_scroll: framewise::widgets::scroll_area::ScrollState,
 
+    // Nested 2D: outer[2D] > inner[2D]
+    nested_2d_outer_scroll: framewise::widgets::scroll_area::ScrollState,
+    nested_2d_inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    nested_2d_inner_btns: [SampleButton; 20],
+    nested_2d_outer_btns: [SampleButton; 6],
+
     // Quad-nested: outer_vert -> middle_horiz -> inner_vert -> innermost_horiz
     triple_outer_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_middle_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -156,6 +162,10 @@ impl App {
             double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             right_panel_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            nested_2d_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            nested_2d_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            nested_2d_inner_btns: std::array::from_fn(|_| SampleButton::default()),
+            nested_2d_outer_btns: std::array::from_fn(|_| SampleButton::default()),
             triple_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_middle_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
@@ -608,6 +618,97 @@ impl App {
                     outer_scroll.finish()
                 };
                 content_col.append_cmds(d_horiz_cmds);
+
+                // Nested 2D Scroll Demo: outer[2D] > inner[2D]
+                //
+                // Both areas scroll horizontally AND vertically. Wheel on inner content
+                // should only scroll the inner area (bubbling to outer only when inner
+                // is at its limit on that axis). The if !needs_h guard in begin_scroll_area
+                // ensures this works correctly.
+                {
+                    let outer_ox = self.nested_2d_outer_scroll.offset.x;
+                    let outer_oy = self.nested_2d_outer_scroll.offset.y;
+                    let inner_ox = self.nested_2d_inner_scroll.offset.x;
+                    let inner_oy = self.nested_2d_inner_scroll.offset.y;
+
+                    content_col.label(
+                        Vec2::new(inner_w, 20.0),
+                        "NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently",
+                    );
+
+                    let nd_cmds = {
+                        // Outer 2D: viewport 420x200, content 840x400
+                        let mut outer = content_col.scroll_area(
+                            Vec2::new(inner_w.min(440.0), 200.0),
+                            Vec2::new(840.0, 400.0),
+                            framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                            framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                            &mut self.nested_2d_outer_scroll,
+                            framewise::layout::ManualLayout,
+                            &self.input,
+                        );
+
+                        // Status label at top-left of outer content
+                        outer.label(
+                            Rect::new(0.0, 0.0, 400.0, 18.0),
+                            &format!("OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}", outer_ox, outer_oy, inner_ox, inner_oy),
+                        );
+
+                        // Some outer-only buttons scattered in the far corners to make outer scrollable
+                        for (k, (bx, by, label)) in [
+                            (10.0,  30.0, "OA"),
+                            (700.0, 30.0, "OB"),
+                            (10.0,  340.0, "OC"),
+                            (700.0, 340.0, "OD"),
+                            (400.0, 180.0, "OE"),
+                            (550.0, 100.0, "OF"),
+                        ].iter().enumerate() {
+                            let btn = outer.button(
+                                std::mem::take(&mut self.nested_2d_outer_btns[k].state),
+                                Rect::new(*bx, *by, 60.0, 28.0),
+                                label.to_string(),
+                                &self.input,
+                            );
+                            self.nested_2d_outer_btns[k].state = btn.state;
+                        }
+
+                        // Inner 2D: viewport 250x150, content 500x300 — 4x5 button grid
+                        let inner_cmds = {
+                            let mut inner = outer.scroll_area(
+                                Rect::new(80.0, 50.0, 250.0, 150.0),
+                                Vec2::new(500.0, 300.0),
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                &mut self.nested_2d_inner_scroll,
+                                framewise::layout::ManualLayout,
+                                &self.input,
+                            );
+
+                            for j in 0..20 {
+                                let col = j % 4;
+                                let row = j / 4;
+                                let shade = ((col + row) % 2) as f32 * 0.12;
+                                inner.ctx.button_style.background = Color::rgb(0.10 + shade, 0.35 + shade, 0.70 + shade);
+                                inner.ctx.button_style.hovered    = Color::rgb(0.20 + shade, 0.45 + shade, 0.80 + shade);
+                                let btn = inner.button(
+                                    std::mem::take(&mut self.nested_2d_inner_btns[j].state),
+                                    Rect::new(col as f32 * 120.0 + 5.0, row as f32 * 58.0 + 5.0, 110.0, 48.0),
+                                    format!("2D {:02}", j + 1),
+                                    &self.input,
+                                );
+                                let clicked = btn.clicked();
+                                self.nested_2d_inner_btns[j].state = btn.state;
+                                if clicked { self.nested_2d_inner_btns[j].clicks += 1; }
+                            }
+
+                            inner.finish()
+                        };
+                        outer.append_cmds(inner_cmds);
+
+                        outer.finish()
+                    };
+                    content_col.append_cmds(nd_cmds);
+                }
 
                 // Triple-Nested Scroll Demo: outer_vert -> middle_horiz -> inner_vert
                 //

@@ -143,11 +143,17 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         if needs_v {
             if !at_top    { focus_sys.claim_scroll_up(state.id); }
             if !at_bottom { focus_sys.claim_scroll_down(state.id); }
-            // Unconditionally claim horizontal scroll directions to block a parent horizontal
-            // fallback area from interpreting vertical wheel events as horizontal scroll.
-            // Mirrors what the fallback horizontal area does for scroll_up/down.
-            focus_sys.claim_scroll_left(state.id);
-            focus_sys.claim_scroll_right(state.id);
+            // For pure-vert areas (no horizontal slider): unconditionally claim horizontal
+            // scroll directions to block a parent horizontal fallback area from interpreting
+            // vertical wheel events as horizontal scroll. Mirrors what the fallback horizontal
+            // area does for scroll_up/down.
+            // Not needed for 2D areas (needs_h=true): the needs_h block below handles
+            // scroll_left/right conditionally, and unconditional claiming would break
+            // horizontal same-axis bubbling to a parent scroll area.
+            if !needs_h {
+                focus_sys.claim_scroll_left(state.id);
+                focus_sys.claim_scroll_right(state.id);
+            }
         }
         if needs_h {
             if !at_left   { focus_sys.claim_scroll_left(state.id); }
@@ -1402,5 +1408,135 @@ mod nested_bubbling_tests {
         assert_eq!(inner_state.offset.x, 412.0, "Inner slider already at max");
         assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
         assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+    }
+
+    // ── Nested 2D: outer[H+V] > inner[H+V] ───────────────────────────────────────────────────
+    //
+    // Geometry (all tests):
+    //   outer_2d: bounds=(0,0,400,300) content=(800,600) h=Always v=Always
+    //             scrollbar_w=12 → content_bounds=(0,0,388,288)
+    //             max_scroll.x = 412, max_scroll.y = 312
+    //   inner_2d: bounds=(0,0,200,150) content=(400,300) h=Always v=Always
+    //             scrollbar_w=12 → content_bounds=(0,0,188,138)
+    //             max_scroll.x = 212, max_scroll.y = 162
+    //
+    // Mouse pos (50,50): inside outer content_bounds AND inner content_bounds.
+    //
+    // Critical property: inner[2D] must NOT unconditionally claim scroll_left/scroll_right
+    // from its needs_v block (the `if !needs_h` guard in begin_scroll_area ensures this).
+    // Without that guard, inner would always win scroll_left/right, preventing horizontal
+    // same-axis bubbling to outer even when inner is at its horizontal limit.
+
+    // 21. Mouse Wheel / Nested 2D / Vertical same-axis bubbles when inner at top
+    //     Upward wheel while inner is at top. Inner can't scroll up, outer scrolls up.
+    #[test]
+    fn test_nested_2d_mouse_vert_same_axis_bubbles() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at top — inner skips scroll_up claim
+                outer_state.offset.y = 100.0;  // outer has room to scroll up
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 0.0, "Inner already at top");
+        assert!(outer_state.offset.y < 100.0, "Outer should scroll up (same-axis bubble)");
+    }
+
+    // 22. Mouse Wheel / Nested 2D / Horizontal same-axis bubbles when inner at left
+    //     Upward wheel (mapped to left) while inner is at left limit.
+    //     Without the `if !needs_h` guard, inner's needs_v block would unconditionally
+    //     claim scroll_left, preventing outer from winning it. This test catches that regression.
+    #[test]
+    fn test_nested_2d_mouse_horiz_same_axis_bubbles() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // inner_2d is a fallback area (needs_h=true, needs_v=true, not degenerate_v — NOT fallback)
+        // Actually inner has both axes, so it's NOT a fallback. Horizontal scroll_delta.x needed.
+        // Use scroll_delta.x to drive horizontal scrolling directly.
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.x = if frame == 1 { 1.0 } else { 0.0 }; // scroll left (positive x = left)
+            if frame == 0 {
+                inner_state.offset.x = 0.0;    // at left — inner skips scroll_left claim
+                outer_state.offset.x = 100.0;  // outer has room
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 0.0, "Inner already at left");
+        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (same-axis bubble). \
+            Regression: if !needs_h guard missing from needs_v block in begin_scroll_area.");
+    }
+
+    // 23. Mouse Wheel / Nested 2D / Cross-axis isolation (vertical wheel → no horizontal scroll)
+    //     Vertical wheel on inner 2D at top. Inner can't scroll up. Outer scrolls UP (vertical).
+    //     Outer must NOT scroll horizontally — no cross-axis leakage.
+    #[test]
+    fn test_nested_2d_mouse_cross_axis_isolates() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at top — bubbles to outer vertically
+                outer_state.offset.y = 100.0;
+                outer_state.offset.x = 50.0;   // must NOT change
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(outer_state.offset.y < 100.0, "Outer should scroll up (vertical bubble)");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer must NOT scroll horizontally (cross-axis isolation)");
     }
 }
