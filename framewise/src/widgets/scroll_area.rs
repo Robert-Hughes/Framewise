@@ -584,6 +584,88 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// Mouse entirely outside the scroll area's bounds: no claim, no scroll.
+    #[test]
+    fn test_mouse_outside_bounds_no_scroll() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(500.0, 500.0); // far outside
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(state.offset.y, 0.0, "Wheel outside bounds must not scroll");
+    }
+
+    /// Two sibling scroll areas, mouse only over one. The hovered one consumes
+    /// the wheel; the other must not move.
+    #[test]
+    fn test_sibling_scroll_areas_dont_steal() {
+        let mut a = ScrollState::default();
+        let mut b = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(50.0, 50.0); // inside A only
+            input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
+
+            let (_, scope_a, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut a, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope_a.finish(&mut focus_sys);
+
+            let (_, scope_b, _, _) = begin_scroll_area(
+                Rect::new(300.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut b, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope_b.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(a.offset.y > 0.0, "Hovered sibling A should scroll");
+        assert_eq!(b.offset.y, 0.0, "Non-hovered sibling B must not scroll");
+    }
+
+    /// 2D area with both scroll_delta.x and scroll_delta.y simultaneously
+    /// (trackpad pan or shift-wheel): both axes advance independently.
+    #[test]
+    fn test_simultaneous_dx_and_dy() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta = if frame == 1 { Vec2::new(-1.0, -1.0) } else { Vec2::ZERO };
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(1000.0, 1000.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(state.offset.x > 0.0, "dx should advance horizontal");
+        assert!(state.offset.y > 0.0, "dy should advance vertical");
+        assert_eq!(state.offset.x, state.offset.y, "equal-magnitude deltas → equal offsets");
+    }
+
     /// When content shrinks, an existing offset past the new max must clamp.
     #[test]
     fn test_offset_clamps_on_content_shrink() {
