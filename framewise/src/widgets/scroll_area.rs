@@ -63,13 +63,32 @@ impl ScrollAreaScope {
         debug_assert_eq!(popped, Some(self.id), "ScrollAreaScope finished out of order!");
 
         if focus_sys.focused_scroll_path().contains(&self.id) {
-            let can_up = !self.at_top || (self.fallback && !self.at_left);
-            let can_down = !self.at_bottom || (self.fallback && !self.at_right);
-            if can_up {
-                focus_sys.claim_pgup(self.id);
-            }
-            if can_down {
-                focus_sys.claim_pgdn(self.id);
+            if self.fallback {
+                // Horizontal scroll area:
+                // We map PgUp/PgDn to horizontal scrolling.
+                // We conditionally claim the horizontal scroll actions only if we have room to scroll.
+                // This allows horizontal PgUp/PgDn to bubble up to parent horizontal scroll areas if we are at the limit!
+                if !self.at_left { focus_sys.claim_pgup_horiz(self.id); }
+                if !self.at_right { focus_sys.claim_pgdn_horiz(self.id); }
+
+                // Crucially, we UNCONDITIONALLY claim the vertical PgUp/PgDn actions!
+                // This completely isolates this horizontal scope from the vertical axis, preventing 
+                // orthogonal keystrokes from "leaking" out and scrolling a parent vertical area.
+                focus_sys.claim_pgup_vert(self.id);
+                focus_sys.claim_pgdn_vert(self.id);
+            } else {
+                // Vertical scroll area:
+                // We map PgUp/PgDn to vertical scrolling.
+                // We conditionally claim the vertical scroll actions only if we have room to scroll.
+                // This allows vertical PgUp/PgDn to bubble up to parent vertical scroll areas if we are at the limit!
+                if !self.at_top { focus_sys.claim_pgup_vert(self.id); }
+                if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
+
+                // Crucially, we UNCONDITIONALLY claim the horizontal PgUp/PgDn actions!
+                // This completely isolates this vertical scope from the horizontal axis, preventing 
+                // orthogonal keystrokes from "leaking" out and scrolling a parent horizontal area.
+                focus_sys.claim_pgup_horiz(self.id);
+                focus_sys.claim_pgdn_horiz(self.id);
             }
         }
 
@@ -129,7 +148,9 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             if !at_left   { focus_sys.claim_scroll_left(state.id); }
             if !at_right  { focus_sys.claim_scroll_right(state.id); }
             if fallback {
-                // Always claim vertical scrolling to prevent parent vertical scroll areas from leaking
+                // Crucially, we UNCONDITIONALLY claim the vertical mouse wheel actions!
+                // This completely isolates this horizontal scope from the vertical axis, preventing 
+                // orthogonal wheel events from "leaking" out and scrolling a parent vertical area.
                 focus_sys.claim_scroll_up(state.id);
                 focus_sys.claim_scroll_down(state.id);
             }
@@ -157,11 +178,19 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
     let fallback = needs_h && is_degenerate_v;
 
-    if input.key_pressed_page_up && focus_sys.is_active_pgup(state.id) {
-        if fallback { state.offset.x -= bounds.w; } else { state.offset.y -= bounds.h; }
+    if input.key_pressed_page_up {
+        if fallback && focus_sys.is_active_pgup_horiz(state.id) {
+            state.offset.x -= bounds.w;
+        } else if !fallback && focus_sys.is_active_pgup_vert(state.id) {
+            state.offset.y -= bounds.h;
+        }
     }
-    if input.key_pressed_page_down && focus_sys.is_active_pgdn(state.id) {
-        if fallback { state.offset.x += bounds.w; } else { state.offset.y += bounds.h; }
+    if input.key_pressed_page_down {
+        if fallback && focus_sys.is_active_pgdn_horiz(state.id) {
+            state.offset.x += bounds.w;
+        } else if !fallback && focus_sys.is_active_pgdn_vert(state.id) {
+            state.offset.y += bounds.h;
+        }
     }
 
     state.offset.x = state.offset.x.clamp(0.0, max_scroll.x);
@@ -594,7 +623,6 @@ mod nested_bubbling_tests {
 
     // 6. Keyboard / Inner Content / Cross-axis (Isolate)
     #[test]
-    #[ignore = "Currently leaking cross-axis!"]
     fn test_nested_keyboard_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
@@ -682,7 +710,6 @@ mod nested_bubbling_tests {
 
     // 8. Keyboard / Slider Track / Cross-axis (Isolate)
     #[test]
-    #[ignore = "Currently leaking cross-axis!"]
     fn test_nested_keyboard_scrollbar_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();

@@ -181,15 +181,23 @@ pub fn slider(
             }
         } else {
             if is_vert {
+                // Vertical slider:
+                // Conditionally claim vertical scrolling to allow same-axis bubbling.
                 if !at_min { focus_sys.claim_scroll_up(state.focus_id); }
                 if !at_max { focus_sys.claim_scroll_down(state.focus_id); }
+                // Unconditionally claim horizontal scrolling to isolate from the horizontal axis.
+                focus_sys.claim_scroll_left(state.focus_id);
+                focus_sys.claim_scroll_right(state.focus_id);
             } else {
+                // Horizontal slider:
+                // Conditionally claim horizontal scrolling to allow same-axis bubbling.
                 if !at_min { 
                     focus_sys.claim_scroll_left(state.focus_id);
                 }
                 if !at_max { 
                     focus_sys.claim_scroll_right(state.focus_id); 
                 }
+                // Unconditionally claim vertical scrolling to isolate from the vertical axis.
                 focus_sys.claim_scroll_up(state.focus_id); 
                 focus_sys.claim_scroll_down(state.focus_id);
             }
@@ -251,17 +259,38 @@ pub fn slider(
         let at_max = *value >= max;
 
         if spec.claim_scroll_at_ends {
-            focus_sys.claim_pgup(state.focus_id);
-            focus_sys.claim_pgdn(state.focus_id);
+            if is_vert {
+                focus_sys.claim_pgup_vert(state.focus_id);
+                focus_sys.claim_pgdn_vert(state.focus_id);
+                focus_sys.claim_pgup_horiz(state.focus_id);
+                focus_sys.claim_pgdn_horiz(state.focus_id);
+            } else {
+                focus_sys.claim_pgup_horiz(state.focus_id);
+                focus_sys.claim_pgdn_horiz(state.focus_id);
+                focus_sys.claim_pgup_vert(state.focus_id);
+                focus_sys.claim_pgdn_vert(state.focus_id);
+            }
         } else {
-            if !at_min { focus_sys.claim_pgup(state.focus_id); }
-            if !at_max { focus_sys.claim_pgdn(state.focus_id); }
+            if is_vert {
+                if !at_min { focus_sys.claim_pgup_vert(state.focus_id); }
+                if !at_max { focus_sys.claim_pgdn_vert(state.focus_id); }
+                focus_sys.claim_pgup_horiz(state.focus_id);
+                focus_sys.claim_pgdn_horiz(state.focus_id);
+            } else {
+                if !at_min { focus_sys.claim_pgup_horiz(state.focus_id); }
+                if !at_max { focus_sys.claim_pgdn_horiz(state.focus_id); }
+                focus_sys.claim_pgup_vert(state.focus_id);
+                focus_sys.claim_pgdn_vert(state.focus_id);
+            }
         }
 
-        if input.key_pressed_page_up && focus_sys.is_active_pgup(state.focus_id) {
+        let is_active_pgup = if is_vert { focus_sys.is_active_pgup_vert(state.focus_id) } else { focus_sys.is_active_pgup_horiz(state.focus_id) };
+        let is_active_pgdn = if is_vert { focus_sys.is_active_pgdn_vert(state.focus_id) } else { focus_sys.is_active_pgdn_horiz(state.focus_id) };
+
+        if input.key_pressed_page_up && is_active_pgup {
             *value = (*value - spec.page_step).clamp(min, max);
         }
-        if input.key_pressed_page_down && focus_sys.is_active_pgdn(state.focus_id) {
+        if input.key_pressed_page_down && is_active_pgdn {
             *value = (*value + spec.page_step).clamp(min, max);
         }
         if input.key_pressed_up || input.key_pressed_left {

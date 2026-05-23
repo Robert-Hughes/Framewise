@@ -51,10 +51,14 @@ pub struct FocusSystem {
     focused_scroll_path: Vec<FocusId>,
 
     // Keyboard Page Up / Page Down directional claims
-    next_pgup_id: Option<FocusId>,
-    next_pgdn_id: Option<FocusId>,
-    active_pgup_id: Option<FocusId>,
-    active_pgdn_id: Option<FocusId>,
+    next_pgup_vert_id: Option<FocusId>,
+    next_pgdn_vert_id: Option<FocusId>,
+    next_pgup_horiz_id: Option<FocusId>,
+    next_pgdn_horiz_id: Option<FocusId>,
+    active_pgup_vert_id: Option<FocusId>,
+    active_pgdn_vert_id: Option<FocusId>,
+    active_pgup_horiz_id: Option<FocusId>,
+    active_pgdn_horiz_id: Option<FocusId>,
 
     #[cfg(debug_assertions)]
     seen_ids: std::collections::HashSet<FocusId>,
@@ -83,10 +87,14 @@ impl FocusSystem {
             next_scroll_right_id: None,
             keyboard_scroll_scopes: Vec::new(),
             focused_scroll_path: Vec::new(),
-            next_pgup_id: None,
-            next_pgdn_id: None,
-            active_pgup_id: None,
-            active_pgdn_id: None,
+            next_pgup_vert_id: None,
+            next_pgdn_vert_id: None,
+            next_pgup_horiz_id: None,
+            next_pgdn_horiz_id: None,
+            active_pgup_vert_id: None,
+            active_pgdn_vert_id: None,
+            active_pgup_horiz_id: None,
+            active_pgdn_horiz_id: None,
             #[cfg(debug_assertions)]
             seen_ids: std::collections::HashSet::new(),
         }
@@ -198,26 +206,48 @@ impl FocusSystem {
         &self.focused_scroll_path
     }
 
-    /// Claim the Page Up scroll action. Uses a first-caller-wins logic.
-    pub fn claim_pgup(&mut self, id: FocusId) {
-        if self.next_pgup_id.is_none() {
-            self.next_pgup_id = Some(id);
+    /// Claim the Vertical Page Up scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgup_vert(&mut self, id: FocusId) {
+        if self.next_pgup_vert_id.is_none() {
+            self.next_pgup_vert_id = Some(id);
         }
     }
 
-    /// Claim the Page Down scroll action. Uses a first-caller-wins logic.
-    pub fn claim_pgdn(&mut self, id: FocusId) {
-        if self.next_pgdn_id.is_none() {
-            self.next_pgdn_id = Some(id);
+    /// Claim the Vertical Page Down scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgdn_vert(&mut self, id: FocusId) {
+        if self.next_pgdn_vert_id.is_none() {
+            self.next_pgdn_vert_id = Some(id);
         }
     }
 
-    pub fn is_active_pgup(&self, id: FocusId) -> bool {
-        self.active_pgup_id == Some(id)
+    /// Claim the Horizontal Page Up (Left) scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgup_horiz(&mut self, id: FocusId) {
+        if self.next_pgup_horiz_id.is_none() {
+            self.next_pgup_horiz_id = Some(id);
+        }
     }
 
-    pub fn is_active_pgdn(&self, id: FocusId) -> bool {
-        self.active_pgdn_id == Some(id)
+    /// Claim the Horizontal Page Down (Right) scroll action. Uses a first-caller-wins logic.
+    pub fn claim_pgdn_horiz(&mut self, id: FocusId) {
+        if self.next_pgdn_horiz_id.is_none() {
+            self.next_pgdn_horiz_id = Some(id);
+        }
+    }
+
+    pub fn is_active_pgup_vert(&self, id: FocusId) -> bool {
+        self.active_pgup_vert_id == Some(id)
+    }
+
+    pub fn is_active_pgdn_vert(&self, id: FocusId) -> bool {
+        self.active_pgdn_vert_id == Some(id)
+    }
+
+    pub fn is_active_pgup_horiz(&self, id: FocusId) -> bool {
+        self.active_pgup_horiz_id == Some(id)
+    }
+
+    pub fn is_active_pgdn_horiz(&self, id: FocusId) -> bool {
+        self.active_pgdn_horiz_id == Some(id)
     }
 
     /// Resolves any pending focus shifts using the order built this frame.
@@ -227,8 +257,10 @@ impl FocusSystem {
         self.active_scroll_down_id = self.next_scroll_down_id.take();
         self.active_scroll_left_id = self.next_scroll_left_id.take();
         self.active_scroll_right_id = self.next_scroll_right_id.take();
-        self.active_pgup_id = self.next_pgup_id.take();
-        self.active_pgdn_id = self.next_pgdn_id.take();
+        self.active_pgup_vert_id = self.next_pgup_vert_id.take();
+        self.active_pgdn_vert_id = self.next_pgdn_vert_id.take();
+        self.active_pgup_horiz_id = self.next_pgup_horiz_id.take();
+        self.active_pgdn_horiz_id = self.next_pgdn_horiz_id.take();
 
         if let Some(direction) = self.pending_shift.take() {
             if !self.current_frame_order.is_empty() {
