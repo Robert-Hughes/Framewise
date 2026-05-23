@@ -143,13 +143,18 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         if needs_v {
             if !at_top    { focus_sys.claim_scroll_up(state.id); }
             if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+            // Unconditionally claim horizontal scroll directions to block a parent horizontal
+            // fallback area from interpreting vertical wheel events as horizontal scroll.
+            // Mirrors what the fallback horizontal area does for scroll_up/down.
+            focus_sys.claim_scroll_left(state.id);
+            focus_sys.claim_scroll_right(state.id);
         }
         if needs_h {
             if !at_left   { focus_sys.claim_scroll_left(state.id); }
             if !at_right  { focus_sys.claim_scroll_right(state.id); }
             if fallback {
                 // Crucially, we UNCONDITIONALLY claim the vertical mouse wheel actions!
-                // This completely isolates this horizontal scope from the vertical axis, preventing 
+                // This completely isolates this horizontal scope from the vertical axis, preventing
                 // orthogonal wheel events from "leaking" out and scrolling a parent vertical area.
                 focus_sys.claim_scroll_up(state.id);
                 focus_sys.claim_scroll_down(state.id);
@@ -162,14 +167,16 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         if needs_v && focus_sys.is_active_scroll_down(state.id) && input.scroll_delta.y < 0.0 {
             state.offset.y -= input.scroll_delta.y * 30.0;
         }
-        
+
         if needs_h {
             let mut dx = input.scroll_delta.x;
             if fallback && dx == 0.0 { dx = input.scroll_delta.y; }
-            if dx > 0.0 && (focus_sys.is_active_scroll_left(state.id) || (fallback && focus_sys.is_active_scroll_up(state.id))) {
+            // Only fire on scroll_left/right — scroll_up/down are claimed purely to block
+            // parent vertical areas and must not double as a horizontal-remap trigger.
+            if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
                 state.offset.x -= dx * 30.0;
             }
-            if dx < 0.0 && (focus_sys.is_active_scroll_right(state.id) || (fallback && focus_sys.is_active_scroll_down(state.id))) {
+            if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
                 state.offset.x -= dx * 30.0;
             }
         }
