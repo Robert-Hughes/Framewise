@@ -62,19 +62,6 @@ Features to design and implement, roughly in dependency order:
 
 ## Scrolling — Open Questions & Ideas
 
-We've been working a lot on scrolling behaviour and propagation recently, added a bunch of
-tests. Things to still review or think about:
-
-**Review tasks:**
-- Check if there's anything we might have missed — incorrect or confusing behaviour, or
-  inconsistencies for the user.
-- Check the design/implementation of scrolling logic — can it be simplified?
-- Check test coverage — are we missing anything? Can the tests be simplified?
-
-**Specific behaviours to address:**
-- Click and hold to repeatedly page down on a slider — if it gets clamped at the end it
-  can jump back and forth every frame!
-- Slider: click on the trackbar then drag should snap to cursor.
 - Middle-click hold-and-drag pan; middle-click without holding.
 - Click-and-drag pan (touch / mobile).
 - "Flinging" (momentum scrolling).

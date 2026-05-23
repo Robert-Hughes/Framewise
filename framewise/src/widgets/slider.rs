@@ -261,15 +261,28 @@ pub fn slider(
         }
     } else if state.is_track_clicking && time >= state.next_repeat_time {
         if track_rect.contains(input.mouse_pos) {
+            let track_start = if is_vert { track_rect.y } else { track_rect.x };
             if mouse_coord < thumb_start {
-                *value = (*value - spec.page_step).clamp(min, max);
+                // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
+                let cursor_val = if usable_track > 0.0 {
+                    min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0) * range
+                } else {
+                    min
+                };
+                *value = (*value - spec.page_step).max(cursor_val).clamp(min, max);
                 state.next_repeat_time = time + 0.05;
             } else if mouse_coord > thumb_end {
-                *value = (*value + spec.page_step).clamp(min, max);
+                // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
+                let cursor_val = if usable_track > 0.0 {
+                    min + ((mouse_coord - track_start) / usable_track).clamp(0.0, 1.0) * range
+                } else {
+                    max
+                };
+                *value = (*value + spec.page_step).min(cursor_val).clamp(min, max);
                 state.next_repeat_time = time + 0.05;
-            } else {
-                state.is_track_clicking = false;
             }
+            // else: cursor is now inside the thumb; paging stops but keep
+            // is_track_clicking=true so the drag-transition check can still fire.
         } else {
             state.is_track_clicking = false;
         }
@@ -628,6 +641,88 @@ mod tests {
         input.mouse_pos.y = 65.0;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert!((value - 68.75).abs() < 0.01, "drag to 68.75, got {value}");
+    }
+
+    // Regression: paging past the cursor causes direction-flip flicker.
+    // Setup: track y=0..100, thumb_len=20, usable=80, page_step=60.
+    // value=0 → thumb at y=0..20. Click at y=70 (below thumb).
+    // Frame 1 (initial click): page to 60 → thumb at y=48..68.
+    // Frame 2 (repeat at t=0.5): cursor y=70 > thumb_end=68, fires.
+    //   Buggy: 60+60=120 → clamped to 100 → thumb at 80..100 → cursor < thumb_start → flicker.
+    //   Fixed: clamp to cursor position (87.5) so thumb stops at cursor.
+    // Frame 3 (repeat at t=0.6): cursor inside thumb → paging stops.
+    #[test]
+    fn test_track_click_repeat_does_not_overshoot_cursor() {
+        let mut state = SliderState::default();
+        let mut value = 0.0_f32;
+        let spec = SliderSpec {
+            orientation: Orientation::Vertical,
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 60.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+            claim_scroll_at_ends: true,
+        };
+        let mut input = Input::new();
+        let mut focus_sys = FocusSystem::new();
+
+        // Frame 1: initial click at y=70 (well below thumb at y=0..20).
+        input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        assert_eq!(value, 60.0, "initial page: 0 + 60 = 60");
+        assert!(state.is_track_clicking);
+        assert_eq!(state.next_repeat_time, 0.5);
+
+        // Frame 2: hold, before repeat fires.
+        input.mouse_pressed = false;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.4, &mut focus_sys);
+        assert_eq!(value, 60.0);
+
+        // Frame 3: repeat fires (t=0.5). Thumb at y=48..68, cursor at y=70 > 68 → fires.
+        // Expected: value clamps to cursor position (87.5), NOT 100.
+        // cursor_val = (70/80) * 100 = 87.5
+        slider(&mut state, &mut value, spec.clone(), &input, 0.5, &mut focus_sys);
+        assert!(
+            (value - 87.5).abs() < 0.01,
+            "repeat should stop at cursor position 87.5, got {value}"
+        );
+
+        // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
+        // is_track_clicking must remain true so the drag transition can still fire.
+        slider(&mut state, &mut value, spec.clone(), &input, 0.6, &mut focus_sys);
+        assert!(
+            (value - 87.5).abs() < 0.01,
+            "value should not change after thumb reaches cursor, got {value}"
+        );
+        assert!(state.is_track_clicking, "is_track_clicking must stay true so drag is still possible");
+        assert!(!state.is_dragging);
+
+        // Frame 5: still holding, move mouse 5px (past 4px threshold from initial click at y=70).
+        // Drag transition should fire: thumb snaps to cursor, enters drag mode.
+        // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
+        input.mouse_pos.y = 75.0;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.65, &mut focus_sys);
+        assert!(state.is_dragging, "should enter drag mode after mouse moves past threshold");
+        assert!(!state.is_track_clicking);
+        assert!(
+            (value - 81.25).abs() < 0.01,
+            "snap on drag entry: expected 81.25, got {value}"
+        );
+
+        // Frame 6: drag to y=85 → delta=10 → val_delta=12.5 → value=93.75
+        input.mouse_pressed = false;
+        input.mouse_pos.y = 85.0;
+        slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
+        assert!(
+            (value - 93.75).abs() < 0.01,
+            "drag: expected 93.75, got {value}"
+        );
     }
 
     // Helper to build a standard test spec.
