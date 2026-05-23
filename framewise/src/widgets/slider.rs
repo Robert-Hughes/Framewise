@@ -186,12 +186,12 @@ pub fn slider(
             } else {
                 if !at_min { 
                     focus_sys.claim_scroll_left(state.focus_id);
-                    focus_sys.claim_scroll_up(state.focus_id); 
                 }
                 if !at_max { 
                     focus_sys.claim_scroll_right(state.focus_id); 
-                    focus_sys.claim_scroll_down(state.focus_id);
                 }
+                focus_sys.claim_scroll_up(state.focus_id); 
+                focus_sys.claim_scroll_down(state.focus_id);
             }
         }
 

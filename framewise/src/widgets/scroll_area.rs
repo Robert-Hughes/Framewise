@@ -663,3 +663,120 @@ mod nested_mouse_wheel_leak_test {
         assert_eq!(outer_state.offset.y, 100.0, "Scroll leaked from horizontal inner to vertical outer!");
     }
 }
+
+
+#[cfg(test)]
+mod bubbling_coverage_tests {
+    use crate::widgets::scroll_area::*;
+    use crate::types::*;
+    use crate::input::Input;
+    use crate::layout::*;
+    use crate::focus::*;
+
+    #[test]
+    fn test_nested_vertical_scroll_bubble_up() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            
+            // Hover over the inner scroll area's vertical scrollbar
+            // Outer bounds: (0, 0, 400, 400)
+            // Inner bounds: (0, 0, 200, 200)
+            // Inner vertical scrollbar is at the right edge of inner_bounds.
+            input.mouse_pos = Vec2::new(195.0, 50.0);
+
+            if frame == 1 {
+                // Mouse wheel up (which implies moving content down, or moving offset up/left)
+                input.scroll_delta.y = 1.0;
+            } else {
+                input.scroll_delta.y = 0.0;
+            }
+
+            if frame == 0 {
+                inner_state.offset.y = 0.0; // At top! Cannot scroll up anymore.
+                outer_state.offset.y = 100.0; // Can scroll up.
+            }
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0),
+                Vec2::new(400.0, 800.0), 
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0),
+                Vec2::new(200.0, 400.0), 
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+
+        assert_eq!(inner_state.offset.y, 0.0);
+        // Outer SHOULD have moved up because inner was at top and bubbling is allowed for same-axis!
+        assert_eq!(outer_state.offset.y, 70.0, "Scroll should have bubbled to parent vertical scroll area!");
+    }
+
+    #[test]
+    fn test_nested_horizontal_scroll_bubble_left() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            
+            // Hover over the inner scroll area's horizontal scrollbar
+            // Outer bounds: (0, 0, 400, 400)
+            // Inner bounds: (0, 0, 200, 200)
+            // Inner horizontal scrollbar is at the bottom edge of inner_bounds.
+            input.mouse_pos = Vec2::new(50.0, 195.0);
+
+            if frame == 1 {
+                // Mouse wheel up (which implies moving content right, or moving offset left)
+                // Note: We use scroll_delta.y because vertical mouse wheels map to horizontal scrolling
+                input.scroll_delta.y = 1.0;
+            } else {
+                input.scroll_delta.y = 0.0;
+            }
+
+            if frame == 0 {
+                inner_state.offset.x = 0.0; // At left! Cannot scroll left anymore.
+                outer_state.offset.x = 100.0; // Can scroll left.
+            }
+
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 400.0),
+                Vec2::new(800.0, 400.0), 
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0),
+                Vec2::new(400.0, 200.0), 
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+
+        assert_eq!(inner_state.offset.x, 0.0);
+        // Outer SHOULD have moved left because inner was at left and bubbling is allowed for same-axis!
+        assert_eq!(outer_state.offset.x, 70.0, "Scroll should have bubbled to parent horizontal scroll area!");
+    }
+}
