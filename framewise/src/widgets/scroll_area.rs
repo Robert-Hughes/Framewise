@@ -584,6 +584,53 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// Non-zero bounds.x/y must shift content_bounds, mouse hit-test, and the
+    /// slider track. Mouse hit at the absolute coordinate inside the offset
+    /// content_bounds should still trigger scroll.
+    #[test]
+    fn test_non_zero_bounds_origin() {
+        let bounds = Rect::new(100.0, 200.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            // Mouse inside the offset content_bounds (100..288, 200..400).
+            input.mouse_pos = Vec2::new(150.0, 250.0);
+            input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
+            let (_, scope, cb, _) = begin_scroll_area(
+                bounds, Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            // content_bounds origin must follow bounds origin.
+            assert_eq!(cb.x, 100.0);
+            assert_eq!(cb.y, 200.0);
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(state.offset.y > 0.0, "Wheel inside offset content_bounds should scroll");
+
+        // Mouse just outside the offset bounds must NOT scroll.
+        let mut state2 = ScrollState::default();
+        let mut focus_sys2 = crate::focus::FocusSystem::new();
+        for frame in 0..3 {
+            focus_sys2.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(50.0, 250.0); // x<bounds.x → outside
+            input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(200.0, 1000.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut state2, ManualLayout, &input, &mut focus_sys2, None, 0.0,
+            );
+            scope.finish(&mut focus_sys2);
+            focus_sys2.end_frame();
+        }
+        assert_eq!(state2.offset.y, 0.0, "Mouse left of bounds.x must not claim the wheel");
+    }
+
     /// The corner where both scrollbars meet is an intentional dead zone:
     /// mouse there is outside content_bounds so no claim is made and the wheel
     /// does not scroll.
