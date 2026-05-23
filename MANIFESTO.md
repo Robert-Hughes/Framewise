@@ -317,6 +317,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
+  * Fix current failing tests
   * In a complex nested scroll area case with vertical -> horizontal -> vertical and you scroll the inner vertical container, what's the leakage behaviour - does it leak to the outer vertical one or not at all cos the horizontal one blocks it? (Give me answers for both mouse and keyboard, focus on the inner scroll area or on the slider itself - 4 cases, each might behave differently).
     * Add tests?
   * What about horizontal -> vertical -> horizontal

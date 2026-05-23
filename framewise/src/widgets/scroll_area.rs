@@ -759,9 +759,10 @@ mod nested_bubbling_tests {
     // is true, so outer scrolls horizontally at the same time as inner scrolls
     // vertically — both fire on every vertical wheel tick.
 
-    // 9. Mouse Wheel / Outer Horiz → Inner Vert / Content area
-    //    Vertical wheel with inner NOT at limit → only inner should scroll.
-    //    Bug: outer_horiz also scrolls because scroll_left is uncontested.
+    // 9. Mouse Wheel / Outer Horiz → Inner Vert / Content area, inner at top (at_min)
+    //    Vertical wheel on inner vert content when inner is already at top.
+    //    Bug: inner content block skips claim_scroll_up (at_top), so outer retains
+    //    active_scroll_up from its fallback claim and fires via fallback dx=delta.y.
     #[test]
     fn test_outer_horiz_inner_vert_mouse_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
@@ -772,12 +773,13 @@ mod nested_bubbling_tests {
         // outer: (0,0,400,200) horiz-only, content 800w; content_bounds=(0,0,400,188)
         // inner: (0,0,200,200) vert-only,  content 400h; content_bounds=(0,0,188,200)
         // mouse (50,50): inside both content areas
+        // inner.offset.y=0 (at_top): content block skips claim_scroll_up → outer retains it
         for frame in 0..3 {
             focus_sys.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 50.0; // has room — should scroll
+                inner_state.offset.y = 0.0; // at top — triggers the bug
                 outer_state.offset.x = 50.0; // should NOT change
             }
             let (_, outer_scope, _, _) = begin_scroll_area(
@@ -794,7 +796,7 @@ mod nested_bubbling_tests {
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert!(inner_state.offset.y < 50.0, "Inner vert should scroll up");
+        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top, cannot scroll further");
         assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert content");
     }
 
