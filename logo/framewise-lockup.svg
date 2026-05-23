@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-label="Framewise">
+  <title>Framewise</title>
+  
+  <g>
+    <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"></path>
+    <path d="M 78 40 H 140" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square"></path>
+    <path d="M 78 96 H 120" fill="none" stroke="#c25a2c" stroke-width="10" stroke-linecap="square"></path>
+    <path d="M 78 40 V 160" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square"></path>
+  </g>
+  
+  <text x="200" y="118" fill="#15130f" font-family="&#39;JetBrains Mono&#39;, ui-monospace, Menlo, monospace" font-size="64" font-weight="500" letter-spacing="-2">framewise</text>
+</svg>

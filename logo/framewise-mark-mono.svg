@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Framewise">
+  <title>Framewise</title>
+  <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"></path>
+  <path d="M 78 40 H 140" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"></path>
+  <path d="M 78 96 H 120" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"></path>
+  <path d="M 78 40 V 160" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"></path>
+</svg>

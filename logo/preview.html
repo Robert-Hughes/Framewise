@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Framewise — SVG exports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #15130f; --paper: #f4f1ea; --rust: #c25a2c; --muted: #8a8378; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'Inter Tight', system-ui, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 64px 48px 120px; }
+  h1 { font-size: 14px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase;
+       color: var(--muted); font-family: 'JetBrains Mono', monospace; margin: 0 0 48px; }
+  h2 { font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+       color: var(--muted); font-family: 'JetBrains Mono', monospace; margin: 56px 0 18px; }
+  .row { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+  .tile { background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;
+          padding: 24px; display: flex; align-items: center; justify-content: center; }
+  .tile.dark { background: var(--ink); }
+  .tile.dark svg { color: var(--paper); }
+  .label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);
+           letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; text-align: center; }
+  .stack { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .file { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink);
+          background: #fff; border: 1px solid rgba(0,0,0,0.08); padding: 8px 14px;
+          border-radius: 4px; display: inline-block; margin-right: 10px; margin-bottom: 10px; }
+  a { color: var(--rust); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .scale-row { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  .scale-row .stack { gap: 8px; }
+  hr { border: 0; border-top: 1px solid rgba(0,0,0,0.08); margin: 56px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>framewise · bracket-F mark · svg exports</h1>
+
+  <h2>Files</h2>
+  <a class="file" href="framewise-mark.svg" download>framewise-mark.svg</a>
+  <a class="file" href="framewise-mark-mono.svg" download>framewise-mark-mono.svg</a>
+  <a class="file" href="framewise-lockup.svg" download>framewise-lockup.svg</a>
+
+  <h2>Two-color mark</h2>
+  <div class="row">
+    <div class="stack">
+      <div class="tile"><img src="framewise-mark.svg" width="240" height="240" alt="" /></div>
+      <div class="label">240 px</div>
+    </div>
+    <div class="stack">
+      <div class="tile dark"><img src="framewise-mark.svg" width="240" height="240" alt="" /></div>
+      <div class="label">on ink — middle bar still reads</div>
+    </div>
+  </div>
+
+  <h2>At size</h2>
+  <div class="scale-row">
+    <div class="stack"><img src="framewise-mark.svg" width="16" height="16" alt="" /><div class="label">16</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="24" height="24" alt="" /><div class="label">24</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="32" height="32" alt="" /><div class="label">32</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="48" height="48" alt="" /><div class="label">48</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="64" height="64" alt="" /><div class="label">64</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="96" height="96" alt="" /><div class="label">96</div></div>
+    <div class="stack"><img src="framewise-mark.svg" width="128" height="128" alt="" /><div class="label">128</div></div>
+  </div>
+
+  <h2>Monochrome (currentColor)</h2>
+  <div class="row">
+    <div class="stack">
+      <div class="tile" style="color: var(--ink);">
+        <!-- inline so currentColor works -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="240" height="240">
+          <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M 78 40 H 140" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 96 H 120" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 40 V 160" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+        </svg>
+      </div>
+      <div class="label">ink</div>
+    </div>
+    <div class="stack">
+      <div class="tile dark" style="color: var(--paper);">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="240" height="240">
+          <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M 78 40 H 140" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 96 H 120" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 40 V 160" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+        </svg>
+      </div>
+      <div class="label">paper on ink</div>
+    </div>
+    <div class="stack">
+      <div class="tile" style="color: var(--rust);">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="240" height="240">
+          <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M 78 40 H 140" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 96 H 120" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+          <path d="M 78 40 V 160" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="square"/>
+        </svg>
+      </div>
+      <div class="label">all rust</div>
+    </div>
+  </div>
+
+  <h2>Lockup</h2>
+  <div class="tile" style="justify-content: flex-start;">
+    <img src="framewise-lockup.svg" height="80" alt="" />
+  </div>
+
+  <hr />
+  <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.7; margin-top: 24px;">
+    palette &nbsp;&nbsp; ink #15130f &nbsp;·&nbsp; paper #f4f1ea &nbsp;·&nbsp; rust #c25a2c<br/>
+    mark viewBox &nbsp; 0 0 200 200 &nbsp;·&nbsp; stroke-width 10 &nbsp;·&nbsp; square caps
+  </p>
+</div>
+</body>
+</html>

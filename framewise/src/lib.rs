@@ -1,3 +1,4 @@
+#![doc(html_logo_url = "https://raw.githubusercontent.com/Robert-Hughes/Framewise/main/logo/framewise-mark.svg")]
 //! Framewise — a Rust GUI library where the app is always in control.
 //!
 //! Framewise is a small, procedural library that helps an application describe

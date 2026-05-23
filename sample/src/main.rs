@@ -860,9 +860,22 @@ impl App {
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create the window.
-        let attrs = Window::default_attributes()
+        let mut attrs = Window::default_attributes()
             .with_title("Framewise Sample")
             .with_inner_size(PhysicalSize::new(1600u32, 1200u32));
+
+        let svg_data = include_bytes!("../../logo/framewise-mark.svg");
+        let opt = usvg::Options::default();
+        let fontdb = usvg::fontdb::Database::new();
+        if let Ok(tree) = usvg::Tree::from_data(svg_data, &opt, &fontdb) {
+            let size = tree.size().to_int_size();
+            if let Some(mut pixmap) = resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
+                resvg::render(&tree, resvg::tiny_skia::Transform::default(), &mut pixmap.as_mut());
+                if let Ok(icon) = winit::window::Icon::from_rgba(pixmap.take(), size.width(), size.height()) {
+                    attrs = attrs.with_window_icon(Some(icon));
+                }
+            }
+        }
 
         let window = Arc::new(
             event_loop.create_window(attrs).expect("failed to create window"),
