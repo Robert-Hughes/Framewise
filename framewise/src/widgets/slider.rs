@@ -38,6 +38,14 @@ pub struct SliderSpec {
     pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
     pub style: SliderStyle,
     pub clip_rect: Option<Rect>,
+    /// When `true` (default for standalone sliders), the slider always claims
+    /// both scroll directions from the hover system — even at its limits —
+    /// preventing scroll events from propagating to any parent scroll area.
+    ///
+    /// Set to `false` for the internal scrollbar slider inside `ScrollArea`,
+    /// so that when the content is fully scrolled the parent can hand off
+    /// the event to an outer scroll area.
+    pub claim_hover_scroll_at_ends: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -128,9 +136,25 @@ pub fn slider(
 
     // Mouse wheel scrolling
     if is_visible && track_rect.contains(input.mouse_pos) {
-        focus_sys.register_scroll_hover(state.focus_id);
-        
-        if focus_sys.is_active_scroll(state.focus_id) && input.scroll_delta.y != 0.0 {
+        let at_min = *value <= min;
+        let at_max = *value >= max;
+
+        if spec.claim_hover_scroll_at_ends {
+            // Standalone slider: always claim both directions, preventing
+            // scroll from ever propagating to a parent scroll area.
+            focus_sys.claim_scroll_up(state.focus_id);
+            focus_sys.claim_scroll_down(state.focus_id);
+        } else {
+            // Scrollbar-within-scroll-area: only claim directions we can move,
+            // so a parent can take the other direction when we're at the limit.
+            if !at_min { focus_sys.claim_scroll_up(state.focus_id); }
+            if !at_max { focus_sys.claim_scroll_down(state.focus_id); }
+        }
+
+        if input.scroll_delta.y > 0.0 && focus_sys.is_active_scroll_up(state.focus_id) {
+            *value = (*value - input.scroll_delta.y * spec.step).clamp(min, max);
+        }
+        if input.scroll_delta.y < 0.0 && focus_sys.is_active_scroll_down(state.focus_id) {
             *value = (*value - input.scroll_delta.y * spec.step).clamp(min, max);
         }
     }
@@ -242,6 +266,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true,
         };
         
         let mut input = Input::new();
@@ -283,6 +308,7 @@ mod tests {
             thumb_size_ratio: None, // Will use style.width (12.0) but maxed to 20.0 for thumb_h
             style: SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true,
         };
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
@@ -321,8 +347,8 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true,
         };
-        // Thumb starts at y=0..20
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
@@ -370,6 +396,7 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true,
         };
         
         let mut input = Input::new();
@@ -400,8 +427,9 @@ mod tests {
             thumb_size_ratio: None,
             style: SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true,
         };
-        
+
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
@@ -423,5 +451,145 @@ mod tests {
 
         // value = 50.0 - 2.0 * 5.0 = 40.0
         assert_eq!(value, 40.0);
+    }
+
+    // Helper to build a standard test spec.
+    fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
+        SliderSpec {
+            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+            min,
+            max,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: SliderStyle::default(),
+            clip_rect: None,
+            claim_hover_scroll_at_ends: claim_at_ends,
+        }
+    }
+
+    // ── Standalone slider ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_standalone_slider_wheel_at_min_blocks_propagation() {
+        // Even when at minimum, a standalone slider claims both directions,
+        // so a hypothetical parent scroll area would never see the event.
+        let mut state = SliderState::default();
+        let mut value = 0.0; // already at min
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = 1.0; // scroll up
+
+        // Frame 1: both register
+        focus_sys.begin_frame();
+        // Parent registers first (outer)
+        focus_sys.claim_scroll_up(parent_id);
+        focus_sys.claim_scroll_down(parent_id);
+        // Standalone slider registers second (inner) — overwrites both
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Frame 2: parent checks — it should NOT have won either direction
+        assert!(!focus_sys.is_active_scroll_up(parent_id),
+            "parent should not win scroll-up; standalone slider blocked it");
+        // Value stays at 0.0 (clamped, can't go below min)
+        assert_eq!(value, 0.0);
+    }
+
+    #[test]
+    fn test_standalone_slider_wheel_at_max_blocks_propagation() {
+        let mut state = SliderState::default();
+        let mut value = 100.0; // already at max
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = -1.0; // scroll down
+
+        focus_sys.begin_frame();
+        focus_sys.claim_scroll_up(parent_id);
+        focus_sys.claim_scroll_down(parent_id);
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert!(!focus_sys.is_active_scroll_down(parent_id),
+            "parent should not win scroll-down; standalone slider blocked it");
+        assert_eq!(value, 100.0);
+    }
+
+    // ── Propagating slider (scrollbar-within-scroll-area mode) ─────────────────
+
+    #[test]
+    fn test_propagating_slider_at_min_yields_scroll_up_to_parent() {
+        let mut state = SliderState::default();
+        let mut value = 0.0; // at min — can't scroll up
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = 1.0; // scroll up
+
+        // Frame 1: parent claims, then inner propagating slider
+        focus_sys.begin_frame();
+        focus_sys.claim_scroll_up(parent_id);   // parent can scroll up
+        focus_sys.claim_scroll_down(parent_id);
+        // Inner propagating slider at min: skips claim_scroll_up
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Parent should have retained the scroll-up claim
+        assert!(focus_sys.is_active_scroll_up(parent_id),
+            "parent should win scroll-up when inner is at its minimum");
+        assert_eq!(value, 0.0, "inner value unchanged");
+    }
+
+    #[test]
+    fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
+        let mut state = SliderState::default();
+        let mut value = 100.0; // at max — can't scroll down
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = -1.0; // scroll down
+
+        focus_sys.begin_frame();
+        focus_sys.claim_scroll_up(parent_id);
+        focus_sys.claim_scroll_down(parent_id); // parent can scroll down
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert!(focus_sys.is_active_scroll_down(parent_id),
+            "parent should win scroll-down when inner is at its maximum");
+        assert_eq!(value, 100.0, "inner value unchanged");
+    }
+
+    #[test]
+    fn test_propagating_slider_mid_range_wins_both_directions() {
+        // When not at an end, the inner propagating slider claims both directions
+        // and the parent gets neither.
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = 1.0;
+
+        focus_sys.begin_frame();
+        focus_sys.claim_scroll_up(parent_id);
+        focus_sys.claim_scroll_down(parent_id);
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert!(!focus_sys.is_active_scroll_up(parent_id), "parent should not win");
+        assert!(!focus_sys.is_active_scroll_down(parent_id), "parent should not win");
     }
 }

@@ -87,6 +87,8 @@ struct NestedRowState {
     btn1: SampleButton,
     btn2: SampleButton,
     inner_btns: [SampleButton; 3],
+    slider_state: framewise::widgets::slider::SliderState,
+    slider_val: f32,
 }
 
 impl Default for NestedRowState {
@@ -96,6 +98,8 @@ impl Default for NestedRowState {
             btn1: Default::default(),
             btn2: Default::default(),
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
+            slider_state: framewise::widgets::slider::SliderState::default(),
+            slider_val: 50.0,
         }
     }
 }
@@ -318,9 +322,18 @@ impl App {
                 content_col.append_cmds(scroll_cmds);
 
                 // Nested Scroll Area Demo
-                content_col.label(Vec2::new(400.0, 20.0), "NESTED SCROLL DEMO");
+                //
+                // Each row of the outer scroll contains:
+                //   - An inner scroll area (propagates scroll to outer when at its end)
+                //   - A standalone slider (always blocks scroll, even at its limits)
+                content_col.label(
+                    Vec2::new(400.0, 20.0),
+                    "NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks",
+                );
                 let nested_cmds = {
-                    let outer_content_height = 3.0 * 150.0 + 2.0 * 10.0; // 3 rows
+                    // Make outer taller than sum of 3 rows so it can scroll
+                    let row_h = 160.0;
+                    let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
                     let mut outer_scroll = content_col.scroll_area(
                         Vec2::new(win_size.0 - 240.0, 300.0),
                         outer_content_height,
@@ -333,45 +346,58 @@ impl App {
                         let row_state = &mut self.nested_rows[i];
                         
                         let mut row_builder = outer_scroll.child_with_layout(
-                            Vec2::new(win_size.0 - 260.0, 150.0),
+                            Vec2::new(win_size.0 - 260.0, row_h),
                             framewise::layout::RowLayout { spacing: 10.0 }
                         );
 
-                        let btn1 = row_builder.button(std::mem::take(&mut row_state.btn1.state), Vec2::new(100.0, 150.0), format!("Row {} Btn 1", i+1), &self.input);
+                        // Left button
+                        let btn1 = row_builder.button(
+                            std::mem::take(&mut row_state.btn1.state),
+                            Vec2::new(80.0, row_h),
+                            format!("R{} A", i + 1),
+                            &self.input,
+                        );
                         let clicked1 = btn1.clicked();
                         row_state.btn1.state = btn1.state;
                         if clicked1 { row_state.btn1.clicks += 1; }
 
+                        // Inner scroll area — content taller than view so it actually scrolls,
+                        // but when you reach top/bottom, outer should take over.
                         let inner_cmds = {
-                            let inner_content_height = 3.0 * 60.0 + 2.0 * 10.0;
+                            let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0; // 6 items, clearly scrollable
                             let mut inner_scroll = row_builder.scroll_area(
-                                Vec2::new(150.0, 150.0),
+                                Vec2::new(180.0, row_h),
                                 inner_content_height,
                                 &mut row_state.inner_scroll,
-                                framewise::layout::ColumnLayout { spacing: 10.0 },
+                                framewise::layout::ColumnLayout { spacing: 8.0 },
                                 &self.input,
                             );
 
-                            for j in 0..3 {
+                            for j in 0..6 {
                                 let btn = inner_scroll.button(
-                                    std::mem::take(&mut row_state.inner_btns[j].state),
-                                    Vec2::new(130.0, 60.0),
-                                    format!("Inner {}", j + 1),
+                                    std::mem::take(&mut row_state.inner_btns[j.min(2)].state),
+                                    Vec2::new(160.0, 45.0),
+                                    format!("R{} Inner {}", i + 1, j + 1),
                                     &self.input,
                                 );
                                 let clicked = btn.clicked();
-                                row_state.inner_btns[j].state = btn.state;
-                                if clicked { row_state.inner_btns[j].clicks += 1; }
+                                row_state.inner_btns[j.min(2)].state = btn.state;
+                                if clicked { row_state.inner_btns[j.min(2)].clicks += 1; }
                             }
                             inner_scroll.finish()
                         };
                         row_builder.append_cmds(inner_cmds);
 
-                        let btn2 = row_builder.button(std::mem::take(&mut row_state.btn2.state), Vec2::new(100.0, 150.0), format!("Row {} Btn 2", i+1), &self.input);
-                        let clicked2 = btn2.clicked();
-                        row_state.btn2.state = btn2.state;
-                        if clicked2 { row_state.btn2.clicks += 1; }
-                        
+                        // Standalone slider — wheel over this should NOT scroll the outer area,
+                        // even when the slider is at its min or max.
+                        row_builder.slider(
+                            &mut row_state.slider_state,
+                            &mut row_state.slider_val,
+                            0.0, 100.0, 20.0,
+                            Vec2::new(30.0, row_h),
+                            &self.input,
+                        );
+
                         let row_cmds = row_builder.finish();
                         outer_scroll.append_cmds(row_cmds);
                     }

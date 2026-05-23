@@ -33,8 +33,14 @@ pub struct FocusSystem {
     current_frame_order: Vec<FocusId>,
     pending_shift: Option<FocusDirection>,
     custom_order: HashMap<FocusId, FocusId>, // map id -> next id
-    active_hover_id: Option<FocusId>,
-    next_hover_id: Option<FocusId>,
+    /// Winner of the upward-scroll hover claim from the previous frame.
+    active_scroll_up_id: Option<FocusId>,
+    /// Winner of the downward-scroll hover claim from the previous frame.
+    active_scroll_down_id: Option<FocusId>,
+    /// Upward-scroll claim being accumulated this frame.
+    next_scroll_up_id: Option<FocusId>,
+    /// Downward-scroll claim being accumulated this frame.
+    next_scroll_down_id: Option<FocusId>,
 }
 
 impl Default for FocusSystem {
@@ -50,8 +56,10 @@ impl FocusSystem {
             current_frame_order: Vec::new(),
             pending_shift: None,
             custom_order: HashMap::new(),
-            active_hover_id: None,
-            next_hover_id: None,
+            active_scroll_up_id: None,
+            active_scroll_down_id: None,
+            next_scroll_up_id: None,
+            next_scroll_down_id: None,
         }
     }
 
@@ -89,20 +97,37 @@ impl FocusSystem {
         self.focused_id.is_some()
     }
 
-    /// Register an ephemeral hover claim. Because of top-down evaluation,
-    /// inner scopes evaluate later and will naturally overwrite parent claims.
-    pub fn register_scroll_hover(&mut self, id: FocusId) {
-        self.next_hover_id = Some(id);
+    /// Claim the upward-scroll slot for this frame.
+    ///
+    /// Because widgets are evaluated top-down, inner widgets evaluate last and
+    /// naturally overwrite outer claims — so the innermost hovered widget wins.
+    /// A widget should only call this if it can actually scroll upward (i.e. is
+    /// not already at its minimum). This lets the parent keep its claim when the
+    /// child is at its limit, enabling natural scroll propagation.
+    pub fn claim_scroll_up(&mut self, id: FocusId) {
+        self.next_scroll_up_id = Some(id);
     }
 
-    /// Check if this ID won the hover claim in the previous frame.
-    pub fn is_active_scroll(&self, id: FocusId) -> bool {
-        self.active_hover_id == Some(id)
+    /// Claim the downward-scroll slot for this frame.
+    /// See [`claim_scroll_up`] for the full explanation.
+    pub fn claim_scroll_down(&mut self, id: FocusId) {
+        self.next_scroll_down_id = Some(id);
+    }
+
+    /// Returns true if this widget won the upward-scroll claim in the previous frame.
+    pub fn is_active_scroll_up(&self, id: FocusId) -> bool {
+        self.active_scroll_up_id == Some(id)
+    }
+
+    /// Returns true if this widget won the downward-scroll claim in the previous frame.
+    pub fn is_active_scroll_down(&self, id: FocusId) -> bool {
+        self.active_scroll_down_id == Some(id)
     }
 
     /// Resolves any pending focus shifts using the order built this frame.
     pub fn end_frame(&mut self) {
-        self.active_hover_id = self.next_hover_id.take();
+        self.active_scroll_up_id = self.next_scroll_up_id.take();
+        self.active_scroll_down_id = self.next_scroll_down_id.take();
 
         if let Some(direction) = self.pending_shift.take() {
             if !self.current_frame_order.is_empty() {

@@ -143,6 +143,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             thumb_size_ratio: None, // Generic slider doesn't resize thumb based on content
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: self.ctx.clip_rect,
+            claim_hover_scroll_at_ends: true, // Standalone: always block scroll propagation
         };
         let cmds = crate::widgets::slider::slider(
             state,

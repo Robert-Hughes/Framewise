@@ -38,17 +38,28 @@ pub fn scroll_area<L: Layout>(
     let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
 
     // 1. Process mouse wheel (if hovered inside bounds AND visible)
+    // We check position first, then claim the scroll directions we can handle.
+    // Only claiming directions we have room to move lets an outer scroll area
+    // take over when we've hit our limit (nested scrolling).
+    let max_scroll = (content_height - bounds.h).max(0.0);
     if bounds.contains(input.mouse_pos) && is_visible {
-        focus_sys.register_scroll_hover(state.id);
-        
-        if focus_sys.is_active_scroll(state.id) && input.scroll_delta.y != 0.0 {
+        let at_top    = state.offset_y <= 0.0;
+        let at_bottom = state.offset_y >= max_scroll;
+
+        if !at_top    { focus_sys.claim_scroll_up(state.id); }
+        if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+
+        if input.scroll_delta.y > 0.0 && focus_sys.is_active_scroll_up(state.id) {
+            state.offset_y -= input.scroll_delta.y * 30.0;
+        }
+        if input.scroll_delta.y < 0.0 && focus_sys.is_active_scroll_down(state.id) {
             state.offset_y -= input.scroll_delta.y * 30.0;
         }
     }
 
     // 2. Clamp offset_y
-    let max_scroll = (content_height - bounds.h).max(0.0);
-    state.offset_y = state.offset_y.max(0.0).min(max_scroll);
+    // (max_scroll already computed above)
+    state.offset_y = state.offset_y.clamp(0.0, max_scroll);
 
     // 3. Draw background (optional, skip for now or draw a subtle frame)
     // We'll leave it transparent.
@@ -71,6 +82,9 @@ pub fn scroll_area<L: Layout>(
             thumb_size_ratio: Some(view_ratio),
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect,
+            // This internal scrollbar defers to the directional claim system
+            // so scroll propagates to an outer area when we hit the end.
+            claim_hover_scroll_at_ends: false,
         };
         
         let slider_cmds = crate::widgets::slider::slider(
@@ -207,6 +221,7 @@ mod tests {
             thumb_size_ratio: None,
             style: crate::widgets::slider::SliderStyle::default(),
             clip_rect: None,
+            claim_hover_scroll_at_ends: true, // standalone slider
         };
         
         let mut input = Input::new();
@@ -232,5 +247,180 @@ mod tests {
         
         // Scroll area should NOT have scrolled
         assert_eq!(scroll_state.offset_y, 0.0, "Scroll area should not double-scroll");
+    }
+
+    // ── Nested scroll area propagation ─────────────────────────────────────────
+
+    /// Helper: run two frames of outer + inner scroll areas with a given delta.
+    fn nested_scroll_two_frames(
+        outer_state: &mut ScrollState,
+        inner_state: &mut ScrollState,
+        outer_content_h: f32,
+        inner_content_h: f32,
+        outer_bounds: Rect,
+        inner_bounds: Rect,
+        delta_y: f32,
+        mouse_pos: Vec2,
+    ) {
+        use crate::layout::ManualLayout;
+        let mut input = Input::new();
+        input.scroll_delta = Vec2::new(0.0, delta_y);
+        input.mouse_pos = mouse_pos;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1: register claims
+        focus_sys.begin_frame();
+        scroll_area(outer_bounds, outer_content_h, outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, inner_content_h, inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        focus_sys.end_frame();
+
+        // Frame 2: act on claims
+        focus_sys.begin_frame();
+        scroll_area(outer_bounds, outer_content_h, outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        scroll_area(inner_bounds, inner_content_h, inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        focus_sys.end_frame();
+    }
+
+    #[test]
+    fn test_nested_inner_mid_range_scroll_up_no_propagation() {
+        // Inner scroll area is in the middle: it claims up, outer gets nothing.
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState { offset_y: 50.0, ..Default::default() }; // mid
+
+        nested_scroll_two_frames(
+            &mut outer_state, &mut inner_state,
+            600.0, 400.0,
+            outer_bounds, inner_bounds,
+            1.0, // scroll up
+            Vec2::new(50.0, 50.0),
+        );
+
+        assert!(inner_state.offset_y < 50.0, "inner should have scrolled up");
+        assert_eq!(outer_state.offset_y, 0.0, "outer should not scroll when inner has room");
+    }
+
+    #[test]
+    fn test_nested_inner_mid_range_scroll_down_no_propagation() {
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState { offset_y: 50.0, ..Default::default() };
+
+        nested_scroll_two_frames(
+            &mut outer_state, &mut inner_state,
+            600.0, 400.0,
+            outer_bounds, inner_bounds,
+            -1.0, // scroll down
+            Vec2::new(50.0, 50.0),
+        );
+
+        assert!(inner_state.offset_y > 50.0, "inner should have scrolled down");
+        assert_eq!(outer_state.offset_y, 0.0, "outer should not scroll when inner has room");
+    }
+
+    #[test]
+    fn test_nested_inner_at_top_propagates_scroll_up() {
+        // Inner is at offset 0 (top). Scroll-up claim stays with outer.
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
+        let mut outer_state = ScrollState { offset_y: 50.0, ..Default::default() };
+        let mut inner_state = ScrollState::default(); // offset_y = 0 (at top)
+
+        nested_scroll_two_frames(
+            &mut outer_state, &mut inner_state,
+            600.0, 400.0,
+            outer_bounds, inner_bounds,
+            1.0, // scroll up
+            Vec2::new(50.0, 50.0),
+        );
+
+        assert!(outer_state.offset_y < 50.0, "outer should have scrolled up");
+        assert_eq!(inner_state.offset_y, 0.0, "inner stays at top");
+    }
+
+    #[test]
+    fn test_nested_inner_at_bottom_propagates_scroll_down() {
+        // Inner is fully scrolled to bottom. Scroll-down claim stays with outer.
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
+        let mut outer_state = ScrollState::default();
+        // inner content 400, view 100 -> max_scroll = 300
+        let mut inner_state = ScrollState { offset_y: 300.0, ..Default::default() };
+
+        nested_scroll_two_frames(
+            &mut outer_state, &mut inner_state,
+            600.0, 400.0,
+            outer_bounds, inner_bounds,
+            -1.0, // scroll down
+            Vec2::new(50.0, 50.0),
+        );
+
+        assert!(outer_state.offset_y > 0.0, "outer should have scrolled down");
+        assert_eq!(inner_state.offset_y, 300.0, "inner stays at bottom");
+    }
+
+    #[test]
+    fn test_nested_inner_at_top_scroll_down_goes_to_inner_not_outer() {
+        // Inner is at top but user scrolls DOWN — inner can still handle that.
+        let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
+        let mut outer_state = ScrollState { offset_y: 50.0, ..Default::default() };
+        let mut inner_state = ScrollState::default(); // at top
+
+        nested_scroll_two_frames(
+            &mut outer_state, &mut inner_state,
+            600.0, 400.0,
+            outer_bounds, inner_bounds,
+            -1.0, // scroll down
+            Vec2::new(50.0, 50.0),
+        );
+
+        assert!(inner_state.offset_y > 0.0, "inner should scroll down");
+        assert_eq!(outer_state.offset_y, 50.0, "outer unchanged");
+    }
+
+    #[test]
+    fn test_standalone_slider_inside_scroll_area_blocks_propagation_at_min() {
+        // A standalone slider at its minimum should still block the scroll area
+        // from receiving the scroll-up event.
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut scroll_state = ScrollState { offset_y: 50.0, ..Default::default() };
+        let mut slider_state = crate::widgets::slider::SliderState::default();
+        let mut slider_value = 0.0_f32; // at min
+        let slider_spec = crate::widgets::slider::SliderSpec {
+            rect: Rect::new(10.0, 10.0, 20.0, 100.0),
+            min: 0.0,
+            max: 100.0,
+            page_step: 20.0,
+            step: 5.0,
+            thumb_size_ratio: None,
+            style: crate::widgets::slider::SliderStyle::default(),
+            clip_rect: None,
+            claim_hover_scroll_at_ends: true, // standalone: always block
+        };
+
+        let mut input = Input::new();
+        input.scroll_delta = Vec2::new(0.0, 1.0); // scroll up
+        input.mouse_pos = Vec2::new(15.0, 50.0); // inside slider
+
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 1
+        focus_sys.begin_frame();
+        scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Frame 2
+        focus_sys.begin_frame();
+        scroll_area(bounds, 400.0, &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0);
+        crate::widgets::slider::slider(&mut slider_state, &mut slider_value, slider_spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Slider value stays at 0 (clamped), scroll area offset unchanged
+        assert_eq!(slider_value, 0.0);
+        assert_eq!(scroll_state.offset_y, 50.0, "scroll area must not steal the event");
     }
 }
