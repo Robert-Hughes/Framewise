@@ -213,25 +213,25 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
 
     if input.key_pressed_page_up {
         if fallback && focus_sys.is_active_pgup_horiz(state.id) {
-            state.offset.x -= bounds.w;
+            state.offset.x -= content_bounds.w;
         } else if !fallback {
             if focus_sys.is_active_pgup_vert(state.id) {
-                state.offset.y -= bounds.h;
+                state.offset.y -= content_bounds.h;
             }
             if needs_v && needs_h && focus_sys.is_active_pgup_horiz(state.id) {
-                state.offset.x -= bounds.w;
+                state.offset.x -= content_bounds.w;
             }
         }
     }
     if input.key_pressed_page_down {
         if fallback && focus_sys.is_active_pgdn_horiz(state.id) {
-            state.offset.x += bounds.w;
+            state.offset.x += content_bounds.w;
         } else if !fallback {
             if focus_sys.is_active_pgdn_vert(state.id) {
-                state.offset.y += bounds.h;
+                state.offset.y += content_bounds.h;
             }
             if needs_v && needs_h && focus_sys.is_active_pgdn_horiz(state.id) {
-                state.offset.x += bounds.w;
+                state.offset.x += content_bounds.w;
             }
         }
     }
@@ -463,6 +463,55 @@ mod tests {
 
         assert_eq!(state.offset.y, 0.0);
         assert_eq!(state.offset.x, 200.0);
+    }
+
+    /// PgDn should advance one viewport — `content_bounds.h`, not `bounds.h`.
+    /// In a 2D area, the horizontal scrollbar steals 12px of height, so
+    /// content_bounds.h = bounds.h - scrollbar_w. Using bounds.h overshoots by 12px.
+    #[test]
+    fn test_pgdn_step_uses_content_bounds() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut input = Input::new();
+        input.key_pressed_page_down = true;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+
+        struct DummyTextSystem;
+        impl crate::text::TextSystem for DummyTextSystem {
+            fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
+                crate::text::TextLayout { handle: crate::text::TextHandle(0), size: crate::types::Vec2::ZERO }
+            }
+            fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
+            fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
+        }
+        let mut text_sys = DummyTextSystem;
+        focus_sys.take_focus(btn_state.focus_id);
+
+        // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
+        // content_bounds = (0,0,188,188). PgDn step must be 188, not bounds.h=200.
+        for _ in 0..2 {
+            focus_sys.begin_frame();
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(1000.0, 1000.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                },
+                &input, &mut text_sys, &mut focus_sys,
+            );
+            btn_state = info.state;
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 }
 
