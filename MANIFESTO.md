@@ -328,6 +328,8 @@ Features to design and implement, roughly in dependency order:
   * Middle click hold and drag, middle click panning without holding
   * Click and drag based pan (touch based, mobile)
   * 'Flinging'
+  * Arrow key scrolling - should work if slider is focussed at the very least (somewhat working, not for horizontal). Possibly also when inner widget is focused? Not sure if arrow keys should be used for focus swapping tho?
+  * Home/end key when child widget is focused?
 
 - [ ] Splitters and drag handles
   * Including three/four way meeting points. Maybe a generic grid layout?? Or some kind of hierarchical thing
