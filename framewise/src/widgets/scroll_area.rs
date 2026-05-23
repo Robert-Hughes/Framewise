@@ -751,4 +751,178 @@ mod nested_bubbling_tests {
         assert_eq!(inner_state.offset.x, 100.0);
         assert_eq!(outer_state.offset.y, 0.0, "Should isolate cross-axis");
     }
+
+    // ── Reversed axis: outer HORIZONTAL, inner VERTICAL ──────────────────────
+    //
+    // Bug: outer_horiz always wins scroll_left (inner_vert never claims it).
+    // The fallback path maps delta.y → dx and fires whenever is_active_scroll_left
+    // is true, so outer scrolls horizontally at the same time as inner scrolls
+    // vertically — both fire on every vertical wheel tick.
+
+    // 9. Mouse Wheel / Outer Horiz → Inner Vert / Content area
+    //    Vertical wheel with inner NOT at limit → only inner should scroll.
+    //    Bug: outer_horiz also scrolls because scroll_left is uncontested.
+    #[test]
+    fn test_outer_horiz_inner_vert_mouse_content_cross_axis_isolates() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // outer: (0,0,400,200) horiz-only, content 800w; content_bounds=(0,0,400,188)
+        // inner: (0,0,200,200) vert-only,  content 400h; content_bounds=(0,0,188,200)
+        // mouse (50,50): inside both content areas
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 50.0; // has room — should scroll
+                outer_state.offset.x = 50.0; // should NOT change
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(inner_state.offset.y < 50.0, "Inner vert should scroll up");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert content");
+    }
+
+    // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track
+    //     Vertical wheel on inner vert scrollbar → only inner slider should scroll.
+    //     Bug: outer claims scroll_left uncontested; fallback maps delta.y → outer scrolls too.
+    #[test]
+    fn test_outer_horiz_inner_vert_mouse_scrollbar_cross_axis_isolates() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // inner vert slider track: x=188..200, y=0..200
+        // mouse (195,50): in outer content_bounds, outside inner content_bounds, on inner slider
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(195.0, 50.0);
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 50.0;
+                outer_state.offset.x = 50.0;
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert!(inner_state.offset.y < 50.0, "Inner vert slider should scroll up");
+        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert scrollbar");
+    }
+
+    // 11. Keyboard / Outer Horiz → Inner Vert / Content focus, inner at bottom
+    //     pgdn with inner at bottom → outer horiz should NOT receive pgdn (cross-axis).
+    //     Bug: outer_horiz.finish() claims pgdn via fallback (!at_right) and scrolls right.
+    #[test]
+    fn test_outer_horiz_inner_vert_keyboard_content_cross_axis_isolates() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut text_sys = DummyTextSystem;
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+        focus_sys.take_focus(btn_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 100.0; // at bottom (content=300, view=200 → max=100)
+                outer_state.offset.x = 0.0;   // outer has room right
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state = info.state;
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 100.0, "Inner vert already at bottom");
+        assert_eq!(outer_state.offset.x, 0.0, "Outer horiz must NOT receive pgdn (cross-axis isolation)");
+    }
+
+    // 12. Keyboard / Outer Horiz → Inner Vert / Slider focus, slider at max
+    //     pgdn with inner vert slider at max → outer horiz must NOT scroll right.
+    //     Bug: slider doesn't claim, inner scope doesn't claim, outer claims via fallback.
+    #[test]
+    fn test_outer_horiz_inner_vert_keyboard_scrollbar_cross_axis_isolates() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        focus_sys.begin_frame();
+        let (_, inner_scope, _, _) = begin_scroll_area(
+            Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+        );
+        inner_scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+
+        focus_sys.take_focus(inner_state.vert_slider_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 100.0; // at max
+                outer_state.offset.x = 0.0;
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::None,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
+                ScrollbarVisibility::None, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 100.0, "Inner slider at max, should not change");
+        assert_eq!(outer_state.offset.x, 0.0, "Outer horiz must NOT receive pgdn (cross-axis isolation)");
+    }
 }

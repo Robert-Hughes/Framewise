@@ -320,7 +320,9 @@ Features to design and implement, roughly in dependency order:
   * In a complex nested scroll area case with vertical -> horizontal -> vertical and you scroll the inner vertical container, what's the leakage behaviour - does it leak to the outer vertical one or not at all cos the horizontal one blocks it? (Give me answers for both mouse and keyboard, focus on the inner scroll area or on the slider itself - 4 cases, each might behave differently).
   In addition, add such a case to the sample app so I can explore the behavour.
   * What about horizontal -> vertical -> horizontal
+    * Add another nested level to the sample app (within the other one), so can explore
   * What about 2D -> 2D
+  * Anything else? Maybe ask Opus
 
   * Click and hold to repeatedly page down on a slider - if it get clamped at the end then it can jump back and forth every frame!
   * Slider click on the trackbar then drag, should snap to cursor
