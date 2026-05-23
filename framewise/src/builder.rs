@@ -2,7 +2,7 @@ use crate::{
     draw::DrawCmd,
     input::Input,
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Rect, Vec2},
     widget::WidgetResult,
     widgets::{
         button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
@@ -174,7 +174,9 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     pub fn scroll_area<L: crate::layout::Layout>(
         &mut self,
         params: S::Params,
-        content_height: f32,
+        content_size: Vec2,
+        h_vis: crate::widgets::scroll_area::ScrollbarVisibility,
+        v_vis: crate::widgets::scroll_area::ScrollbarVisibility,
         state: &'a mut crate::widgets::scroll_area::ScrollState,
         inner_layout: L,
         input: &Input,
@@ -182,7 +184,9 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         let bounds = self.layout_state.layout(params);
         let (pre_cmds, scope, content_bounds, offset_layout) = crate::widgets::scroll_area::begin_scroll_area(
             bounds,
-            content_height,
+            content_size,
+            h_vis,
+            v_vis,
             state,
             inner_layout,
             input,
@@ -320,7 +324,9 @@ mod tests {
         let mut scroll_state = crate::widgets::scroll_area::ScrollState::default();
         let mut scroll_area = builder.scroll_area(
             Rect::new(10.0, 50.0, 100.0, 100.0), 
-            500.0, 
+            Vec2::new(100.0, 500.0),
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut scroll_state, 
             ManualLayout, 
             &input
@@ -360,7 +366,9 @@ mod tests {
         let mut outer_state = crate::widgets::scroll_area::ScrollState::default();
         let mut outer = builder.scroll_area(
             Rect::new(50.0, 50.0, 200.0, 200.0), 
-            1000.0, 
+            Vec2::new(200.0, 1000.0),
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut outer_state, 
             ManualLayout, 
             &input
@@ -375,7 +383,9 @@ mod tests {
         let mut inner_state = crate::widgets::scroll_area::ScrollState::default();
         let inner = outer.scroll_area(
             Rect::new(100.0, 100.0, 200.0, 200.0), 
-            1000.0, 
+            Vec2::new(200.0, 1000.0),
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
+            crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut inner_state, 
             ManualLayout, 
             &input

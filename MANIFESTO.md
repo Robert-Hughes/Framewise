@@ -317,7 +317,8 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
-  * Horizontal scrolling
+  * Clarify behaviour in 2D scroll region when page down with horizontal scroll bar focused and it reaches its end, then the vertical scroll bar starts moving before an outer scroll area. Is this good? At least define it?
+  * Middle click hold and drag, middle click panning without holding
 - [ ] Splitters and drag handles
   * Including three/four way meeting points. Maybe a generic grid layout?? Or some kind of hierarchical thing
 - [ ] Text editing (`TextEditState`)

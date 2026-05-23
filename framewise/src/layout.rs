@@ -123,7 +123,7 @@ impl LayoutState for RowState {
 
 /// A pure decorator layout that shifts coordinates on the Y axis.
 pub struct OffsetLayout<L> {
-    pub offset_y: f32,
+    pub offset: Vec2,
     pub inner: L,
 }
 
@@ -133,14 +133,14 @@ impl<L: Layout> Layout for OffsetLayout<L> {
 
     fn begin(self, bounds: Rect) -> Self::State {
         OffsetState {
-            offset_y: self.offset_y,
+            offset: self.offset,
             inner: self.inner.begin(bounds),
         }
     }
 }
 
 pub struct OffsetState<InnerS> {
-    offset_y: f32,
+    offset: Vec2,
     inner: InnerS,
 }
 
@@ -149,7 +149,8 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
 
     fn layout(&mut self, layout_params: Self::Params) -> Rect {
         let mut r = self.inner.layout(layout_params);
-        r.y -= self.offset_y;
+        r.x -= self.offset.x;
+        r.y -= self.offset.y;
         r
     }
 }
@@ -190,7 +191,7 @@ mod tests {
     #[test]
     fn test_offset_layout() {
         let offset = OffsetLayout {
-            offset_y: 15.0,
+            offset: Vec2::new(5.0, 15.0),
             inner: ColumnLayout { spacing: 10.0 },
         };
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
@@ -198,11 +199,11 @@ mod tests {
 
         let r1 = state.layout(Vec2::new(50.0, 20.0));
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
-        assert_eq!(r1, Rect::new(10.0, -5.0, 50.0, 20.0));
+        // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
+        assert_eq!(r1, Rect::new(5.0, -5.0, 50.0, 20.0));
 
         let r2 = state.layout(Vec2::new(40.0, 30.0));
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
-        assert_eq!(r2, Rect::new(10.0, 25.0, 40.0, 30.0));
+        assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
     }
 }
-

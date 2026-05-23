@@ -84,9 +84,12 @@ struct App {
 
 struct NestedRowState {
     inner_scroll: framewise::widgets::scroll_area::ScrollState,
+    horiz_scroll: framewise::widgets::scroll_area::ScrollState,
+    both_scroll: framewise::widgets::scroll_area::ScrollState,
     btn1: SampleButton,
-    btn2: SampleButton,
     inner_btns: [SampleButton; 6],
+    horiz_btns: [SampleButton; 10],
+    both_btns: [SampleButton; 48],
     slider_state: framewise::widgets::slider::SliderState,
     slider_val: f32,
     horiz_slider_state: framewise::widgets::slider::SliderState,
@@ -97,9 +100,12 @@ impl Default for NestedRowState {
     fn default() -> Self {
         Self {
             inner_scroll: Default::default(),
+            horiz_scroll: Default::default(),
+            both_scroll: Default::default(),
             btn1: Default::default(),
-            btn2: Default::default(),
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
+            horiz_btns: std::array::from_fn(|_| SampleButton::default()),
+            both_btns: std::array::from_fn(|_| SampleButton::default()),
             slider_state: Default::default(),
             slider_val: 50.0,
             horiz_slider_state: Default::default(),
@@ -178,7 +184,9 @@ impl App {
                     let content_height = 20.0 * 32.0 + 20.0 * 8.0; // 20 buttons * 32h + 8 spacing
                     let mut sidebar_scroll = sidebar_col.scroll_area(
                         Vec2::new(200.0, win_size.1 - 60.0),
-                        content_height,
+                        Vec2::new(200.0, content_height),
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         &mut self.sidebar_scroll,
                         framewise::layout::ColumnLayout { spacing: 8.0 },
                         &self.input,
@@ -305,7 +313,9 @@ impl App {
                     let content_height = 30.0 * 50.0 + 30.0 * 10.0; // 30 items * 50h + 10 spacing
                     let mut main_scroll = content_col.scroll_area(
                         Vec2::new(win_size.0 - 240.0, 250.0),
-                        content_height,
+                        Vec2::new(win_size.0 - 240.0, content_height),
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         &mut self.main_scroll,
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                         &self.input,
@@ -341,7 +351,9 @@ impl App {
                     let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
                     let mut outer_scroll = content_col.scroll_area(
                         Vec2::new(win_size.0 - 240.0, 300.0),
-                        outer_content_height,
+                        Vec2::new(800.0, outer_content_height), // 800 is wide enough for all elements
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         &mut self.nested_outer_scroll,
                         framewise::layout::ColumnLayout { spacing: 10.0 },
                         &self.input,
@@ -351,7 +363,7 @@ impl App {
                         let row_state = &mut self.nested_rows[i];
 
                         let mut row_builder = outer_scroll.child_with_layout(
-                            Vec2::new(win_size.0 - 260.0, row_h),
+                            Vec2::new(800.0, row_h),
                             framewise::layout::RowLayout { spacing: 10.0 }
                         );
 
@@ -366,13 +378,14 @@ impl App {
                         row_state.btn1.state = btn1.state;
                         if clicked1 { row_state.btn1.clicks += 1; }
 
-                        // Inner scroll area — content taller than view so it actually scrolls,
-                        // but when you reach top/bottom, outer should take over.
+                        // 1. Vertical Inner scroll area
                         let inner_cmds = {
-                            let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0; // 6 items, clearly scrollable
+                            let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0;
                             let mut inner_scroll = row_builder.scroll_area(
-                                Vec2::new(180.0, row_h),
-                                inner_content_height,
+                                Vec2::new(120.0, row_h),
+                                Vec2::new(120.0, inner_content_height),
+                                framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                                 &mut row_state.inner_scroll,
                                 framewise::layout::ColumnLayout { spacing: 8.0 },
                                 &self.input,
@@ -381,8 +394,8 @@ impl App {
                             for j in 0..6 {
                                 let btn = inner_scroll.button(
                                     std::mem::take(&mut row_state.inner_btns[j].state),
-                                    Vec2::new(160.0, 45.0),
-                                    format!("R{} Inner {}", i + 1, j + 1),
+                                    Vec2::new(100.0, 45.0),
+                                    format!("V {}", j + 1),
                                     &self.input,
                                 );
                                 let clicked = btn.clicked();
@@ -393,8 +406,68 @@ impl App {
                         };
                         row_builder.append_cmds(inner_cmds);
 
-                        // Standalone slider — wheel over this should NOT scroll the outer area,
-                        // even when the slider is at its min or max.
+                        // 2. Horizontal Inner scroll area (using None for vertical scrollbar)
+                        let horiz_cmds = {
+                            let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;
+                            let mut horiz_scroll = row_builder.scroll_area(
+                                Vec2::new(180.0, row_h),
+                                Vec2::new(horiz_content_width, row_h),
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                framewise::widgets::scroll_area::ScrollbarVisibility::None,
+                                &mut row_state.horiz_scroll,
+                                framewise::layout::RowLayout { spacing: 8.0 },
+                                &self.input,
+                            );
+
+                            for j in 0..10 {
+                                let btn = horiz_scroll.button(
+                                    std::mem::take(&mut row_state.horiz_btns[j].state),
+                                    Vec2::new(80.0, row_h - 25.0), // make room for scrollbar
+                                    format!("H {}", j + 1),
+                                    &self.input,
+                                );
+                                let clicked = btn.clicked();
+                                row_state.horiz_btns[j].state = btn.state;
+                                if clicked { row_state.horiz_btns[j].clicks += 1; }
+                            }
+                            horiz_scroll.finish()
+                        };
+                        row_builder.append_cmds(horiz_cmds);
+
+                        // 3. Both directions Inner scroll area
+                        let both_cmds = {
+                            let both_width = 8.0 * 80.0 + 7.0 * 8.0;
+                            let both_height = 6.0 * 45.0 + 5.0 * 8.0;
+                            let mut both_scroll = row_builder.scroll_area(
+                                Vec2::new(200.0, row_h),
+                                Vec2::new(both_width, both_height),
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                                framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                                &mut row_state.both_scroll,
+                                framewise::layout::ManualLayout,
+                                &self.input,
+                            );
+
+                            for j in 0..48 {
+                                let x = (j % 8) as f32 * 88.0;
+                                let y = (j / 8) as f32 * 53.0;
+                                
+                                let btn = both_scroll.button(
+                                    std::mem::take(&mut row_state.both_btns[j].state),
+                                    Rect::new(x, y, 80.0, 45.0),
+                                    format!("2D {}", j + 1),
+                                    &self.input,
+                                );
+                                let clicked = btn.clicked();
+                                row_state.both_btns[j].state = btn.state;
+                                if clicked { row_state.both_btns[j].clicks += 1; }
+                            }
+
+                            both_scroll.finish()
+                        };
+                        row_builder.append_cmds(both_cmds);
+
+                        // Standalone vertical slider
                         row_builder.slider(
                             &mut row_state.slider_state,
                             &mut row_state.slider_val,
@@ -404,7 +477,7 @@ impl App {
                             &self.input,
                         );
 
-                        // Horizontal slider
+                        // Standalone horizontal slider
                         row_builder.slider(
                             &mut row_state.horiz_slider_state,
                             &mut row_state.horiz_slider_val,
@@ -417,6 +490,7 @@ impl App {
                         let row_cmds = row_builder.finish();
                         outer_scroll.append_cmds(row_cmds);
                     }
+
 
                     outer_scroll.finish()
                 };
