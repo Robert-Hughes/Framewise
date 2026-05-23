@@ -42,6 +42,37 @@ impl Default for ScrollState {
     }
 }
 
+/// What kind of scrolling this area supports, after resolving visibility +
+/// degeneracy. The hover, wheel-routing, and pg* logic all branch on this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ScrollMode {
+    /// Neither axis is active. No claims, no wheel handling.
+    None,
+    /// Vertical only. Vertical wheel scrolls; horizontal scroll claims are
+    /// taken purely to block a parent `Horiz` area from stealing the wheel.
+    Vert,
+    /// Horizontal only, possibly with a non-functional vertical scrollbar drawn
+    /// (degenerate vertical). Vertical wheel remaps to horizontal scrolling;
+    /// vertical scroll claims are taken to block a parent vertical area.
+    Horiz,
+    /// Both axes meaningful (needs_v && needs_h && max_scroll.y > 0).
+    Both,
+}
+
+impl ScrollMode {
+    fn resolve(needs_v: bool, needs_h: bool, max_scroll_y: f32) -> Self {
+        let degenerate_v = !needs_v || max_scroll_y == 0.0;
+        match (needs_v, needs_h) {
+            (false, false) => ScrollMode::None,
+            (true, false)  => ScrollMode::Vert,
+            (_, true) if degenerate_v => ScrollMode::Horiz,
+            (true, true)   => ScrollMode::Both,
+            // (false, true) handled above (degenerate_v is true when !needs_v).
+            _ => ScrollMode::Horiz,
+        }
+    }
+}
+
 pub struct ScrollAreaScope {
     pub id: crate::focus::FocusId,
     pub content_bounds: Rect,
@@ -49,8 +80,7 @@ pub struct ScrollAreaScope {
     at_bottom: bool,
     at_left: bool,
     at_right: bool,
-    horiz_uses_vert_wheel: bool,
-    is_2d: bool,
+    mode: ScrollMode,
     is_finished: bool,
 }
 
@@ -75,39 +105,31 @@ impl ScrollAreaScope {
         debug_assert_eq!(popped, Some(self.id), "ScrollAreaScope finished out of order!");
 
         if focus_sys.focused_scroll_path().contains(&self.id) {
-            if self.horiz_uses_vert_wheel {
-                // Horizontal scroll area:
-                // We map PgUp/PgDn to horizontal scrolling.
-                // We conditionally claim the horizontal scroll actions only if we have room to scroll.
-                // This allows horizontal PgUp/PgDn to bubble up to parent horizontal scroll areas if we are at the limit!
-                if !self.at_left { focus_sys.claim_pgup_horiz(self.id); }
-                if !self.at_right { focus_sys.claim_pgdn_horiz(self.id); }
-
-                // Crucially, we UNCONDITIONALLY claim the vertical PgUp/PgDn actions!
-                // This completely isolates this horizontal scope from the vertical axis, preventing 
-                // orthogonal keystrokes from "leaking" out and scrolling a parent vertical area.
-                focus_sys.claim_pgup_vert(self.id);
-                focus_sys.claim_pgdn_vert(self.id);
-            } else if self.is_2d {
-                // 2D scroll area: conditionally claim both axes.
-                // This enables same-axis bubbling in both directions when at a limit.
-                if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
-                if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
-                if !self.at_left   { focus_sys.claim_pgup_horiz(self.id); }
-                if !self.at_right  { focus_sys.claim_pgdn_horiz(self.id); }
-            } else {
-                // Pure-vertical scroll area:
-                // We map PgUp/PgDn to vertical scrolling.
-                // We conditionally claim the vertical scroll actions only if we have room to scroll.
-                // This allows vertical PgUp/PgDn to bubble up to parent vertical scroll areas if we are at the limit!
-                if !self.at_top { focus_sys.claim_pgup_vert(self.id); }
-                if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
-
-                // Crucially, we UNCONDITIONALLY claim the horizontal PgUp/PgDn actions!
-                // This completely isolates this vertical scope from the horizontal axis, preventing
-                // orthogonal keystrokes from "leaking" out and scrolling a parent horizontal area.
-                focus_sys.claim_pgup_horiz(self.id);
-                focus_sys.claim_pgdn_horiz(self.id);
+            // Same-axis claims are conditional on having room to scroll, so a
+            // child at its limit lets the parent's claim take effect (pg* is
+            // first-caller-wins — see focus.rs). Cross-axis claims are
+            // unconditional: they isolate this scope from the other axis,
+            // preventing orthogonal keystrokes from leaking to a parent.
+            match self.mode {
+                ScrollMode::None => {}
+                ScrollMode::Vert => {
+                    if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
+                    if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
+                    focus_sys.claim_pgup_horiz(self.id);
+                    focus_sys.claim_pgdn_horiz(self.id);
+                }
+                ScrollMode::Horiz => {
+                    if !self.at_left  { focus_sys.claim_pgup_horiz(self.id); }
+                    if !self.at_right { focus_sys.claim_pgdn_horiz(self.id); }
+                    focus_sys.claim_pgup_vert(self.id);
+                    focus_sys.claim_pgdn_vert(self.id);
+                }
+                ScrollMode::Both => {
+                    if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
+                    if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
+                    if !self.at_left   { focus_sys.claim_pgup_horiz(self.id); }
+                    if !self.at_right  { focus_sys.claim_pgdn_horiz(self.id); }
+                }
             }
         }
 
@@ -150,12 +172,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
     let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
     let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
 
-    // `horiz_uses_vert_wheel`: horizontal-only area that remaps vertical wheel events to
-    // horizontal scrolling (the user's wheel is the only horizontal input device
-    // available). True iff a horizontal scrollbar exists and vertical scrolling
-    // is degenerate (no v scrollbar, or v content fits).
-    let is_degenerate_v = !needs_v || max_scroll.y == 0.0;
-    let horiz_uses_vert_wheel = needs_h && is_degenerate_v;
+    let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll.y);
 
     if content_bounds.contains(input.mouse_pos) && is_visible {
         let at_top    = state.offset.y <= 0.0;
@@ -163,90 +180,34 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         let at_left   = state.offset.x <= 0.0;
         let at_right  = state.offset.x >= max_scroll.x;
 
-        if needs_v {
-            if !at_top    { focus_sys.claim_scroll_up(state.id); }
-            if !at_bottom { focus_sys.claim_scroll_down(state.id); }
-            // For pure-vert areas (no horizontal slider): unconditionally claim horizontal
-            // scroll directions to block a parent horiz_uses_vert_wheel area from interpreting
-            // vertical wheel events as horizontal scroll. Mirrors what a horiz_uses_vert_wheel
-            // area does for scroll_up/down.
-            // Not needed for 2D areas (needs_h=true): the needs_h block below handles
-            // scroll_left/right conditionally, and unconditional claiming would break
-            // horizontal same-axis bubbling to a parent scroll area.
-            if !needs_h {
+        // Same-axis: conditional on having room. Cross-axis: unconditional, to
+        // block a parent of the other orientation from stealing the wheel.
+        match mode {
+            ScrollMode::None => {}
+            ScrollMode::Vert => {
+                if !at_top    { focus_sys.claim_scroll_up(state.id); }
+                if !at_bottom { focus_sys.claim_scroll_down(state.id); }
                 focus_sys.claim_scroll_left(state.id);
                 focus_sys.claim_scroll_right(state.id);
             }
-        }
-        if needs_h {
-            if !at_left   { focus_sys.claim_scroll_left(state.id); }
-            if !at_right  { focus_sys.claim_scroll_right(state.id); }
-            if horiz_uses_vert_wheel {
-                // Crucially, we UNCONDITIONALLY claim the vertical mouse wheel actions!
-                // This completely isolates this horizontal scope from the vertical axis, preventing
-                // orthogonal wheel events from "leaking" out and scrolling a parent vertical area.
+            ScrollMode::Horiz => {
+                if !at_left  { focus_sys.claim_scroll_left(state.id); }
+                if !at_right { focus_sys.claim_scroll_right(state.id); }
                 focus_sys.claim_scroll_up(state.id);
                 focus_sys.claim_scroll_down(state.id);
             }
+            ScrollMode::Both => {
+                if !at_top    { focus_sys.claim_scroll_up(state.id); }
+                if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+                if !at_left   { focus_sys.claim_scroll_left(state.id); }
+                if !at_right  { focus_sys.claim_scroll_right(state.id); }
+            }
         }
 
-        if needs_v && focus_sys.is_active_scroll_up(state.id) && input.scroll_delta.y > 0.0 {
-            state.offset.y -= input.scroll_delta.y * SCROLL_PIXELS_PER_LINE;
-        }
-        if needs_v && focus_sys.is_active_scroll_down(state.id) && input.scroll_delta.y < 0.0 {
-            state.offset.y -= input.scroll_delta.y * SCROLL_PIXELS_PER_LINE;
-        }
-
-        if needs_h {
-            let mut dx = input.scroll_delta.x;
-            if horiz_uses_vert_wheel && dx == 0.0 { dx = input.scroll_delta.y; }
-            // For 2D areas: if we won scroll_left/right but not scroll_up/down (inner horiz
-            // slider blocked vert), remap delta.y to horizontal scroll. Enables bubbling from
-            // a nested horiz slider at its extent.
-            if needs_v && !horiz_uses_vert_wheel && dx == 0.0 && input.scroll_delta.y != 0.0 {
-                let won_horiz = focus_sys.is_active_scroll_left(state.id)
-                    || focus_sys.is_active_scroll_right(state.id);
-                let own_vert = focus_sys.is_active_scroll_up(state.id)
-                    || focus_sys.is_active_scroll_down(state.id);
-                if won_horiz && !own_vert {
-                    dx = input.scroll_delta.y;
-                }
-            }
-            // Only fire on scroll_left/right — scroll_up/down are claimed purely to block
-            // parent vertical areas and must not double as a horizontal-remap trigger.
-            if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
-                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-            }
-            if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
-                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-            }
-        }
+        apply_wheel(state, mode, focus_sys, input);
     }
 
-    if input.key_pressed_page_up {
-        if horiz_uses_vert_wheel && focus_sys.is_active_pgup_horiz(state.id) {
-            state.offset.x -= content_bounds.w;
-        } else if !horiz_uses_vert_wheel {
-            if focus_sys.is_active_pgup_vert(state.id) {
-                state.offset.y -= content_bounds.h;
-            }
-            if needs_v && needs_h && focus_sys.is_active_pgup_horiz(state.id) {
-                state.offset.x -= content_bounds.w;
-            }
-        }
-    }
-    if input.key_pressed_page_down {
-        if horiz_uses_vert_wheel && focus_sys.is_active_pgdn_horiz(state.id) {
-            state.offset.x += content_bounds.w;
-        } else if !horiz_uses_vert_wheel {
-            if focus_sys.is_active_pgdn_vert(state.id) {
-                state.offset.y += content_bounds.h;
-            }
-            if needs_v && needs_h && focus_sys.is_active_pgdn_horiz(state.id) {
-                state.offset.x += content_bounds.w;
-            }
-        }
-    }
+    apply_page_keys(state, mode, content_bounds, focus_sys, input);
 
     state.offset.x = state.offset.x.clamp(0.0, max_scroll.x);
     state.offset.y = state.offset.y.clamp(0.0, max_scroll.y);
@@ -325,12 +286,105 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         at_bottom: state.offset.y >= max_scroll.y,
         at_left: state.offset.x <= 0.0,
         at_right: state.offset.x >= max_scroll.x,
-        horiz_uses_vert_wheel,
-        is_2d: needs_v && needs_h,
+        mode,
         is_finished: false,
     };
 
     (pre_cmds, scope, content_bounds, offset_layout)
+}
+
+/// Route the wheel delta to the appropriate axis(es) based on mode, but only
+/// fire on claims this scope actually owns (so unconditional cross-axis claims
+/// don't double as a remap trigger).
+fn apply_wheel(
+    state: &mut ScrollState,
+    mode: ScrollMode,
+    focus_sys: &crate::focus::FocusSystem,
+    input: &Input,
+) {
+    let dy = input.scroll_delta.y;
+    let dx_raw = input.scroll_delta.x;
+
+    let scroll_vert = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem| {
+        if dy > 0.0 && focus_sys.is_active_scroll_up(state.id) {
+            state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
+        }
+        if dy < 0.0 && focus_sys.is_active_scroll_down(state.id) {
+            state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
+        }
+    };
+    let scroll_horiz = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
+        if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
+            state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+        }
+        if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
+            state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+        }
+    };
+
+    match mode {
+        ScrollMode::None => {}
+        ScrollMode::Vert => scroll_vert(state, focus_sys),
+        ScrollMode::Horiz => {
+            // Vertical wheel remaps to horizontal when there's no explicit dx.
+            let dx = if dx_raw == 0.0 { dy } else { dx_raw };
+            scroll_horiz(state, focus_sys, dx);
+        }
+        ScrollMode::Both => {
+            scroll_vert(state, focus_sys);
+            // If we won the horizontal claim but NOT the vertical one (a nested
+            // horiz slider blocked vertical), remap dy → dx so the vertical
+            // wheel still bubbles to our horizontal axis.
+            let mut dx = dx_raw;
+            if dx == 0.0 && dy != 0.0 {
+                let won_horiz = focus_sys.is_active_scroll_left(state.id)
+                    || focus_sys.is_active_scroll_right(state.id);
+                let own_vert = focus_sys.is_active_scroll_up(state.id)
+                    || focus_sys.is_active_scroll_down(state.id);
+                if won_horiz && !own_vert {
+                    dx = dy;
+                }
+            }
+            scroll_horiz(state, focus_sys, dx);
+        }
+    }
+}
+
+fn apply_page_keys(
+    state: &mut ScrollState,
+    mode: ScrollMode,
+    content_bounds: Rect,
+    focus_sys: &crate::focus::FocusSystem,
+    input: &Input,
+) {
+    if !input.key_pressed_page_up && !input.key_pressed_page_down {
+        return;
+    }
+    let sign: f32 = if input.key_pressed_page_down { 1.0 } else { -1.0 };
+    let (is_pgup_vert, is_pgdn_vert) = (
+        focus_sys.is_active_pgup_vert(state.id),
+        focus_sys.is_active_pgdn_vert(state.id),
+    );
+    let (is_pgup_horiz, is_pgdn_horiz) = (
+        focus_sys.is_active_pgup_horiz(state.id),
+        focus_sys.is_active_pgdn_horiz(state.id),
+    );
+    let active_vert  = if sign > 0.0 { is_pgdn_vert }  else { is_pgup_vert };
+    let active_horiz = if sign > 0.0 { is_pgdn_horiz } else { is_pgup_horiz };
+
+    match mode {
+        ScrollMode::None => {}
+        ScrollMode::Vert => {
+            if active_vert { state.offset.y += sign * content_bounds.h; }
+        }
+        ScrollMode::Horiz => {
+            if active_horiz { state.offset.x += sign * content_bounds.w; }
+        }
+        ScrollMode::Both => {
+            if active_vert  { state.offset.y += sign * content_bounds.h; }
+            if active_horiz { state.offset.x += sign * content_bounds.w; }
+        }
+    }
 }
 
 
