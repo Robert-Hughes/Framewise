@@ -148,19 +148,20 @@ impl FocusSystem {
         self.focused_id.is_some()
     }
 
-    /// Claim the upward-scroll slot for this frame.
-    ///
-    /// Because widgets are evaluated top-down, inner widgets evaluate last and
-    /// naturally overwrite outer claims — so the innermost hovered widget wins.
-    /// A widget should only call this if it can actually scroll upward (i.e. is
-    /// not already at its minimum). This lets the parent keep its claim when the
-    /// child is at its limit, enabling natural scroll propagation.
+    // ── Hover-scroll claims (last-caller-wins) ────────────────────────────────
+    //
+    // Scroll claims (up/down/left/right) are checked during widget evaluation
+    // (begin_scroll_area's hover block). The traversal is OUTER-FIRST, so each
+    // inner widget can overwrite an outer claim — the deepest hovered widget
+    // that can scroll wins. A widget should only call these if it can actually
+    // scroll on that axis (not at its limit), so a child at its limit lets the
+    // parent retain the claim and bubbling works naturally.
+    //
+    // Contrast with pg* claims below (first-caller-wins).
     pub fn claim_scroll_up(&mut self, id: FocusId) {
         self.next_scroll_up_id = Some(id);
     }
 
-    /// Claim the downward-scroll slot for this frame.
-    /// See [`claim_scroll_up`] for the full explanation.
     pub fn claim_scroll_down(&mut self, id: FocusId) {
         self.next_scroll_down_id = Some(id);
     }
@@ -206,28 +207,35 @@ impl FocusSystem {
         &self.focused_scroll_path
     }
 
-    /// Claim the Vertical Page Up scroll action. Uses a first-caller-wins logic.
+    // ── Page-key claims (first-caller-wins) ────────────────────────────────────
+    //
+    // PgUp/PgDn claims are made during scope teardown (ScrollAreaScope::finish
+    // and slider's keyboard block), which runs INNER-FIRST. So "first caller"
+    // means the innermost scope containing focus — exactly the scope that should
+    // get the press. Outer scopes calling later are silently ignored, which is
+    // why a parent's unconditional claim doesn't override an inner conditional
+    // skip: when the inner skipped (at its limit), no claim was made yet, so
+    // the outer's call goes through.
+    //
+    // Contrast with scroll claims above (last-caller-wins).
     pub fn claim_pgup_vert(&mut self, id: FocusId) {
         if self.next_pgup_vert_id.is_none() {
             self.next_pgup_vert_id = Some(id);
         }
     }
 
-    /// Claim the Vertical Page Down scroll action. Uses a first-caller-wins logic.
     pub fn claim_pgdn_vert(&mut self, id: FocusId) {
         if self.next_pgdn_vert_id.is_none() {
             self.next_pgdn_vert_id = Some(id);
         }
     }
 
-    /// Claim the Horizontal Page Up (Left) scroll action. Uses a first-caller-wins logic.
     pub fn claim_pgup_horiz(&mut self, id: FocusId) {
         if self.next_pgup_horiz_id.is_none() {
             self.next_pgup_horiz_id = Some(id);
         }
     }
 
-    /// Claim the Horizontal Page Down (Right) scroll action. Uses a first-caller-wins logic.
     pub fn claim_pgdn_horiz(&mut self, id: FocusId) {
         if self.next_pgdn_horiz_id.is_none() {
             self.next_pgdn_horiz_id = Some(id);
