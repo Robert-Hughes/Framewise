@@ -35,8 +35,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 Features to design and implement, roughly in dependency order:
 
-- [ ] Geometry types: `Rect`, `Color`, `Align`
-- [ ] `DrawCmd` and `DrawCommands`
 - [ ] `LayoutInfo`, `InputInfo`, `ValueInfo<T>`
 - [ ] `WidgetResult` trait and `Builder::emit`
 - [ ] Hit-testing and pointer input

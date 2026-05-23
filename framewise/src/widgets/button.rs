@@ -161,6 +161,8 @@ pub fn button<T: crate::text::TextSystem>(
         focus_sys.take_focus(state.focus_id);
     }
 
+    focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
+
     // Choose fill colour based on interaction state.
     let fill = if pressed {
         spec.style.pressed
@@ -252,6 +254,83 @@ mod tests {
         fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
         fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
     } 
+    fn btn_spec(y: f32) -> ButtonSpec {
+        ButtonSpec { rect: Rect::new(0.0, y, 100.0, 30.0), text: "B".into(), style: Default::default(), clip_rect: None }
+    }
+
+    /// Run one frame with two buttons and return their states.
+    fn two_btn_frame(
+        focus_sys: &mut crate::focus::FocusSystem,
+        s1: ButtonState, s2: ButtonState,
+        input: &Input,
+    ) -> (ButtonState, ButtonState) {
+        let mut ts = DummyTextSys;
+        focus_sys.begin_frame();
+        let r1 = button(s1, btn_spec(0.0),  input, &mut ts, focus_sys).into_parts().1;
+        let r2 = button(s2, btn_spec(40.0), input, &mut ts, focus_sys).into_parts().1;
+        focus_sys.end_frame();
+        (r1.state, r2.state)
+    }
+
+    #[test]
+    fn test_button_tab_moves_focus_next() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let s1 = ButtonState::default();
+        let s2 = ButtonState::default();
+        focus_sys.take_focus(s1.focus_id);
+
+        let mut input = Input::default();
+        input.key_pressed_tab = true;
+        let (s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &input);
+        // Focus shift resolves at end_frame; confirm in next frame
+        let (_s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &Input::default());
+        assert_eq!(focus_sys.current_focus(), Some(s2.focus_id), "Tab should move focus to btn2");
+    }
+
+    #[test]
+    fn test_button_right_arrow_moves_focus_next() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let s1 = ButtonState::default();
+        let s2 = ButtonState::default();
+        focus_sys.take_focus(s1.focus_id);
+
+        let mut input = Input::default();
+        input.key_pressed_right = true;
+        let (s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &input);
+        let (_s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &Input::default());
+        assert_eq!(focus_sys.current_focus(), Some(s2.focus_id), "Right arrow should move focus to btn2");
+    }
+
+    #[test]
+    fn test_button_down_arrow_moves_focus_next() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let s1 = ButtonState::default();
+        let s2 = ButtonState::default();
+        focus_sys.take_focus(s1.focus_id);
+
+        let mut input = Input::default();
+        input.key_pressed_down = true;
+        let (s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &input);
+        let (_s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &Input::default());
+        assert_eq!(focus_sys.current_focus(), Some(s2.focus_id), "Down arrow should move focus to btn2");
+    }
+
+    #[test]
+    fn test_button_shift_tab_moves_focus_prev() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let s1 = ButtonState::default();
+        let s2 = ButtonState::default();
+        // Start with focus on s2
+        focus_sys.take_focus(s2.focus_id);
+
+        let mut input = Input::default();
+        input.key_pressed_tab = true;
+        input.modifier_shift = true;
+        let (s1, s2) = two_btn_frame(&mut focus_sys, s1, s2, &input);
+        let (s1, _s2) = two_btn_frame(&mut focus_sys, s1, s2, &Input::default());
+        assert_eq!(focus_sys.current_focus(), Some(s1.focus_id), "Shift+Tab should move focus back to btn1");
+    }
+
     #[test]
     fn test_drag_off_and_release_does_not_click_other_button() {
         let mut text_system = DummyTextSys;

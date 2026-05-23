@@ -525,6 +525,9 @@ pub fn text_edit<T: TextSystem>(
         }
     }
 
+    // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
+    focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+
     state.was_focused = focused || (contains && input.mouse_pressed);
 
     TextEditResult {

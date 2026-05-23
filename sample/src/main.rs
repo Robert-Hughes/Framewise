@@ -946,18 +946,14 @@ impl ApplicationHandler for App {
 
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = modifiers.state();
+                self.input.modifier_shift = modifiers.state().shift_key();
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
                         if event.state == ElementState::Pressed {
-                            let direction = if self.modifiers.shift_key() {
-                                framewise::focus::FocusDirection::Prev
-                            } else {
-                                framewise::focus::FocusDirection::Next
-                            };
-                            self.focus_sys.request_shift(direction);
+                            self.input.key_pressed_tab = true;
                         }
                     }
                     winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {

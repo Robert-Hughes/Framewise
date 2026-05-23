@@ -1,5 +1,46 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
+use crate::input::Input;
+
+/// Specifies which keys a widget makes available for focus traversal.
+///
+/// A widget passes this to [`FocusSystem::handle_traversal`] to indicate which
+/// keys it does NOT consume itself and therefore should trigger focus movement.
+/// Keys set to `true` will be used for traversal; keys set to `false` are left
+/// for the widget to handle (or ignored).
+///
+/// # Mapping
+/// - `up` / `left` → move focus to previous widget (like Shift+Tab)
+/// - `down` / `right` → move focus to next widget (like Tab)
+/// - `tab` → Tab moves next, Shift+Tab moves prev (reads `Input::modifier_shift`)
+#[derive(Debug, Clone, Copy)]
+pub struct FocusTraversalKeys {
+    pub up:    bool,
+    pub down:  bool,
+    pub left:  bool,
+    pub right: bool,
+    pub tab:   bool,
+}
+
+impl FocusTraversalKeys {
+    /// All keys trigger traversal. Use for widgets that do not consume any
+    /// directional keys themselves (e.g. buttons, labels).
+    pub fn all() -> Self {
+        Self { up: true, down: true, left: true, right: true, tab: true }
+    }
+
+    /// Only Tab (and Shift+Tab) triggers traversal. Use for widgets that
+    /// consume all four arrow keys themselves (e.g. sliders, text edits).
+    pub fn tab_only() -> Self {
+        Self { up: false, down: false, left: false, right: false, tab: true }
+    }
+
+    /// No keys trigger traversal. Use for widgets that handle all relevant
+    /// keys internally and never want to hand off focus via keyboard.
+    pub fn none() -> Self {
+        Self { up: false, down: false, left: false, right: false, tab: false }
+    }
+}
 
 /// An inter-frame identifier for interactive widgets.
 /// Used primarily by the `FocusSystem` to track keyboard focus.
@@ -141,11 +182,40 @@ impl FocusSystem {
         self.custom_order.insert(from, to);
     }
 
-    /// Returns true if there is an active text input or something similar that 
+    /// Returns true if there is an active text input or something similar that
     /// should consume keyboard events natively instead of triggering Tab navigation.
     /// (For future use, returning false for now).
     pub fn has_focus(&self) -> bool {
         self.focused_id.is_some()
+    }
+
+    /// Returns the [`FocusId`] of the currently focused widget, if any.
+    pub fn current_focus(&self) -> Option<FocusId> {
+        self.focused_id
+    }
+
+    /// Requests a focus shift based on which keys are pressed, filtered by
+    /// `keys`. Only acts when `focused` is true (i.e. the calling widget has
+    /// focus). Call this once per widget per frame after the widget has handled
+    /// its own key input.
+    ///
+    /// Keys that the widget consumes itself should be set to `false` in `keys`
+    /// so they are skipped here. See [`FocusTraversalKeys`] for presets.
+    pub fn handle_traversal(&mut self, focused: bool, input: &Input, keys: FocusTraversalKeys) {
+        if !focused {
+            return;
+        }
+        let want_prev = (keys.up    && input.key_pressed_up)
+                     || (keys.left  && input.key_pressed_left)
+                     || (keys.tab   && input.key_pressed_tab && input.modifier_shift);
+        let want_next = (keys.down  && input.key_pressed_down)
+                     || (keys.right && input.key_pressed_right)
+                     || (keys.tab   && input.key_pressed_tab && !input.modifier_shift);
+        if want_prev {
+            self.request_shift(FocusDirection::Prev);
+        } else if want_next {
+            self.request_shift(FocusDirection::Next);
+        }
     }
 
     // ── Hover-scroll claims (last-caller-wins) ────────────────────────────────
@@ -359,6 +429,160 @@ mod tests {
         sys.begin_frame();
         assert!(!sys.register(id1));
         assert!(sys.register(id2), "id2 should have focus after shifting prev from id3");
+    }
+
+    // ── handle_traversal tests ─────────────────────────────────────────────────
+
+    fn two_widget_focus_after_key(input: crate::input::Input, keys: crate::focus::FocusTraversalKeys) -> (bool, bool) {
+        let mut sys = FocusSystem::new();
+        let id1 = FocusId::new();
+        let id2 = FocusId::new();
+        sys.take_focus(id1);
+
+        sys.begin_frame();
+        let focused1 = sys.register(id1);
+        sys.handle_traversal(focused1, &input, keys);
+        sys.register(id2);
+        sys.end_frame();
+
+        sys.begin_frame();
+        let has1 = sys.register(id1);
+        let has2 = sys.register(id2);
+        sys.end_frame();
+        (has1, has2)
+    }
+
+    #[test]
+    fn test_handle_traversal_tab_moves_next() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_tab = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
+        assert!(!has1, "id1 should lose focus after Tab");
+        assert!(has2, "id2 should gain focus after Tab");
+    }
+
+    #[test]
+    fn test_handle_traversal_shift_tab_moves_prev() {
+        let mut sys = FocusSystem::new();
+        let id1 = FocusId::new();
+        let id2 = FocusId::new();
+        sys.take_focus(id2);
+
+        let mut input = crate::input::Input::default();
+        input.key_pressed_tab = true;
+        input.modifier_shift = true;
+
+        sys.begin_frame();
+        sys.register(id1);
+        let focused2 = sys.register(id2);
+        sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
+        sys.end_frame();
+
+        sys.begin_frame();
+        let has1 = sys.register(id1);
+        let has2 = sys.register(id2);
+        sys.end_frame();
+        assert!(has1, "id1 should gain focus after Shift+Tab from id2");
+        assert!(!has2);
+    }
+
+    #[test]
+    fn test_handle_traversal_right_moves_next() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_right = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
+        assert!(!has1);
+        assert!(has2, "id2 should gain focus after Right arrow");
+    }
+
+    #[test]
+    fn test_handle_traversal_down_moves_next() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_down = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
+        assert!(!has1);
+        assert!(has2, "id2 should gain focus after Down arrow");
+    }
+
+    #[test]
+    fn test_handle_traversal_left_moves_prev() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_left = true;
+        // id1 is last; Prev wraps to id2 (last in order from id1's perspective)
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
+        // From id1, Prev wraps to id2 (the only other widget, which is "before" in
+        // circular order: id1 is index 0, prev wraps to index 1 = id2).
+        assert!(!has1);
+        assert!(has2, "Left arrow from first widget wraps to last");
+    }
+
+    #[test]
+    fn test_handle_traversal_up_moves_prev() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_up = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
+        assert!(!has1);
+        assert!(has2, "Up arrow from first widget wraps to last");
+    }
+
+    #[test]
+    fn test_handle_traversal_tab_only_arrows_dont_navigate() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_right = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
+        assert!(has1, "Arrow should not move focus with tab_only");
+        assert!(!has2);
+    }
+
+    #[test]
+    fn test_handle_traversal_tab_only_tab_still_navigates() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_tab = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
+        assert!(!has1);
+        assert!(has2, "Tab should still navigate with tab_only");
+    }
+
+    #[test]
+    fn test_handle_traversal_none_nothing_navigates() {
+        let mut input = crate::input::Input::default();
+        input.key_pressed_tab = true;
+        input.key_pressed_right = true;
+        let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::none());
+        assert!(has1, "No keys should navigate with FocusTraversalKeys::none()");
+        assert!(!has2);
+    }
+
+    #[test]
+    fn test_handle_traversal_not_focused_does_nothing() {
+        let mut sys = FocusSystem::new();
+        let id1 = FocusId::new();
+        let id2 = FocusId::new();
+        sys.take_focus(id1);
+
+        let mut input = crate::input::Input::default();
+        input.key_pressed_right = true;
+
+        sys.begin_frame();
+        sys.register(id1);
+        let focused2 = sys.register(id2); // id2 does NOT have focus
+        sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
+        sys.end_frame();
+
+        sys.begin_frame();
+        let has1 = sys.register(id1);
+        sys.register(id2);
+        sys.end_frame();
+        assert!(has1, "Unfocused widget must not trigger traversal");
+    }
+
+    #[test]
+    fn test_current_focus_returns_focused_id() {
+        let mut sys = FocusSystem::new();
+        let id = FocusId::new();
+        assert_eq!(sys.current_focus(), None);
+        sys.take_focus(id);
+        assert_eq!(sys.current_focus(), Some(id));
     }
 
     #[test]

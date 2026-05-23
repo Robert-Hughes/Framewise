@@ -340,6 +340,9 @@ pub fn slider(
         if input.key_pressed_end {
             *value = max;
         }
+
+        // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
+        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
     }
     
     // 3. Drawing
@@ -549,24 +552,28 @@ mod tests {
         input.key_pressed_up = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 45.0);
+        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Up arrow must not move focus away from slider");
 
         // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
+        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Down arrow must not move focus away from slider");
 
         // Left decrements (same as Up)
         input.key_pressed_down = false;
         input.key_pressed_left = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 45.0);
+        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Left arrow must not move focus away from slider");
 
         // Right increments (same as Down)
         input.key_pressed_left = false;
         input.key_pressed_right = true;
         slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(value, 50.0);
+        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Right arrow must not move focus away from slider");
 
         // Left/Right also work on a horizontal slider
         input.key_pressed_right = false;
@@ -587,6 +594,34 @@ mod tests {
         input.key_pressed_right = true;
         slider(&mut horiz_state, &mut horiz_value, horiz_spec.clone(), &input, 0.0, &mut focus_sys);
         assert_eq!(horiz_value, 50.0);
+    }
+
+    #[test]
+    fn test_slider_tab_moves_focus_not_arrows() {
+        let mut state_a = SliderState::default();
+        let mut state_b = SliderState::default();
+        let mut focus_sys = FocusSystem::new();
+        let mut value_a = 50.0_f32;
+        let mut value_b = 50.0_f32;
+        let spec = test_spec(0.0, 100.0, true);
+
+        focus_sys.take_focus(state_a.focus_id);
+
+        // Frame 1: Tab on focused slider_a — should shift focus to slider_b
+        focus_sys.begin_frame();
+        let mut input = crate::input::Input::new();
+        input.key_pressed_tab = true;
+        slider(&mut state_a, &mut value_a, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(&mut state_b, &mut value_b, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Frame 2: confirm focus moved to slider_b
+        focus_sys.begin_frame();
+        slider(&mut state_a, &mut value_a, spec.clone(), &crate::input::Input::new(), 0.0, &mut focus_sys);
+        slider(&mut state_b, &mut value_b, spec.clone(), &crate::input::Input::new(), 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+        assert_eq!(focus_sys.current_focus(), Some(state_b.focus_id), "Tab should move focus from slider_a to slider_b");
+        assert_eq!(value_a, 50.0, "Value must not change on Tab");
     }
 
     #[test]

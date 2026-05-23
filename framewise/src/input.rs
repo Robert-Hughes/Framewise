@@ -49,6 +49,12 @@ pub struct Input {
     pub key_pressed_down: bool,
     pub key_pressed_left: bool,
     pub key_pressed_right: bool,
+
+    /// True on the single frame the Tab key was pressed.
+    pub key_pressed_tab: bool,
+    /// True while the Shift modifier key is held. Not a per-frame flag; updated
+    /// by the embedder on ModifiersChanged and never cleared by clear_frame_state.
+    pub modifier_shift: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +94,8 @@ impl Default for Input {
             key_pressed_down: false,
             key_pressed_left: false,
             key_pressed_right: false,
+            key_pressed_tab: false,
+            modifier_shift: false,
         }
     }
 }
@@ -117,6 +125,9 @@ impl Input {
         self.key_pressed_end = false;
         self.key_pressed_up = false;
         self.key_pressed_down = false;
+        self.key_pressed_tab = false;
+        // modifier_shift intentionally not cleared: it is a held state updated
+        // by the embedder on ModifiersChanged, not a per-frame press event.
     }
 }
 
