@@ -55,6 +55,10 @@ Features to design and implement, roughly in dependency order:
 - [ ] Graphics / images
 - [ ] Animations (spinners, progress bars, animated scrolling)
 - [ ] Window min/max sizing based on layout
+* Built-in themes that are good
+  * A Framewise-specific one - see Claude Design for a version of this
+  * Windows native lookalike
+  * Mac native lookalike
 
 ---
 
@@ -94,6 +98,6 @@ Features to design and implement, roughly in dependency order:
 
 ## Accessibility
 
-- Up / down / left / right for switching focus, as well as Tab?
-- Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make
-  it visible.
+- Up / down / left / right for switching focus has no scroll-area awareness (navigation doesn't cross scroll area boundaries specially)
+  - Currently can select invisible widgets!
+- Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)

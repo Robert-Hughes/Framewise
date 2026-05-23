@@ -88,19 +88,19 @@ pub fn slider(
     time: f64,
     focus_sys: &mut FocusSystem,
 ) -> Vec<DrawCmd> {
-    let focused = focus_sys.register(state.focus_id);
     let mut cmds = Vec::new();
-    
+
     // Safety clamp min/max
     let min = spec.min.min(spec.max);
     let max = spec.max.max(spec.min);
     *value = value.clamp(min, max);
     let range = max - min;
-    
+
     let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
     
     // 1. Calculate Thumb Rect
     let track_rect = spec.rect;
+    let focused = focus_sys.register(state.focus_id, track_rect);
     let is_vert = spec.orientation == Orientation::Vertical;
     
     let track_len = if is_vert { track_rect.h } else { track_rect.w };
