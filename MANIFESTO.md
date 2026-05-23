@@ -342,12 +342,13 @@ Features to design and implement, roughly in dependency order:
 
 * Window min/max sizing based on layout
 
-## Scroll Areas and Clip Rects
+## Scroll Areas, Scopes, and Nested Scroll Claims
 
-Recent design decisions have decoupled layouts from input handling and clipping.
+Recent design decisions have refined how complex widgets like Scroll Areas interact with layout, clipping, and nested inputs.
 
--   **Decorator Layouts**: Layouts like \OffsetLayout<L>\ are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
--   **Widget-Driven Clipping**: Scroll Areas are implemented as low-level widgets. The widget explicitly calculates scroll bounds, handles mouse wheel interactions, and pushes a \PushClip\ command to the draw list.
--   **Builder Scope Management**: The \Builder\ handles closing scopes. If a widget pushes a clip, the child builder created for that scope is flagged with \
-eeds_pop_clip = true\, ensuring a \PopClip\ is safely appended when \inish()\ is called.
-
+-   **Decorator Layouts**: Layouts like `OffsetLayout<L>` are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
+-   **Widget-Driven Lifecycle Scopes**: Complex widgets like Scroll Areas return a `ScrollAreaScope`. Calling `.finish()` on the scope explicitly manages symmetrical commands (like `PopClip`).
+-   **Strict Lifecycle Enforcement**: The `ScrollAreaScope` has an internal `Drop` implementation that panics if `finish()` is not called. This statically and dynamically prevents leaking input state and clip rects.
+-   **Builder Transparency**: The `Builder` seamlessly integrates with these scopes. Outer builders immediately append `pre_cmds`, and when `.finish()` is called, the child builder automatically executes `scope.finish()` and appends the `post_cmds`.
+-   **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because scopes are finished bottom-up, innermost scroll areas always get first pick of the claim.
+-   **Standalone Widget Participation**: Standalone widgets like standalone sliders actively participate in this claim system (using `claim_scroll_at_ends`). When hovered or focused, they block scroll inputs from propagating up to outer scroll areas, acting as "hard stops" instead of allowing the parent to suddenly start scrolling when the slider hits its boundary.

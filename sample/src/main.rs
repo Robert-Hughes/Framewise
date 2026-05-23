@@ -86,7 +86,7 @@ struct NestedRowState {
     inner_scroll: framewise::widgets::scroll_area::ScrollState,
     btn1: SampleButton,
     btn2: SampleButton,
-    inner_btns: [SampleButton; 3],
+    inner_btns: [SampleButton; 6],
     slider_state: framewise::widgets::slider::SliderState,
     slider_val: f32,
 }
@@ -375,14 +375,14 @@ impl App {
 
                             for j in 0..6 {
                                 let btn = inner_scroll.button(
-                                    std::mem::take(&mut row_state.inner_btns[j.min(2)].state),
+                                    std::mem::take(&mut row_state.inner_btns[j].state),
                                     Vec2::new(160.0, 45.0),
                                     format!("R{} Inner {}", i + 1, j + 1),
                                     &self.input,
                                 );
                                 let clicked = btn.clicked();
-                                row_state.inner_btns[j.min(2)].state = btn.state;
-                                if clicked { row_state.inner_btns[j.min(2)].clicks += 1; }
+                                row_state.inner_btns[j].state = btn.state;
+                                if clicked { row_state.inner_btns[j].clicks += 1; }
                             }
                             inner_scroll.finish()
                         };
