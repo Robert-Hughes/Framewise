@@ -277,9 +277,9 @@ impl App {
                         Vec2::new(win_size.0 - 240.0, 100.0),
                         framewise::layout::RowLayout { spacing: 20.0 },
                     );
-                    
+
                     slider_row.label(Vec2::new(150.0, 20.0), &format!("Slider Value: {:.1}", self.standalone_slider_val));
-                    
+
                     slider_row.slider(
                         &mut self.standalone_slider_state,
                         &mut self.standalone_slider_val,
@@ -289,7 +289,7 @@ impl App {
                         Vec2::new(30.0, 100.0),
                         &self.input,
                     );
-                    
+
                     slider_row.finish()
                 };
                 content_col.append_cmds(slider_cmds);
@@ -344,7 +344,7 @@ impl App {
 
                     for i in 0..3 {
                         let row_state = &mut self.nested_rows[i];
-                        
+
                         let mut row_builder = outer_scroll.child_with_layout(
                             Vec2::new(win_size.0 - 260.0, row_h),
                             framewise::layout::RowLayout { spacing: 10.0 }
@@ -427,7 +427,7 @@ impl ApplicationHandler for App {
         // Create the window.
         let attrs = Window::default_attributes()
             .with_title("Framewise Sample")
-            .with_inner_size(PhysicalSize::new(1280u32, 720u32));
+            .with_inner_size(PhysicalSize::new(1600u32, 1200u32));
 
         let window = Arc::new(
             event_loop.create_window(attrs).expect("failed to create window"),
