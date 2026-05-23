@@ -586,6 +586,51 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// Combined input: an active slider drag plus a wheel tick in the same frame.
+    /// The drag is authoritative — drag math sets `offset` last, so wheel changes
+    /// applied earlier are overwritten and the result tracks the mouse exactly.
+    #[test]
+    fn test_slider_drag_with_wheel_drag_wins() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Frame 0: press on vertical thumb (drag start). Thumb at top of track,
+        // track at x=188..200 y=0..200. Thumb pos = 0, length ratio = 200/1000.
+        focus_sys.begin_frame();
+        let mut input = Input::new();
+        input.mouse_pos = Vec2::new(194.0, 5.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        assert!(state.vert_slider_state.is_dragging, "Drag must be active");
+
+        // Frame 1: held, mouse moved down, AND a wheel tick. Drag should win.
+        focus_sys.begin_frame();
+        let mut input = Input::new();
+        input.mouse_pos = Vec2::new(194.0, 50.0);
+        input.mouse_down = true;
+        input.scroll_delta.y = -5.0; // would drive offset way down if it applied
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        // drag: usable_track = 200 - (200 * 200/1000).max(20) = 200-40=160. delta=45 → val_delta=(45/160)*800≈225.
+        let expected = (45.0 / 160.0) * 800.0;
+        let actual = state.offset.y;
+        let diff = (actual - expected).abs();
+        assert!(diff < 1.0, "offset {} ≈ drag-projected {} (drag dominates wheel)", actual, expected);
+    }
+
     /// Auto-visibility with content that fits: no scrollbar drawn, no claims,
     /// parent wheel must pass through.
     #[test]

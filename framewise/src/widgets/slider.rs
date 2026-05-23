@@ -156,8 +156,10 @@ pub fn slider(
         state.is_track_clicking = false;
     }
 
-    // Mouse wheel scrolling
-    if is_visible && track_rect.contains(input.mouse_pos) {
+    // Mouse wheel scrolling — suppressed during an active drag so that drag
+    // motion is authoritative (otherwise wheel ticks would stack on top of
+    // the drag-projected value).
+    if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
         let at_min = *value <= min;
         let at_max = *value >= max;
         
