@@ -525,6 +525,33 @@ mod tests {
         assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
     }
 
+    /// The corner where both scrollbars meet is an intentional dead zone:
+    /// mouse there is outside content_bounds so no claim is made and the wheel
+    /// does not scroll.
+    #[test]
+    fn test_scrollbar_corner_is_dead_zone() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // 2D scroll area: content_bounds=(0,0,188,188). Corner is (188..200, 188..200).
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            let mut input = Input::new();
+            input.mouse_pos = Vec2::new(194.0, 194.0); // inside corner, outside content_bounds
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            let (_, scope, _, _) = begin_scroll_area(
+                bounds, Vec2::new(1000.0, 1000.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            );
+            scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(state.offset.y, 0.0, "Wheel in scrollbar corner dead zone must not scroll");
+        assert_eq!(state.offset.x, 0.0, "Wheel in scrollbar corner dead zone must not scroll horizontally");
+    }
+
     /// clip_rect masks hover-driven scroll: mouse inside content_bounds but outside
     /// the clip → no claim, no scroll.
     #[test]
