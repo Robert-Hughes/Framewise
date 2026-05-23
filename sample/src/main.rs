@@ -256,7 +256,7 @@ impl App {
             let content_cmds = {
                 let mut content_col = main_row.scroll_area(
                     Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
-                    Vec2::new(win_size.0 - 240.0, 1600.0),
+                    Vec2::new(win_size.0 - 240.0, 2000.0),
                     framewise::widgets::scroll_area::ScrollbarVisibility::None,
                     framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     &mut self.right_panel_scroll,
@@ -526,7 +526,7 @@ impl App {
                                 let y = (j / 8) as f32 * 53.0;
                                 let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
                                 both_scroll.ctx.button_style.background = Color::rgb(base_r + shade, base_g + shade, base_b + shade);
-                                
+
                                 let btn = both_scroll.button(
                                     std::mem::take(&mut row_state.both_btns[j].state),
                                     Rect::new(x, y, 80.0, 45.0),
@@ -583,7 +583,7 @@ impl App {
                         framewise::layout::RowLayout { spacing: 20.0 },
                         &self.input,
                     );
-                    
+
                     // Left spacer/button
                     outer_scroll.button(Default::default(), Vec2::new(100.0, 100.0), "Outer L", &self.input);
 

@@ -1503,6 +1503,280 @@ mod nested_bubbling_tests {
             Regression: if !needs_h guard missing from needs_v block in begin_scroll_area.");
     }
 
+    // ── Nested 2D propagation suite ───────────────────────────────────────────────────────────
+    //
+    // All 6 tests use the same geometry:
+    //   outer_2d: bounds=(0,0,400,300) content=(800,600) h=Always v=Always
+    //             content_bounds=(0,0,388,288)  max_scroll=(400,300)  [uses bounds.w/h, not content_bounds]
+    //   inner_2d: bounds=(0,0,200,150) content=(400,300) h=Always v=Always
+    //             content_bounds=(0,0,188,138)  max_scroll=(200,150)
+    //             inner vert slider track: x=188..200, y=0..138
+    //             inner horiz slider track: x=0..188, y=138..150
+    //
+    // Expected invariant: wheel/keyboard events always propagate to the outer area when the inner
+    // area is at its limit on the relevant axis. 4 of 6 currently pass; 2 fail (horiz cases).
+
+    // 24. Mouse Wheel / Nested 2D / Vertical slider at top → outer scrolls up
+    //     Mouse (194,50): in outer content_bounds, outside inner content_bounds, on inner vert slider.
+    //     Inner vert slider at_min: skips scroll_up → outer wins it. PASSES.
+    #[test]
+    fn test_nested_2d_mouse_vert_slider_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(194.0, 50.0); // on inner vert slider track
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at top — vert slider skips scroll_up
+                outer_state.offset.y = 100.0;  // outer has room
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 0.0, "Inner at top, should not change");
+        assert!(outer_state.offset.y < 100.0, "Outer should scroll up");
+    }
+
+    // 25. Mouse Wheel / Nested 2D / Horizontal slider at left → outer scrolls left
+    //     Mouse (50,144): in outer content_bounds, outside inner content_bounds, on inner horiz slider.
+    //     Inner horiz slider at_min: skips scroll_left → outer wins scroll_left.
+    //     BUT: outer is non-fallback 2D → needs_h only fires on delta.x, not delta.y.
+    //     delta.y=1.0 (vertical wheel, which horiz slider uses as horizontal fallback) cannot
+    //     drive outer's horizontal axis without a fix that remaps delta.y→dx in this context.
+    //     FAILS: inner horiz slider unconditionally claims scroll_up, and even if outer wins
+    //     scroll_left the dx=0 prevents horizontal scroll from firing.
+    #[test]
+    fn test_nested_2d_mouse_horiz_slider_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 144.0); // on inner horiz slider track
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 }; // vertical wheel, horiz slider uses as fallback
+            if frame == 0 {
+                inner_state.offset.x = 0.0;    // at left — horiz slider skips scroll_left
+                outer_state.offset.x = 100.0;  // outer has room to scroll left
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 0.0, "Inner horiz at left, should not change");
+        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (horizontal bubble). \
+            FAILS: inner horiz slider unconditionally claims scroll_up, blocking delta.y from reaching outer, \
+            and outer non-fallback 2D cannot remap delta.y to horizontal scroll.");
+    }
+
+    // 26. Mouse Wheel / Nested 2D / Inner content at top → outer scrolls up
+    //     Mouse (50,50): inside both content_bounds. Inner at_top skips scroll_up → outer wins.
+    //     PASSES (same logic as test 21, included for completeness of the suite).
+    #[test]
+    fn test_nested_2d_mouse_content_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.mouse_pos = Vec2::new(50.0, 50.0); // inside inner content_bounds
+            input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
+            if frame == 0 {
+                inner_state.offset.y = 0.0;    // at top
+                outer_state.offset.y = 100.0;
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 0.0, "Inner at top, should not change");
+        assert!(outer_state.offset.y < 100.0, "Outer should scroll up");
+    }
+
+    // 27. Keyboard / Nested 2D / Vertical slider focused, at bottom → outer scrolls down
+    //     Slider at_max: skips pgdn_vert, unconditionally claims pgup/pgdn_horiz.
+    //     inner_scope.finish(): at_bottom skips pgdn_vert; horiz already taken.
+    //     outer_scope.finish(): pgdn_vert not yet taken → outer wins → outer scrolls down.
+    //     PASSES.
+    #[test]
+    fn test_nested_2d_keyboard_vert_slider_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // Pre-render to get vert slider focus_id.
+        focus_sys.begin_frame();
+        let (_, inner_scope, _, _) = begin_scroll_area(
+            Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+            ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+        );
+        inner_scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        focus_sys.take_focus(inner_state.vert_slider_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 150.0;  // at bottom (max_scroll.y = 300-150 = 150)
+                outer_state.offset.y = 50.0;   // outer has room
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 150.0, "Inner at bottom, slider should not move");
+        assert!(outer_state.offset.y > 50.0, "Outer should scroll down");
+    }
+
+    // 28. Keyboard / Nested 2D / Horizontal slider focused, at right → outer scrolls right
+    //     Slider at_max: skips pgdn_horiz, unconditionally claims pgup/pgdn_vert.
+    //     inner_scope.finish(): pgdn_vert already taken; pgdn_horiz not taken → inner_scope wins it.
+    //     outer_scope.finish(): pgdn_horiz already taken by inner_scope; pgdn_vert taken by slider.
+    //     Outer wins nothing → outer does not scroll.
+    //     FAILS: inner_scope.finish() for 2D areas must conditionally claim pgdn_horiz (not at_right)
+    //     instead of unconditionally. And outer's action block must check is_active_pgdn_horiz for 2D.
+    #[test]
+    fn test_nested_2d_keyboard_horiz_slider_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+
+        // Pre-render to get horiz slider focus_id.
+        focus_sys.begin_frame();
+        let (_, inner_scope, _, _) = begin_scroll_area(
+            Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+            ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+        );
+        inner_scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+        focus_sys.take_focus(inner_state.horiz_slider_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.x = 200.0;  // at right (max_scroll.x = 400-200 = 200)
+                outer_state.offset.x = 50.0;   // outer has room to scroll right
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.x, 200.0, "Inner horiz at right, slider should not move");
+        assert!(outer_state.offset.x > 50.0, "Outer should scroll right. \
+            FAILS: inner_scope.finish() unconditionally claims pgdn_horiz even when inner is at_right, \
+            blocking outer. Fix: 2D areas must conditionally claim both axes in scope.finish(), \
+            and begin_scroll_area must check is_active_pgdn_horiz for non-fallback 2D areas.");
+    }
+
+    // 29. Keyboard / Nested 2D / Inner widget focused, inner at bottom → outer scrolls down
+    //     No slider claims. inner_scope.finish(): at_bottom skips pgdn_vert, unconditionally wins pgdn_horiz.
+    //     outer_scope.finish(): pgdn_vert not yet taken → outer wins → outer scrolls down.
+    //     PASSES.
+    #[test]
+    fn test_nested_2d_keyboard_content_at_extent_bubbles_to_outer() {
+        let mut focus_sys = FocusSystem::new();
+        let mut input = Input::new();
+        let mut text_sys = DummyTextSystem;
+        let mut outer_state = ScrollState::default();
+        let mut inner_state = ScrollState::default();
+        let mut btn_state = crate::widgets::button::ButtonState::default();
+        focus_sys.take_focus(btn_state.focus_id);
+
+        for frame in 0..3 {
+            focus_sys.begin_frame();
+            input.key_pressed_page_down = frame == 1;
+            if frame == 0 {
+                inner_state.offset.y = 150.0;  // at bottom (max_scroll.y = 300-150 = 150)
+                outer_state.offset.y = 50.0;
+            }
+            let (_, outer_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let (_, inner_scope, _, _) = begin_scroll_area(
+                Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
+                ScrollbarVisibility::Always, ScrollbarVisibility::Always,
+                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            );
+            let info = crate::widgets::button::button(
+                std::mem::take(&mut btn_state),
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                &input, &mut text_sys, &mut focus_sys
+            );
+            btn_state = info.state;
+            inner_scope.finish(&mut focus_sys);
+            outer_scope.finish(&mut focus_sys);
+            focus_sys.end_frame();
+        }
+        assert_eq!(inner_state.offset.y, 150.0, "Inner at bottom, should not change");
+        assert!(outer_state.offset.y > 50.0, "Outer should scroll down");
+    }
+
     // 23. Mouse Wheel / Nested 2D / Cross-axis isolation (vertical wheel → no horizontal scroll)
     //     Vertical wheel on inner 2D at top. Inner can't scroll up. Outer scrolls UP (vertical).
     //     Outer must NOT scroll horizontally — no cross-axis leakage.

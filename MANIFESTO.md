@@ -317,16 +317,10 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
 - [x] Input focus model
 - [ ] Scrolling and scroll regions
-  * Fix current failing tests
-  * In a complex nested scroll area case with vertical -> horizontal -> vertical and you scroll the inner vertical container, what's the leakage behaviour - does it leak to the outer vertical one or not at all cos the horizontal one blocks it? (Give me answers for both mouse and keyboard, focus on the inner scroll area or on the slider itself - 4 cases, each might behave differently).
-    * Add tests?
-  * What about horizontal -> vertical -> horizontal
-    * Add another nested level to the sample app (within the other one), so can explore.
-    * Add tests?
   * What about 2D -> 2D
     * Sample app
     * tests?
-  * Anything else? Maybe ask Opus
+  * Anything else? Maybe ask Opus. Can any of the logic be simplified given the behaviour we have? What about the tests - lots of duplication!
 
   * Click and hold to repeatedly page down on a slider - if it get clamped at the end then it can jump back and forth every frame!
   * Slider click on the trackbar then drag, should snap to cursor
