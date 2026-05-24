@@ -60,6 +60,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Hit-testing and pointer input
 - [ ] Buttons and toggles
 - [ ] Labels and text measurement
+  * All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
