@@ -22,7 +22,7 @@ use framewise::{
         meter::meter,
         progress_bar::progress_bar,
         radio::radio,
-        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
+        scroll_area::{ScrollState, ScrollbarVisibility},
         segmented::segmented,
         select::select,
         slider::{Orientation as SliderOrientation, SliderState},
@@ -71,6 +71,7 @@ pub struct SpecPageState {
     pub scroll_vert: ScrollState,
     pub scroll_horiz: ScrollState,
     pub scroll_both: ScrollState,
+    pub scroll_both_axes: ScrollState,
 
     // 12 In Use
     pub iu_fps_slider: SliderState,
@@ -117,6 +118,7 @@ impl Default for SpecPageState {
             scroll_vert: ScrollState::default(),
             scroll_horiz: ScrollState::default(),
             scroll_both: ScrollState::default(),
+            scroll_both_axes: ScrollState::default(),
             iu_fps_slider: SliderState::default(),
             iu_fps_val: 60.0,
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
@@ -1257,18 +1259,15 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let (pre, scope, cb, _) = begin_scroll_area(
+                    let mut sa = b.scroll_area(
                         b1,
                         b1_content,
                         ScrollbarVisibility::None,
                         ScrollbarVisibility::Always,
                         &mut state.scroll_vert,
+                        ManualLayout,
                         input,
-                        b.focus_sys,
-                        None,
-                        time,
                     );
-                    b.append_cmds(pre);
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
                         "  ctx.window(\"Inspector\", |w| {",
@@ -1283,18 +1282,17 @@ pub fn draw_spec_page(
                         "  });",
                         "}",
                     ];
-                    let oy = cb.y - state.scroll_vert.offset.y;
                     for (i, line) in code_lines.iter().enumerate() {
-                        b.label_styled(
-                            Rect::new(cb.x + 6.0, oy + i as f32 * 18.0 + 6.0, cb.w - 8.0, 14.0),
+                        sa.label_styled(
+                            Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0),
                             line,
                             t.text_sm,
                             t.muted,
                             false,
                         );
                     }
-                    let post = scope.finish(b.focus_sys);
-                    b.append_cmds(post);
+                    let sa_cmds = sa.finish();
+                    b.append_cmds(sa_cmds);
                 }
                 b.label_styled(
                     Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h),
@@ -1316,30 +1314,26 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let (pre, scope, cb, _) = begin_scroll_area(
+                    let mut sa = b.scroll_area(
                         b2,
                         b2_content,
                         ScrollbarVisibility::None,
                         ScrollbarVisibility::Always,
                         &mut state.scroll_horiz,
+                        ManualLayout,
                         input,
-                        b.focus_sys,
-                        None,
-                        time,
                     );
-                    b.append_cmds(pre);
-                    let oy = cb.y - state.scroll_horiz.offset.y;
-                    for i in 0..15usize {
-                        b.label_styled(
-                            Rect::new(cb.x + 6.0, oy + i as f32 * 18.0 + 6.0, cb.w - 8.0, 14.0),
+                    for i in 0..15 {
+                        sa.label_styled(
+                            Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0),
                             &format!("// entry {:02}/24 — frame state", i + 1),
                             t.text_sm,
                             t.muted,
                             false,
                         );
                     }
-                    let post = scope.finish(b.focus_sys);
-                    b.append_cmds(post);
+                    let sa_cmds = sa.finish();
+                    b.append_cmds(sa_cmds);
                 }
                 b.label_styled(
                     Rect::new(b2.x, y + b2.h + 4.0, b2.w, cap_h),
@@ -1361,26 +1355,24 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let (pre, scope, cb, _) = begin_scroll_area(
+                    let mut sa = b.scroll_area(
                         b3,
                         b3_content,
                         ScrollbarVisibility::Always,
                         ScrollbarVisibility::None,
                         &mut state.scroll_both,
+                        ManualLayout,
                         input,
-                        b.focus_sys,
-                        None,
-                        time,
                     );
-                    b.append_cmds(pre);
-                    let ox = cb.x - state.scroll_both.offset.x;
-                    b.label_styled(
-                Rect::new(ox + 6.0, cb.y + 6.0, 680.0, 14.0),
-                "frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )",
-                t.text_sm, t.muted, false,
-            );
-                    let post = scope.finish(b.focus_sys);
-                    b.append_cmds(post);
+                    sa.label_styled(
+                        Rect::new(6.0, 6.0, 680.0, 14.0),
+                        "frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )",
+                        t.text_sm,
+                        t.muted,
+                        false,
+                    );
+                    let sa_cmds = sa.finish();
+                    b.append_cmds(sa_cmds);
                 }
                 b.label_styled(
                     Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h),
@@ -1390,7 +1382,53 @@ pub fn draw_spec_page(
                     false,
                 );
 
-                y += 130.0 + cap_h + 8.0;
+                // Box 4: both axes
+                let b4_x = b3_x + b3.w + box_gap;
+                let b4 = Rect::new(b4_x, y, 220.0, 130.0);
+                let b4_content = Vec2::new(320.0, 240.0);
+                b.custom(b4, |rect| {
+                    vec![DrawCmd::StrokeRect {
+                        rect,
+                        color: t.line,
+                        width: 1.0,
+                    }]
+                });
+                {
+                    let mut sa = b.scroll_area(
+                        b4,
+                        b4_content,
+                        ScrollbarVisibility::Always,
+                        ScrollbarVisibility::Always,
+                        &mut state.scroll_both_axes,
+                        ManualLayout,
+                        input,
+                    );
+                    sa.label_styled(
+                        Rect::new(12.0, 10.0, 280.0, 14.0),
+                        "scroll surface with",
+                        t.text_sm,
+                        t.muted,
+                        false,
+                    );
+                    sa.label_styled(
+                        Rect::new(12.0, 28.0, 280.0, 14.0),
+                        "both bars + corner",
+                        t.text_sm,
+                        t.muted,
+                        false,
+                    );
+                    let sa_cmds = sa.finish();
+                    b.append_cmds(sa_cmds);
+                }
+                b.label_styled(
+                    Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h),
+                    "both axes",
+                    t.text_sm,
+                    t.muted,
+                    false,
+                );
+
+                y += 140.0 + cap_h + 8.0;
             }
             y += SEC_GAP;
 
