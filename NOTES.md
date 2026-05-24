@@ -2,6 +2,8 @@
 
 Working notes, TODOs, open questions, and half-baked ideas.
 
+Tests that check visual draw cmds from widgets don't actually check the params of the DrawCmds, just the type. THis means geometry could shift without us knowing!
+
 ---
 
 ## Things Still to Figure Out

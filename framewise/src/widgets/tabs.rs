@@ -107,10 +107,20 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
             handle: layout.handle,
         });
 
-        // Active underbar: 3px rust rect sitting on the bottom border.
+        // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
         if is_active {
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
+                color: s.accent,
+            });
+            // Left uptick (3px wide, 9px tall)
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
+                color: s.accent,
+            });
+            // Right uptick (3px wide, 9px tall)
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
                 color: s.accent,
             });
         }
@@ -230,18 +240,22 @@ mod tests {
         // Iter 0 (Active):
         // 1: text (ink color)
         // 2: underbar (rust)
+        // 3: left uptick (rust)
+        // 4: right uptick (rust)
         // Iter 1 (Inactive):
-        // 3: text (muted color)
-        assert_eq!(cmds.len(), 4);
+        // 5: text (muted color)
+        assert_eq!(cmds.len(), 6);
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // bottom border
 
         // Item 0
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text)); // active text
         assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == style.accent)); // active underbar
+        assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == style.accent)); // left uptick
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.accent)); // right uptick
 
         // Item 1
-        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == style.inactive_text));
+        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == style.inactive_text));
         // inactive text
     }
 
@@ -270,7 +284,9 @@ mod tests {
         // 2: focus ring (rust stroke)
         // 3: text (ink color)
         // 4: underbar (rust)
-        assert_eq!(cmds.len(), 5);
+        // 5: left uptick (rust)
+        // 6: right uptick (rust)
+        assert_eq!(cmds.len(), 7);
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // bottom border
 
@@ -282,8 +298,9 @@ mod tests {
             matches!(&cmds[2], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
         ); // focus ring
         assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == style.text)); // active text
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.accent));
-        // active underbar
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.accent)); // active underbar
+        assert!(matches!(&cmds[5], DrawCmd::FillRect { color, .. } if *color == style.accent)); // left uptick
+        assert!(matches!(&cmds[6], DrawCmd::FillRect { color, .. } if *color == style.accent)); // right uptick
     }
 }
 
