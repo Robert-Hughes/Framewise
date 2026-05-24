@@ -1,5 +1,5 @@
 use crate::text::TextHandle;
-use crate::types::{Color, Rect};
+use crate::types::{Color, Rect, Vec2};
 
 /// A single drawing instruction produced by a widget.
 ///
@@ -13,6 +13,15 @@ pub enum DrawCmd {
 
     /// Draw the outline of a rectangle.
     StrokeRect { rect: Rect, color: Color, width: f32 },
+
+    /// Draw a straight line segment.
+    StrokeLine { p0: Vec2, p1: Vec2, color: Color, width: f32 },
+
+    /// Fill a circle with a solid colour.
+    FillCircle { center: Vec2, radius: f32, color: Color },
+
+    /// Draw the outline of a circle.
+    StrokeCircle { center: Vec2, radius: f32, color: Color, width: f32 },
 
     /// Draw a piece of prepared text.
     Text {

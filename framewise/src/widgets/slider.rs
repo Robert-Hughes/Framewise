@@ -2,28 +2,63 @@ use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
+    theme::Theme,
     types::{Color, Rect, Vec2},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SliderStyle {
-    pub track_color: Color,
-    pub thumb_color: Color,
-    pub thumb_hover_color: Color,
-    pub thumb_drag_color: Color,
+    pub track_color:        Color,
+    pub thumb_color:        Color,  // fill when idle
+    pub thumb_border_color: Color,  // border when idle/hover
+    pub thumb_border_width: f32,
+    pub thumb_hover_color:  Color,  // fill on hover (standalone only)
+    pub thumb_drag_color:   Color,  // fill + border when dragging
     pub focus_outline_color: Color,
-    pub thickness: f32, // Width (for vertical) or height (for horizontal) of track
+    /// Track line thickness for standalone sliders; ignored in scrollbar mode.
+    pub thickness: f32,
+    /// Square thumb side length for standalone sliders.
+    pub thumb_size: f32,
+    /// When true, renders as a scrollbar (filled track bg, proportional thumb
+    /// that fills the cross-section). When false, renders as a standalone
+    /// slider (hairline track, fill bar, square thumb with border).
+    pub scrollbar_mode: bool,
 }
 
 impl Default for SliderStyle {
+    /// Standalone slider: hairline track, 12×12 square thumb, ink/rust palette.
     fn default() -> Self {
+        let t = Theme::framewise();
         Self {
-            track_color: Color::rgb(0.15, 0.15, 0.18),
-            thumb_color: Color::rgb(0.4, 0.4, 0.45),
-            thumb_hover_color: Color::rgb(0.5, 0.5, 0.55),
-            thumb_drag_color: Color::rgb(0.6, 0.6, 0.65),
-            focus_outline_color: Color::rgb(0.2, 0.5, 0.9),
-            thickness: 12.0,
+            track_color:         t.ink,
+            thumb_color:         t.paper_elev,
+            thumb_border_color:  t.ink,
+            thumb_border_width:  1.5,
+            thumb_hover_color:   t.paper_elev,
+            thumb_drag_color:    t.rust,
+            focus_outline_color: t.rust,
+            thickness:           1.5,
+            thumb_size:          12.0,
+            scrollbar_mode:      false,
+        }
+    }
+}
+
+impl SliderStyle {
+    /// Scrollbar variant: faint filled track, ink thumb that fills the cross-section.
+    pub fn scrollbar() -> Self {
+        let t = Theme::framewise();
+        Self {
+            track_color:         Color::new(t.ink.r, t.ink.g, t.ink.b, 0.04),
+            thumb_color:         t.ink,
+            thumb_border_color:  Color::TRANSPARENT,
+            thumb_border_width:  0.0,
+            thumb_hover_color:   t.rust,
+            thumb_drag_color:    t.rust,
+            focus_outline_color: t.rust,
+            thickness:           1.5,
+            thumb_size:          12.0,
+            scrollbar_mode:      true,
         }
     }
 }
@@ -107,9 +142,9 @@ pub fn slider(
     
     // Use proportional thumb size, or fallback to fixed size
     let thumb_len = if let Some(ratio) = spec.thumb_size_ratio {
-        (track_len * ratio.clamp(0.0, 1.0)).max(20.0)
+        (track_len * ratio.clamp(0.0, 1.0)).max(24.0)
     } else {
-        spec.style.thickness.max(20.0)
+        spec.style.thumb_size
     };
     
     // Usable track length for the thumb's top/left edge
@@ -123,12 +158,28 @@ pub fn slider(
     
     let thumb_pos = (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
     let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
-    let cross_size = (track_cross_size - 4.0).max(1.0);
-    
-    let thumb_rect = if is_vert {
-        Rect::new(track_rect.x + 2.0, thumb_pos, cross_size, thumb_len)
+
+    // Thumb hit rect — centered on the track axis.
+    let thumb_rect = if spec.style.scrollbar_mode {
+        let margin = 1.0;
+        let cross = (track_cross_size - margin * 2.0).max(1.0);
+        if is_vert {
+            Rect::new(track_rect.x + margin, thumb_pos, cross, thumb_len)
+        } else {
+            Rect::new(thumb_pos, track_rect.y + margin, thumb_len, cross)
+        }
     } else {
-        Rect::new(thumb_pos, track_rect.y + 2.0, thumb_len, cross_size)
+        let half = spec.style.thumb_size * 0.5;
+        let center = if is_vert {
+            track_rect.x + track_rect.w * 0.5
+        } else {
+            track_rect.y + track_rect.h * 0.5
+        };
+        if is_vert {
+            Rect::new(center - half, thumb_pos, spec.style.thumb_size, spec.style.thumb_size)
+        } else {
+            Rect::new(thumb_pos, center - half, spec.style.thumb_size, spec.style.thumb_size)
+        }
     };
     
     // Helper to get main coordinate
@@ -346,35 +397,91 @@ pub fn slider(
     }
     
     // 3. Drawing
-    // Focus Outline
+
+    // Focus outline.
     if focused {
         cmds.push(DrawCmd::StrokeRect {
-            rect: track_rect.inset(-2.0),
+            rect:  track_rect.inset(-2.0),
             color: spec.style.focus_outline_color,
             width: 2.0,
         });
     }
 
-    // Track
-    cmds.push(DrawCmd::FillRect {
-        rect: track_rect,
-        color: spec.style.track_color,
-    });
-    
-    // Thumb
-    let mut thumb_color = spec.style.thumb_color;
-    if state.is_dragging {
-        thumb_color = spec.style.thumb_drag_color;
-    } else if thumb_rect.contains(input.mouse_pos) && is_visible {
-        thumb_color = spec.style.thumb_hover_color;
+    let thumb_is_hovered = thumb_rect.contains(input.mouse_pos) && is_visible;
+    let effective_thumb_fill = if state.is_dragging {
+        spec.style.thumb_drag_color
+    } else if thumb_is_hovered {
+        spec.style.thumb_hover_color
+    } else {
+        spec.style.thumb_color
+    };
+    let effective_thumb_border = if state.is_dragging {
+        spec.style.thumb_drag_color
+    } else {
+        spec.style.thumb_border_color
+    };
+
+    if spec.style.scrollbar_mode {
+        // Scrollbar: filled track background, ink/rust thumb spanning cross-section.
+        cmds.push(DrawCmd::FillRect {
+            rect:  track_rect,
+            color: spec.style.track_color,
+        });
+        cmds.push(DrawCmd::FillRect {
+            rect:  thumb_rect,
+            color: effective_thumb_fill,
+        });
+    } else {
+        // Standalone slider: hairline track, fill bar, square thumb with border.
+        let half_thick = spec.style.thickness * 0.5;
+        let fill_len = thumb_pos - (if is_vert { track_rect.y } else { track_rect.x })
+            + spec.style.thumb_size * 0.5;
+
+        let (track_line, fill_bar) = if is_vert {
+            let cx = track_rect.x + track_rect.w * 0.5;
+            (
+                Rect::new(cx - half_thick, track_rect.y, spec.style.thickness, track_rect.h),
+                Rect::new(cx - half_thick, track_rect.y, spec.style.thickness, fill_len.max(0.0)),
+            )
+        } else {
+            let cy = track_rect.y + track_rect.h * 0.5;
+            (
+                Rect::new(track_rect.x, cy - half_thick, track_rect.w, spec.style.thickness),
+                Rect::new(track_rect.x, cy - half_thick, fill_len.max(0.0), spec.style.thickness),
+            )
+        };
+
+        // Full track (ink).
+        cmds.push(DrawCmd::FillRect {
+            rect:  track_line,
+            color: spec.style.track_color,
+        });
+
+        // Fill bar (rust when dragging, same as track otherwise — overlays track).
+        let fill_color = if state.is_dragging {
+            spec.style.thumb_drag_color
+        } else {
+            spec.style.track_color
+        };
+        cmds.push(DrawCmd::FillRect {
+            rect:  fill_bar,
+            color: fill_color,
+        });
+
+        // Square thumb.
+        cmds.push(DrawCmd::FillRect {
+            rect:  thumb_rect,
+            color: effective_thumb_fill,
+        });
+        if spec.style.thumb_border_width > 0.0 {
+            cmds.push(DrawCmd::StrokeRect {
+                rect:  thumb_rect,
+                color: effective_thumb_border,
+                width: spec.style.thumb_border_width,
+            });
+        }
     }
-    
-    cmds.push(DrawCmd::FillRect {
-        rect: thumb_rect,
-        color: thumb_color,
-    });
-    
-    
+
     cmds
 }
 
@@ -447,8 +554,8 @@ mod tests {
             max: 100.0, // range 100
             page_step: 20.0,
             step: 5.0,
-            thumb_size_ratio: None, // Will use style.width (12.0) but maxed to 20.0 for thumb_h
-            style: SliderStyle::default(),
+            thumb_size_ratio: None,
+            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
@@ -681,7 +788,7 @@ mod tests {
             page_step: 20.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: SliderStyle::default(),
+            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
@@ -732,7 +839,7 @@ mod tests {
             page_step: 60.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: SliderStyle::default(),
+            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };

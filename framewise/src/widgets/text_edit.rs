@@ -3,6 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     text::TextSystem,
+    theme::Theme,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
 };
@@ -24,16 +25,17 @@ pub struct TextEditStyle {
 
 impl Default for TextEditStyle {
     fn default() -> Self {
+        let t = Theme::framewise();
         Self {
-            background:   Color::rgb(0.08, 0.08, 0.1),
-            border:       Color::rgb(0.3, 0.3, 0.38),
-            focus_border: Color::rgb(0.4, 0.6, 0.9),
-            border_width: 1.0,
+            background:   t.paper_elev,
+            border:       t.ink,
+            focus_border: t.rust,
+            border_width: t.border,
             padding:      4.0,
-            text_size:    14.0,
-            text_color:   Color::rgb(0.9, 0.9, 0.95),
-            caret_color:  Color::rgb(1.0, 1.0, 1.0),
-            select_color: Color::rgb(0.2, 0.4, 0.7),
+            text_size:    t.text_mono,
+            text_color:   t.ink,
+            caret_color:  t.rust,
+            select_color: t.rust_soft,
         }
     }
 }

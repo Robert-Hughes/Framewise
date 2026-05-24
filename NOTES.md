@@ -29,6 +29,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   glyph atlas cache miss, that might be awkward to figure out in profiling. Will see how
   this plays out in practice.
 
+- **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
+
 ---
 
 ## Feature Checklist
@@ -36,17 +38,18 @@ Working notes, TODOs, open questions, and half-baked ideas.
 Features to design and implement, roughly in dependency order:
 
 - [ ] `LayoutInfo`, `InputInfo`, `ValueInfo<T>`
-- [ ] `WidgetResult` trait and `Builder::emit`
+- [ ] `WidgetResult` trait
 - [ ] Hit-testing and pointer input
 - [ ] Buttons and toggles
 - [ ] Labels and text measurement
-- [x] Input focus model
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)
 - [ ] Grid and table layouts
 - [ ] Clipping and layering
-- [ ] Popups, menus, tooltips
+- [ ] Popups, menus (window level and context menu), tooltips
+- [ ] Combo boxes
+- List selects (w/ multi-select)
 - [ ] Drag and drop
 - [ ] Accessibility and tab order
 - [ ] IME support

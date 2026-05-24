@@ -226,7 +226,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             page_step: content_bounds.h,
             step: 40.0,
             thumb_size_ratio: Some(view_ratio),
-            style: crate::widgets::slider::SliderStyle::default(),
+            style: crate::widgets::slider::SliderStyle::scrollbar(),
             clip_rect,
             claim_scroll_at_ends: false,
         };
@@ -254,7 +254,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
             page_step: content_bounds.w,
             step: 40.0,
             thumb_size_ratio: Some(view_ratio),
-            style: crate::widgets::slider::SliderStyle::default(),
+            style: crate::widgets::slider::SliderStyle::scrollbar(),
             clip_rect,
             claim_scroll_at_ends: false,
         };

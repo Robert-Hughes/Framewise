@@ -264,6 +264,15 @@ impl Renderer {
                 DrawCmd::StrokeRect { rect, color, width } => {
                     push_stroked_rect(&mut quad_verts, *rect, *color, *width, window_size);
                 }
+                DrawCmd::StrokeLine { p0, p1, color, width } => {
+                    push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, window_size);
+                }
+                DrawCmd::FillCircle { center, radius, color } => {
+                    push_filled_circle(&mut quad_verts, *center, *radius, *color, window_size);
+                }
+                DrawCmd::StrokeCircle { center, radius, color, width } => {
+                    push_stroked_circle(&mut quad_verts, *center, *radius, *color, *width, window_size);
+                }
                 DrawCmd::Text { rect, color, handle } => {
                     if let Some(run) = text_system.runs.get(handle.0) {
                         push_text_run(&mut text_verts, *rect, *color, run, text_system, window_size);
@@ -336,7 +345,8 @@ impl Renderer {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load:  wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.08, g: 0.08, b: 0.10, a: 1.0,
+                        // paper: #f4f1ea
+                        r: 244.0 / 255.0, g: 241.0 / 255.0, b: 234.0 / 255.0, a: 1.0,
                     }),
                     store: wgpu::StoreOp::Store,
                 },
@@ -448,6 +458,88 @@ fn push_stroked_rect(
     ];
     for s in &strips {
         push_filled_rect(verts, *s, color, win_size);
+    }
+}
+
+/// Push two triangles for a line segment of a given width (screen-aligned cap).
+fn push_stroke_line(
+    verts:    &mut Vec<Vertex>,
+    p0:       framewise::Vec2,
+    p1:       framewise::Vec2,
+    color:    Color,
+    width:    f32,
+    win_size: (u32, u32),
+) {
+    let dx = p1.x - p0.x;
+    let dy = p1.y - p0.y;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 0.001 { return; }
+    let hw = width * 0.5;
+    let nx = (-dy / len) * hw;
+    let ny = (dx  / len) * hw;
+
+    let a = to_clip(p0.x + nx, p0.y + ny, win_size.0, win_size.1);
+    let b = to_clip(p0.x - nx, p0.y - ny, win_size.0, win_size.1);
+    let c2 = to_clip(p1.x - nx, p1.y - ny, win_size.0, win_size.1);
+    let d = to_clip(p1.x + nx, p1.y + ny, win_size.0, win_size.1);
+    let c = color_arr(color);
+
+    verts.push(Vertex { pos: a,  color: c });
+    verts.push(Vertex { pos: b,  color: c });
+    verts.push(Vertex { pos: c2, color: c });
+    verts.push(Vertex { pos: a,  color: c });
+    verts.push(Vertex { pos: c2, color: c });
+    verts.push(Vertex { pos: d,  color: c });
+}
+
+const CIRCLE_SEGS: usize = 32;
+
+/// Push a triangle fan for a filled circle.
+fn push_filled_circle(
+    verts:    &mut Vec<Vertex>,
+    center:   framewise::Vec2,
+    radius:   f32,
+    color:    Color,
+    win_size: (u32, u32),
+) {
+    let c  = color_arr(color);
+    let cx = to_clip(center.x, center.y, win_size.0, win_size.1);
+    for i in 0..CIRCLE_SEGS {
+        let a0 = (i as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
+        let a1 = ((i + 1) as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
+        let p0 = to_clip(center.x + a0.cos() * radius, center.y + a0.sin() * radius, win_size.0, win_size.1);
+        let p1 = to_clip(center.x + a1.cos() * radius, center.y + a1.sin() * radius, win_size.0, win_size.1);
+        verts.push(Vertex { pos: cx, color: c });
+        verts.push(Vertex { pos: p0, color: c });
+        verts.push(Vertex { pos: p1, color: c });
+    }
+}
+
+/// Push a ring of quads for a stroked circle.
+fn push_stroked_circle(
+    verts:    &mut Vec<Vertex>,
+    center:   framewise::Vec2,
+    radius:   f32,
+    color:    Color,
+    width:    f32,
+    win_size: (u32, u32),
+) {
+    let c      = color_arr(color);
+    let r_in   = (radius - width * 0.5).max(0.0);
+    let r_out  = radius + width * 0.5;
+    for i in 0..CIRCLE_SEGS {
+        let a0 = (i as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
+        let a1 = ((i + 1) as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
+        let i0 = to_clip(center.x + a0.cos() * r_in,  center.y + a0.sin() * r_in,  win_size.0, win_size.1);
+        let i1 = to_clip(center.x + a1.cos() * r_in,  center.y + a1.sin() * r_in,  win_size.0, win_size.1);
+        let o0 = to_clip(center.x + a0.cos() * r_out, center.y + a0.sin() * r_out, win_size.0, win_size.1);
+        let o1 = to_clip(center.x + a1.cos() * r_out, center.y + a1.sin() * r_out, win_size.0, win_size.1);
+        verts.push(Vertex { pos: i0, color: c });
+        verts.push(Vertex { pos: o0, color: c });
+        verts.push(Vertex { pos: o1, color: c });
+        verts.push(Vertex { pos: i0, color: c });
+        verts.push(Vertex { pos: o1, color: c });
+        verts.push(Vertex { pos: i1, color: c });
     }
 }
 

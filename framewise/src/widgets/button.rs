@@ -2,6 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     input::Input,
     text::TextSystem,
+    theme::Theme,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetResult},
 };
@@ -22,16 +23,65 @@ pub struct ButtonStyle {
 }
 
 impl Default for ButtonStyle {
+    /// Secondary button: transparent background, ink border.
     fn default() -> Self {
+        let t = Theme::framewise();
         Self {
-            background:   Color::rgb(0.25, 0.25, 0.30),
-            hovered:      Color::rgb(0.35, 0.35, 0.42),
-            pressed:      Color::rgb(0.18, 0.18, 0.22),
-            border:       Color::rgb(0.50, 0.50, 0.58),
-            border_width: 1.5,
-            focus_border: Color::rgb(0.60, 0.80, 1.00),
-            text_size:    16.0,
-            text_color:   Color::rgb(0.90, 0.90, 0.95),
+            background:   Color::TRANSPARENT,
+            hovered:      t.hover,
+            pressed:      t.press,
+            border:       t.ink,
+            border_width: t.border,
+            focus_border: t.rust,
+            text_size:    t.text_md,
+            text_color:   t.ink,
+        }
+    }
+}
+
+impl ButtonStyle {
+    /// Primary: ink fill, paper text.
+    pub fn primary() -> Self {
+        let t = Theme::framewise();
+        Self {
+            background:   t.ink,
+            hovered:      Color::rgb(0.0, 0.0, 0.0),
+            pressed:      Color::from_u8(42, 37, 32, 255),
+            border:       t.ink,
+            border_width: t.border,
+            focus_border: t.rust,
+            text_size:    t.text_md,
+            text_color:   t.paper,
+        }
+    }
+
+    /// Accent: rust fill, white text.
+    pub fn accent() -> Self {
+        let t = Theme::framewise();
+        Self {
+            background:   t.rust,
+            hovered:      Color::from_u8(176, 79, 35, 255),
+            pressed:      Color::from_u8(156, 69, 32, 255),
+            border:       t.rust,
+            border_width: t.border,
+            focus_border: t.rust,
+            text_size:    t.text_md,
+            text_color:   Color::WHITE,
+        }
+    }
+
+    /// Ghost: no border, transparent background.
+    pub fn ghost() -> Self {
+        let t = Theme::framewise();
+        Self {
+            background:   Color::TRANSPARENT,
+            hovered:      t.hover,
+            pressed:      t.press,
+            border:       Color::TRANSPARENT,
+            border_width: 0.0,
+            focus_border: t.rust,
+            text_size:    t.text_md,
+            text_color:   t.ink,
         }
     }
 }
@@ -174,40 +224,19 @@ pub fn button<T: crate::text::TextSystem>(
 
     let mut draw = DrawCommands::new();
 
-    // Background fill (outer frame).
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: fill });
-
-    // Calculate press offset
-    let offset = if pressed { 2.0 } else { 0.0 };
-
-    // Inner frame
-    // We add a bit of padding inside the border for the inner frame.
-    let inner_padding = spec.style.border_width + 2.0;
-    let inner_rect = spec.rect.inset(inner_padding);
-    let inner_shifted = Rect::new(
-        inner_rect.x + offset,
-        inner_rect.y + offset,
-        inner_rect.w,
-        inner_rect.h,
-    );
-
-    // Lighten the inner frame slightly to give a 3D bevel effect
-    let inner_color = Color::rgb(
-        (fill.r + 0.04).min(1.0),
-        (fill.g + 0.04).min(1.0),
-        (fill.b + 0.05).min(1.0),
-    );
-    draw.push(DrawCmd::FillRect { rect: inner_shifted, color: inner_color });
-
-    // Border.
+    // Focus ring drawn first (outset — sits outside the button bounds).
     if focused {
         draw.push(DrawCmd::StrokeRect {
-            rect:  spec.rect.inset(-2.0),
+            rect:  spec.rect.inset(-(spec.style.border_width + 2.0)),
             color: spec.style.focus_border,
             width: 2.0,
         });
     }
 
+    // Background fill.
+    draw.push(DrawCmd::FillRect { rect: spec.rect, color: fill });
+
+    // Border.
     if spec.style.border_width > 0.0 {
         draw.push(DrawCmd::StrokeRect {
             rect:  spec.rect,
@@ -216,10 +245,10 @@ pub fn button<T: crate::text::TextSystem>(
         });
     }
 
-    // Text centered in the button, shifted by the press offset.
+    // Text centered.
     let text_layout = text_system.prepare(&spec.text, spec.style.text_size);
-    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5 + offset;
-    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5 + offset;
+    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
+    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
 
     draw.push(DrawCmd::Text {
         rect:  Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),

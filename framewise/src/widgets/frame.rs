@@ -1,5 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    theme::Theme,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
 };
@@ -18,10 +19,11 @@ pub struct FrameStyle {
 
 impl Default for FrameStyle {
     fn default() -> Self {
+        let t = Theme::framewise();
         Self {
-            background:   Color::rgb(0.12, 0.12, 0.15),
-            border:       Color::rgb(0.30, 0.30, 0.38),
-            border_width: 1.0,
+            background:   t.paper_elev,
+            border:       t.ink,
+            border_width: t.border,
             padding:      4.0,
         }
     }

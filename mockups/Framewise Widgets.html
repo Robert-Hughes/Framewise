@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Framewise — widget specification</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="widgets.css" />
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="hero__mark">
+      <svg viewBox="0 0 200 200" width="96" height="96">
+        <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square"/>
+        <path d="M 78 40 H 140" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square"/>
+        <path d="M 78 96 H 120" fill="none" stroke="#c25a2c" stroke-width="10" stroke-linecap="square"/>
+        <path d="M 78 40 V 160" fill="none" stroke="#15130f" stroke-width="10" stroke-linecap="square"/>
+      </svg>
+    </div>
+    <div class="hero__title">
+      <div class="overline">framewise · widget specification · v0.1</div>
+      <h1>A widget set that explains&nbsp;itself.</h1>
+      <p>Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.</p>
+      <div class="hero__meta">
+        <span><strong>ink</strong> &nbsp;#15130f</span>
+        <span><strong>paper</strong> &nbsp;#f4f1ea</span>
+        <span><strong>rust</strong> &nbsp;#c25a2c</span>
+        <span><strong>type</strong> &nbsp;Inter Tight · JetBrains Mono</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 01 BUTTONS ============ -->
+  <section class="section" data-screen-label="01 Buttons">
+    <div class="section__head">
+      <span class="section__no">01</span>
+      <h2 class="section__title">Buttons</h2>
+      <p class="section__desc">primary fills with ink, accent with rust, ghost stays transparent until hovered. focus = 2px rust ring, outset.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">variants</div>
+      <div class="row">
+        <button class="fw-btn fw-btn--primary">Apply changes</button>
+        <button class="fw-btn">Cancel</button>
+        <button class="fw-btn fw-btn--ghost">Reset</button>
+        <button class="fw-btn fw-btn--accent">Publish v0.2</button>
+        <button class="fw-btn fw-btn--icon" aria-label="settings">
+          <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="1.6" fill="#15130f"/><circle cx="6" cy="6" r="4.5" fill="none" stroke="#15130f" stroke-width="1.2"/></svg>
+        </button>
+        <button class="fw-btn fw-btn--icon" aria-label="close">
+          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1 L9 9 M9 1 L1 9" stroke="#15130f" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">states · default button</div>
+      <div class="matrix">
+        <span></span>
+        <span class="matrix__h">default</span>
+        <span class="matrix__h">hover</span>
+        <span class="matrix__h">pressed</span>
+        <span class="matrix__h">focused</span>
+        <span class="matrix__h">disabled</span>
+
+        <span class="matrix__rowlabel">secondary</span>
+        <button class="fw-btn">Action</button>
+        <button class="fw-btn" style="background:var(--hover);">Action</button>
+        <button class="fw-btn is-pressed">Action</button>
+        <button class="fw-btn is-focused">Action</button>
+        <button class="fw-btn is-disabled">Action</button>
+
+        <span class="matrix__rowlabel">primary</span>
+        <button class="fw-btn fw-btn--primary">Action</button>
+        <button class="fw-btn fw-btn--primary" style="background:#000;">Action</button>
+        <button class="fw-btn fw-btn--primary is-pressed" style="background:#2a2520;">Action</button>
+        <button class="fw-btn fw-btn--primary is-focused">Action</button>
+        <button class="fw-btn fw-btn--primary is-disabled">Action</button>
+
+        <span class="matrix__rowlabel">accent</span>
+        <button class="fw-btn fw-btn--accent">Action</button>
+        <button class="fw-btn fw-btn--accent" style="background:#b04f23;border-color:#b04f23;">Action</button>
+        <button class="fw-btn fw-btn--accent" style="background:#9c4520;border-color:#9c4520;">Action</button>
+        <button class="fw-btn fw-btn--accent is-focused">Action</button>
+        <button class="fw-btn fw-btn--accent is-disabled">Action</button>
+
+        <span class="matrix__rowlabel">ghost</span>
+        <button class="fw-btn fw-btn--ghost">Action</button>
+        <button class="fw-btn fw-btn--ghost" style="background:var(--hover);">Action</button>
+        <button class="fw-btn fw-btn--ghost" style="background:var(--press);">Action</button>
+        <button class="fw-btn fw-btn--ghost is-focused">Action</button>
+        <button class="fw-btn fw-btn--ghost is-disabled">Action</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">sizes &nbsp;·&nbsp; groups</div>
+      <div class="row">
+        <button class="fw-btn fw-btn--sm">22 px</button>
+        <button class="fw-btn">28 px</button>
+        <button class="fw-btn fw-btn--lg">36 px</button>
+        <span style="width:24px"></span>
+        <div class="fw-btngroup">
+          <button class="fw-btn">←</button>
+          <button class="fw-btn">Frame 248</button>
+          <button class="fw-btn">→</button>
+        </div>
+        <div class="fw-btngroup">
+          <button class="fw-btn">Build</button>
+          <button class="fw-btn">Run</button>
+          <button class="fw-btn fw-btn--primary">Ship</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 TEXT INPUTS ============ -->
+  <section class="section" data-screen-label="02 Inputs">
+    <div class="section__head">
+      <span class="section__no">02</span>
+      <h2 class="section__title">Text inputs</h2>
+      <p class="section__desc">mono caret in rust signals the live insertion point. focus ring sits inside the border so widgets don't shift.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">states · single-line</div>
+      <div class="matrix">
+        <span></span>
+        <span class="matrix__h">default</span>
+        <span class="matrix__h">hover</span>
+        <span class="matrix__h">focused</span>
+        <span class="matrix__h">error</span>
+        <span class="matrix__h">disabled</span>
+
+        <span class="matrix__rowlabel">empty</span>
+        <input class="fw-input" placeholder="frame_buffer" />
+        <input class="fw-input" placeholder="frame_buffer" style="background:#fff" />
+        <span class="fw-input is-focused"><span class="fw-caret"></span></span>
+        <input class="fw-input is-error" value="invalid char: §" />
+        <input class="fw-input is-disabled" placeholder="frame_buffer" />
+
+        <span class="matrix__rowlabel">filled</span>
+        <input class="fw-input" value="render_pass" />
+        <input class="fw-input" value="render_pass" style="background:#fff" />
+        <span class="fw-input is-focused">render_pas<span class="fw-caret"></span></span>
+        <input class="fw-input is-error" value="render pass" />
+        <input class="fw-input is-disabled" value="render_pass" />
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">labelled &nbsp;·&nbsp; prefixed &nbsp;·&nbsp; multiline</div>
+      <div class="row" style="align-items: flex-start; gap: 28px;">
+
+        <div class="fw-field">
+          <span class="fw-field__label">crate name</span>
+          <input class="fw-input" value="framewise" />
+          <span class="fw-help">a–z, 0–9, hyphen; max 64</span>
+        </div>
+
+        <div class="fw-field">
+          <span class="fw-field__label">version</span>
+          <span class="fw-input--prefix">
+            <span class="fw-input--prefix__addon">v</span>
+            <input class="fw-input" value="0.1.0" />
+          </span>
+          <span class="fw-help fw-help--err">semver mismatch — bump minor</span>
+        </div>
+
+        <div class="fw-field">
+          <span class="fw-field__label">description</span>
+          <textarea class="fw-input fw-input--multi">A small, procedural Rust library that helps an application describe and draw GUI elements for the current frame.</textarea>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 CHECK · RADIO · SWITCH ============ -->
+  <section class="section" data-screen-label="03 Toggles">
+    <div class="section__head">
+      <span class="section__no">03</span>
+      <h2 class="section__title">Checkboxes, radios &amp; switches</h2>
+      <p class="section__desc">on-state is always ink. rust appears only when keyboard focus is on the control.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">checkbox</div>
+      <div class="matrix">
+        <span></span>
+        <span class="matrix__h">off</span>
+        <span class="matrix__h">on</span>
+        <span class="matrix__h">mixed</span>
+        <span class="matrix__h">focused</span>
+        <span class="matrix__h">disabled</span>
+
+        <span class="matrix__rowlabel">box</span>
+        <span class="fw-check"></span>
+        <span class="fw-check is-checked"></span>
+        <span class="fw-check is-indeterminate"></span>
+        <span class="fw-check is-checked is-focused"></span>
+        <span class="fw-check is-checked is-disabled"></span>
+
+        <span class="matrix__rowlabel">with label</span>
+        <label class="fw-row"><span class="fw-check"></span><span class="fw-row__lbl">vsync</span></label>
+        <label class="fw-row"><span class="fw-check is-checked"></span><span class="fw-row__lbl">vsync</span></label>
+        <label class="fw-row"><span class="fw-check is-indeterminate"></span><span class="fw-row__lbl">vsync</span></label>
+        <label class="fw-row"><span class="fw-check is-checked is-focused"></span><span class="fw-row__lbl">vsync</span></label>
+        <label class="fw-row"><span class="fw-check is-checked is-disabled"></span><span class="fw-row__lbl" style="opacity:.4">vsync</span></label>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">radio &nbsp;·&nbsp; switch</div>
+      <div class="row" style="gap: 56px; align-items: flex-start;">
+
+        <div class="col">
+          <label class="fw-row"><span class="fw-radio is-selected"></span><span class="fw-row__lbl">immediate-mode</span></label>
+          <label class="fw-row"><span class="fw-radio"></span><span class="fw-row__lbl">retained-mode</span></label>
+          <label class="fw-row"><span class="fw-radio"></span><span class="fw-row__lbl">hybrid</span></label>
+          <label class="fw-row"><span class="fw-radio is-focused"></span><span class="fw-row__lbl">deferred</span></label>
+        </div>
+
+        <div class="col">
+          <label class="fw-row"><span class="fw-switch"></span><span class="fw-row__lbl">debug overlay</span></label>
+          <label class="fw-row"><span class="fw-switch is-on"></span><span class="fw-row__lbl">show layout grid</span></label>
+          <label class="fw-row"><span class="fw-switch is-on is-focused"></span><span class="fw-row__lbl">vsync</span></label>
+          <label class="fw-row"><span class="fw-switch" style="opacity:.35"></span><span class="fw-row__lbl" style="opacity:.4">multisampling</span></label>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 SLIDERS · DRAGS ============ -->
+  <section class="section" data-screen-label="04 Sliders">
+    <div class="section__head">
+      <span class="section__no">04</span>
+      <h2 class="section__title">Sliders &amp; numeric drags</h2>
+      <p class="section__desc">drag-number reads like a function parameter — label + value, scrubbable in either direction. fill bar shows magnitude.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">slider · single value</div>
+      <div class="col" style="gap:18px">
+
+        <div class="fw-slider">
+          <div class="fw-slider__track">
+            <div class="fw-slider__fill" style="width: 14%"></div>
+            <div class="fw-slider__thumb" style="left: 14%"></div>
+          </div>
+          <div class="fw-slider__val">0.14</div>
+        </div>
+
+        <div class="fw-slider">
+          <div class="fw-slider__track">
+            <div class="fw-slider__fill" style="width: 62%"></div>
+            <div class="fw-slider__thumb" style="left: 62%"></div>
+          </div>
+          <div class="fw-slider__val">0.62</div>
+        </div>
+
+        <div class="fw-slider is-dragging">
+          <div class="fw-slider__track">
+            <div class="fw-slider__fill" style="width: 88%"></div>
+            <div class="fw-slider__thumb" style="left: 88%"></div>
+          </div>
+          <div class="fw-slider__val">0.88</div>
+        </div>
+
+        <div class="fw-slider">
+          <div class="fw-slider__track">
+            <div class="fw-slider__fill" style="width: 33%"></div>
+            <div class="fw-slider__thumb" style="left: 33%"></div>
+            <div class="fw-slider__ticks">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="fw-slider__val">3 / 9</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">range slider</div>
+      <div class="fw-slider fw-slider--range">
+        <div class="fw-slider__track">
+          <div class="fw-slider__fill" style="left: 24%; width: 52%"></div>
+          <div class="fw-slider__thumb" style="left: 24%"></div>
+          <div class="fw-slider__thumb" style="left: 76%"></div>
+        </div>
+        <div class="fw-slider__val">.24–.76</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">drag-number (imgui-style)</div>
+      <div class="row" style="gap: 12px">
+        <div class="fw-drag">
+          <span class="fw-drag__label">X</span>
+          <span class="fw-drag__value"><div class="fw-drag__fill" style="width: 40%"></div><span>320.00</span></span>
+        </div>
+        <div class="fw-drag">
+          <span class="fw-drag__label">Y</span>
+          <span class="fw-drag__value"><div class="fw-drag__fill" style="width: 18%"></div><span>144.00</span></span>
+        </div>
+        <div class="fw-drag is-active">
+          <span class="fw-drag__label">W</span>
+          <span class="fw-drag__value"><div class="fw-drag__fill" style="width: 72%"></div><span>576.00</span></span>
+        </div>
+        <div class="fw-drag">
+          <span class="fw-drag__label">H</span>
+          <span class="fw-drag__value"><div class="fw-drag__fill" style="width: 50%"></div><span>400.00</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">numeric stepper · color swatch</div>
+      <div class="row" style="gap: 14px">
+        <div class="fw-input--prefix" style="min-width:140px">
+          <span class="fw-input--prefix__addon">padding</span>
+          <input class="fw-input" value="12" style="text-align:right; min-width:0; padding-right:8px"/>
+        </div>
+        <div class="fw-btngroup">
+          <button class="fw-btn fw-btn--sm" style="width:24px;padding:0;justify-content:center">−</button>
+          <button class="fw-btn fw-btn--sm" style="width:48px;padding:0;justify-content:center;font-family:var(--mono)">12</button>
+          <button class="fw-btn fw-btn--sm" style="width:24px;padding:0;justify-content:center">+</button>
+        </div>
+        <div class="fw-swatch">
+          <span class="fw-swatch__chip" style="background:#15130f"></span>
+          <span class="fw-swatch__hex">#15130f</span>
+        </div>
+        <div class="fw-swatch">
+          <span class="fw-swatch__chip" style="background:#c25a2c"></span>
+          <span class="fw-swatch__hex">#c25a2c</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 SELECT · SEG · MENU ============ -->
+  <section class="section" data-screen-label="05 Select">
+    <div class="section__head">
+      <span class="section__no">05</span>
+      <h2 class="section__title">Selection</h2>
+      <p class="section__desc">selects, segmented controls, and menus share one rule: the chosen thing is filled ink, paper text. no surprises.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">select &nbsp;·&nbsp; segmented &nbsp;·&nbsp; chips</div>
+      <div class="row" style="align-items: flex-start; gap: 28px">
+
+        <div class="col">
+          <div class="fw-select"><span class="fw-select__val">Layout: row</span><span class="fw-select__chev">▾</span></div>
+          <div class="fw-select is-open"><span class="fw-select__val">Layout: row</span><span class="fw-select__chev">▴</span></div>
+        </div>
+
+        <div class="col">
+          <div class="fw-seg">
+            <button class="is-active">row</button>
+            <button>column</button>
+            <button>grid</button>
+            <button>flex</button>
+          </div>
+          <div class="fw-seg">
+            <button>start</button>
+            <button class="is-active">center</button>
+            <button>end</button>
+          </div>
+        </div>
+
+        <div class="col" style="gap:8px">
+          <div class="row" style="gap:6px">
+            <span class="fw-chip is-active">opengl <button>×</button></span>
+            <span class="fw-chip">vulkan</span>
+            <span class="fw-chip">metal</span>
+            <span class="fw-chip">wgpu</span>
+          </div>
+          <div class="row" style="gap:6px">
+            <span class="fw-chip">+ add backend</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">dropdown menu (open)</div>
+      <div class="row" style="align-items: flex-start; gap: 32px">
+
+        <div class="fw-menu">
+          <div class="fw-menu__group">Frame</div>
+          <div class="fw-menu__item">New panel<span class="fw-menu__shortcut">⌘ N</span></div>
+          <div class="fw-menu__item is-selected">Duplicate<span class="fw-menu__shortcut">⌘ D</span></div>
+          <div class="fw-menu__item">Detach<span class="fw-menu__shortcut">⌘ ⇧ D</span></div>
+          <div class="fw-menu__sep"></div>
+          <div class="fw-menu__group">Inspect</div>
+          <div class="fw-menu__item">Show layout grid<span class="fw-menu__shortcut">G</span></div>
+          <div class="fw-menu__item">Show id tree<span class="fw-menu__shortcut">⌘ ⇧ I</span></div>
+          <div class="fw-menu__sep"></div>
+          <div class="fw-menu__item is-disabled">Replay last frame<span class="fw-menu__shortcut">F2</span></div>
+        </div>
+
+        <div class="fw-menu">
+          <div class="fw-menu__group">Theme</div>
+          <div class="fw-menu__item">framewise · default</div>
+          <div class="fw-menu__item is-selected">framewise · ink</div>
+          <div class="fw-menu__item">framewise · paper</div>
+          <div class="fw-menu__item">custom…</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 SCROLL ============ -->
+  <section class="section" data-screen-label="06 Scrollbars">
+    <div class="section__head">
+      <span class="section__no">06</span>
+      <h2 class="section__title">Scrollbars</h2>
+      <p class="section__desc">always visible. thumb length encodes how much of the content fits in view; thumb position encodes scroll offset. dragging shifts the thumb to rust.</p>
+    </div>
+
+    <div class="row" style="gap: 32px; align-items: flex-start">
+
+      <div>
+        <div class="fw-scroll">
+          <div class="fw-scroll__pane">
+fn frame(ctx: &amp;mut Ctx) {<br/>
+&nbsp;&nbsp;ctx.window("Inspector", |w| {<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.label("position");<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.drag("x", &amp;mut pos.x);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.drag("y", &amp;mut pos.y);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.separator();<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.label("size");<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.drag("w", &amp;mut size.w);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.drag("h", &amp;mut size.h);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.separator();<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.label("frame");<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.text(&amp;format!("{} fps", fps));<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;w.slider("alpha", &amp;mut a, 0.0..1.0);<br/>
+&nbsp;&nbsp;});<br/>
+}<br/>
+          </div>
+          <div class="fw-scroll__bar">
+            <div class="fw-scroll__thumb" style="top: 18%; height: 38%"></div>
+          </div>
+        </div>
+        <div class="cap">vertical · idle</div>
+      </div>
+
+      <div>
+        <div class="fw-scroll">
+          <div class="fw-scroll__pane" style="overflow:hidden">
+            <div style="opacity:.55">// 24 entries, position 6/24</div>
+          </div>
+          <div class="fw-scroll__bar">
+            <div class="fw-scroll__thumb is-dragging" style="top: 24%; height: 36%"></div>
+          </div>
+        </div>
+        <div class="cap">vertical · dragging (rust)</div>
+      </div>
+
+      <div>
+        <div class="fw-scroll" style="width: 320px; height: 100px">
+          <div class="fw-scroll__pane" style="overflow:hidden; padding: 14px 14px 24px;">
+            <div style="white-space: nowrap; opacity: .55">
+              <span>frame.draw_rect( … )</span> &nbsp; <span>frame.draw_text( "hello, framewise" )</span> &nbsp; <span>frame.draw_image( logo )</span> &nbsp; <span>frame.layout.push( Row )</span>
+            </div>
+          </div>
+          <div class="fw-scroll__bar fw-scroll__bar--h">
+            <div class="fw-scroll__thumb fw-scroll__thumb--h" style="left: 30%; width: 28%"></div>
+          </div>
+        </div>
+        <div class="cap">horizontal</div>
+      </div>
+
+      <div>
+        <div class="fw-scroll" style="width: 220px; height: 140px">
+          <div class="fw-scroll__pane" style="overflow:hidden; padding: 10px 22px 22px 12px;">
+            <div>scroll surface with<br/>both bars + corner</div>
+          </div>
+          <div class="fw-scroll__bar">
+            <div class="fw-scroll__thumb" style="top: 40%; height: 30%"></div>
+          </div>
+          <div class="fw-scroll__bar fw-scroll__bar--h">
+            <div class="fw-scroll__thumb fw-scroll__thumb--h" style="left: 12%; width: 44%"></div>
+          </div>
+          <div class="fw-scroll__corner"></div>
+        </div>
+        <div class="cap">both axes</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 07 TABS ============ -->
+  <section class="section" data-screen-label="07 Tabs">
+    <div class="section__head">
+      <span class="section__no">07</span>
+      <h2 class="section__title">Tabs</h2>
+      <p class="section__desc">underline tabs for plain navigation. the rust underbar is the only chrome — no rounded pills, no shadow.</p>
+    </div>
+
+    <div class="fw-tabs" style="max-width: 640px">
+      <button class="is-active">Inspector</button>
+      <button>Layout</button>
+      <button>Timing</button>
+      <button>Logs</button>
+      <button>Replay</button>
+    </div>
+
+    <div style="height: 24px"></div>
+
+    <div class="fw-tabs" style="max-width: 480px">
+      <button>frame.rs</button>
+      <button class="is-active">layout.rs</button>
+      <button>theme.rs</button>
+      <button>state.rs</button>
+    </div>
+  </section>
+
+  <!-- ============ 08 PROGRESS · STATUS ============ -->
+  <section class="section" data-screen-label="08 Progress">
+    <div class="section__head">
+      <span class="section__no">08</span>
+      <h2 class="section__title">Progress, meters &amp; status</h2>
+      <p class="section__desc">indeterminate progress uses rust; determinate stays ink. status pills carry the only dot of color on the bar.</p>
+    </div>
+
+    <div class="group">
+      <div class="group__label">progress</div>
+      <div class="col" style="gap:12px">
+        <div class="row" style="gap:14px">
+          <div class="fw-progress"><div class="fw-progress__fill" style="width: 12%"></div></div>
+          <span class="cap" style="margin:0">12% · compiling</span>
+        </div>
+        <div class="row" style="gap:14px">
+          <div class="fw-progress"><div class="fw-progress__fill" style="width: 68%"></div></div>
+          <span class="cap" style="margin:0">68% · linking</span>
+        </div>
+        <div class="row" style="gap:14px">
+          <div class="fw-progress is-active"><div class="fw-progress__fill" style="width: 94%"></div></div>
+          <span class="cap" style="margin:0">94% · uploading textures</span>
+        </div>
+        <div class="row" style="gap:14px">
+          <div class="fw-progress is-indet"><div class="fw-progress__fill"></div></div>
+          <span class="cap" style="margin:0">indeterminate</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">meters</div>
+      <div class="row" style="gap:24px">
+        <div class="row" style="gap:8px">
+          <span class="cap" style="margin:0">CPU</span>
+          <div class="fw-meter">
+            <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+            <span class="on"></span><span class="on"></span><span></span><span></span>
+            <span></span><span></span>
+          </div>
+        </div>
+        <div class="row" style="gap:8px">
+          <span class="cap" style="margin:0">GPU</span>
+          <div class="fw-meter">
+            <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+            <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+            <span class="peak"></span><span></span>
+          </div>
+        </div>
+        <div class="row" style="gap:8px">
+          <span class="cap" style="margin:0">FRAME</span>
+          <span style="font: 11px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums">2.4 ms</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group__label">spinners &nbsp;·&nbsp; status</div>
+      <div class="row" style="gap: 28px">
+        <span class="row" style="gap:8px">
+          <span class="fw-spinner">
+            <svg viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="16"
+                fill="none" stroke="#15130f" stroke-width="1.5" opacity="0.22"/>
+              <polygon class="fw-spinner__seg"
+                points="4,4 20,4 20,20 4,20"
+                fill="none" stroke="#c25a2c" stroke-width="2"
+                pathLength="64"
+                stroke-linecap="butt" stroke-linejoin="miter"/>
+            </svg>
+          </span>
+          <span class="cap" style="margin:0">loading</span>
+        </span>
+        <span class="row" style="gap:8px">
+          <span class="fw-spinner fw-spinner--lg">
+            <svg viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="16"
+                fill="none" stroke="#15130f" stroke-width="1.2" opacity="0.22"/>
+              <polygon class="fw-spinner__seg"
+                points="4,4 20,4 20,20 4,20"
+                fill="none" stroke="#c25a2c" stroke-width="1.8"
+                pathLength="64"
+                stroke-linecap="butt" stroke-linejoin="miter"/>
+            </svg>
+          </span>
+          <span class="cap" style="margin:0">large</span>
+        </span>
+        <span class="fw-status"><span class="fw-status__dot"></span>idle</span>
+        <span class="fw-status fw-status--ok"><span class="fw-status__dot"></span>ready</span>
+        <span class="fw-status fw-status--warn"><span class="fw-status__dot"></span>frame drop</span>
+        <span class="fw-status fw-status--err"><span class="fw-status__dot"></span>panic</span>
+        <span class="fw-status fw-status--live"><span class="fw-status__dot"></span>rendering</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 TREE ============ -->
+  <section class="section" data-screen-label="09 Tree">
+    <div class="section__head">
+      <span class="section__no">09</span>
+      <h2 class="section__title">Tree &amp; list</h2>
+      <p class="section__desc">monospaced rows, ascii carets, ids on the right. the selected row is filled ink — it is unambiguously the focus.</p>
+    </div>
+
+    <div class="row" style="gap: 32px; align-items: flex-start">
+
+      <div class="fw-tree">
+        <div class="fw-tree__row"><span class="fw-tree__caret">▾</span>App<span class="fw-tree__meta">#0001</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__caret">▾</span>MenuBar<span class="fw-tree__meta">#0002</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">·</span>File<span class="fw-tree__meta">#0003</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">·</span>Edit<span class="fw-tree__meta">#0004</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__caret">▾</span>Workspace<span class="fw-tree__meta">#0010</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">▾</span>Canvas<span class="fw-tree__meta">#0011</span></div>
+        <div class="fw-tree__row is-selected"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">·</span>Layer "frame"<span class="fw-tree__meta">#0014</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">·</span>Layer "ui"<span class="fw-tree__meta">#0015</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__indent"></span><span class="fw-tree__caret">▸</span>Inspector<span class="fw-tree__meta">#0020</span></div>
+        <div class="fw-tree__row"><span class="fw-tree__indent"></span><span class="fw-tree__caret">▸</span>StatusBar<span class="fw-tree__meta">#0030</span></div>
+      </div>
+
+      <div class="fw-tree">
+        <div class="fw-tree__row" style="padding-left:10px">frame_buffer.rs<span class="fw-tree__meta">2.1 kb</span></div>
+        <div class="fw-tree__row" style="padding-left:10px">layout.rs<span class="fw-tree__meta">5.4 kb</span></div>
+        <div class="fw-tree__row is-selected" style="padding-left:10px">renderer.rs<span class="fw-tree__meta">12.0 kb</span></div>
+        <div class="fw-tree__row" style="padding-left:10px">state.rs<span class="fw-tree__meta">3.8 kb</span></div>
+        <div class="fw-tree__row" style="padding-left:10px">theme.rs<span class="fw-tree__meta">1.6 kb</span></div>
+        <div class="fw-tree__row" style="padding-left:10px">widget/<span class="fw-tree__meta">11 files</span></div>
+        <div class="fw-tree__row" style="padding-left:10px">main.rs<span class="fw-tree__meta">0.4 kb</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 10 TOOLTIP · KEYS ============ -->
+  <section class="section" data-screen-label="10 Tooltips">
+    <div class="section__head">
+      <span class="section__no">10</span>
+      <h2 class="section__title">Tooltips &amp; keycaps</h2>
+      <p class="section__desc">tooltips invert the palette — ink on paper becomes paper on ink. keycaps borrow the input border.</p>
+    </div>
+
+    <div class="row" style="gap: 28px; align-items: flex-end; flex-wrap: wrap;">
+
+      <div class="col" style="gap:18px; align-items:flex-start">
+        <span class="fw-tip">Drag to scrub — hold ⌥ for fine.</span>
+        <span class="fw-tip" style="max-width:300px">Re-described every frame from the current application state. <strong>No retained nodes.</strong></span>
+        <span class="fw-tip fw-tip--rust">⚠ shader recompiled this frame (12 ms)</span>
+      </div>
+
+      <div class="col" style="gap:10px">
+        <div class="row" style="gap:6px"><span class="fw-key">⌘</span><span class="fw-key">⇧</span><span class="fw-key">P</span><span class="cap" style="margin:0">command palette</span></div>
+        <div class="row" style="gap:6px"><span class="fw-key">G</span><span class="cap" style="margin:0">toggle layout grid</span></div>
+        <div class="row" style="gap:6px"><span class="fw-key">F2</span><span class="cap" style="margin:0">replay last frame</span></div>
+        <div class="row" style="gap:6px"><span class="fw-key">⌥</span><span class="fw-key">drag</span><span class="cap" style="margin:0">fine scrub</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 11 WINDOW CHROME ============ -->
+  <section class="section" data-screen-label="11 Window">
+    <div class="section__head">
+      <span class="section__no">11</span>
+      <h2 class="section__title">Window &amp; panel chrome</h2>
+      <p class="section__desc">title bar inverts to ink. window controls are typographic — no traffic-light cosplay. status strip carries live state.</p>
+    </div>
+
+    <div class="row" style="gap: 28px; align-items: flex-start">
+
+      <div class="fw-window" style="width: 360px">
+        <div class="fw-window__title">
+          <div class="fw-window__title-name">
+            <svg width="10" height="10" viewBox="0 0 200 200">
+              <path d="M 56 40 H 40 V 160 H 56" fill="none" stroke="#f4f1ea" stroke-width="22" stroke-linecap="square"/>
+              <path d="M 78 40 H 140" stroke="#f4f1ea" stroke-width="22" stroke-linecap="square"/>
+              <path d="M 78 96 H 120" stroke="#c25a2c" stroke-width="22" stroke-linecap="square"/>
+              <path d="M 78 40 V 160" stroke="#f4f1ea" stroke-width="22" stroke-linecap="square"/>
+            </svg>
+            Inspector
+          </div>
+          <div class="fw-window__btns">
+            <button class="fw-window__btn">−</button>
+            <button class="fw-window__btn">▢</button>
+            <button class="fw-window__btn fw-window__btn--close">✕</button>
+          </div>
+        </div>
+        <div class="fw-window__body">
+          <div class="col" style="gap:10px">
+            <div class="row" style="gap:6px">
+              <div class="fw-drag" style="min-width:96px"><span class="fw-drag__label">X</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:40%"></div><span>320</span></span></div>
+              <div class="fw-drag" style="min-width:96px"><span class="fw-drag__label">Y</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:18%"></div><span>144</span></span></div>
+            </div>
+            <div class="row" style="gap:6px">
+              <div class="fw-drag" style="min-width:96px"><span class="fw-drag__label">W</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:72%"></div><span>576</span></span></div>
+              <div class="fw-drag" style="min-width:96px"><span class="fw-drag__label">H</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:50%"></div><span>400</span></span></div>
+            </div>
+            <div class="fw-divider"></div>
+            <label class="fw-row"><span class="fw-check is-checked"></span><span class="fw-row__lbl">clip to parent</span></label>
+            <label class="fw-row"><span class="fw-check"></span><span class="fw-row__lbl">debug overlay</span></label>
+          </div>
+        </div>
+        <div class="fw-window__status">
+          <span class="fw-status fw-status--live"><span class="fw-status__dot"></span>rendering</span>
+          <span>frame #00248</span>
+          <span style="margin-left:auto">2.4 ms</span>
+          <span class="fw-resize"></span>
+        </div>
+      </div>
+
+      <!-- dark variant -->
+      <div class="fw-window" style="width: 320px; background:#1a1814; color:#f4f1ea; border-color:#1a1814">
+        <div class="fw-window__title" style="background:#0c0b09">
+          <div class="fw-window__title-name">framewise · dark</div>
+          <div class="fw-window__btns">
+            <button class="fw-window__btn">−</button>
+            <button class="fw-window__btn">▢</button>
+            <button class="fw-window__btn fw-window__btn--close">✕</button>
+          </div>
+        </div>
+        <div class="fw-window__body">
+          <div class="col" style="gap:12px">
+            <div class="row" style="gap:8px">
+              <span class="fw-key" style="background:#2a2520; border-color:#3a352d; color:#f4f1ea">⌘</span>
+              <span class="fw-key" style="background:#2a2520; border-color:#3a352d; color:#f4f1ea">K</span>
+              <span style="font: 12px var(--mono); color:#8a8378">search&nbsp;everything</span>
+            </div>
+            <input class="fw-input" placeholder="type a command…" style="background:#0c0b09; border-color:#3a352d; color:#f4f1ea; min-width:0; width:100%" />
+            <div class="fw-tabs" style="border-color:#3a352d">
+              <button class="is-active" style="color:#f4f1ea">Files</button>
+              <button style="color:#8a8378">Symbols</button>
+              <button style="color:#8a8378">Frames</button>
+            </div>
+            <div style="font:12px/1.6 var(--mono); color:#8a8378">
+              ▸ renderer.rs<br/>
+              ▸ layout.rs<br/>
+              ▸ widget/button.rs
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 12 IN USE ============ -->
+  <section class="section" data-screen-label="12 In Use">
+    <div class="section__head">
+      <span class="section__no">12</span>
+      <h2 class="section__title">In use</h2>
+      <p class="section__desc">the widgets composed into the kind of panel they were designed for — a settings sheet inside an inspector window.</p>
+    </div>
+
+    <div class="use-grid">
+
+      <div class="fw-window">
+        <div class="fw-window__title">
+          <div class="fw-window__title-name">
+            <svg width="10" height="10" viewBox="0 0 200 200">
+              <path d="M 56 40 H 40 V 160 H 56" stroke="#f4f1ea" stroke-width="22" fill="none" stroke-linecap="square"/>
+              <path d="M 78 40 H 140" stroke="#f4f1ea" stroke-width="22" stroke-linecap="square"/>
+              <path d="M 78 96 H 120" stroke="#c25a2c" stroke-width="22" stroke-linecap="square"/>
+              <path d="M 78 40 V 160" stroke="#f4f1ea" stroke-width="22" stroke-linecap="square"/>
+            </svg>
+            Renderer Settings
+          </div>
+          <div class="fw-window__btns">
+            <button class="fw-window__btn">−</button>
+            <button class="fw-window__btn">▢</button>
+            <button class="fw-window__btn fw-window__btn--close">✕</button>
+          </div>
+        </div>
+
+        <div class="fw-window__body">
+          <div class="fw-tabs" style="margin: -4px 0 18px">
+            <button class="is-active">General</button>
+            <button>Frame</button>
+            <button>Output</button>
+            <button>Debug</button>
+          </div>
+
+          <div class="fw-form">
+            <div class="fw-form__row">
+              <label>backend</label>
+              <div class="fw-seg">
+                <button>OpenGL</button>
+                <button class="is-active">Vulkan</button>
+                <button>Metal</button>
+                <button>wgpu</button>
+              </div>
+            </div>
+
+            <div class="fw-form__row">
+              <label>target fps</label>
+              <div class="fw-slider" style="width:auto">
+                <div class="fw-slider__track">
+                  <div class="fw-slider__fill" style="width: 60%"></div>
+                  <div class="fw-slider__thumb" style="left: 60%"></div>
+                </div>
+                <div class="fw-slider__val">60</div>
+              </div>
+            </div>
+
+            <div class="fw-form__row">
+              <label>vsync</label>
+              <label class="fw-row"><span class="fw-switch is-on"></span><span class="fw-row__lbl">match display</span></label>
+            </div>
+
+            <div class="fw-form__row">
+              <label>msaa</label>
+              <div class="fw-seg">
+                <button>off</button>
+                <button>2×</button>
+                <button class="is-active">4×</button>
+                <button>8×</button>
+              </div>
+            </div>
+
+            <div class="fw-form__row">
+              <label>viewport</label>
+              <div class="row" style="gap:6px">
+                <div class="fw-drag" style="min-width:90px"><span class="fw-drag__label">W</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:60%"></div><span>1920</span></span></div>
+                <div class="fw-drag" style="min-width:90px"><span class="fw-drag__label">H</span><span class="fw-drag__value"><div class="fw-drag__fill" style="width:56%"></div><span>1080</span></span></div>
+              </div>
+            </div>
+
+            <div class="fw-form__row">
+              <label>accent</label>
+              <div class="row" style="gap:6px">
+                <div class="fw-swatch"><span class="fw-swatch__chip" style="background:#c25a2c"></span><span class="fw-swatch__hex">#c25a2c</span></div>
+                <button class="fw-btn fw-btn--sm fw-btn--ghost">change…</button>
+              </div>
+            </div>
+
+            <div class="fw-form__row">
+              <label>options</label>
+              <div class="col" style="gap:6px">
+                <label class="fw-row"><span class="fw-check is-checked"></span><span class="fw-row__lbl">show layout grid</span></label>
+                <label class="fw-row"><span class="fw-check"></span><span class="fw-row__lbl">log every frame</span></label>
+                <label class="fw-row"><span class="fw-check is-indeterminate"></span><span class="fw-row__lbl">tessellate (per-mesh)</span></label>
+              </div>
+            </div>
+
+            <div class="fw-divider"></div>
+
+            <div class="row" style="justify-content: flex-end; gap: 8px">
+              <button class="fw-btn fw-btn--ghost">Reset</button>
+              <button class="fw-btn">Cancel</button>
+              <button class="fw-btn fw-btn--primary">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fw-window__status">
+          <span class="fw-status fw-status--live"><span class="fw-status__dot"></span>rendering</span>
+          <span>frame #00248</span>
+          <span>2.4 ms</span>
+          <span style="margin-left:auto">Vulkan 1.3 · 4× msaa</span>
+          <span class="fw-resize"></span>
+        </div>
+      </div>
+
+      <!-- right column: log / live -->
+      <div class="col" style="gap: 18px">
+
+        <div class="fw-window">
+          <div class="fw-window__title">
+            <div class="fw-window__title-name">Frame Log</div>
+            <div class="fw-window__btns">
+              <button class="fw-window__btn">⌕</button>
+              <button class="fw-window__btn">⏸</button>
+              <button class="fw-window__btn fw-window__btn--close">✕</button>
+            </div>
+          </div>
+          <div class="fw-window__body" style="padding: 0">
+            <div class="fw-scroll" style="width: 100%; height: 220px; border: none">
+              <div class="fw-scroll__pane">
+<span style="color:var(--muted)">00248 · 2.40ms</span>&nbsp;&nbsp;frame begin<br/>
+<span style="color:var(--muted)">00248 · 2.41ms</span>&nbsp;&nbsp;layout(row) · 14 nodes<br/>
+<span style="color:var(--muted)">00248 · 2.45ms</span>&nbsp;&nbsp;draw_rect( inspector )<br/>
+<span style="color:var(--muted)">00248 · 2.48ms</span>&nbsp;&nbsp;draw_text( "Inspector", 14px )<br/>
+<span style="color:var(--muted)">00248 · 2.61ms</span>&nbsp;&nbsp;<span style="color:var(--rust)">drag_started( "X", 320.00 )</span><br/>
+<span style="color:var(--muted)">00248 · 2.74ms</span>&nbsp;&nbsp;state.x ← 322.00<br/>
+<span style="color:var(--muted)">00248 · 2.89ms</span>&nbsp;&nbsp;invalidate( panel#0011 )<br/>
+<span style="color:var(--muted)">00248 · 3.10ms</span>&nbsp;&nbsp;frame end · uploaded 14 commands<br/>
+<span style="color:var(--muted)">00249 · 2.36ms</span>&nbsp;&nbsp;frame begin<br/>
+<span style="color:var(--muted)">00249 · 2.40ms</span>&nbsp;&nbsp;layout(row) · 14 nodes<br/>
+<span style="color:var(--muted)">00249 · 2.50ms</span>&nbsp;&nbsp;draw_rect( inspector )<br/>
+<span style="color:var(--muted)">00249 · 2.52ms</span>&nbsp;&nbsp;state.x ← 324.00<br/>
+              </div>
+              <div class="fw-scroll__bar">
+                <div class="fw-scroll__thumb" style="top: 40%; height: 40%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fw-window__status">
+            <span class="fw-status fw-status--ok"><span class="fw-status__dot"></span>recording</span>
+            <span>248 frames</span>
+            <span style="margin-left:auto">2.6 ms avg</span>
+          </div>
+        </div>
+
+        <div class="fw-window" style="align-self: flex-start; min-width: 0;">
+          <div class="fw-window__title">
+            <div class="fw-window__title-name">Quick actions</div>
+            <div class="fw-window__btns">
+              <button class="fw-window__btn fw-window__btn--close">✕</button>
+            </div>
+          </div>
+          <div class="fw-window__body" style="padding: 4px 0;">
+            <div class="fw-menu" style="border: none; padding: 0; min-width: 0">
+              <div class="fw-menu__item">Render frame<span class="fw-menu__shortcut">F1</span></div>
+              <div class="fw-menu__item is-selected">Replay last frame<span class="fw-menu__shortcut">F2</span></div>
+              <div class="fw-menu__item">Show id tree<span class="fw-menu__shortcut">⌘ ⇧ I</span></div>
+              <div class="fw-menu__sep"></div>
+              <div class="fw-menu__item">Dump state to clipboard<span class="fw-menu__shortcut">⌘ ⇧ C</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ============ FOOT ============ -->
+  <footer class="foot">
+    <span><strong>spec</strong> &nbsp; v0.1 · 12 sections</span>
+    <span><strong>radius</strong> &nbsp; 0 px</span>
+    <span><strong>borders</strong> &nbsp; 1 px ink</span>
+    <span><strong>focus</strong> &nbsp; 2 px rust outset</span>
+    <span><strong>density</strong> &nbsp; 28 px row · 14 px label · 12 px mono</span>
+    <span style="margin-left:auto"><strong>framewise</strong> · widget specification</span>
+  </footer>
+
+</div>
+</body>
+</html>
