@@ -176,27 +176,22 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         layout_params: S::Params,
         widget_spec_builder: crate::widgets::WindowSpecBuilder<'b, T>,
         inner_layout: L,
-    ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
+    ) -> Builder<'_, T, L::State> {
         let rect = self.layout_state.layout(layout_params);
         let widget_spec = widget_spec_builder
             .with_rect(rect)
             .with_text_system(self.text_system)
             .build();
-            
+
         let mut result = crate::widgets::window::window(widget_spec);
         let content_bounds = result.layout.content_bounds;
         result.draw.push(DrawCmd::PushClip { rect: content_bounds });
-        
+
         let (draw, _) = result.into_parts();
         self.cmds.extend(draw.0);
 
-        let offset_layout = crate::layout::OffsetLayout {
-            offset: Vec2::ZERO,
-            inner: inner_layout,
-        };
-
         let parent_clip = self.ctx.clip_rect;
-        let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
+        let mut child = self.child_with_manual_bounds(content_bounds, inner_layout);
         child.window_scope = Some(crate::widgets::window::WindowScope { is_finished: false });
 
         let new_clip = if let Some(pc) = parent_clip {
