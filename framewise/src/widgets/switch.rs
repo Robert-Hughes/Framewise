@@ -1,7 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    theme::Theme,
-    types::{Color, Rect},
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect}, widget::{WidgetSpec, WidgetSpecBuilder}
 };
 
 pub struct SwitchSpec {
@@ -12,7 +10,72 @@ pub struct SwitchSpec {
     pub disabled: bool,
 }
 
-pub fn switch(spec: SwitchSpec) -> DrawCommands {
+impl WidgetSpec for SwitchSpec {
+    type Builder = SwitchSpecBuilder;
+}
+
+pub struct SwitchSpecBuilder {
+    spec: SwitchSpec,
+}
+
+impl SwitchSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            spec: SwitchSpec {
+                rect: Rect::ZERO,
+                on: false,
+                focused: false,
+                disabled: false,
+            }
+        }
+    }
+
+    pub fn on(mut self, on: bool) -> Self {
+        self.spec.on = on;
+        self
+    }
+
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.spec.focused = focused;
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.spec.disabled = disabled;
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for SwitchSpecBuilder {
+    type Spec = SwitchSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.spec.rect = rect;
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        self.spec
+    }
+}
+
+pub struct SwitchResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for SwitchResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn switch(spec: SwitchSpec) -> SwitchResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
     let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
@@ -49,5 +112,5 @@ pub fn switch(spec: SwitchSpec) -> DrawCommands {
         color: tint(dot_color),
     });
 
-    cmds
+    SwitchResult { draw: cmds }
 }

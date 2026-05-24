@@ -1,11 +1,9 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    text::TextSystem,
-    theme::Theme,
-    types::Rect,
+    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::Rect
 };
 
-pub struct SelectSpec<'a> {
+pub struct SelectSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     /// Bounding rect for the closed box (height h_md = 28).
     pub rect:    Rect,
     pub value:   &'a str,
@@ -16,7 +14,19 @@ pub struct SelectSpec<'a> {
     pub hovered: Option<usize>,
 }
 
-pub fn select<T: TextSystem>(spec: SelectSpec<'_>, ts: &mut T) -> DrawCommands {
+pub struct SelectResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for SelectResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn select<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> SelectResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
@@ -35,7 +45,7 @@ pub fn select<T: TextSystem>(spec: SelectSpec<'_>, ts: &mut T) -> DrawCommands {
     cmds.push(DrawCmd::StrokeRect { rect: r, color: t.ink, width: 1.0 });
 
     // Selected value text.
-    let val_layout = ts.prepare(spec.value, t.text_md);
+    let val_layout = spec.ts.prepare(spec.value, t.text_md);
     let vty = r.y + (t.h_md - val_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect:   Rect::new(r.x + 10.0, vty, val_layout.size.x, val_layout.size.y),
@@ -45,7 +55,7 @@ pub fn select<T: TextSystem>(spec: SelectSpec<'_>, ts: &mut T) -> DrawCommands {
 
     // Chevron "v".
     let chev_color = if spec.open { t.rust } else { t.muted };
-    let chev_layout = ts.prepare("v", t.text_sm);
+    let chev_layout = spec.ts.prepare("v", t.text_sm);
     let cty = r.y + (t.h_md - chev_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect:   Rect::new(r.x + r.w - 18.0, cty, chev_layout.size.x, chev_layout.size.y),
@@ -75,7 +85,7 @@ pub fn select<T: TextSystem>(spec: SelectSpec<'_>, ts: &mut T) -> DrawCommands {
             }
 
             let text_color = if is_selected { t.paper } else { t.ink };
-            let opt_layout = ts.prepare(opt, t.text_md);
+            let opt_layout = spec.ts.prepare(opt, t.text_md);
             let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
                 rect:   Rect::new(popup.x + 12.0, oty, opt_layout.size.x, opt_layout.size.y),
@@ -85,5 +95,83 @@ pub fn select<T: TextSystem>(spec: SelectSpec<'_>, ts: &mut T) -> DrawCommands {
         }
     }
 
-    cmds
+    SelectResult { draw: cmds }
+}
+
+
+
+
+pub struct SelectSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub value: Option<&'a str>,
+    pub options: Option<&'a [&'a str]>,
+    pub open: Option<bool>,
+    pub focused: Option<bool>,
+    pub hovered: Option<Option<usize>>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            value: None,
+            options: None,
+            open: None,
+            focused: None,
+            hovered: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn value(mut self, value: &'a str) -> Self {
+        self.value = Some(value);
+        self
+    }
+    pub fn options(mut self, options: &'a [&'a str]) -> Self {
+        self.options = Some(options);
+        self
+    }
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = Some(open);
+        self
+    }
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.focused = Some(focused);
+        self
+    }
+    pub fn hovered(mut self, hovered: Option<usize>) -> Self {
+        self.hovered = Some(hovered);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for SelectSpecBuilder<'a, T> {
+    type Spec = SelectSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        SelectSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            value: self.value.unwrap(),
+            options: self.options.unwrap(),
+            open: self.open.unwrap(),
+            focused: self.focused.unwrap(),
+            hovered: self.hovered.unwrap(),
+        }
+    }
 }

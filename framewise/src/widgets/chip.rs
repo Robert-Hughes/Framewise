@@ -1,11 +1,9 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    text::TextSystem,
-    theme::Theme,
-    types::Rect,
+    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::Rect
 };
 
-pub struct ChipSpec<'a> {
+pub struct ChipSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     /// Top-left origin. Height is fixed at 22.
     pub rect:    Rect,
     pub label:   &'a str,
@@ -13,15 +11,27 @@ pub struct ChipSpec<'a> {
     pub focused: bool,
 }
 
-pub fn chip<T: TextSystem>(spec: ChipSpec<'_>, ts: &mut T) -> DrawCommands {
+pub struct ChipResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for ChipResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
     let h = 22.0_f32;
     let pad_x = 8.0_f32;
 
-    let layout = ts.prepare(spec.label, t.text_sm);
-    let w = (layout.size.x + pad_x * 2.0).max(32.0);
+    let layout = spec.ts.prepare(spec.label, t.text_sm);
+    let w = spec.rect.w.max(32.0);
     let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
     // Focus ring.
@@ -45,5 +55,69 @@ pub fn chip<T: TextSystem>(spec: ChipSpec<'_>, ts: &mut T) -> DrawCommands {
         handle: layout.handle,
     });
 
-    cmds
+    ChipResult { draw: cmds }
+}
+
+
+
+
+pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub label: Option<&'a str>,
+    pub active: Option<bool>,
+    pub focused: Option<bool>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            label: None,
+            active: None,
+            focused: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn label(mut self, label: &'a str) -> Self {
+        self.label = Some(label);
+        self
+    }
+    pub fn active(mut self, active: bool) -> Self {
+        self.active = Some(active);
+        self
+    }
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.focused = Some(focused);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for ChipSpecBuilder<'a, T> {
+    type Spec = ChipSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        ChipSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            label: self.label.unwrap(),
+            active: self.active.unwrap(),
+            focused: self.focused.unwrap(),
+        }
+    }
 }

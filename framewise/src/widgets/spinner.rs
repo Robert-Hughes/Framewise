@@ -1,7 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    theme::Theme,
-    types::{Color, Rect, Vec2},
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}, widget::{WidgetSpec, WidgetSpecBuilder}
 };
 
 pub struct SpinnerSpec {
@@ -11,9 +9,68 @@ pub struct SpinnerSpec {
     pub color: Option<Color>,
 }
 
+impl WidgetSpec for SpinnerSpec {
+    type Builder = SpinnerSpecBuilder;
+}
+
+pub struct SpinnerSpecBuilder {
+    spec: SpinnerSpec,
+}
+
+impl SpinnerSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            spec: SpinnerSpec {
+                rect: Rect::ZERO,
+                large: false,
+                color: None,
+            }
+        }
+    }
+
+    pub fn large(mut self, large: bool) -> Self {
+        self.spec.large = large;
+        self
+    }
+
+    pub fn color(mut self, color: Color) -> Self {
+        self.spec.color = Some(color);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for SpinnerSpecBuilder {
+    type Spec = SpinnerSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.spec.rect = rect;
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        self.spec
+    }
+}
+
+pub struct SpinnerResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for SpinnerResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
 /// Square reticle spinner — four corner brackets with a single animated segment.
 /// Since we can't animate, we draw it at a fixed phase (segment at top).
-pub fn spinner(spec: SpinnerSpec) -> DrawCommands {
+pub fn spinner(spec: SpinnerSpec) -> SpinnerResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
@@ -49,5 +106,5 @@ pub fn spinner(spec: SpinnerSpec) -> DrawCommands {
         width: w,
     });
 
-    cmds
+    SpinnerResult { draw: cmds }
 }

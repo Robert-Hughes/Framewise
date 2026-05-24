@@ -1,8 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    text::TextSystem,
-    theme::Theme,
-    types::{Color, Rect, Vec2},
+    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}
 };
 
 #[derive(Debug, Clone)]
@@ -17,13 +14,26 @@ pub enum MenuItem<'a> {
     Group(&'a str),
 }
 
-pub struct MenuSpec<'a> {
+pub struct MenuSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     /// Top-left origin; width is at least 200.
     pub rect:  Rect,
     pub items: &'a [MenuItem<'a>],
 }
 
-pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
+pub struct MenuResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for MenuResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
@@ -60,7 +70,7 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
                 y += sep_h;
             }
             MenuItem::Group(label) => {
-                let layout = ts.prepare(label, t.text_sm);
+                let layout = spec.ts.prepare(label, t.text_sm);
                 let ty = y + 8.0;
                 cmds.push(DrawCmd::Text {
                     rect:   Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -80,7 +90,7 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
                 }
 
                 let text_color = if *selected { tint(t.paper) } else { tint(t.ink) };
-                let layout = ts.prepare(label, t.text_md);
+                let layout = spec.ts.prepare(label, t.text_md);
                 let ty = y + (row_h - layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
                     rect:   Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -94,7 +104,7 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
                     } else {
                         tint(t.muted)
                     };
-                    let sc_layout = ts.prepare(sc, t.text_sm);
+                    let sc_layout = spec.ts.prepare(sc, t.text_sm);
                     let sc_x = outer.x + w - pad_x - sc_layout.size.x;
                     let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
                     cmds.push(DrawCmd::Text {
@@ -109,5 +119,55 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
         }
     }
 
-    cmds
+    MenuResult { draw: cmds }
+}
+
+
+
+
+pub struct MenuSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub items: Option<&'a [MenuItem<'a>]>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            items: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn items(mut self, items: &'a [MenuItem<'a>]) -> Self {
+        self.items = Some(items);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for MenuSpecBuilder<'a, T> {
+    type Spec = MenuSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        MenuSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            items: self.items.unwrap(),
+        }
+    }
 }

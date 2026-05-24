@@ -10,7 +10,8 @@ pub struct WindowButton {
     pub symbol: &'static str,
 }
 
-pub struct WindowSpec<'a> {
+pub struct WindowSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     pub rect:        Rect,
     pub title:       &'a str,
     pub buttons:     &'a [WindowButton],
@@ -38,7 +39,7 @@ impl WidgetResult for WindowResult {
     }
 }
 
-pub fn window<T: TextSystem>(spec: WindowSpec<'_>, ts: &mut T) -> WindowResult {
+pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> WindowResult {
     let t = Theme::framewise();
     let mut draw = DrawCommands::new();
 
@@ -55,7 +56,7 @@ pub fn window<T: TextSystem>(spec: WindowSpec<'_>, ts: &mut T) -> WindowResult {
     draw.push(DrawCmd::FillRect { rect: title_rect, color: t.ink });
 
     let title_upper = spec.title.to_uppercase();
-    let title_layout = ts.prepare(&title_upper, t.text_sm);
+    let title_layout = spec.ts.prepare(&title_upper, t.text_sm);
     let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
     draw.push(DrawCmd::Text {
         rect:   Rect::new(spec.rect.x + 10.0, tty, title_layout.size.x, title_layout.size.y),
@@ -67,7 +68,7 @@ pub fn window<T: TextSystem>(spec: WindowSpec<'_>, ts: &mut T) -> WindowResult {
     let mut btn_x = spec.rect.x + spec.rect.w - 4.0;
     for btn in spec.buttons.iter().rev() {
         btn_x -= btn_size + 2.0;
-        let btn_layout = ts.prepare(btn.symbol, t.text_sm);
+        let btn_layout = spec.ts.prepare(btn.symbol, t.text_sm);
         let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
             rect:   Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
@@ -85,7 +86,7 @@ pub fn window<T: TextSystem>(spec: WindowSpec<'_>, ts: &mut T) -> WindowResult {
             color: t.line,
             width: 1.0,
         });
-        let status_layout = ts.prepare(spec.status_text, t.text_sm);
+        let status_layout = spec.ts.prepare(spec.status_text, t.text_sm);
         let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
             rect:   Rect::new(spec.rect.x + 10.0, sty, status_layout.size.x, status_layout.size.y),
@@ -106,5 +107,76 @@ pub fn window<T: TextSystem>(spec: WindowSpec<'_>, ts: &mut T) -> WindowResult {
     WindowResult {
         draw,
         layout: LayoutInfo::new(spec.rect, content),
+    }
+}
+
+
+
+
+pub struct WindowSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub title: Option<&'a str>,
+    pub buttons: Option<&'a [WindowButton]>,
+    pub status_bar: Option<bool>,
+    pub status_text: Option<&'a str>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            title: None,
+            buttons: None,
+            status_bar: None,
+            status_text: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn title(mut self, title: &'a str) -> Self {
+        self.title = Some(title);
+        self
+    }
+    pub fn buttons(mut self, buttons: &'a [WindowButton]) -> Self {
+        self.buttons = Some(buttons);
+        self
+    }
+    pub fn status_bar(mut self, status_bar: bool) -> Self {
+        self.status_bar = Some(status_bar);
+        self
+    }
+    pub fn status_text(mut self, status_text: &'a str) -> Self {
+        self.status_text = Some(status_text);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for WindowSpecBuilder<'a, T> {
+    type Spec = WindowSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        WindowSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            title: self.title.unwrap(),
+            buttons: self.buttons.unwrap(),
+            status_bar: self.status_bar.unwrap(),
+            status_text: self.status_text.unwrap(),
+        }
     }
 }

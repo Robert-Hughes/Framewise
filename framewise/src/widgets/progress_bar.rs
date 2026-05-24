@@ -1,7 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    theme::Theme,
-    types::Rect,
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::Rect, widget::{WidgetSpec, WidgetSpecBuilder}
 };
 
 pub struct ProgressBarSpec {
@@ -14,7 +12,67 @@ pub struct ProgressBarSpec {
     pub active: bool,
 }
 
-pub fn progress_bar(spec: ProgressBarSpec) -> DrawCommands {
+impl WidgetSpec for ProgressBarSpec {
+    type Builder = ProgressBarSpecBuilder;
+}
+
+pub struct ProgressBarSpecBuilder {
+    spec: ProgressBarSpec,
+}
+
+impl ProgressBarSpecBuilder {
+    pub fn new(value: f32) -> Self {
+        Self {
+            spec: ProgressBarSpec {
+                rect: Rect::ZERO,
+                value,
+                phase: 0.0,
+                active: false,
+            }
+        }
+    }
+
+    pub fn phase(mut self, phase: f32) -> Self {
+        self.spec.phase = phase;
+        self
+    }
+
+    pub fn active(mut self, active: bool) -> Self {
+        self.spec.active = active;
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for ProgressBarSpecBuilder {
+    type Spec = ProgressBarSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.spec.rect = rect;
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        self.spec
+    }
+}
+
+pub struct ProgressBarResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for ProgressBarResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn progress_bar(spec: ProgressBarSpec) -> ProgressBarResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
@@ -52,5 +110,5 @@ pub fn progress_bar(spec: ProgressBarSpec) -> DrawCommands {
         }
     }
 
-    cmds
+    ProgressBarResult { draw: cmds }
 }

@@ -5,7 +5,8 @@ use crate::{
     widget::{LayoutInfo, WidgetResult},
 };
 
-pub struct KeycapSpec<'a> {
+pub struct KeycapSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     pub rect:  Rect,
     pub label: &'a str,
     /// Background fill (default: paper_elev).
@@ -17,18 +18,7 @@ pub struct KeycapSpec<'a> {
     pub text_size: f32,
 }
 
-impl<'a> Default for KeycapSpec<'a> {
-    fn default() -> Self {
-        Self {
-            rect:       Rect::new(0.0, 0.0, 28.0, 22.0),
-            label:      "",
-            bg:         Color::from_srgb_f32(0.984, 0.976, 0.957, 1.0), // paper_elev
-            border:     Color::from_srgb_f32(0.541, 0.514, 0.471, 1.0), // muted
-            text_color: Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0), // ink
-            text_size:  11.0,
-        }
-    }
-}
+
 
 pub struct KeycapResult {
     pub draw:   DrawCommands,
@@ -46,7 +36,7 @@ impl WidgetResult for KeycapResult {
     }
 }
 
-pub fn keycap<T: TextSystem>(spec: KeycapSpec<'_>, ts: &mut T) -> KeycapResult {
+pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a, T>) -> KeycapResult {
     let mut draw = DrawCommands::new();
 
     // Background + border
@@ -58,7 +48,7 @@ pub fn keycap<T: TextSystem>(spec: KeycapSpec<'_>, ts: &mut T) -> KeycapResult {
 
     // Label, centered
     if !spec.label.is_empty() {
-        let layout = ts.prepare(spec.label, spec.text_size);
+        let layout = spec.ts.prepare(spec.label, spec.text_size);
         let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
         let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
         draw.push(DrawCmd::Text {
@@ -71,5 +61,83 @@ pub fn keycap<T: TextSystem>(spec: KeycapSpec<'_>, ts: &mut T) -> KeycapResult {
     KeycapResult {
         draw,
         layout: LayoutInfo::tight(spec.rect),
+    }
+}
+
+
+
+
+pub struct KeycapSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub label: Option<&'a str>,
+    pub bg: Option<Color>,
+    pub border: Option<Color>,
+    pub text_color: Option<Color>,
+    pub text_size: Option<f32>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            label: None,
+            bg: None,
+            border: None,
+            text_color: None,
+            text_size: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn label(mut self, label: &'a str) -> Self {
+        self.label = Some(label);
+        self
+    }
+    pub fn bg(mut self, bg: Color) -> Self {
+        self.bg = Some(bg);
+        self
+    }
+    pub fn border(mut self, border: Color) -> Self {
+        self.border = Some(border);
+        self
+    }
+    pub fn text_color(mut self, text_color: Color) -> Self {
+        self.text_color = Some(text_color);
+        self
+    }
+    pub fn text_size(mut self, text_size: f32) -> Self {
+        self.text_size = Some(text_size);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for KeycapSpecBuilder<'a, T> {
+    type Spec = KeycapSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        KeycapSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            label: self.label.unwrap(),
+            bg: self.bg.unwrap(),
+            border: self.border.unwrap(),
+            text_color: self.text_color.unwrap(),
+            text_size: self.text_size.unwrap(),
+        }
     }
 }

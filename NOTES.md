@@ -29,8 +29,14 @@ Working notes, TODOs, open questions, and half-baked ideas.
   glyph atlas cache miss, that might be awkward to figure out in profiling. Will see how
   this plays out in practice.
 
-* How do custom widgets (i.e. functions) get used in a builder? See builder::custom()
+* How do custom widgets (i.e. functions) get used in a builder? See builder::custom() and builder::add()
 * Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
+* Tried something with WidgetSpec and WidgetSpecBuilder - is this good? Apply to all widget kinds? Move this trait to the builder-level, as is only relevant for that?
+* Is the "optional" text-system a good design feature - it does does create some awkwardness?
+* WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the builder? Maybe we need a "outside-builder"-only spec struct?
+
+* Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.
+Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
 
 - **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
 
@@ -64,6 +70,7 @@ Features to design and implement, roughly in dependency order:
 * Built-in themes that are good
   * A Framewise-specific one - see Framewise Widgets.html (from Claude Design) for a version of this
     * Go through and make our 'spec page' look as similar as possible to the Claude design mockup. This will be a good way to check off features/improvements!
+    * Remove all uses of ".emit()" and ".append_cmds()" ideally
   * Windows native lookalike
   * Mac native lookalike
 

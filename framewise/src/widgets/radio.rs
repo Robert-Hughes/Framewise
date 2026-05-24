@@ -44,7 +44,7 @@ impl RadioSpecBuilder {
         self
     }
 }
-impl WidgetSpecBuilder for RadioSpecBuilder {
+impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for RadioSpecBuilder {
     type Spec = RadioSpec;
 
     fn with_rect(mut self, rect: Rect) -> Self {

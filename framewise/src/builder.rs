@@ -324,12 +324,17 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         self.append_cmds(cmds);
     }
 
-    pub fn add<WR: WidgetResult, WSB: WidgetSpecBuilder>(&mut self, layout_params: S::Params, widget_func: impl FnOnce(WSB::Spec) -> WR, widget_spec_builder: WSB) -> WR::Info {
+    pub fn add<'b, WR: WidgetResult, WSB: WidgetSpecBuilder<'b, T>>(&'b mut self, layout_params: S::Params, widget_func: impl FnOnce(WSB::Spec) -> WR, widget_spec_builder: WSB) -> WR::Info {
         let rect = self.layout_state.layout(layout_params);
         //TODO: add things like style/theme
-        let widget_spec = widget_spec_builder.with_rect(rect).build();
+        let widget_spec = widget_spec_builder
+            .with_rect(rect)
+            .with_text_system(self.text_system)
+            .build();
         let result = widget_func(widget_spec);
-        self.emit(result)
+        let (draw, info) = result.into_parts();
+        self.cmds.extend(draw.0);
+        info
     }
 }
 

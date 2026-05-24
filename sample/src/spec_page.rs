@@ -1,4 +1,5 @@
 use crate::text::SampleTextSystem;
+use framewise::text::TextSystem;
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
     builder::{Builder, BuilderCtx},
@@ -9,7 +10,32 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Vec2},
     widgets::{
-        CheckboxSpecBuilder, RadioSpecBuilder, button::{ButtonState, ButtonStyle}, checkbox::{CheckState, checkbox}, chip::{ChipSpec, chip}, color_swatch::{ColorSwatchSpec, color_swatch}, drag_number::{DragNumberSpec, drag_number}, frame::{FrameSpec, FrameStyle, frame}, keycap::{KeycapSpec, keycap}, menu::{MenuItem, MenuSpec, menu}, meter::{MeterSpec, meter}, progress_bar::{ProgressBarSpec, progress_bar}, radio::{RadioSpec, radio}, scroll_area::{ScrollState, ScrollbarVisibility, begin_scroll_area}, segmented::{SegmentedSpec, segmented}, select::{SelectSpec, select}, slider::{Orientation as SliderOrientation, SliderState}, spinner::{SpinnerSpec, spinner}, status::{StatusSpec, StatusVariant, status}, switch::{SwitchSpec, switch}, tabs::{TabsSpec, tabs}, text_edit::TextEditState, tooltip::{TooltipSpec, TooltipVariant, tooltip}, tree::{TreeRow, TreeSpec, tree}, window::{WindowButton, WindowSpec, window}
+        button::{ButtonState, ButtonStyle},
+        checkbox::{checkbox, CheckState},
+        chip::{chip},
+        color_swatch::{color_swatch},
+        drag_number::{drag_number},
+        frame::{frame, FrameStyle},
+        keycap::{keycap},
+        menu::{menu, MenuItem},
+        meter::{meter},
+        progress_bar::progress_bar,
+        radio::radio,
+        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
+        segmented::{segmented},
+        select::{select},
+        slider::{Orientation as SliderOrientation, SliderState},
+        spinner::spinner,
+        status::{status, StatusVariant},
+        switch::switch,
+        tabs::{tabs},
+        text_edit::TextEditState,
+        tooltip::{tooltip, TooltipVariant},
+        tree::{tree, TreeRow},
+        window::{window, WindowButton},
+        CheckboxSpecBuilder, ProgressBarSpecBuilder, RadioSpecBuilder, SpinnerSpecBuilder,
+        SwitchSpecBuilder,
+        frame::FrameSpec,
     },
 };
 
@@ -495,10 +521,7 @@ pub fn draw_spec_page(
                 );
                 b.custom(Rect::new(pf_x, y + 18.0, 24.0, t.h_md), |rect| {
                     vec![
-                        DrawCmd::FillRect {
-                            rect,
-                            color: t.ink,
-                        },
+                        DrawCmd::FillRect { rect, color: t.ink },
                         DrawCmd::StrokeRect {
                             rect,
                             color: t.line,
@@ -594,8 +617,13 @@ pub fn draw_spec_page(
                     (CheckState::On, false, true),
                 ];
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-                    b.add(Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
-                        checkbox, CheckboxSpecBuilder::new(*cs).focused(*focused).disabled(*disabled));
+                    b.add(
+                        Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
+                        checkbox,
+                        CheckboxSpecBuilder::new(*cs)
+                            .focused(*focused)
+                            .disabled(*disabled),
+                    );
                 }
                 y += 14.0 + 12.0;
 
@@ -609,7 +637,13 @@ pub fn draw_spec_page(
                 );
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
-                    b.add(Rect::new(cx, y, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs).focused(*focused).disabled(*disabled));
+                    b.add(
+                        Rect::new(cx, y, 14.0, 14.0),
+                        checkbox,
+                        CheckboxSpecBuilder::new(*cs)
+                            .focused(*focused)
+                            .disabled(*disabled),
+                    );
 
                     let label_alpha = if *disabled { t.muted } else { t.ink };
                     b.label_styled(
@@ -641,7 +675,14 @@ pub fn draw_spec_page(
                 ];
                 for (i, (selected, focused, disabled, label)) in radio_items.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    b.add(Rect::new(lx, ry, 14.0, 14.0), radio, RadioSpecBuilder::new().selected(*selected).focused(*focused).disabled(*disabled));
+                    b.add(
+                        Rect::new(lx, ry, 14.0, 14.0),
+                        radio,
+                        RadioSpecBuilder::new()
+                            .selected(*selected)
+                            .focused(*focused)
+                            .disabled(*disabled),
+                    );
                     b.label_styled(
                         Rect::new(lx + 18.0, ry, 140.0, 14.0),
                         label,
@@ -653,13 +694,14 @@ pub fn draw_spec_page(
                 let sw_x = lx + 220.0;
                 for (i, (on, focused, disabled, label)) in switch_items.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    let dc = switch(SwitchSpec {
-                        rect: Rect::new(sw_x, ry, 30.0, 16.0),
-                        on: *on,
-                        focused: *focused,
-                        disabled: *disabled,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(
+                        Rect::new(sw_x, ry, 30.0, 16.0),
+                        switch,
+                        SwitchSpecBuilder::new()
+                            .on(*on)
+                            .focused(*focused)
+                            .disabled(*disabled),
+                    );
                     let label_color = if *disabled { t.muted } else { t.ink };
                     b.label_styled(
                         Rect::new(sw_x + 36.0, ry, 140.0, 16.0),
@@ -845,18 +887,16 @@ pub fn draw_spec_page(
                 ];
                 let mut bx = lx;
                 for (label, val, min, max, active) in drag_items {
-                    let dc = drag_number(
-                        DragNumberSpec {
-                            rect: Rect::new(bx, y, 100.0, t.h_md),
-                            label,
-                            value: *val,
-                            min: *min,
-                            max: *max,
-                            active: *active,
-                        },
-                        b.text_system,
+                    b.add(
+                        Rect::new(bx, y, 100.0, t.h_md),
+                        drag_number,
+                        framewise::widgets::DragNumberSpecBuilder::new()
+                            .label(label)
+                            .value(*val)
+                            .min(*min)
+                            .max(*max)
+                            .active(*active),
                     );
-                    b.append_cmds(dc.0);
                     bx += 100.0 + 8.0;
                 }
             }
@@ -962,12 +1002,13 @@ pub fn draw_spec_page(
                 let swatches: &[(Color, &str)] = &[(t.ink, "#15130f"), (t.rust, "#c25a2c")];
                 let mut bx = sw_x;
                 for (color, hex) in swatches {
-                    let dc = color_swatch(ColorSwatchSpec {
-                        rect: Rect::new(bx, y, 18.0, t.h_md),
-                        color: *color,
-                        border: t.line,
-                    });
-                    b.append_cmds(dc.draw.0);
+                    b.add(
+                        Rect::new(bx, y, 18.0, t.h_md),
+                        color_swatch,
+                        framewise::widgets::ColorSwatchSpecBuilder::new()
+                            .color(*color)
+                            .border(t.line),
+                    );
                     b.label_styled(
                         Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0),
                         hex,
@@ -989,55 +1030,47 @@ pub fn draw_spec_page(
             {
                 // Select widgets
                 let opts = ["Layout: row", "Layout: column", "Layout: grid"];
-                let dc = select(
-                    SelectSpec {
-                        rect: Rect::new(lx, y, 160.0, t.h_md),
-                        value: "Layout: row",
-                        options: &opts,
-                        open: false,
-                        focused: false,
-                        hovered: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, 160.0, t.h_md),
+                    select,
+                    framewise::widgets::SelectSpecBuilder::new()
+                        .value("Layout row")
+                        .options(&opts)
+                        .open(false)
+                        .focused(false)
+                        .hovered(None),
                 );
-                b.append_cmds(dc.0);
-                let dc = select(
-                    SelectSpec {
-                        rect: Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
-                        value: "Layout: row",
-                        options: &opts,
-                        open: true,
-                        focused: true,
-                        hovered: Some(0),
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
+                    select,
+                    framewise::widgets::SelectSpecBuilder::new()
+                        .value("Layout row")
+                        .options(&opts)
+                        .open(true)
+                        .focused(true)
+                        .hovered(Some(0)),
                 );
-                b.append_cmds(dc.0);
 
                 // Segmented controls
                 let seg_x = lx + 200.0;
                 let segs1 = ["row", "column", "grid", "flex"];
-                let dc = segmented(
-                    SegmentedSpec {
-                        rect: Rect::new(seg_x, y, 0.0, t.h_md),
-                        items: &segs1,
-                        active_index: 0,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(seg_x, y, 0.0, t.h_md),
+                    segmented,
+                    framewise::widgets::SegmentedSpecBuilder::new()
+                        .items(&segs1)
+                        .active_index(0)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
                 let segs2 = ["start", "center", "end"];
-                let dc = segmented(
-                    SegmentedSpec {
-                        rect: Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
-                        items: &segs2,
-                        active_index: 1,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
+                    segmented,
+                    framewise::widgets::SegmentedSpecBuilder::new()
+                        .items(&segs2)
+                        .active_index(1)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
 
                 // Chips
                 let chip_data: &[(&str, bool)] = &[
@@ -1049,34 +1082,28 @@ pub fn draw_spec_page(
                 let chip_y = y;
                 let mut chip_x = lx + 560.0;
                 for (label, active) in chip_data {
-                    let dc = chip(
-                        ChipSpec {
-                            rect: Rect::new(chip_x, chip_y, 0.0, 22.0),
-                            label,
-                            active: *active,
-                            focused: false,
-                        },
-                        b.text_system,
+                    let layout = b.text_system.prepare(label, t.text_sm);
+                    let chip_w = (layout.size.x + 16.0).max(32.0);
+                    b.add(
+                        Rect::new(chip_x, chip_y, chip_w, 22.0),
+                        chip,
+                        framewise::widgets::ChipSpecBuilder::new()
+                            .label(label)
+                            .active(*active)
+                            .focused(false),
                     );
-                    let chip_w = dc.0.iter().fold(0.0_f32, |acc, cmd| match cmd {
-                        DrawCmd::FillRect { rect, .. } | DrawCmd::StrokeRect { rect, .. } => {
-                            acc.max(rect.x + rect.w - chip_x)
-                        }
-                        _ => acc,
-                    });
-                    b.append_cmds(dc.0);
                     chip_x += chip_w + 6.0;
                 }
-                let dc = chip(
-                    ChipSpec {
-                        rect: Rect::new(lx + 560.0, y + 28.0, 0.0, 22.0),
-                        label: "+ add backend",
-                        active: false,
-                        focused: false,
-                    },
-                    b.text_system,
+                let add_layout = b.text_system.prepare("+ add backend", t.text_sm);
+                let add_w = (add_layout.size.x + 16.0).max(32.0);
+                b.add(
+                    Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
+                    chip,
+                    framewise::widgets::ChipSpecBuilder::new()
+                        .label("+ add backend")
+                        .active(false)
+                        .focused(false),
                 );
-                b.append_cmds(dc.0);
             }
             let select_open_h = 3.0 * 26.0 + 8.0;
             y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
@@ -1126,14 +1153,11 @@ pub fn draw_spec_page(
                         disabled: true,
                     },
                 ];
-                let dc = menu(
-                    MenuSpec {
-                        rect: Rect::new(lx, y, 240.0, 0.0),
-                        items: &items1,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, 240.0, 0.0),
+                    menu,
+                    framewise::widgets::MenuSpecBuilder::new().items(&items1),
                 );
-                b.append_cmds(dc.0);
 
                 let items2 = [
                     MenuItem::Group("Theme"),
@@ -1162,14 +1186,11 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                let dc = menu(
-                    MenuSpec {
-                        rect: Rect::new(lx + 264.0, y, 200.0, 0.0),
-                        items: &items2,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx + 264.0, y, 200.0, 0.0),
+                    menu,
+                    framewise::widgets::MenuSpecBuilder::new().items(&items2),
                 );
-                b.append_cmds(dc.0);
 
                 let menu1_h: f32 = items1
                     .iter()
@@ -1341,29 +1362,25 @@ pub fn draw_spec_page(
             y += 46.0;
             {
                 let tabs1 = ["Inspector", "Layout", "Timing", "Logs", "Replay"];
-                let dc = tabs(
-                    TabsSpec {
-                        rect: Rect::new(lx, y, content_w.min(640.0), 36.0),
-                        items: &tabs1,
-                        active_index: 0,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, content_w.min(640.0), 36.0),
+                    tabs,
+                    framewise::widgets::TabsSpecBuilder::new()
+                        .items(&tabs1)
+                        .active_index(0)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
                 y += 36.0 + 20.0;
 
                 let tabs2 = ["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-                let dc = tabs(
-                    TabsSpec {
-                        rect: Rect::new(lx, y, content_w.min(480.0), 36.0),
-                        items: &tabs2,
-                        active_index: 1,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, content_w.min(480.0), 36.0),
+                    tabs,
+                    framewise::widgets::TabsSpecBuilder::new()
+                        .items(&tabs2)
+                        .active_index(1)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
                 y += 36.0;
             }
             y += SEC_GAP;
@@ -1391,13 +1408,13 @@ pub fn draw_spec_page(
                 ];
                 let bar_w = 240.0_f32;
                 for (val, active, label) in bar_items {
-                    let dc = progress_bar(ProgressBarSpec {
-                        rect: Rect::new(lx, y + 8.0, bar_w, 3.0),
-                        value: *val,
-                        phase: (time as f32) * 0.5,
-                        active: *active,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(
+                        Rect::new(lx, y + 8.0, bar_w, 3.0),
+                        progress_bar,
+                        ProgressBarSpecBuilder::new(*val)
+                            .phase((time as f32) * 0.5)
+                            .active(*active),
+                    );
                     b.label_styled(
                         Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0),
                         label,
@@ -1438,13 +1455,14 @@ pub fn draw_spec_page(
                         );
                         bx += 70.0;
                     } else {
-                        let dc = meter(MeterSpec {
-                            rect: Rect::new(bx, y, 100.0, 12.0),
-                            value: *val,
-                            peak: *peak,
-                            bars: 10,
-                        });
-                        b.append_cmds(dc.draw.0);
+                        b.add(
+                            Rect::new(bx, y, 100.0, 12.0),
+                            meter,
+                            framewise::widgets::MeterSpecBuilder::new()
+                                .value(*val)
+                                .peak(*peak)
+                                .bars(10),
+                        );
                         bx += 108.0;
                     }
                 }
@@ -1454,12 +1472,11 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "spinners  ·  status");
             y += 20.0;
             {
-                let dc = spinner(SpinnerSpec {
-                    rect: Rect::new(lx, y, 16.0, 16.0),
-                    large: false,
-                    color: None,
-                });
-                b.append_cmds(dc.0);
+                b.add(
+                    Rect::new(lx, y, 16.0, 16.0),
+                    spinner,
+                    SpinnerSpecBuilder::new(),
+                );
                 b.label_styled(
                     Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0),
                     "loading",
@@ -1468,12 +1485,11 @@ pub fn draw_spec_page(
                     false,
                 );
 
-                let dc = spinner(SpinnerSpec {
-                    rect: Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
-                    large: true,
-                    color: None,
-                });
-                b.append_cmds(dc.0);
+                b.add(
+                    Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
+                    spinner,
+                    SpinnerSpecBuilder::new().large(true),
+                );
                 b.label_styled(
                     Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0),
                     "large",
@@ -1491,15 +1507,13 @@ pub fn draw_spec_page(
                 ];
                 let mut sx = lx + 180.0;
                 for (label, variant) in status_items {
-                    let dc = status(
-                        StatusSpec {
-                            rect: Rect::new(sx, y + 1.0, 120.0, 12.0),
-                            label,
-                            variant: *variant,
-                        },
-                        b.text_system,
+                    b.add(
+                        Rect::new(sx, y + 1.0, 120.0, 12.0),
+                        status,
+                        framewise::widgets::StatusSpecBuilder::new()
+                            .label(label)
+                            .variant(*variant),
                     );
-                    b.append_cmds(dc.0);
                     sx += 110.0;
                 }
             }
@@ -1581,14 +1595,11 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                let dc = tree(
-                    TreeSpec {
-                        rect: Rect::new(lx, y, 320.0, 0.0),
-                        rows: &widget_tree,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, 320.0, 0.0),
+                    tree,
+                    framewise::widgets::TreeSpecBuilder::new().rows(&widget_tree),
                 );
-                b.append_cmds(dc.0);
 
                 let file_list = [
                     TreeRow {
@@ -1641,14 +1652,11 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                let dc = tree(
-                    TreeSpec {
-                        rect: Rect::new(lx + 360.0, y, 240.0, 0.0),
-                        rows: &file_list,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx + 360.0, y, 240.0, 0.0),
+                    tree,
+                    framewise::widgets::TreeSpecBuilder::new().rows(&file_list),
                 );
-                b.append_cmds(dc.0);
 
                 y += widget_tree.len().max(file_list.len()) as f32 * 20.0 + 12.0;
             }
@@ -1661,34 +1669,25 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "tooltips");
             y += 20.0;
             {
-                let dc = tooltip(
-                    TooltipSpec {
-                        rect: Rect::new(lx, y, 0.0, 0.0),
-                        text: "Drag to scrub — hold ⌥ for fine.",
-                        variant: TooltipVariant::Dark,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, 0.0, 0.0),
+                    tooltip,
+                    framewise::widgets::TooltipSpecBuilder::new()
+                        .text("Drag to scrub — hold ⌥ for fine.")
+                        .variant(TooltipVariant::Dark),
                 );
-                b.append_cmds(dc.0);
                 y += 28.0 + 8.0;
 
-                let dc = tooltip(TooltipSpec {
-            rect: Rect::new(lx, y, 0.0, 0.0),
-            text: "Re-described every frame from current application state. No retained nodes.",
-            variant: TooltipVariant::Dark,
-        }, b.text_system);
-                b.append_cmds(dc.0);
+                b.add(Rect::new(lx, y, 0.0, 0.0), tooltip, framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
                 y += 28.0 + 8.0;
 
-                let dc = tooltip(
-                    TooltipSpec {
-                        rect: Rect::new(lx, y, 0.0, 0.0),
-                        text: "⚠ shader recompiled this frame (12 ms)",
-                        variant: TooltipVariant::Rust,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(lx, y, 0.0, 0.0),
+                    tooltip,
+                    framewise::widgets::TooltipSpecBuilder::new()
+                        .text("⚠ shader recompiled this frame (12 ms)")
+                        .variant(TooltipVariant::Rust),
                 );
-                b.append_cmds(dc.0);
                 y += 28.0;
             }
             y += GROUP_GAP;
@@ -1706,15 +1705,12 @@ pub fn draw_spec_page(
                     let mut kx = lx;
                     for key in *keys {
                         let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
-                        let dc = keycap(
-                            KeycapSpec {
-                                rect: Rect::new(kx, y, kw, 22.0),
-                                label: key,
-                                ..Default::default()
-                            },
-                            b.text_system,
+                        b.add(
+                            Rect::new(kx, y, kw, 22.0),
+                            keycap,
+                            framewise::widgets::KeycapSpecBuilder::new()
+                                .label(key).bg(t.paper_elev).border(t.line).text_color(t.ink).text_size(t.text_sm),
                         );
-                        b.append_cmds(dc.draw.0);
                         kx += kw + 4.0;
                     }
                     b.label_styled(
@@ -1740,18 +1736,16 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let win_rect = Rect::new(lx, y, 360.0, 280.0);
-                let win_res = window(
-                    WindowSpec {
-                        rect: win_rect,
-                        title: "Inspector",
-                        buttons: &win_buttons,
-                        status_bar: true,
-                        status_text: "rendering  frame #00248  2.4 ms",
-                    },
-                    b.text_system,
+                let win_info = b.add(
+                    win_rect,
+                    window,
+                    framewise::widgets::WindowSpecBuilder::new()
+                        .title("Inspector")
+                        .buttons(&win_buttons)
+                        .status_bar(true)
+                        .status_text("rendering  frame #00248  2.4 ms"),
                 );
-                let cr = win_res.layout.content_bounds;
-                b.append_cmds(win_res.draw.0);
+                let cr = win_info.layout.content_bounds;
 
                 // Inner content: drag numbers + checkboxes
                 let mut iy = cr.y;
@@ -1759,18 +1753,16 @@ pub fn draw_spec_page(
                     &[("X", 320.0, 0.0, 800.0), ("Y", 144.0, 0.0, 600.0)];
                 let mut drx = cr.x;
                 for (label, val, min, max) in drag_items {
-                    let dc = drag_number(
-                        DragNumberSpec {
-                            rect: Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
-                            label,
-                            value: *val,
-                            min: *min,
-                            max: *max,
-                            active: false,
-                        },
-                        b.text_system,
+                    b.add(
+                        Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
+                        drag_number,
+                        framewise::widgets::DragNumberSpecBuilder::new()
+                            .label(label)
+                            .value(*val)
+                            .min(*min)
+                            .max(*max)
+                            .active(false),
                     );
-                    b.append_cmds(dc.0);
                     drx += (cr.w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
@@ -1778,18 +1770,16 @@ pub fn draw_spec_page(
                 let drag_items2: &[(&str, f32, f32, f32)] =
                     &[("W", 576.0, 0.0, 800.0), ("H", 400.0, 0.0, 600.0)];
                 for (label, val, min, max) in drag_items2 {
-                    let dc = drag_number(
-                        DragNumberSpec {
-                            rect: Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
-                            label,
-                            value: *val,
-                            min: *min,
-                            max: *max,
-                            active: false,
-                        },
-                        b.text_system,
+                    b.add(
+                        Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
+                        drag_number,
+                        framewise::widgets::DragNumberSpecBuilder::new()
+                            .label(label)
+                            .value(*val)
+                            .min(*min)
+                            .max(*max)
+                            .active(false),
                     );
-                    b.append_cmds(dc.0);
                     drx += (cr.w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 10.0;
@@ -1800,7 +1790,11 @@ pub fn draw_spec_page(
                     (CheckState::Off, "debug overlay"),
                 ];
                 for (cs, label) in check_items {
-                    b.add(Rect::new(cr.x, iy, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs));
+                    b.add(
+                        Rect::new(cr.x, iy, 14.0, 14.0),
+                        checkbox,
+                        CheckboxSpecBuilder::new(*cs),
+                    );
 
                     b.label_styled(
                         Rect::new(cr.x + 18.0, iy, cr.w - 18.0, 14.0),
@@ -1972,31 +1966,27 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let wr = Rect::new(lx, y, win_w_left, win_h_full);
-                let win_res = window(
-                    WindowSpec {
-                        rect: wr,
-                        title: "Renderer Settings",
-                        buttons: &win_buttons,
-                        status_bar: true,
-                        status_text: "rendering  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa",
-                    },
-                    b.text_system,
+                let win_res = b.add(
+                    wr,
+                    window,
+                    framewise::widgets::WindowSpecBuilder::new()
+                        .title("Renderer Settings")
+                        .buttons(&win_buttons)
+                        .status_bar(true)
+                        .status_text("rendering  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa"),
                 );
                 let cr = win_res.layout.content_bounds;
-                b.append_cmds(win_res.draw.0);
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                let dc = tabs(
-                    TabsSpec {
-                        rect: Rect::new(cr.x, cr.y, cr.w, 28.0),
-                        items: &tabs_items,
-                        active_index: 0,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(cr.x, cr.y, cr.w, 28.0),
+                    tabs,
+                    framewise::widgets::TabsSpecBuilder::new()
+                        .items(&tabs_items)
+                        .active_index(0)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
 
                 // Form rows
                 let form_y_start = cr.y + 38.0;
@@ -2016,16 +2006,14 @@ pub fn draw_spec_page(
                     false,
                 );
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                let dc = segmented(
-                    SegmentedSpec {
-                        rect: Rect::new(widget_x, fy, 0.0, row_h),
-                        items: &backends,
-                        active_index: 1,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(widget_x, fy, 0.0, row_h),
+                    segmented,
+                    framewise::widgets::SegmentedSpecBuilder::new()
+                        .items(&backends)
+                        .active_index(1)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
                 fy += row_h + row_gap;
 
                 // target fps (slider)
@@ -2063,13 +2051,14 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                let dc = switch(SwitchSpec {
-                    rect: Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
-                    on: true,
-                    focused: false,
-                    disabled: false,
-                });
-                b.append_cmds(dc.0);
+                b.add(
+                    Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
+                    switch,
+                    SwitchSpecBuilder::new()
+                        .on(true)
+                        .focused(false)
+                        .disabled(false),
+                );
                 b.label_styled(
                     Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0),
                     "match display",
@@ -2088,16 +2077,14 @@ pub fn draw_spec_page(
                     false,
                 );
                 let msaa_opts = ["off", "2×", "4×", "8×"];
-                let dc = segmented(
-                    SegmentedSpec {
-                        rect: Rect::new(widget_x, fy, 0.0, row_h),
-                        items: &msaa_opts,
-                        active_index: 2,
-                        focused: None,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(widget_x, fy, 0.0, row_h),
+                    segmented,
+                    framewise::widgets::SegmentedSpecBuilder::new()
+                        .items(&msaa_opts)
+                        .active_index(2)
+                        .focused(None),
                 );
-                b.append_cmds(dc.0);
                 fy += row_h + row_gap;
 
                 // viewport (drag numbers)
@@ -2111,18 +2098,16 @@ pub fn draw_spec_page(
                 let vp_items: &[(&str, f32)] = &[("W", 1920.0), ("H", 1080.0)];
                 let mut vpx = widget_x;
                 for (label, val) in vp_items {
-                    let dc = drag_number(
-                        DragNumberSpec {
-                            rect: Rect::new(vpx, fy, (widget_w / 2.0) - 4.0, row_h),
-                            label,
-                            value: *val,
-                            min: 0.0,
-                            max: 7680.0,
-                            active: false,
-                        },
-                        b.text_system,
+                    b.add(
+                        Rect::new(vpx, fy, (widget_w / 2.0) - 4.0, row_h),
+                        drag_number,
+                        framewise::widgets::DragNumberSpecBuilder::new()
+                            .label(label)
+                            .value(*val)
+                            .min(0.0)
+                            .max(7680.0)
+                            .active(false),
                     );
-                    b.append_cmds(dc.0);
                     vpx += (widget_w / 2.0) + 4.0;
                 }
                 fy += row_h + row_gap;
@@ -2135,12 +2120,13 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                let dc = color_swatch(ColorSwatchSpec {
-                    rect: Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
-                    color: t.rust,
-                    border: t.line,
-                });
-                b.append_cmds(dc.draw.0);
+                b.add(
+                    Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
+                    color_swatch,
+                    framewise::widgets::ColorSwatchSpecBuilder::new()
+                        .color(t.rust)
+                        .border(t.line),
+                );
                 b.label_styled(
                     Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0),
                     "#c25a2c",
@@ -2165,7 +2151,11 @@ pub fn draw_spec_page(
                 ];
                 for (i, (cs, label)) in opt_items.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    b.add(Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs));
+                    b.add(
+                        Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
+                        checkbox,
+                        CheckboxSpecBuilder::new(*cs),
+                    );
 
                     b.label_styled(
                         Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0),
@@ -2214,18 +2204,16 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let fl_rect = Rect::new(rcol_x, y, rcol_w, fl_h);
-                let fl_res = window(
-                    WindowSpec {
-                        rect: fl_rect,
-                        title: "Frame Log",
-                        buttons: &fl_buttons,
-                        status_bar: true,
-                        status_text: "recording  248 frames  2.6 ms avg",
-                    },
-                    b.text_system,
+                let fl_res = b.add(
+                    fl_rect,
+                    window,
+                    framewise::widgets::WindowSpecBuilder::new()
+                        .title("Frame Log")
+                        .buttons(&fl_buttons)
+                        .status_bar(true)
+                        .status_text("recording  248 frames  2.6 ms avg"),
                 );
                 let fl_cr = fl_res.layout.content_bounds;
-                b.append_cmds(fl_res.draw.0);
 
                 // Scroll area for log content
                 let fl_scroll_rect = Rect::new(fl_cr.x, fl_cr.y, fl_cr.w, fl_cr.h);
@@ -2286,18 +2274,16 @@ pub fn draw_spec_page(
                 let qa_y = y + fl_h + 16.0;
                 let qa_buttons = [WindowButton { symbol: "×" }];
                 let qa_rect = Rect::new(rcol_x, qa_y, rcol_w, 174.0);
-                let qa_res = window(
-                    WindowSpec {
-                        rect: qa_rect,
-                        title: "Quick actions",
-                        buttons: &qa_buttons,
-                        status_bar: false,
-                        status_text: "",
-                    },
-                    b.text_system,
+                let qa_res = b.add(
+                    qa_rect,
+                    window,
+                    framewise::widgets::WindowSpecBuilder::new()
+                        .title("Quick actions")
+                        .buttons(&qa_buttons)
+                        .status_bar(false)
+                        .status_text(""),
                 );
                 let qa_cr = qa_res.layout.content_bounds;
-                b.append_cmds(qa_res.draw.0);
 
                 let qa_items = [
                     MenuItem::Item {
@@ -2326,14 +2312,11 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                let dc = menu(
-                    MenuSpec {
-                        rect: Rect::new(qa_cr.x, qa_cr.y - 8.0, qa_cr.w, 0.0),
-                        items: &qa_items,
-                    },
-                    b.text_system,
+                b.add(
+                    Rect::new(qa_cr.x, qa_cr.y - 8.0, qa_cr.w, 0.0),
+                    menu,
+                    framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
                 );
-                b.append_cmds(dc.0);
 
                 y += win_h_full;
             }

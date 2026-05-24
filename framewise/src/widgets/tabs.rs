@@ -1,11 +1,9 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    text::TextSystem,
-    theme::Theme,
-    types::{Rect, Vec2},
+    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::{Rect, Vec2}
 };
 
-pub struct TabsSpec<'a> {
+pub struct TabsSpec<'a, T: crate::text::TextSystem> {
+    pub ts: &'a mut T,
     /// Bounding rect; only x/y/w used — height is fixed at 36.
     pub rect:         Rect,
     pub items:        &'a [&'a str],
@@ -13,7 +11,19 @@ pub struct TabsSpec<'a> {
     pub focused:      Option<usize>,
 }
 
-pub fn tabs<T: TextSystem>(spec: TabsSpec<'_>, ts: &mut T) -> DrawCommands {
+pub struct TabsResult {
+    pub draw: DrawCommands,
+}
+
+impl WidgetResult for TabsResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
@@ -36,7 +46,7 @@ pub fn tabs<T: TextSystem>(spec: TabsSpec<'_>, ts: &mut T) -> DrawCommands {
         let is_active = i == spec.active_index;
         let is_focused = spec.focused == Some(i);
 
-        let layout = ts.prepare(label, t.text_md);
+        let layout = spec.ts.prepare(label, t.text_md);
         let tab_w = layout.size.x + pad_x * 2.0;
         let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -68,5 +78,69 @@ pub fn tabs<T: TextSystem>(spec: TabsSpec<'_>, ts: &mut T) -> DrawCommands {
         x += tab_w;
     }
 
-    cmds
+    TabsResult { draw: cmds }
+}
+
+
+
+
+pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
+    pub items: Option<&'a [&'a str]>,
+    pub active_index: Option<usize>,
+    pub focused: Option<Option<usize>>,
+    pub rect: Option<Rect>,
+    pub ts: Option<&'a mut T>,
+}
+
+impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
+    pub fn new() -> Self {
+        Self {
+            items: None,
+            active_index: None,
+            focused: None,
+            rect: None,
+            ts: None,
+        }
+    }
+
+    pub fn items(mut self, items: &'a [&'a str]) -> Self {
+        self.items = Some(items);
+        self
+    }
+    pub fn active_index(mut self, active_index: usize) -> Self {
+        self.active_index = Some(active_index);
+        self
+    }
+    pub fn focused(mut self, focused: Option<usize>) -> Self {
+        self.focused = Some(focused);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for TabsSpecBuilder<'a, T> {
+    type Spec = TabsSpec<'a, T>;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+        self.ts = Some(ts);
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        TabsSpec {
+            ts: self.ts.expect("TextSystem is required"),
+            rect: self.rect.unwrap_or_default(),
+            items: self.items.unwrap(),
+            active_index: self.active_index.unwrap(),
+            focused: self.focused.unwrap(),
+        }
+    }
 }

@@ -46,3 +46,51 @@ pub fn color_swatch(spec: ColorSwatchSpec) -> ColorSwatchResult {
         layout: LayoutInfo::tight(spec.rect),
     }
 }
+
+
+pub struct ColorSwatchSpecBuilder {
+    pub rect: Option<Rect>,
+    pub color: Option<Color>,
+    pub border: Option<Color>,
+}
+
+impl ColorSwatchSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            rect: None,
+            color: None,
+            border: None,
+        }
+    }
+
+    pub fn color(mut self, color: Color) -> Self {
+        self.color = Some(color);
+        self
+    }
+    
+    pub fn border(mut self, border: Color) -> Self {
+        self.border = Some(border);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for ColorSwatchSpecBuilder {
+    type Spec = ColorSwatchSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        let mut spec = ColorSwatchSpec::default();
+        if let Some(r) = self.rect { spec.rect = r; }
+        if let Some(c) = self.color { spec.color = c; }
+        if let Some(b) = self.border { spec.border = b; }
+        spec
+    }
+}

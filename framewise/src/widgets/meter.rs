@@ -72,3 +72,59 @@ pub fn meter(spec: MeterSpec) -> MeterResult {
         layout: LayoutInfo::tight(spec.rect),
     }
 }
+
+
+pub struct MeterSpecBuilder {
+    pub rect: Option<Rect>,
+    pub value: Option<f32>,
+    pub peak: Option<Option<f32>>,
+    pub bars: Option<usize>,
+}
+
+impl MeterSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            rect: None,
+            value: None,
+            peak: None,
+            bars: None,
+        }
+    }
+
+    pub fn value(mut self, value: f32) -> Self {
+        self.value = Some(value);
+        self
+    }
+    
+    pub fn peak(mut self, peak: Option<f32>) -> Self {
+        self.peak = Some(peak);
+        self
+    }
+    
+    pub fn bars(mut self, bars: usize) -> Self {
+        self.bars = Some(bars);
+        self
+    }
+}
+
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for MeterSpecBuilder {
+    type Spec = MeterSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        let mut spec = MeterSpec::default();
+        if let Some(r) = self.rect { spec.rect = r; }
+        if let Some(v) = self.value { spec.value = v; }
+        if let Some(p) = self.peak { spec.peak = p; }
+        if let Some(b) = self.bars { spec.bars = b; }
+        spec
+    }
+}

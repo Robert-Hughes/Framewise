@@ -53,11 +53,15 @@ pub trait WidgetResult {
 /// Trait for input structs widget functions, so that `Builder` can work with them.
 /// Provides common things that all widgets will have, like a rect for layout.
 /// A not-fully-specified widget spec, turned into a fully specified WidgetSpec upon build.
-pub trait WidgetSpecBuilder {
+pub trait WidgetSpecBuilder<'a, T: crate::text::TextSystem> {
     type Spec;
 
     fn with_rect(self, rect: Rect) -> Self;
     fn with_style(self) -> Self;
+    
+    fn with_text_system(self, _ts: &'a mut T) -> Self where Self: Sized {
+        self
+    }
 
     fn build(self) -> Self::Spec;
 }

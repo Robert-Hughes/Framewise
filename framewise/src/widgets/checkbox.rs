@@ -45,7 +45,7 @@ impl CheckboxSpecBuilder {
         self
     }
 }
-impl WidgetSpecBuilder for CheckboxSpecBuilder {
+impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for CheckboxSpecBuilder {
     type Spec = CheckboxSpec;
 
     fn with_rect(mut self, rect: Rect) -> Self {

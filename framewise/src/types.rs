@@ -23,6 +23,7 @@ impl Vec2 {
 
 /// An axis-aligned rectangle, stored as origin + size.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
