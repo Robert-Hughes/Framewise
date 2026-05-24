@@ -219,17 +219,17 @@ mod tests {
             color: None,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = spinner(spec);
         let cmds = res.draw.0;
 
         // 8 corner lines + 1 rust highlight line = 9 cmds
         assert_eq!(cmds.len(), 9);
-        let t = crate::Theme::default();
 
         for i in 0..8 {
-            assert!(matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == t.ink));
+            assert!(matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == style.color));
         }
-        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == style.highlight));
     }
 
     #[test]
@@ -241,17 +241,19 @@ mod tests {
             color: Some(custom_color),
             style: Default::default(),
         };
+        let style = spec.style;
         let res = spinner(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 9);
-        let t = crate::Theme::default();
 
         for i in 0..8 {
             assert!(
                 matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == custom_color)
             );
         }
-        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == style.highlight));
     }
 }
+
+

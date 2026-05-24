@@ -192,15 +192,14 @@ mod tests {
             variant: StatusVariant::Ok,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = status(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 2);
-        let t = crate::Theme::default();
-        let ok_color = Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0);
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == ok_color));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.ok));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text));
     }
 
     #[test]
@@ -214,13 +213,15 @@ mod tests {
             variant: StatusVariant::Warn,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = status(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 2);
-        let t = crate::Theme::default();
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.warn));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text));
     }
 }
+
+

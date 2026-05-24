@@ -185,6 +185,10 @@ such as colours, spacing, and semantic font choices, but low-level widget functi
 not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is
 passed to the widget function.
 
+> [!IMPORTANT]
+> **Static Check Rule:** Widgets must not import `theme::Theme` or call `Theme::framewise` outside tests. All low-level widgets in `framewise/src/widgets/*` must consume fully resolved `WidgetSpec`/`Style` data only.
+
+
 Fonts follow the same rule. A font is an application-owned handle independent of any
 theme. A theme references the two handles it wants to use for sans and mono text, but it
 does not own renderer-specific font data. The builder may copy those handles from the

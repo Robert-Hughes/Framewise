@@ -175,14 +175,16 @@ mod tests {
     #[test]
     fn test_keycap_visual() {
         let mut text_sys = DummyTextSys;
-        let t = crate::Theme::default();
+        let custom_bg = Color::from_srgb_u8(240, 240, 240, 255);
+        let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
+        let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
         let spec = KeycapSpec {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
             label: "K",
-            bg: t.paper_elev,
-            border: t.ink,
-            text_color: t.ink,
+            bg: custom_bg,
+            border: custom_border,
+            text_color: custom_text,
             text_size: 14.0,
             font: FontId::MONO,
         };
@@ -191,13 +193,14 @@ mod tests {
 
         assert_eq!(cmds.len(), 4);
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == custom_bg));
         assert!(
-            matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == t.ink && *width == 1.0)
+            matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == custom_border && *width == 1.0)
         );
         assert!(
             matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == Color::linear_rgba(0.0, 0.0, 0.0, 0.18))
         ); // shadow
-        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == custom_text));
     }
 }
+

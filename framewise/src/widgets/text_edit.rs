@@ -1086,9 +1086,8 @@ mod tests {
         // 2. border stroke
         // 3. text
         assert_eq!(cmds.0.len(), 3);
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
-        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == spec().style.background));
+        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == spec().style.border));
         assert!(matches!(&cmds.0[2], DrawCmd::Text { .. }));
     }
 
@@ -1113,10 +1112,9 @@ mod tests {
         // 3. text
         // 4. caret
         assert_eq!(cmds.0.len(), 4);
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
-        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.rust));
-        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == spec().style.background));
+        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == spec().style.focus_border));
+        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         // Caret
     }
 
@@ -1142,8 +1140,7 @@ mod tests {
         // 3. selection fill
         // 4. text
         assert_eq!(cmds.0.len(), 4);
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds.0[2], DrawCmd::FillRect { color, .. } if *color == t.rust_soft)); // Selection
+        assert!(matches!(&cmds.0[2], DrawCmd::FillRect { color, .. } if *color == spec().style.select_color)); // Selection
         assert!(matches!(&cmds.0[3], DrawCmd::Text { .. }));
     }
 
@@ -1164,9 +1161,9 @@ mod tests {
         // 3. border (error color)
         // 4. text
         assert_eq!(cmds.0.len(), 4);
-        let _t = crate::Theme::default();
         assert!(matches!(&cmds.0[1], DrawCmd::FillRect { .. })); // Stripe (hardcoded color in logic)
                                                                  // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
         assert!(matches!(&cmds.0[2], DrawCmd::StrokeRect { .. }));
     }
 }
+

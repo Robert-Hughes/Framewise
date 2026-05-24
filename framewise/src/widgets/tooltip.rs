@@ -207,19 +207,19 @@ mod tests {
             variant: TooltipVariant::Dark,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = tooltip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4); // bg fill, text, 2 arrow lines
-        let t = crate::Theme::default();
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.paper));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.dark_bg));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.dark_text));
         assert!(
-            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5)
+            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == style.dark_bg && *width == style.arrow_width)
         );
         assert!(
-            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5)
+            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == style.dark_bg && *width == style.arrow_width)
         );
     }
 
@@ -234,19 +234,21 @@ mod tests {
             variant: TooltipVariant::Rust,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = tooltip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4);
-        let t = crate::Theme::default();
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == Color::WHITE));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.rust_bg));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.rust_text));
         assert!(
-            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5)
+            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == style.rust_bg && *width == style.arrow_width)
         );
         assert!(
-            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5)
+            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == style.rust_bg && *width == style.arrow_width)
         );
     }
 }
+
+

@@ -258,6 +258,7 @@ mod tests {
             style: Default::default(),
         };
 
+        let style = spec.style;
         let res = drag_number(spec);
         let cmds = res.draw.0;
 
@@ -270,15 +271,14 @@ mod tests {
         assert_eq!(cmds.len(), 6);
 
         // Label width = DummyTextSys size x (8.0 * 1 chars) + 20.0 = 28.0
-        // Label bg color = ink
-        let t = crate::Theme::default();
+        // Label bg color = label_bg
         assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == t.ink && rect.w == 28.0)
+            matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == style.label_bg && rect.w == 28.0)
         );
 
-        // Value fill color = rust_soft, frac = 0.5, value width = 100 - 28 = 72, fill width = 36.0
+        // Value fill color = value_fill, frac = 0.5, value width = 100 - 28 = 72, fill width = 36.0
         assert!(
-            matches!(&cmds[4], DrawCmd::FillRect { color, rect } if *color == t.rust_soft && rect.w == 36.0)
+            matches!(&cmds[4], DrawCmd::FillRect { color, rect } if *color == style.value_fill && rect.w == 36.0)
         );
     }
 
@@ -297,19 +297,19 @@ mod tests {
             style: Default::default(),
         };
 
+        let style = spec.style;
         let res = drag_number(spec);
         let cmds = res.draw.0;
 
         // Active adds a focus ring stroke, so 7 cmds
         assert_eq!(cmds.len(), 7);
-        let t = crate::Theme::default();
 
         assert!(
-            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
         );
 
-        // Label bg color should be rust instead of ink
-        assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        // Label bg color should be active_label_bg instead of label_bg
+        assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == style.active_label_bg));
     }
 
     #[test]
@@ -337,3 +337,5 @@ mod tests {
         assert!(matches!(&cmds[4], DrawCmd::Text { .. }));
     }
 }
+
+

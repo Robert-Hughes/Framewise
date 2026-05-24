@@ -241,6 +241,7 @@ mod tests {
             focused: None,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = segmented(spec);
         let cmds = res.draw.0;
 
@@ -254,18 +255,17 @@ mod tests {
         // Iter 1:
         // 5: text (ink color)
         assert_eq!(cmds.len(), 6);
-        let t = crate::Theme::default();
 
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
-        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.background));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == style.border));
 
         // Item 0
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
-        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // Divider
-        assert!(matches!(&cmds[4], DrawCmd::Text { color, .. } if *color == t.paper)); // Active text
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // Active
+        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // Divider
+        assert!(matches!(&cmds[4], DrawCmd::Text { color, .. } if *color == style.active_text)); // Active text
 
         // Item 1
-        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == style.text));
         // Inactive text
     }
 
@@ -282,6 +282,7 @@ mod tests {
             focused: Some(1),
             style: Default::default(),
         };
+        let style = spec.style;
         let res = segmented(spec);
         let cmds = res.draw.0;
 
@@ -296,14 +297,15 @@ mod tests {
         // 5: focus ring
         // 6: text (paper color)
         assert_eq!(cmds.len(), 7);
-        let t = crate::Theme::default();
 
         // Item 1
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // Active
         assert!(
-            matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+            matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
         ); // Focus
-        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == t.paper));
+        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == style.active_text));
         // Active text
     }
+
 }
+

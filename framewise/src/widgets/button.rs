@@ -940,4 +940,53 @@ mod tests {
         assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == expected_border));
         assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == expected_text));
     }
+
+    #[test]
+    fn test_regression_custom_style_no_theme_lookup() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let input = Input::default();
+
+        let custom_style = ButtonStyle {
+            background: Color::from_srgb_u8(100, 150, 200, 255),
+            hovered: Color::from_srgb_u8(110, 160, 210, 255),
+            pressed: Color::from_srgb_u8(120, 170, 220, 255),
+            border: Color::from_srgb_u8(220, 230, 240, 255),
+            border_width: 4.5,
+            focus_border: Color::from_srgb_u8(255, 0, 0, 255),
+            text_size: 19.5,
+            font: FontId::MONO,
+            text_color: Color::from_srgb_u8(50, 60, 70, 255),
+        };
+
+        let spec = ButtonSpec {
+            rect: Rect::new(5.0, 15.0, 120.0, 45.0),
+            text: "Explicit Spec".to_string(),
+            style: custom_style,
+            clip_rect: None,
+            disabled: false,
+        };
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+
+        assert!(
+            matches!(&cmds[0], DrawCmd::FillRect { rect, color } if *rect == Rect::new(5.0, 15.0, 120.0, 45.0) && *color == custom_style.background),
+            "Background color or rect does not match custom style"
+        );
+        assert!(
+            matches!(&cmds[1], DrawCmd::StrokeRect { rect, color, width } if *rect == Rect::new(5.0, 15.0, 120.0, 45.0) && *color == custom_style.border && *width == custom_style.border_width),
+            "Border color, rect, or width does not match custom style"
+        );
+        assert!(
+            matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == custom_style.text_color),
+            "Text color does not match custom style"
+        );
+    }
 }
+

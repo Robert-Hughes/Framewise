@@ -205,14 +205,14 @@ mod tests {
             focused: false,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 3); // bg, border, text
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
-        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
-        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.background));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == style.border));
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == style.text));
     }
 
     #[test]
@@ -227,14 +227,13 @@ mod tests {
             focused: false,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 3);
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink)); // active bg
-        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.paper));
-        // active text
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // active bg
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == style.active_text));
     }
 
     #[test]
@@ -249,14 +248,16 @@ mod tests {
             focused: true,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4); // focus ring + 3 normal cmds
-        let t = crate::Theme::default();
         assert!(
-            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
         );
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == style.background));
     }
 }
+
+

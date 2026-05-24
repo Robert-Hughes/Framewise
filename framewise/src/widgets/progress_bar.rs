@@ -174,6 +174,7 @@ mod tests {
             active: false,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = progress_bar(spec);
         let cmds = res.draw.0;
 
@@ -181,14 +182,13 @@ mod tests {
         // 2. Fill
         assert_eq!(cmds.len(), 2);
 
-        let t = crate::Theme::default();
-        let _track_y = 10.0 + (10.0 - 3.0) * 0.5; // 13.5
+        let _track_y = 10.0 + (10.0 - style.track_height) * 0.5; // 13.5
 
         assert!(
-            matches!(&cmds[0], DrawCmd::FillRect { color, rect } if *color == t.line_soft && rect == &Rect::new(10.0, 13.5, 100.0, 3.0))
+            matches!(&cmds[0], DrawCmd::FillRect { color, rect } if *color == style.track_color && rect == &Rect::new(10.0, 13.5, 100.0, 3.0))
         );
         assert!(
-            matches!(&cmds[1], DrawCmd::FillRect { color, rect } if *color == t.ink && rect == &Rect::new(10.0, 13.5, 50.0, 3.0))
+            matches!(&cmds[1], DrawCmd::FillRect { color, rect } if *color == style.fill_color && rect == &Rect::new(10.0, 13.5, 50.0, 3.0))
         );
     }
 
@@ -201,13 +201,13 @@ mod tests {
             active: true,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = progress_bar(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 2);
 
-        let t = crate::Theme::default();
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == style.active_fill_color));
     }
 
     #[test]
@@ -219,6 +219,7 @@ mod tests {
             active: false,
             style: Default::default(),
         };
+        let style = spec.style;
         let res = progress_bar(spec);
         let cmds = res.draw.0;
 
@@ -228,9 +229,8 @@ mod tests {
         // Starts at phase * 100.0 = 50.0. So rect x = 60.0, w = 30.0.
         // Wait, start = 0.5 * 100 = 50.0. x = track.x + start = 10.0 + 50.0 = 60.0.
         // visible_w = 30.min(10 + 100 - 60).max(0) = 30.min(50).max(0) = 30.0.
-        let t = crate::Theme::default();
         if let DrawCmd::FillRect { color, rect } = cmds[1] {
-            assert_eq!(color, t.ink);
+            assert_eq!(color, style.fill_color);
             assert!(
                 (rect.x - 60.0).abs() < 0.01,
                 "Expected x around 60.0, got {}",
@@ -245,4 +245,6 @@ mod tests {
             panic!("Expected FillRect");
         }
     }
+
 }
+
