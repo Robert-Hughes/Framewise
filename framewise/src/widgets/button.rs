@@ -294,7 +294,7 @@ pub fn button<T: crate::text::TextSystem>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::{TextSystem, TextLayout, TextHandle};
+    
     use crate::types::Vec2;
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;
@@ -425,9 +425,9 @@ mod tests {
         input.mouse_down = false;
         input.mouse_clicked = true;
         let res1 = button(state1, btn1_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
-        state1 = res1.state;
+        
         let res2 = button(state2, btn2_spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
-        state2 = res2.state;
+        
 
         assert!(!res2.input.clicked, "Btn2 should not be clicked if mouse down was not on Btn2");
         assert!(!res1.input.clicked, "Btn1 should not be clicked since mouse was released outside");

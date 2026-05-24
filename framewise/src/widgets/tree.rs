@@ -1,5 +1,5 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::{Color, Rect}
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect}
 };
 
 pub struct TreeRow<'a> {

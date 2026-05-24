@@ -1,6 +1,5 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    text::TextSystem,
     theme::Theme,
     types::{Rect, Vec2},
     widget::{LayoutInfo, WidgetResult},

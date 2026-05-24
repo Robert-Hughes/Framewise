@@ -1,5 +1,5 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::{Rect, Vec2}
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Rect, Vec2}
 };
 
 pub struct TabsSpec<'a, T: crate::text::TextSystem> {

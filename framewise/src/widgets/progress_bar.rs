@@ -133,7 +133,7 @@ mod tests {
         assert_eq!(cmds.len(), 2);
         
         let t = Theme::framewise();
-        let track_y = 10.0 + (10.0 - 3.0) * 0.5; // 13.5
+        let _track_y = 10.0 + (10.0 - 3.0) * 0.5; // 13.5
         
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, rect } if *color == t.line_soft && rect == &Rect::new(10.0, 13.5, 100.0, 3.0)));
         assert!(matches!(&cmds[1], DrawCmd::FillRect { color, rect } if *color == t.ink && rect == &Rect::new(10.0, 13.5, 50.0, 3.0)));

@@ -1,5 +1,5 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}
 };
 
 #[derive(Debug, Clone)]

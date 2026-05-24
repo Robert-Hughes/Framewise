@@ -598,8 +598,8 @@ pub fn text_edit<T: TextSystem>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::{TextHandle, TextLayout};
-    use crate::types::Vec2;
+    
+    
 
     use crate::test_utils::DummyTextSys;
 

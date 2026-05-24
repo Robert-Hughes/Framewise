@@ -15,12 +15,12 @@ impl TextSystem for DummyTextSys {
         }
     }
 
-    fn measure_byte_x(&self, handle: TextHandle, byte_index: usize) -> f32 {
+    fn measure_byte_x(&self, _handle: TextHandle, byte_index: usize) -> f32 {
         // Just approximate 1 byte = 1 char for tests.
         byte_index as f32 * 8.0
     }
 
-    fn hit_test_x(&self, handle: TextHandle, x_offset: f32) -> usize {
+    fn hit_test_x(&self, _handle: TextHandle, x_offset: f32) -> usize {
         // 8px per char/byte.
         (x_offset / 8.0).round() as usize
     }

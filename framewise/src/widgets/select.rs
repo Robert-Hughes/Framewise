@@ -1,5 +1,5 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, text::TextSystem, theme::Theme, types::Rect
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::Rect
 };
 
 pub struct SelectSpec<'a, T: crate::text::TextSystem> {
