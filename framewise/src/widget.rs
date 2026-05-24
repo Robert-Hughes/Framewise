@@ -1,4 +1,5 @@
 use crate::draw::DrawCommands;
+use crate::theme::Theme;
 use crate::types::Rect;
 
 // ── Common result fragments ───────────────────────────────────────────────────
@@ -14,12 +15,18 @@ pub struct LayoutInfo {
 
 impl LayoutInfo {
     pub fn new(bounds: Rect, content_bounds: Rect) -> Self {
-        Self { bounds, content_bounds }
+        Self {
+            bounds,
+            content_bounds,
+        }
     }
 
     /// Convenience: layout with identical outer and content bounds.
     pub fn tight(bounds: Rect) -> Self {
-        Self { bounds, content_bounds: bounds }
+        Self {
+            bounds,
+            content_bounds: bounds,
+        }
     }
 }
 
@@ -58,8 +65,17 @@ pub trait WidgetSpecBuilder<'a, T: crate::text::TextSystem> {
 
     fn with_rect(self, rect: Rect) -> Self;
     fn with_style(self) -> Self;
-    
-    fn with_text_system(self, _ts: &'a mut T) -> Self where Self: Sized {
+    fn with_theme(self, _theme: &Theme) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
+
+    fn with_text_system(self, _ts: &'a mut T) -> Self
+    where
+        Self: Sized,
+    {
         self
     }
 

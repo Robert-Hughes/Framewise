@@ -2,7 +2,6 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     input::Input,
     text::FontId,
-    theme::Theme,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetResult},
 };
@@ -24,69 +23,55 @@ pub struct ButtonStyle {
 }
 
 impl Default for ButtonStyle {
-    /// Secondary button: transparent background, ink border.
     fn default() -> Self {
-        let t = Theme::framewise();
         Self {
             background: Color::TRANSPARENT,
-            hovered: t.hover,
-            pressed: t.press,
-            border: t.ink,
-            border_width: t.border,
-            focus_border: t.rust,
-            text_size: t.text_md,
-            font: t.sans_font,
-            text_color: t.ink,
+            hovered: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.06),
+            pressed: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.14),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            border_width: 1.0,
+            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
+            text_size: 13.0,
+            font: FontId::SANS,
+            text_color: Color::from_srgb_u8(21, 19, 15, 255),
         }
     }
 }
 
 impl ButtonStyle {
-    /// Primary: ink fill, paper text.
     pub fn primary() -> Self {
-        let t = Theme::framewise();
         Self {
-            background: t.ink,
+            background: Color::from_srgb_u8(21, 19, 15, 255),
             hovered: Color::BLACK,
             pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: t.ink,
-            border_width: t.border,
-            focus_border: t.rust,
-            text_size: t.text_md,
-            font: t.sans_font,
-            text_color: t.paper,
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            border_width: 1.0,
+            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
+            text_size: 13.0,
+            font: FontId::SANS,
+            text_color: Color::from_srgb_u8(244, 241, 234, 255),
         }
     }
 
-    /// Accent: rust fill, white text.
     pub fn accent() -> Self {
-        let t = Theme::framewise();
         Self {
-            background: t.rust,
+            background: Color::from_srgb_u8(194, 90, 44, 255),
             hovered: Color::from_srgb_u8(176, 79, 35, 255),
             pressed: Color::from_srgb_u8(156, 69, 32, 255),
-            border: t.rust,
-            border_width: t.border,
-            focus_border: t.rust,
-            text_size: t.text_md,
-            font: t.sans_font,
+            border: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.0,
+            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
+            text_size: 13.0,
+            font: FontId::SANS,
             text_color: Color::WHITE,
         }
     }
 
-    /// Ghost: no border, transparent background.
     pub fn ghost() -> Self {
-        let t = Theme::framewise();
         Self {
-            background: Color::TRANSPARENT,
-            hovered: t.hover,
-            pressed: t.press,
             border: Color::TRANSPARENT,
             border_width: 0.0,
-            focus_border: t.rust,
-            text_size: t.text_md,
-            font: t.sans_font,
-            text_color: t.ink,
+            ..Self::default()
         }
     }
 }

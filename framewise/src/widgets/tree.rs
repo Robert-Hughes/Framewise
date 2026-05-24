@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
     types::{Color, Rect},
     WidgetResult,
 };
@@ -21,6 +20,26 @@ pub struct TreeSpec<'a, T: crate::text::TextSystem> {
     pub rect: Rect,
     pub rows: &'a [TreeRow<'a>],
     pub font: FontId,
+    pub style: TreeStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TreeStyle {
+    pub row_height: f32,
+    pub indent_width: f32,
+    pub caret_width: f32,
+    pub pad_x: f32,
+    pub pad_y: f32,
+    pub min_width: f32,
+    pub text_size: f32,
+    pub background: Color,
+    pub border: Color,
+    pub selected_bg: Color,
+    pub text: Color,
+    pub selected_text: Color,
+    pub muted: Color,
+    pub selected_meta_alpha: f32,
+    pub border_width: f32,
 }
 
 pub struct TreeResult {
@@ -36,28 +55,28 @@ impl WidgetResult for TreeResult {
 }
 
 pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let row_h = 20.0_f32;
-    let indent_w = 14.0_f32;
-    let caret_w = 12.0_f32;
-    let pad_x = 10.0_f32;
-    let total_h = spec.rows.len() as f32 * row_h + 8.0;
-    let w = spec.rect.w.max(280.0);
+    let row_h = s.row_height;
+    let indent_w = s.indent_width;
+    let caret_w = s.caret_width;
+    let pad_x = s.pad_x;
+    let total_h = spec.rows.len() as f32 * row_h + s.pad_y * 2.0;
+    let w = spec.rect.w.max(s.min_width);
     let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
     cmds.push(DrawCmd::FillRect {
         rect: outer,
-        color: t.paper_elev,
+        color: s.background,
     });
     cmds.push(DrawCmd::StrokeRect {
         rect: outer,
-        color: t.ink,
-        width: 1.0,
+        color: s.border,
+        width: s.border_width,
     });
 
-    let mut y = spec.rect.y + 4.0;
+    let mut y = spec.rect.y + s.pad_y;
 
     for row in spec.rows {
         let row_rect = Rect::new(outer.x, y, w, row_h);
@@ -65,17 +84,26 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
         if row.selected {
             cmds.push(DrawCmd::FillRect {
                 rect: row_rect,
-                color: t.ink,
+                color: s.selected_bg,
             });
         }
 
-        let text_color = if row.selected { t.paper } else { t.ink };
-        let meta_color: Color = if row.selected {
-            Color::linear_rgba(t.paper.r, t.paper.g, t.paper.b, 0.7)
+        let text_color = if row.selected {
+            s.selected_text
         } else {
-            t.muted
+            s.text
         };
-        let caret_color = if row.selected { meta_color } else { t.muted };
+        let meta_color: Color = if row.selected {
+            Color::linear_rgba(
+                s.selected_text.r,
+                s.selected_text.g,
+                s.selected_text.b,
+                s.selected_meta_alpha,
+            )
+        } else {
+            s.muted
+        };
+        let caret_color = if row.selected { meta_color } else { s.muted };
 
         let indent_x = outer.x + pad_x + row.indent as f32 * indent_w;
 
@@ -85,7 +113,7 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
             Some(false) => ">",
             None => " ",
         };
-        let caret_layout = spec.ts.prepare(caret_sym, t.text_sm, spec.font);
+        let caret_layout = spec.ts.prepare(caret_sym, s.text_size, spec.font);
         let cty = y + (row_h - caret_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
@@ -94,7 +122,7 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
         });
 
         // Label.
-        let label_layout = spec.ts.prepare(row.label, t.text_sm, spec.font);
+        let label_layout = spec.ts.prepare(row.label, s.text_size, spec.font);
         let lty = y + (row_h - label_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -109,7 +137,7 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
 
         // Meta (right-aligned).
         if let Some(meta) = row.meta {
-            let meta_layout = spec.ts.prepare(meta, t.text_sm, spec.font);
+            let meta_layout = spec.ts.prepare(meta, s.text_size, spec.font);
             let mx = outer.x + w - pad_x - meta_layout.size.x;
             let mty = y + (row_h - meta_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
@@ -128,6 +156,7 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
 pub struct TreeSpecBuilder<'a, T: crate::text::TextSystem> {
     pub rows: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,
+    pub style: Option<TreeStyle>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
 }
@@ -137,6 +166,7 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
         Self {
             rows: None,
             font: None,
+            style: None,
             rect: None,
             ts: None,
         }
@@ -148,6 +178,10 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: TreeStyle) -> Self {
+        self.style = Some(style);
         self
     }
 }
@@ -166,6 +200,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.tree_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -177,6 +216,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             rows: self.rows.unwrap(),
             font: self.font.unwrap_or(FontId::MONO),
+            style: self.style.expect("TreeStyle is required"),
         }
     }
 }

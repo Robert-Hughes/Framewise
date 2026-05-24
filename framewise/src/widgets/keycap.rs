@@ -171,12 +171,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
-    use crate::theme::Theme;
 
     #[test]
     fn test_keycap_visual() {
         let mut text_sys = DummyTextSys;
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         let spec = KeycapSpec {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),

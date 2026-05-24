@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
     types::{Color, Rect, Vec2},
     WidgetResult,
 };
@@ -25,6 +24,31 @@ pub struct MenuSpec<'a, T: crate::text::TextSystem> {
     pub items: &'a [MenuItem<'a>],
     pub label_font: FontId,
     pub meta_font: FontId,
+    pub style: MenuStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MenuStyle {
+    pub row_height: f32,
+    pub separator_height: f32,
+    pub group_height: f32,
+    pub pad_x: f32,
+    pub pad_y: f32,
+    pub group_text_y: f32,
+    pub separator_y: f32,
+    pub min_width: f32,
+    pub label_size: f32,
+    pub meta_size: f32,
+    pub background: Color,
+    pub border: Color,
+    pub separator: Color,
+    pub selected_bg: Color,
+    pub selected_text: Color,
+    pub text: Color,
+    pub muted: Color,
+    pub shortcut_selected_alpha: f32,
+    pub disabled_alpha: f32,
+    pub border_width: f32,
 }
 
 pub struct MenuResult {
@@ -40,14 +64,13 @@ impl WidgetResult for MenuResult {
 }
 
 pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let row_h = 26.0_f32;
-    let sep_h = 9.0_f32;
-    let group_h = 22.0_f32;
-    let pad_x = 12.0_f32;
-    let min_w = 200.0_f32;
+    let row_h = s.row_height;
+    let sep_h = s.separator_height;
+    let group_h = s.group_height;
+    let pad_x = s.pad_x;
 
     let total_h: f32 = spec
         .items
@@ -58,41 +81,41 @@ pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult
             MenuItem::Group(_) => group_h,
         })
         .sum::<f32>()
-        + 8.0;
+        + s.pad_y * 2.0;
 
-    let w = spec.rect.w.max(min_w);
+    let w = spec.rect.w.max(s.min_width);
     let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
     cmds.push(DrawCmd::FillRect {
         rect: outer,
-        color: t.paper_elev,
+        color: s.background,
     });
     cmds.push(DrawCmd::StrokeRect {
         rect: outer,
-        color: t.ink,
-        width: 1.0,
+        color: s.border,
+        width: s.border_width,
     });
 
-    let mut y = spec.rect.y + 4.0;
+    let mut y = spec.rect.y + s.pad_y;
 
     for item in spec.items {
         match item {
             MenuItem::Separator => {
-                let sep_y = y + 4.0;
+                let sep_y = y + s.separator_y;
                 cmds.push(DrawCmd::StrokeLine {
                     p0: Vec2::new(outer.x, sep_y),
                     p1: Vec2::new(outer.x + w, sep_y),
-                    color: t.line,
-                    width: 1.0,
+                    color: s.separator,
+                    width: s.border_width,
                 });
                 y += sep_h;
             }
             MenuItem::Group(label) => {
-                let layout = spec.ts.prepare(label, t.text_sm, spec.meta_font);
-                let ty = y + 8.0;
+                let layout = spec.ts.prepare(label, s.meta_size, spec.meta_font);
+                let ty = y + s.group_text_y;
                 cmds.push(DrawCmd::Text {
                     rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
-                    color: t.muted,
+                    color: s.muted,
                     handle: layout.handle,
                 });
                 y += group_h;
@@ -103,7 +126,7 @@ pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult
                 selected,
                 disabled,
             } => {
-                let alpha = if *disabled { 0.4_f32 } else { 1.0 };
+                let alpha = if *disabled { s.disabled_alpha } else { 1.0 };
                 let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
                 let row_rect = Rect::new(outer.x, y, w, row_h);
@@ -111,16 +134,16 @@ pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult
                 if *selected {
                     cmds.push(DrawCmd::FillRect {
                         rect: row_rect,
-                        color: tint(t.ink),
+                        color: tint(s.selected_bg),
                     });
                 }
 
                 let text_color = if *selected {
-                    tint(t.paper)
+                    tint(s.selected_text)
                 } else {
-                    tint(t.ink)
+                    tint(s.text)
                 };
-                let layout = spec.ts.prepare(label, t.text_md, spec.label_font);
+                let layout = spec.ts.prepare(label, s.label_size, spec.label_font);
                 let ty = y + (row_h - layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
                     rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -130,11 +153,16 @@ pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult
 
                 if let Some(sc) = shortcut {
                     let sc_color = if *selected {
-                        Color::linear_rgba(t.paper.r, t.paper.g, t.paper.b, 0.6 * alpha)
+                        Color::linear_rgba(
+                            s.selected_text.r,
+                            s.selected_text.g,
+                            s.selected_text.b,
+                            s.shortcut_selected_alpha * alpha,
+                        )
                     } else {
-                        tint(t.muted)
+                        tint(s.muted)
                     };
-                    let sc_layout = spec.ts.prepare(sc, t.text_sm, spec.meta_font);
+                    let sc_layout = spec.ts.prepare(sc, s.meta_size, spec.meta_font);
                     let sc_x = outer.x + w - pad_x - sc_layout.size.x;
                     let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
                     cmds.push(DrawCmd::Text {
@@ -156,6 +184,7 @@ pub struct MenuSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,
     pub meta_font: Option<FontId>,
+    pub style: Option<MenuStyle>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
 }
@@ -166,6 +195,7 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
             items: None,
             label_font: None,
             meta_font: None,
+            style: None,
             rect: None,
             ts: None,
         }
@@ -181,6 +211,10 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
     }
     pub fn meta_font(mut self, font: FontId) -> Self {
         self.meta_font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: MenuStyle) -> Self {
+        self.style = Some(style);
         self
     }
 }
@@ -199,6 +233,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.menu_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -211,6 +250,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             items: self.items.unwrap(),
             label_font: self.label_font.unwrap_or(FontId::SANS),
             meta_font: self.meta_font.unwrap_or(FontId::MONO),
+            style: self.style.expect("MenuStyle is required"),
         }
     }
 }

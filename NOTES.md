@@ -5,6 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * Move theme out of low-level widget funcs (as per DESIGN.md)
+  * Remaining uses in tests shouldn't be necessary - assert against the style that that was passed in!
 
 ## Things Still to Figure Out
 
@@ -121,3 +122,10 @@ Features to design and implement, roughly in dependency order:
   - did a little work on this already and there's some tests but it's not good yet.
   - if navigating within a scroll area, it should probably prefer to move to a (currently) not visible widget within that scroll area then to pop out to one outside (which should scroll the new one into view)
 - Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)
+
+
+
+Misc
+====
+
+ * Consider using crate features to include/exclude certain widget types. Or perhaps move 'non-core' widgets into separate 'extra widgets' crate(s)?

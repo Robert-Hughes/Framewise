@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
     types::{Color, Rect},
     WidgetResult,
 };
@@ -21,6 +20,36 @@ pub struct StatusSpec<'a, T: crate::text::TextSystem> {
     pub label: &'a str,
     pub font: FontId,
     pub variant: StatusVariant,
+    pub style: StatusStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StatusStyle {
+    pub dot_size: f32,
+    pub gap: f32,
+    pub text_size: f32,
+    pub neutral: Color,
+    pub ok: Color,
+    pub warn: Color,
+    pub err: Color,
+    pub live: Color,
+    pub text: Color,
+}
+
+impl Default for StatusStyle {
+    fn default() -> Self {
+        Self {
+            dot_size: 6.0,
+            gap: 8.0,
+            text_size: 11.0,
+            neutral: Color::from_srgb_u8(138, 131, 120, 255),
+            ok: Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
+            warn: Color::from_srgb_u8(194, 90, 44, 255),
+            err: Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
+            live: Color::from_srgb_u8(194, 90, 44, 255),
+            text: Color::from_srgb_u8(138, 131, 120, 255),
+        }
+    }
 }
 
 pub struct StatusResult {
@@ -36,18 +65,18 @@ impl WidgetResult for StatusResult {
 }
 
 pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> StatusResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let dot_size = 6.0_f32;
-    let gap = 8.0_f32;
+    let dot_size = s.dot_size;
+    let gap = s.gap;
 
     let dot_color = match spec.variant {
-        StatusVariant::Neutral => t.muted,
-        StatusVariant::Ok => Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
-        StatusVariant::Warn => t.rust,
-        StatusVariant::Err => Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
-        StatusVariant::Live => t.rust,
+        StatusVariant::Neutral => s.neutral,
+        StatusVariant::Ok => s.ok,
+        StatusVariant::Warn => s.warn,
+        StatusVariant::Err => s.err,
+        StatusVariant::Live => s.live,
     };
 
     cmds.push(DrawCmd::FillRect {
@@ -56,7 +85,7 @@ pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> Status
     });
 
     let label_upper = spec.label.to_uppercase();
-    let layout = spec.ts.prepare(&label_upper, t.text_sm, spec.font);
+    let layout = spec.ts.prepare(&label_upper, s.text_size, spec.font);
     let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect: Rect::new(
@@ -65,7 +94,7 @@ pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> Status
             layout.size.x,
             layout.size.y,
         ),
-        color: t.muted,
+        color: s.text,
         handle: layout.handle,
     });
 
@@ -75,6 +104,7 @@ pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> Status
 pub struct StatusSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
+    pub style: Option<StatusStyle>,
     pub variant: Option<StatusVariant>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -85,6 +115,7 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
         Self {
             label: None,
             font: None,
+            style: None,
             variant: None,
             rect: None,
             ts: None,
@@ -97,6 +128,10 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: StatusStyle) -> Self {
+        self.style = Some(style);
         self
     }
     pub fn variant(mut self, variant: StatusVariant) -> Self {
@@ -119,6 +154,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.status_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -130,6 +170,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.unwrap_or(FontId::MONO),
+            style: self.style.expect("StatusStyle is required"),
             variant: self.variant.unwrap(),
         }
     }
@@ -149,12 +190,13 @@ mod tests {
             label: "Online",
             font: FontId::MONO,
             variant: StatusVariant::Ok,
+            style: Default::default(),
         };
         let res = status(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 2);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         let ok_color = Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0);
 
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == ok_color));
@@ -170,12 +212,13 @@ mod tests {
             label: "Warning",
             font: FontId::MONO,
             variant: StatusVariant::Warn,
+            style: Default::default(),
         };
         let res = status(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 2);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));

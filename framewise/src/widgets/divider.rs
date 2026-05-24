@@ -1,16 +1,18 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    theme::Theme,
+    types::Color,
     types::{Rect, Vec2},
     widget::{LayoutInfo, WidgetResult},
 };
 
 pub struct DividerSpec {
     pub rect: Rect,
+    pub color: Color,
+    pub width: f32,
 }
 
 pub struct DividerResult {
-    pub draw:   DrawCommands,
+    pub draw: DrawCommands,
     pub layout: LayoutInfo,
 }
 
@@ -21,19 +23,23 @@ pub struct DividerInfo {
 impl WidgetResult for DividerResult {
     type Info = DividerInfo;
     fn into_parts(self) -> (DrawCommands, DividerInfo) {
-        (self.draw, DividerInfo { layout: self.layout })
+        (
+            self.draw,
+            DividerInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
 pub fn divider(spec: DividerSpec) -> DividerResult {
-    let t = Theme::framewise();
     let mut draw = DrawCommands::new();
     let mid_y = spec.rect.y + spec.rect.h * 0.5;
     draw.push(DrawCmd::StrokeLine {
-        p0:    Vec2::new(spec.rect.x, mid_y),
-        p1:    Vec2::new(spec.rect.x + spec.rect.w, mid_y),
-        color: t.line,
-        width: 1.0,
+        p0: Vec2::new(spec.rect.x, mid_y),
+        p1: Vec2::new(spec.rect.x + spec.rect.w, mid_y),
+        color: spec.color,
+        width: spec.width,
     });
     DividerResult {
         draw,
@@ -49,13 +55,15 @@ mod tests {
     fn test_divider_visual() {
         let spec = DividerSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 10.0),
+            color: Color::WHITE,
+            width: 1.0,
         };
         let res = divider(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 1);
-        let t = Theme::framewise();
-        
-        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, width, .. } if *color == t.line && *width == 1.0));
+        assert!(
+            matches!(&cmds[0], DrawCmd::StrokeLine { color, width, .. } if *color == Color::WHITE && *width == 1.0)
+        );
     }
 }

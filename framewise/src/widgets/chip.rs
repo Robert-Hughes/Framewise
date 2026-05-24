@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
-    types::Rect,
+    types::{Color, Rect},
     WidgetResult,
 };
 
@@ -14,6 +13,42 @@ pub struct ChipSpec<'a, T: crate::text::TextSystem> {
     pub font: FontId,
     pub active: bool,
     pub focused: bool,
+    pub style: ChipStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ChipStyle {
+    pub height: f32,
+    pub pad_x: f32,
+    pub text_size: f32,
+    pub background: Color,
+    pub active_bg: Color,
+    pub border: Color,
+    pub text: Color,
+    pub active_text: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+}
+
+impl Default for ChipStyle {
+    fn default() -> Self {
+        Self {
+            height: 22.0,
+            pad_x: 8.0,
+            text_size: 11.0,
+            background: Color::from_srgb_u8(251, 249, 244, 255),
+            active_bg: Color::from_srgb_u8(21, 19, 15, 255),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            text: Color::from_srgb_u8(21, 19, 15, 255),
+            active_text: Color::from_srgb_u8(244, 241, 234, 255),
+            focus: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.0,
+            focus_width: 2.0,
+            focus_offset: 2.0,
+        }
+    }
 }
 
 pub struct ChipResult {
@@ -29,34 +64,38 @@ impl WidgetResult for ChipResult {
 }
 
 pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let h = 22.0_f32;
-    let pad_x = 8.0_f32;
+    let h = s.height;
+    let pad_x = s.pad_x;
 
-    let layout = spec.ts.prepare(spec.label, t.text_sm, spec.font);
+    let layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
     let w = spec.rect.w.max(32.0);
     let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
     // Focus ring.
     if spec.focused {
         cmds.push(DrawCmd::StrokeRect {
-            rect: r.inset(-2.0),
-            color: t.rust,
-            width: 2.0,
+            rect: r.inset(-s.focus_offset),
+            color: s.focus,
+            width: s.focus_width,
         });
     }
 
-    let bg = if spec.active { t.ink } else { t.paper_elev };
+    let bg = if spec.active {
+        s.active_bg
+    } else {
+        s.background
+    };
     cmds.push(DrawCmd::FillRect { rect: r, color: bg });
     cmds.push(DrawCmd::StrokeRect {
         rect: r,
-        color: t.ink,
-        width: 1.0,
+        color: s.border,
+        width: s.border_width,
     });
 
-    let text_color = if spec.active { t.paper } else { t.ink };
+    let text_color = if spec.active { s.active_text } else { s.text };
     let ty = r.y + (h - layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -70,6 +109,7 @@ pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult
 pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
+    pub style: Option<ChipStyle>,
     pub active: Option<bool>,
     pub focused: Option<bool>,
     pub rect: Option<Rect>,
@@ -81,6 +121,7 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
         Self {
             label: None,
             font: None,
+            style: None,
             active: None,
             focused: None,
             rect: None,
@@ -94,6 +135,10 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: ChipStyle) -> Self {
+        self.style = Some(style);
         self
     }
     pub fn active(mut self, active: bool) -> Self {
@@ -120,6 +165,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.chip_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -131,6 +181,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.unwrap_or(FontId::MONO),
+            style: self.style.expect("ChipStyle is required"),
             active: self.active.unwrap(),
             focused: self.focused.unwrap(),
         }
@@ -152,12 +203,13 @@ mod tests {
             font: FontId::MONO,
             active: false,
             focused: false,
+            style: Default::default(),
         };
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 3); // bg, border, text
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
         assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
         assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.ink));
@@ -173,12 +225,13 @@ mod tests {
             font: FontId::MONO,
             active: true,
             focused: false,
+            style: Default::default(),
         };
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 3);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink)); // active bg
         assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.paper));
         // active text
@@ -194,12 +247,13 @@ mod tests {
             font: FontId::MONO,
             active: false,
             focused: true,
+            style: Default::default(),
         };
         let res = chip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4); // focus ring + 3 normal cmds
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(
             matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
         );

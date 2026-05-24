@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
-    types::Rect,
+    types::{Color, Rect},
     WidgetResult,
 };
 
@@ -16,6 +15,44 @@ pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
     pub min: f32,
     pub max: f32,
     pub active: bool,
+    pub style: DragNumberStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DragNumberStyle {
+    pub text_size: f32,
+    pub label_pad_x: f32,
+    pub background: Color,
+    pub border: Color,
+    pub focus: Color,
+    pub label_bg: Color,
+    pub active_label_bg: Color,
+    pub label_text: Color,
+    pub value_text: Color,
+    pub value_fill: Color,
+    pub border_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+}
+
+impl Default for DragNumberStyle {
+    fn default() -> Self {
+        Self {
+            text_size: 13.0,
+            label_pad_x: 10.0,
+            background: Color::from_srgb_u8(251, 249, 244, 255),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            focus: Color::from_srgb_u8(194, 90, 44, 255),
+            label_bg: Color::from_srgb_u8(21, 19, 15, 255),
+            active_label_bg: Color::from_srgb_u8(194, 90, 44, 255),
+            label_text: Color::from_srgb_u8(244, 241, 234, 255),
+            value_text: Color::from_srgb_u8(21, 19, 15, 255),
+            value_fill: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),
+            border_width: 1.0,
+            focus_width: 2.0,
+            focus_offset: 1.0,
+        }
+    }
 }
 
 pub struct DragNumberResult {
@@ -33,33 +70,37 @@ impl WidgetResult for DragNumberResult {
 pub fn drag_number<'a, T: crate::text::TextSystem>(
     spec: DragNumberSpec<'a, T>,
 ) -> DragNumberResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
     // Focus / active ring.
     if spec.active {
         cmds.push(DrawCmd::StrokeRect {
-            rect: spec.rect.inset(-1.0),
-            color: t.rust,
-            width: 2.0,
+            rect: spec.rect.inset(-s.focus_offset),
+            color: s.focus,
+            width: s.focus_width,
         });
     }
 
     cmds.push(DrawCmd::FillRect {
         rect: spec.rect,
-        color: t.paper_elev,
+        color: s.background,
     });
     cmds.push(DrawCmd::StrokeRect {
         rect: spec.rect,
-        color: t.ink,
-        width: 1.0,
+        color: s.border,
+        width: s.border_width,
     });
 
     // Label section (ink/rust bg, paper text).
-    let label_layout = spec.ts.prepare(spec.label, t.text_md, spec.font);
-    let label_w = label_layout.size.x + 20.0;
+    let label_layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
+    let label_w = label_layout.size.x + s.label_pad_x * 2.0;
     let label_rect = Rect::new(spec.rect.x, spec.rect.y, label_w, spec.rect.h);
-    let label_bg = if spec.active { t.rust } else { t.ink };
+    let label_bg = if spec.active {
+        s.active_label_bg
+    } else {
+        s.label_bg
+    };
     cmds.push(DrawCmd::FillRect {
         rect: label_rect,
         color: label_bg,
@@ -68,12 +109,12 @@ pub fn drag_number<'a, T: crate::text::TextSystem>(
     let lty = spec.rect.y + (spec.rect.h - label_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect: Rect::new(
-            spec.rect.x + 10.0,
+            spec.rect.x + s.label_pad_x,
             lty,
             label_layout.size.x,
             label_layout.size.y,
         ),
-        color: t.paper,
+        color: s.label_text,
         handle: label_layout.handle,
     });
 
@@ -84,17 +125,17 @@ pub fn drag_number<'a, T: crate::text::TextSystem>(
     if frac > 0.0 {
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
-            color: t.rust_soft,
+            color: s.value_fill,
         });
     }
 
     let value_text = format!("{:.2}", spec.value);
-    let val_layout = spec.ts.prepare(&value_text, t.text_md, spec.font);
+    let val_layout = spec.ts.prepare(&value_text, s.text_size, spec.font);
     let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
     let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect: Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
-        color: t.ink,
+        color: s.value_text,
         handle: val_layout.handle,
     });
 
@@ -104,6 +145,7 @@ pub fn drag_number<'a, T: crate::text::TextSystem>(
 pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
+    pub style: Option<DragNumberStyle>,
     pub value: Option<f32>,
     pub min: Option<f32>,
     pub max: Option<f32>,
@@ -117,6 +159,7 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
         Self {
             label: None,
             font: None,
+            style: None,
             value: None,
             min: None,
             max: None,
@@ -132,6 +175,10 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: DragNumberStyle) -> Self {
+        self.style = Some(style);
         self
     }
     pub fn value(mut self, value: f32) -> Self {
@@ -166,6 +213,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.drag_number_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -177,6 +229,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.unwrap_or(FontId::SANS),
+            style: self.style.expect("DragNumberStyle is required"),
             value: self.value.unwrap(),
             min: self.min.unwrap(),
             max: self.max.unwrap(),
@@ -202,6 +255,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             active: false,
+            style: Default::default(),
         };
 
         let res = drag_number(spec);
@@ -217,7 +271,7 @@ mod tests {
 
         // Label width = DummyTextSys size x (8.0 * 1 chars) + 20.0 = 28.0
         // Label bg color = ink
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(
             matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == t.ink && rect.w == 28.0)
         );
@@ -240,6 +294,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             active: true,
+            style: Default::default(),
         };
 
         let res = drag_number(spec);
@@ -247,7 +302,7 @@ mod tests {
 
         // Active adds a focus ring stroke, so 7 cmds
         assert_eq!(cmds.len(), 7);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(
             matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
@@ -269,6 +324,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             active: false,
+            style: Default::default(),
         };
 
         let res = drag_number(spec);

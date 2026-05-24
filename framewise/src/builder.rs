@@ -43,8 +43,8 @@ impl Default for BuilderCtx {
             accent_color: Color::from_srgb_f32(0.30, 0.55, 0.95, 1.0),
             text_color: Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
             border_color: Color::from_srgb_f32(0.30, 0.30, 0.38, 1.0),
-            button_style: ButtonStyle::default(),
-            frame_style: FrameStyle::default(),
+            button_style: theme.button_secondary_style(),
+            frame_style: theme.frame_style(),
             text_size: 14.0,
             text_font: theme.sans_font,
             time: 0.0,
@@ -167,7 +167,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             step: page_step / 10.0,
             orientation,
             thumb_size_ratio: None, // Generic slider doesn't resize thumb based on content
-            style: crate::widgets::slider::SliderStyle::default(),
+            style: self.ctx.theme.slider_style(),
             clip_rect: self.ctx.clip_rect,
             claim_scroll_at_ends: true, // Standalone: always block scroll propagation
         };
@@ -207,6 +207,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         let rect = self.layout_state.layout(layout_params);
         let widget_spec = widget_spec_builder
             .with_rect(rect)
+            .with_theme(&self.ctx.theme)
             .with_text_system(self.text_system)
             .build();
 
@@ -375,7 +376,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             style: TextEditStyle {
                 text_size: self.ctx.text_size,
                 font: self.ctx.theme.mono_font,
-                ..Default::default()
+                ..self.ctx.theme.text_edit_style()
             },
             clip_rect: self.ctx.clip_rect,
             error,
@@ -439,8 +440,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
     pub fn divider(&mut self, layout_params: S::Params) -> DividerInfo {
         let rect = self.layout_state.layout(layout_params);
-        let result =
-            crate::widgets::divider::divider(crate::widgets::divider::DividerSpec { rect });
+        let result = crate::widgets::divider::divider(self.ctx.theme.divider_spec(rect));
         self.emit(result)
     }
 
@@ -471,6 +471,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         //TODO: add things like style/theme
         let widget_spec = widget_spec_builder
             .with_rect(rect)
+            .with_theme(&self.ctx.theme)
             .with_text_system(self.text_system)
             .build();
         let result = widget_func(widget_spec);

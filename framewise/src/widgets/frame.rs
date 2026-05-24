@@ -1,6 +1,5 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    theme::Theme,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
 };
@@ -10,36 +9,24 @@ use crate::{
 /// Visual configuration for a frame (bordered background rectangle).
 #[derive(Debug, Clone, Copy)]
 pub struct FrameStyle {
-    pub background:   Color,
-    pub border:       Color,
+    pub background: Color,
+    pub border: Color,
     pub border_width: f32,
     /// Padding between the border and the content area.
-    pub padding:      f32,
-}
-
-impl Default for FrameStyle {
-    fn default() -> Self {
-        let t = Theme::framewise();
-        Self {
-            background:   t.paper_elev,
-            border:       t.ink,
-            border_width: t.border,
-            padding:      4.0,
-        }
-    }
+    pub padding: f32,
 }
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
 pub struct FrameSpec {
-    pub rect:  Rect,
+    pub rect: Rect,
     pub style: FrameStyle,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct FrameResult {
-    pub draw:   DrawCommands,
+    pub draw: DrawCommands,
     pub layout: LayoutInfo,
 }
 
@@ -49,14 +36,21 @@ pub struct FrameInfo {
 
 impl FrameInfo {
     /// The content area inside the frame's border and padding.
-    pub fn content_rect(&self) -> Rect { self.layout.content_bounds }
+    pub fn content_rect(&self) -> Rect {
+        self.layout.content_bounds
+    }
 }
 
 impl WidgetResult for FrameResult {
     type Info = FrameInfo;
 
     fn into_parts(self) -> (DrawCommands, FrameInfo) {
-        (self.draw, FrameInfo { layout: self.layout })
+        (
+            self.draw,
+            FrameInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
@@ -69,11 +63,14 @@ impl WidgetResult for FrameResult {
 pub fn frame(spec: FrameSpec) -> FrameResult {
     let mut draw = DrawCommands::new();
 
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: spec.style.background });
+    draw.push(DrawCmd::FillRect {
+        rect: spec.rect,
+        color: spec.style.background,
+    });
 
     if spec.style.border_width > 0.0 {
         draw.push(DrawCmd::StrokeRect {
-            rect:  spec.rect,
+            rect: spec.rect,
             color: spec.style.border,
             width: spec.style.border_width,
         });
@@ -103,23 +100,23 @@ mod tests {
                 padding: 3.0,
             },
         };
-        
+
         let res = frame(spec);
         let (draw, info) = res.into_parts();
-        
+
         // Bounds should be exactly the requested rect
         assert_eq!(info.layout.bounds.x, 10.0);
         assert_eq!(info.layout.bounds.y, 10.0);
         assert_eq!(info.layout.bounds.w, 100.0);
         assert_eq!(info.layout.bounds.h, 50.0);
-        
+
         // Content rect should be inset by border_width + padding = 5.0
         let content = info.content_rect();
         assert_eq!(content.x, 15.0);
         assert_eq!(content.y, 15.0);
         assert_eq!(content.w, 90.0);
         assert_eq!(content.h, 40.0);
-        
+
         // Should draw background and border
         assert_eq!(draw.0.len(), 2);
         match &draw.0[0] {

@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
-    types::{Rect, Vec2},
+    types::{Color, Rect, Vec2},
     WidgetResult,
 };
 
@@ -14,6 +13,42 @@ pub struct TabsSpec<'a, T: crate::text::TextSystem> {
     pub font: FontId,
     pub active_index: usize,
     pub focused: Option<usize>,
+    pub style: TabsStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TabsStyle {
+    pub height: f32,
+    pub pad_x: f32,
+    pub underbar_height: f32,
+    pub text_size: f32,
+    pub border: Color,
+    pub text: Color,
+    pub inactive_text: Color,
+    pub accent: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+}
+
+impl Default for TabsStyle {
+    fn default() -> Self {
+        Self {
+            height: 36.0,
+            pad_x: 18.0,
+            underbar_height: 3.0,
+            text_size: 13.0,
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            text: Color::from_srgb_u8(21, 19, 15, 255),
+            inactive_text: Color::from_srgb_u8(138, 131, 120, 255),
+            accent: Color::from_srgb_u8(194, 90, 44, 255),
+            focus: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.0,
+            focus_width: 2.0,
+            focus_offset: 2.0,
+        }
+    }
 }
 
 pub struct TabsResult {
@@ -29,20 +64,20 @@ impl WidgetResult for TabsResult {
 }
 
 pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let tab_h = 36.0_f32;
-    let pad_x = 18.0_f32;
-    let underbar_h = 3.0_f32;
+    let tab_h = s.height;
+    let pad_x = s.pad_x;
+    let underbar_h = s.underbar_height;
 
     // Bottom border across the full width.
     let border_y = spec.rect.y + tab_h;
     cmds.push(DrawCmd::StrokeLine {
         p0: Vec2::new(spec.rect.x, border_y),
         p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
-        color: t.ink,
-        width: 1.0,
+        color: s.border,
+        width: s.border_width,
     });
 
     let mut x = spec.rect.x;
@@ -51,20 +86,20 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         let is_active = i == spec.active_index;
         let is_focused = spec.focused == Some(i);
 
-        let layout = spec.ts.prepare(label, t.text_md, spec.font);
+        let layout = spec.ts.prepare(label, s.text_size, spec.font);
         let tab_w = layout.size.x + pad_x * 2.0;
         let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
         // Focus ring.
         if is_focused {
             cmds.push(DrawCmd::StrokeRect {
-                rect: tab_rect.inset(-2.0),
-                color: t.rust,
-                width: 2.0,
+                rect: tab_rect.inset(-s.focus_offset),
+                color: s.focus,
+                width: s.focus_width,
             });
         }
 
-        let text_color = if is_active { t.ink } else { t.muted };
+        let text_color = if is_active { s.text } else { s.inactive_text };
         let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
@@ -76,7 +111,7 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         if is_active {
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
-                color: t.rust,
+                color: s.accent,
             });
         }
 
@@ -89,6 +124,7 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
 pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
+    pub style: Option<TabsStyle>,
     pub active_index: Option<usize>,
     pub focused: Option<Option<usize>>,
     pub rect: Option<Rect>,
@@ -100,6 +136,7 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
         Self {
             items: None,
             font: None,
+            style: None,
             active_index: None,
             focused: None,
             rect: None,
@@ -113,6 +150,10 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: TabsStyle) -> Self {
+        self.style = Some(style);
         self
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
@@ -139,6 +180,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.tabs_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -150,6 +196,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
             font: self.font.unwrap_or(FontId::SANS),
+            style: self.style.expect("TabsStyle is required"),
             active_index: self.active_index.unwrap(),
             focused: self.focused.unwrap(),
         }
@@ -172,6 +219,7 @@ mod tests {
             font: FontId::SANS,
             active_index: 0,
             focused: None,
+            style: Default::default(),
         };
         let res = tabs(spec);
         let cmds = res.draw.0;
@@ -184,7 +232,7 @@ mod tests {
         // Iter 1 (Inactive):
         // 3: text (muted color)
         assert_eq!(cmds.len(), 4);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
 
@@ -208,6 +256,7 @@ mod tests {
             font: FontId::SANS,
             active_index: 1,
             focused: Some(1),
+            style: Default::default(),
         };
         let res = tabs(spec);
         let cmds = res.draw.0;
@@ -221,7 +270,7 @@ mod tests {
         // 3: text (ink color)
         // 4: underbar (rust)
         assert_eq!(cmds.len(), 5);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
 

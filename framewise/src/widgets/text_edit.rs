@@ -3,7 +3,6 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     text::{FontId, TextSystem},
-    theme::Theme,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
 };
@@ -26,18 +25,17 @@ pub struct TextEditStyle {
 
 impl Default for TextEditStyle {
     fn default() -> Self {
-        let t = Theme::framewise();
         Self {
-            background: t.paper_elev,
-            border: t.ink,
-            focus_border: t.rust,
-            border_width: t.border,
+            background: Color::from_srgb_u8(251, 249, 244, 255),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.0,
             padding: 4.0,
-            text_size: t.text_mono,
-            font: t.mono_font,
-            text_color: t.ink,
-            caret_color: t.rust,
-            select_color: t.rust_soft,
+            text_size: 12.0,
+            font: FontId::MONO,
+            text_color: Color::from_srgb_u8(21, 19, 15, 255),
+            caret_color: Color::from_srgb_u8(194, 90, 44, 255),
+            select_color: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),
         }
     }
 }
@@ -1088,7 +1086,7 @@ mod tests {
         // 2. border stroke
         // 3. text
         assert_eq!(cmds.0.len(), 3);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
         assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
         assert!(matches!(&cmds.0[2], DrawCmd::Text { .. }));
@@ -1115,7 +1113,7 @@ mod tests {
         // 3. text
         // 4. caret
         assert_eq!(cmds.0.len(), 4);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
         assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.rust));
         assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
@@ -1144,7 +1142,7 @@ mod tests {
         // 3. selection fill
         // 4. text
         assert_eq!(cmds.0.len(), 4);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
         assert!(matches!(&cmds.0[2], DrawCmd::FillRect { color, .. } if *color == t.rust_soft)); // Selection
         assert!(matches!(&cmds.0[3], DrawCmd::Text { .. }));
     }
@@ -1166,7 +1164,7 @@ mod tests {
         // 3. border (error color)
         // 4. text
         assert_eq!(cmds.0.len(), 4);
-        let _t = Theme::framewise();
+        let _t = crate::Theme::default();
         assert!(matches!(&cmds.0[1], DrawCmd::FillRect { .. })); // Stripe (hardcoded color in logic)
                                                                  // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
         assert!(matches!(&cmds.0[2], DrawCmd::StrokeRect { .. }));

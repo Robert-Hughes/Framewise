@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    theme::Theme,
     types::{Color, Rect, Vec2},
     WidgetResult,
 };
@@ -18,6 +17,44 @@ pub struct TooltipSpec<'a, T: crate::text::TextSystem> {
     pub text: &'a str,
     pub font: FontId,
     pub variant: TooltipVariant,
+    pub style: TooltipStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TooltipStyle {
+    pub text_size: f32,
+    pub pad_x: f32,
+    pub pad_y_top: f32,
+    pub pad_y_bot: f32,
+    pub arrow_h: f32,
+    pub arrow_w: f32,
+    pub arrow_x: f32,
+    pub max_width: f32,
+    pub dark_bg: Color,
+    pub dark_text: Color,
+    pub rust_bg: Color,
+    pub rust_text: Color,
+    pub arrow_width: f32,
+}
+
+impl Default for TooltipStyle {
+    fn default() -> Self {
+        Self {
+            text_size: 11.0,
+            pad_x: 8.0,
+            pad_y_top: 5.0,
+            pad_y_bot: 6.0,
+            arrow_h: 4.0,
+            arrow_w: 8.0,
+            arrow_x: 14.0,
+            max_width: 240.0,
+            dark_bg: Color::from_srgb_u8(21, 19, 15, 255),
+            dark_text: Color::from_srgb_u8(244, 241, 234, 255),
+            rust_bg: Color::from_srgb_u8(194, 90, 44, 255),
+            rust_text: Color::WHITE,
+            arrow_width: 1.5,
+        }
+    }
 }
 
 pub struct TooltipResult {
@@ -33,22 +70,22 @@ impl WidgetResult for TooltipResult {
 }
 
 pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> TooltipResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
+    let s = spec.style;
 
-    let pad_x = 8.0_f32;
-    let pad_y_top = 5.0_f32;
-    let pad_y_bot = 6.0_f32;
-    let arrow_h = 4.0_f32;
-    let arrow_w = 8.0_f32;
+    let pad_x = s.pad_x;
+    let pad_y_top = s.pad_y_top;
+    let pad_y_bot = s.pad_y_bot;
+    let arrow_h = s.arrow_h;
+    let arrow_w = s.arrow_w;
 
     let (bg, text_color): (Color, Color) = match spec.variant {
-        TooltipVariant::Dark => (t.ink, t.paper),
-        TooltipVariant::Rust => (t.rust, Color::WHITE),
+        TooltipVariant::Dark => (s.dark_bg, s.dark_text),
+        TooltipVariant::Rust => (s.rust_bg, s.rust_text),
     };
 
-    let layout = spec.ts.prepare(spec.text, t.text_sm, spec.font);
-    let box_w = (layout.size.x + pad_x * 2.0).min(240.0);
+    let layout = spec.ts.prepare(spec.text, s.text_size, spec.font);
+    let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
     let box_h = layout.size.y + pad_y_top + pad_y_bot;
 
     let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
@@ -61,19 +98,19 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
     });
 
     // Arrow triangle below (two lines converging to a point).
-    let arrow_x = r.x + 14.0;
+    let arrow_x = r.x + s.arrow_x;
     let arrow_y = r.y + box_h;
     cmds.push(DrawCmd::StrokeLine {
         p0: Vec2::new(arrow_x, arrow_y),
         p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
         color: bg,
-        width: 1.5,
+        width: s.arrow_width,
     });
     cmds.push(DrawCmd::StrokeLine {
         p0: Vec2::new(arrow_x + arrow_w, arrow_y),
         p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
         color: bg,
-        width: 1.5,
+        width: s.arrow_width,
     });
 
     TooltipResult { draw: cmds }
@@ -82,6 +119,7 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
 pub struct TooltipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
+    pub style: Option<TooltipStyle>,
     pub variant: Option<TooltipVariant>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -92,6 +130,7 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
         Self {
             text: None,
             font: None,
+            style: None,
             variant: None,
             rect: None,
             ts: None,
@@ -104,6 +143,10 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
     }
     pub fn font(mut self, font: FontId) -> Self {
         self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: TooltipStyle) -> Self {
+        self.style = Some(style);
         self
     }
     pub fn variant(mut self, variant: TooltipVariant) -> Self {
@@ -126,6 +169,11 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.style = Some(theme.tooltip_style());
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -137,6 +185,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             rect: self.rect.unwrap_or_default(),
             text: self.text.unwrap(),
             font: self.font.unwrap_or(FontId::MONO),
+            style: self.style.expect("TooltipStyle is required"),
             variant: self.variant.unwrap(),
         }
     }
@@ -156,12 +205,13 @@ mod tests {
             text: "Tooltip",
             font: FontId::MONO,
             variant: TooltipVariant::Dark,
+            style: Default::default(),
         };
         let res = tooltip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4); // bg fill, text, 2 arrow lines
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.paper));
@@ -182,12 +232,13 @@ mod tests {
             text: "Tooltip",
             font: FontId::MONO,
             variant: TooltipVariant::Rust,
+            style: Default::default(),
         };
         let res = tooltip(spec);
         let cmds = res.draw.0;
 
         assert_eq!(cmds.len(), 4);
-        let t = Theme::framewise();
+        let t = crate::Theme::default();
 
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == Color::WHITE));

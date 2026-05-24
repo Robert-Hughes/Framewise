@@ -1,13 +1,48 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}, widget::{WidgetSpec, WidgetSpecBuilder}
+    draw::{DrawCmd, DrawCommands},
+    types::{Color, Rect, Vec2},
+    widget::{WidgetSpec, WidgetSpecBuilder},
+    WidgetResult,
 };
 
 pub struct RadioSpec {
     /// Top-left of the 14×14 bounding area.
-    pub rect:     Rect,
+    pub rect: Rect,
     pub selected: bool,
-    pub focused:  bool,
+    pub focused: bool,
     pub disabled: bool,
+    pub style: RadioStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RadioStyle {
+    pub radius: f32,
+    pub dot_radius: f32,
+    pub background: Color,
+    pub border: Color,
+    pub dot: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+    pub disabled_alpha: f32,
+}
+
+impl Default for RadioStyle {
+    fn default() -> Self {
+        Self {
+            radius: 7.0,
+            dot_radius: 3.0,
+            background: Color::from_srgb_u8(251, 249, 244, 255),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            dot: Color::from_srgb_u8(21, 19, 15, 255),
+            focus: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.5,
+            focus_width: 2.0,
+            focus_offset: 2.0,
+            disabled_alpha: 0.35,
+        }
+    }
 }
 
 impl WidgetSpec for RadioSpec {
@@ -25,7 +60,19 @@ impl RadioSpecBuilder {
                 selected: false,
                 focused: false,
                 disabled: false,
-            }
+                style: RadioStyle {
+                    radius: 7.0,
+                    dot_radius: 3.0,
+                    background: Color::WHITE,
+                    border: Color::BLACK,
+                    dot: Color::BLACK,
+                    focus: Color::BLACK,
+                    border_width: 1.5,
+                    focus_width: 2.0,
+                    focus_offset: 2.0,
+                    disabled_alpha: 0.35,
+                },
+            },
         }
     }
 
@@ -43,6 +90,11 @@ impl RadioSpecBuilder {
         self.spec.disabled = disabled;
         self
     }
+
+    pub fn style(mut self, style: RadioStyle) -> Self {
+        self.spec.style = style;
+        self
+    }
 }
 impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for RadioSpecBuilder {
     type Spec = RadioSpec;
@@ -56,13 +108,18 @@ impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for RadioSpecBuild
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.spec.style = theme.radio_style();
+        self
+    }
+
     fn build(self) -> Self::Spec {
         self.spec
     }
 }
 
 pub struct RadioResult {
-    pub draw:  DrawCommands,
+    pub draw: DrawCommands,
 }
 impl WidgetResult for RadioResult {
     type Info = ();
@@ -72,48 +129,47 @@ impl WidgetResult for RadioResult {
     }
 }
 
-
 pub fn radio(spec: RadioSpec) -> RadioResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
-    let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
+    let s = spec.style;
+    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-    let cx = spec.rect.x + 7.0;
-    let cy = spec.rect.y + 7.0;
+    let cx = spec.rect.x + s.radius;
+    let cy = spec.rect.y + s.radius;
     let center = Vec2::new(cx, cy);
 
     // Focus ring (outset 2px).
     if spec.focused {
         cmds.push(DrawCmd::StrokeCircle {
             center,
-            radius: 7.0 + 2.0,
-            color:  tint(t.rust),
-            width:  2.0,
+            radius: s.radius + s.focus_offset,
+            color: tint(s.focus),
+            width: s.focus_width,
         });
     }
 
     // Background fill.
     cmds.push(DrawCmd::FillCircle {
         center,
-        radius: 7.0,
-        color:  tint(t.paper_elev),
+        radius: s.radius,
+        color: tint(s.background),
     });
 
     // Outer ring.
     cmds.push(DrawCmd::StrokeCircle {
         center,
-        radius: 7.0,
-        color:  tint(t.ink),
-        width:  1.5,
+        radius: s.radius,
+        color: tint(s.border),
+        width: s.border_width,
     });
 
     // Inner dot when selected.
     if spec.selected {
         cmds.push(DrawCmd::FillCircle {
             center,
-            radius: 3.0,
-            color:  tint(t.ink),
+            radius: s.dot_radius,
+            color: tint(s.dot),
         });
     }
 
@@ -131,10 +187,15 @@ mod tests {
             selected: false,
             focused: false,
             disabled: false,
+            style: Default::default(),
         };
         let res = radio(spec);
         let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 2, "Unselected should draw background fill and outer ring");
+        assert_eq!(
+            cmds.len(),
+            2,
+            "Unselected should draw background fill and outer ring"
+        );
         assert!(matches!(&cmds[0], DrawCmd::FillCircle { radius, .. } if *radius == 7.0));
         assert!(matches!(&cmds[1], DrawCmd::StrokeCircle { radius, .. } if *radius == 7.0));
     }
@@ -146,10 +207,15 @@ mod tests {
             selected: true,
             focused: false,
             disabled: false,
+            style: Default::default(),
         };
         let res = radio(spec);
         let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3, "Selected should draw fill, outer ring, and inner dot");
+        assert_eq!(
+            cmds.len(),
+            3,
+            "Selected should draw fill, outer ring, and inner dot"
+        );
         assert!(matches!(&cmds[2], DrawCmd::FillCircle { radius, .. } if *radius == 3.0));
     }
 
@@ -160,11 +226,14 @@ mod tests {
             selected: false,
             focused: true,
             disabled: false,
+            style: Default::default(),
         };
         let res = radio(spec);
         let cmds = res.draw.0;
         assert_eq!(cmds.len(), 3, "Focused adds an outer stroke circle");
-        assert!(matches!(&cmds[0], DrawCmd::StrokeCircle { radius, width, .. } if *radius == 9.0 && *width == 2.0));
+        assert!(
+            matches!(&cmds[0], DrawCmd::StrokeCircle { radius, width, .. } if *radius == 9.0 && *width == 2.0)
+        );
     }
 
     #[test]
@@ -174,12 +243,16 @@ mod tests {
             selected: false,
             focused: false,
             disabled: true,
+            style: Default::default(),
         };
         let res = radio(spec);
         let cmds = res.draw.0;
         assert_eq!(cmds.len(), 2);
         if let DrawCmd::FillCircle { color, .. } = cmds[0] {
-            assert!(color.a < 1.0, "Disabled should be drawn with a tinted alpha");
+            assert!(
+                color.a < 1.0,
+                "Disabled should be drawn with a tinted alpha"
+            );
         } else {
             panic!("Expected FillCircle");
         }

@@ -2,18 +2,17 @@ use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
-    theme::Theme,
     types::{Color, Rect, Vec2},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SliderStyle {
-    pub track_color:        Color,
-    pub thumb_color:        Color,  // fill when idle
-    pub thumb_border_color: Color,  // border when idle/hover
+    pub track_color: Color,
+    pub thumb_color: Color,        // fill when idle
+    pub thumb_border_color: Color, // border when idle/hover
     pub thumb_border_width: f32,
-    pub thumb_hover_color:  Color,  // fill on hover (standalone only)
-    pub thumb_drag_color:   Color,  // fill + border when dragging
+    pub thumb_hover_color: Color, // fill on hover (standalone only)
+    pub thumb_drag_color: Color,  // fill + border when dragging
     pub focus_outline_color: Color,
     /// Track line thickness for standalone sliders; ignored in scrollbar mode.
     pub thickness: f32,
@@ -26,39 +25,36 @@ pub struct SliderStyle {
 }
 
 impl Default for SliderStyle {
-    /// Standalone slider: hairline track, 12×12 square thumb, ink/rust palette.
     fn default() -> Self {
-        let t = Theme::framewise();
         Self {
-            track_color:         t.ink,
-            thumb_color:         t.paper_elev,
-            thumb_border_color:  t.ink,
-            thumb_border_width:  1.5,
-            thumb_hover_color:   t.paper_elev,
-            thumb_drag_color:    t.rust,
-            focus_outline_color: t.rust,
-            thickness:           1.5,
-            thumb_size:          12.0,
-            scrollbar_mode:      false,
+            track_color: Color::from_srgb_u8(21, 19, 15, 255),
+            thumb_color: Color::from_srgb_u8(251, 249, 244, 255),
+            thumb_border_color: Color::from_srgb_u8(21, 19, 15, 255),
+            thumb_border_width: 1.5,
+            thumb_hover_color: Color::from_srgb_u8(251, 249, 244, 255),
+            thumb_drag_color: Color::from_srgb_u8(194, 90, 44, 255),
+            focus_outline_color: Color::from_srgb_u8(194, 90, 44, 255),
+            thickness: 1.5,
+            thumb_size: 12.0,
+            scrollbar_mode: false,
         }
     }
 }
 
 impl SliderStyle {
-    /// Scrollbar variant: faint filled track, ink thumb that fills the cross-section.
     pub fn scrollbar() -> Self {
-        let t = Theme::framewise();
+        let ink = Color::from_srgb_u8(21, 19, 15, 255);
         Self {
-            track_color:         Color::linear_rgba(t.ink.r, t.ink.g, t.ink.b, 0.04),
-            thumb_color:         t.ink,
-            thumb_border_color:  Color::TRANSPARENT,
-            thumb_border_width:  0.0,
-            thumb_hover_color:   t.rust,
-            thumb_drag_color:    t.rust,
-            focus_outline_color: t.rust,
-            thickness:           1.5,
-            thumb_size:          12.0,
-            scrollbar_mode:      true,
+            track_color: Color::linear_rgba(ink.r, ink.g, ink.b, 0.04),
+            thumb_color: ink,
+            thumb_border_color: Color::TRANSPARENT,
+            thumb_border_width: 0.0,
+            thumb_hover_color: Color::from_srgb_u8(194, 90, 44, 255),
+            thumb_drag_color: Color::from_srgb_u8(194, 90, 44, 255),
+            focus_outline_color: Color::from_srgb_u8(194, 90, 44, 255),
+            thickness: 1.5,
+            thumb_size: 12.0,
+            scrollbar_mode: true,
         }
     }
 }
@@ -132,31 +128,32 @@ pub fn slider(
     let range = max - min;
 
     let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
-    
+
     // 1. Calculate Thumb Rect
     let track_rect = spec.rect;
     let focused = focus_sys.register(state.focus_id, track_rect, spec.clip_rect);
     let is_vert = spec.orientation == Orientation::Vertical;
-    
+
     let track_len = if is_vert { track_rect.h } else { track_rect.w };
-    
+
     // Use proportional thumb size, or fallback to fixed size
     let thumb_len = if let Some(ratio) = spec.thumb_size_ratio {
         (track_len * ratio.clamp(0.0, 1.0)).max(24.0)
     } else {
         spec.style.thumb_size
     };
-    
+
     // Usable track length for the thumb's top/left edge
     let usable_track = (track_len - thumb_len).max(0.0);
-    
+
     let val_ratio = if range > 0.0 {
         (*value - min) / range
     } else {
         0.0
     };
-    
-    let thumb_pos = (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
+
+    let thumb_pos =
+        (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
     let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
 
     // Thumb hit rect — centered on the track axis.
@@ -176,20 +173,34 @@ pub fn slider(
             track_rect.y + track_rect.h * 0.5
         };
         if is_vert {
-            Rect::new(center - half, thumb_pos, spec.style.thumb_size, spec.style.thumb_size)
+            Rect::new(
+                center - half,
+                thumb_pos,
+                spec.style.thumb_size,
+                spec.style.thumb_size,
+            )
         } else {
-            Rect::new(thumb_pos, center - half, spec.style.thumb_size, spec.style.thumb_size)
+            Rect::new(
+                thumb_pos,
+                center - half,
+                spec.style.thumb_size,
+                spec.style.thumb_size,
+            )
         }
     };
-    
+
     // Helper to get main coordinate
     let get_coord = |v: crate::types::Vec2| if is_vert { v.y } else { v.x };
     let mouse_coord = get_coord(input.mouse_pos);
     let thumb_start = get_coord(Vec2::new(thumb_rect.x, thumb_rect.y));
-    let thumb_end = if is_vert { thumb_rect.bottom() } else { thumb_rect.right() };
-    
+    let thumb_end = if is_vert {
+        thumb_rect.bottom()
+    } else {
+        thumb_rect.right()
+    };
+
     // 2. Input Handling
-    
+
     const TRACK_DRAG_THRESHOLD: f32 = 4.0;
 
     // Drag release
@@ -216,7 +227,8 @@ pub fn slider(
         if (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
             if usable_track > 0.0 {
                 let track_start = if is_vert { track_rect.y } else { track_rect.x };
-                let snapped = (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
+                let snapped =
+                    (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
                 *value = (min + (snapped / usable_track) * range).clamp(min, max);
                 state.drag_start_mouse_coord = mouse_coord;
                 state.drag_start_val = *value;
@@ -225,20 +237,24 @@ pub fn slider(
             state.is_track_clicking = false;
         }
     }
-    
+
     // Mouse wheel scrolling — suppressed during an active drag so that drag
     // motion is authoritative (otherwise wheel ticks would stack on top of
     // the drag-projected value).
     if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
         let at_min = *value <= min;
         let at_max = *value >= max;
-        
+
         let scroll_delta = if is_vert {
             input.scroll_delta.y
         } else {
-            // For horizontal sliders, listen to horizontal wheel delta. 
+            // For horizontal sliders, listen to horizontal wheel delta.
             // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
-            if input.scroll_delta.x != 0.0 { input.scroll_delta.x } else { input.scroll_delta.y }
+            if input.scroll_delta.x != 0.0 {
+                input.scroll_delta.x
+            } else {
+                input.scroll_delta.y
+            }
         };
 
         if spec.claim_scroll_at_ends {
@@ -250,31 +266,41 @@ pub fn slider(
             if is_vert {
                 // Vertical slider:
                 // Conditionally claim vertical scrolling to allow same-axis bubbling.
-                if !at_min { focus_sys.claim_scroll_up(state.focus_id); }
-                if !at_max { focus_sys.claim_scroll_down(state.focus_id); }
+                if !at_min {
+                    focus_sys.claim_scroll_up(state.focus_id);
+                }
+                if !at_max {
+                    focus_sys.claim_scroll_down(state.focus_id);
+                }
                 // Unconditionally claim horizontal scrolling to isolate from the horizontal axis.
                 focus_sys.claim_scroll_left(state.focus_id);
                 focus_sys.claim_scroll_right(state.focus_id);
             } else {
                 // Horizontal slider:
                 // Conditionally claim horizontal scrolling to allow same-axis bubbling.
-                if !at_min { 
+                if !at_min {
                     focus_sys.claim_scroll_left(state.focus_id);
                 }
-                if !at_max { 
-                    focus_sys.claim_scroll_right(state.focus_id); 
+                if !at_max {
+                    focus_sys.claim_scroll_right(state.focus_id);
                 }
                 // Unconditionally claim vertical scrolling to isolate from the vertical axis.
-                focus_sys.claim_scroll_up(state.focus_id); 
+                focus_sys.claim_scroll_up(state.focus_id);
                 focus_sys.claim_scroll_down(state.focus_id);
             }
         }
 
-        let is_active_up_left = if is_vert { focus_sys.is_active_scroll_up(state.focus_id) } else { 
-            focus_sys.is_active_scroll_left(state.focus_id) || focus_sys.is_active_scroll_up(state.focus_id) 
+        let is_active_up_left = if is_vert {
+            focus_sys.is_active_scroll_up(state.focus_id)
+        } else {
+            focus_sys.is_active_scroll_left(state.focus_id)
+                || focus_sys.is_active_scroll_up(state.focus_id)
         };
-        let is_active_down_right = if is_vert { focus_sys.is_active_scroll_down(state.focus_id) } else { 
-            focus_sys.is_active_scroll_right(state.focus_id) || focus_sys.is_active_scroll_down(state.focus_id) 
+        let is_active_down_right = if is_vert {
+            focus_sys.is_active_scroll_down(state.focus_id)
+        } else {
+            focus_sys.is_active_scroll_right(state.focus_id)
+                || focus_sys.is_active_scroll_down(state.focus_id)
         };
 
         if scroll_delta > 0.0 && is_active_up_left {
@@ -311,7 +337,8 @@ pub fn slider(
             if mouse_coord < thumb_start {
                 // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
                 let cursor_val = if usable_track > 0.0 {
-                    min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0) * range
+                    min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0)
+                        * range
                 } else {
                     min
                 };
@@ -333,7 +360,7 @@ pub fn slider(
             state.is_track_clicking = false;
         }
     }
-    
+
     // Keyboard Input (if focused)
     if focused {
         let at_min = *value <= min;
@@ -353,20 +380,36 @@ pub fn slider(
             }
         } else {
             if is_vert {
-                if !at_min { focus_sys.claim_pgup_vert(state.focus_id); }
-                if !at_max { focus_sys.claim_pgdn_vert(state.focus_id); }
+                if !at_min {
+                    focus_sys.claim_pgup_vert(state.focus_id);
+                }
+                if !at_max {
+                    focus_sys.claim_pgdn_vert(state.focus_id);
+                }
                 focus_sys.claim_pgup_horiz(state.focus_id);
                 focus_sys.claim_pgdn_horiz(state.focus_id);
             } else {
-                if !at_min { focus_sys.claim_pgup_horiz(state.focus_id); }
-                if !at_max { focus_sys.claim_pgdn_horiz(state.focus_id); }
+                if !at_min {
+                    focus_sys.claim_pgup_horiz(state.focus_id);
+                }
+                if !at_max {
+                    focus_sys.claim_pgdn_horiz(state.focus_id);
+                }
                 focus_sys.claim_pgup_vert(state.focus_id);
                 focus_sys.claim_pgdn_vert(state.focus_id);
             }
         }
 
-        let is_active_pgup = if is_vert { focus_sys.is_active_pgup_vert(state.focus_id) } else { focus_sys.is_active_pgup_horiz(state.focus_id) };
-        let is_active_pgdn = if is_vert { focus_sys.is_active_pgdn_vert(state.focus_id) } else { focus_sys.is_active_pgdn_horiz(state.focus_id) };
+        let is_active_pgup = if is_vert {
+            focus_sys.is_active_pgup_vert(state.focus_id)
+        } else {
+            focus_sys.is_active_pgup_horiz(state.focus_id)
+        };
+        let is_active_pgdn = if is_vert {
+            focus_sys.is_active_pgdn_vert(state.focus_id)
+        } else {
+            focus_sys.is_active_pgdn_horiz(state.focus_id)
+        };
 
         if input.key_pressed_page_up && is_active_pgup {
             *value = (*value - spec.page_step).clamp(min, max);
@@ -390,13 +433,13 @@ pub fn slider(
         // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
         focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
     }
-    
+
     // 3. Drawing
 
     // Focus outline.
     if focused {
         cmds.push(DrawCmd::StrokeRect {
-            rect:  track_rect.inset(-2.0),
+            rect: track_rect.inset(-2.0),
             color: spec.style.focus_outline_color,
             width: 2.0,
         });
@@ -419,11 +462,11 @@ pub fn slider(
     if spec.style.scrollbar_mode {
         // Scrollbar: filled track background, ink/rust thumb spanning cross-section.
         cmds.push(DrawCmd::FillRect {
-            rect:  track_rect,
+            rect: track_rect,
             color: spec.style.track_color,
         });
         cmds.push(DrawCmd::FillRect {
-            rect:  thumb_rect,
+            rect: thumb_rect,
             color: effective_thumb_fill,
         });
     } else {
@@ -435,20 +478,40 @@ pub fn slider(
         let (track_line, fill_bar) = if is_vert {
             let cx = track_rect.x + track_rect.w * 0.5;
             (
-                Rect::new(cx - half_thick, track_rect.y, spec.style.thickness, track_rect.h),
-                Rect::new(cx - half_thick, track_rect.y, spec.style.thickness, fill_len.max(0.0)),
+                Rect::new(
+                    cx - half_thick,
+                    track_rect.y,
+                    spec.style.thickness,
+                    track_rect.h,
+                ),
+                Rect::new(
+                    cx - half_thick,
+                    track_rect.y,
+                    spec.style.thickness,
+                    fill_len.max(0.0),
+                ),
             )
         } else {
             let cy = track_rect.y + track_rect.h * 0.5;
             (
-                Rect::new(track_rect.x, cy - half_thick, track_rect.w, spec.style.thickness),
-                Rect::new(track_rect.x, cy - half_thick, fill_len.max(0.0), spec.style.thickness),
+                Rect::new(
+                    track_rect.x,
+                    cy - half_thick,
+                    track_rect.w,
+                    spec.style.thickness,
+                ),
+                Rect::new(
+                    track_rect.x,
+                    cy - half_thick,
+                    fill_len.max(0.0),
+                    spec.style.thickness,
+                ),
             )
         };
 
         // Full track (ink).
         cmds.push(DrawCmd::FillRect {
-            rect:  track_line,
+            rect: track_line,
             color: spec.style.track_color,
         });
 
@@ -459,18 +522,18 @@ pub fn slider(
             spec.style.track_color
         };
         cmds.push(DrawCmd::FillRect {
-            rect:  fill_bar,
+            rect: fill_bar,
             color: fill_color,
         });
 
         // Square thumb.
         cmds.push(DrawCmd::FillRect {
-            rect:  thumb_rect,
+            rect: thumb_rect,
             color: effective_thumb_fill,
         });
         if spec.style.thumb_border_width > 0.0 {
             cmds.push(DrawCmd::StrokeRect {
-                rect:  thumb_rect,
+                rect: thumb_rect,
                 color: effective_thumb_border,
                 width: spec.style.thumb_border_width,
             });
@@ -500,7 +563,7 @@ mod tests {
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
-        
+
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
@@ -509,13 +572,27 @@ mod tests {
 
         // Frame 1: register claims
         focus_sys.begin_frame();
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // Frame 2: Page Up
         focus_sys.begin_frame();
         input.key_pressed_page_up = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 30.0);
         focus_sys.end_frame();
 
@@ -523,18 +600,39 @@ mod tests {
         focus_sys.begin_frame();
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 50.0);
         focus_sys.end_frame();
-        
+
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 0.0);
-        
+
         input.key_pressed_home = false;
         input.key_pressed_end = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 100.0);
     }
 
@@ -550,13 +648,16 @@ mod tests {
             page_step: 20.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
+            style: SliderStyle {
+                thumb_size: 20.0,
+                ..SliderStyle::default()
+            },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
-        
+
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
@@ -564,16 +665,30 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_coord, 10.0);
 
         // 2. Drag down by 40px (mouse y = 50)
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
-        
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
+
         // 40 / 80 usable track = 0.5 ratio = 50 value
         assert_eq!(value, 50.0);
     }
@@ -603,28 +718,63 @@ mod tests {
         input.mouse_down = true;
 
         // Frame 1: time=0.0. Should page down by 20.0
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 20.0);
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
 
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.4, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.4,
+            &mut focus_sys,
+        );
         assert_eq!(value, 20.0);
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
-        slider(&mut state, &mut value, spec.clone(), &input, 0.5, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.5,
+            &mut focus_sys,
+        );
         assert_eq!(value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
-        slider(&mut state, &mut value, spec.clone(), &input, 0.6, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.6,
+            &mut focus_sys,
+        );
         assert_eq!(value, 60.0);
 
         // Release mouse -> track clicking ends
         input.mouse_down = false;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.7,
+            &mut focus_sys,
+        );
         assert!(!state.is_track_clicking);
     }
 
@@ -652,30 +802,74 @@ mod tests {
 
         // Up decrements
         input.key_pressed_up = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 45.0);
-        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Up arrow must not move focus away from slider");
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.focus_id),
+            "Up arrow must not move focus away from slider"
+        );
 
         // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 50.0);
-        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Down arrow must not move focus away from slider");
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.focus_id),
+            "Down arrow must not move focus away from slider"
+        );
 
         // Left decrements (same as Up)
         input.key_pressed_down = false;
         input.key_pressed_left = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 45.0);
-        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Left arrow must not move focus away from slider");
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.focus_id),
+            "Left arrow must not move focus away from slider"
+        );
 
         // Right increments (same as Down)
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 50.0);
-        assert_eq!(focus_sys.current_focus(), Some(state.focus_id), "Right arrow must not move focus away from slider");
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.focus_id),
+            "Right arrow must not move focus away from slider"
+        );
 
         // Left/Right also work on a horizontal slider
         input.key_pressed_right = false;
@@ -689,12 +883,26 @@ mod tests {
         let mut horiz_value = 50.0_f32;
 
         input.key_pressed_left = true;
-        slider(&mut horiz_state, &mut horiz_value, horiz_spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut horiz_state,
+            &mut horiz_value,
+            horiz_spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(horiz_value, 45.0);
 
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        slider(&mut horiz_state, &mut horiz_value, horiz_spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut horiz_state,
+            &mut horiz_value,
+            horiz_spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(horiz_value, 50.0);
     }
 
@@ -713,16 +921,48 @@ mod tests {
         focus_sys.begin_frame();
         let mut input = crate::input::Input::new();
         input.key_pressed_tab = true;
-        slider(&mut state_a, &mut value_a, spec.clone(), &input, 0.0, &mut focus_sys);
-        slider(&mut state_b, &mut value_b, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state_a,
+            &mut value_a,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
+        slider(
+            &mut state_b,
+            &mut value_b,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // Frame 2: confirm focus moved to slider_b
         focus_sys.begin_frame();
-        slider(&mut state_a, &mut value_a, spec.clone(), &crate::input::Input::new(), 0.0, &mut focus_sys);
-        slider(&mut state_b, &mut value_b, spec.clone(), &crate::input::Input::new(), 0.0, &mut focus_sys);
+        slider(
+            &mut state_a,
+            &mut value_a,
+            spec.clone(),
+            &crate::input::Input::new(),
+            0.0,
+            &mut focus_sys,
+        );
+        slider(
+            &mut state_b,
+            &mut value_b,
+            spec.clone(),
+            &crate::input::Input::new(),
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
-        assert_eq!(focus_sys.current_focus(), Some(state_b.focus_id), "Tab should move focus from slider_a to slider_b");
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state_b.focus_id),
+            "Tab should move focus from slider_a to slider_b"
+        );
         assert_eq!(value_a, 50.0, "Value must not change on Tab");
     }
 
@@ -748,18 +988,32 @@ mod tests {
 
         // Hover over the slider track
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
-        
+
         // Frame 1: Register hover
         focus_sys.begin_frame();
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
-        
+
         assert_eq!(value, 50.0); // Hasn't scrolled yet, scroll_delta is 0
 
         // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
         input.scroll_delta.y = 2.0;
         focus_sys.begin_frame();
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // value = 50.0 - 2.0 * 5.0 = 40.0
@@ -783,7 +1037,10 @@ mod tests {
             page_step: 20.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
+            style: SliderStyle {
+                thumb_size: 20.0,
+                ..SliderStyle::default()
+            },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
@@ -794,23 +1051,50 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
-        assert!(state.is_track_clicking, "should be track-clicking after initial track click");
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
+        assert!(
+            state.is_track_clicking,
+            "should be track-clicking after initial track click"
+        );
         assert!(!state.is_dragging, "should not yet be dragging");
         assert_eq!(value, 20.0, "page step should fire on click");
 
         // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
-        assert!(state.is_dragging, "should switch to dragging after threshold exceeded");
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
+        assert!(
+            state.is_dragging,
+            "should switch to dragging after threshold exceeded"
+        );
         assert!(!state.is_track_clicking, "track clicking should end");
         // snap: thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25
         assert!((value - 56.25).abs() < 0.01, "snap to 56.25, got {value}");
 
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert!((value - 68.75).abs() < 0.01, "drag to 68.75, got {value}");
     }
 
@@ -834,7 +1118,10 @@ mod tests {
             page_step: 60.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: SliderStyle { thumb_size: 20.0, ..SliderStyle::default() },
+            style: SliderStyle {
+                thumb_size: 20.0,
+                ..SliderStyle::default()
+            },
             clip_rect: None,
             claim_scroll_at_ends: true,
         };
@@ -845,20 +1132,41 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         assert_eq!(value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5);
 
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.4, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.4,
+            &mut focus_sys,
+        );
         assert_eq!(value, 60.0);
 
         // Frame 3: repeat fires (t=0.5). Thumb at y=48..68, cursor at y=70 > 68 → fires.
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
-        slider(&mut state, &mut value, spec.clone(), &input, 0.5, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.5,
+            &mut focus_sys,
+        );
         assert!(
             (value - 87.5).abs() < 0.01,
             "repeat should stop at cursor position 87.5, got {value}"
@@ -866,20 +1174,40 @@ mod tests {
 
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
-        slider(&mut state, &mut value, spec.clone(), &input, 0.6, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.6,
+            &mut focus_sys,
+        );
         assert!(
             (value - 87.5).abs() < 0.01,
             "value should not change after thumb reaches cursor, got {value}"
         );
-        assert!(state.is_track_clicking, "is_track_clicking must stay true so drag is still possible");
+        assert!(
+            state.is_track_clicking,
+            "is_track_clicking must stay true so drag is still possible"
+        );
         assert!(!state.is_dragging);
 
         // Frame 5: still holding, move mouse 5px (past 4px threshold from initial click at y=70).
         // Drag transition should fire: thumb snaps to cursor, enters drag mode.
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.65, &mut focus_sys);
-        assert!(state.is_dragging, "should enter drag mode after mouse moves past threshold");
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.65,
+            &mut focus_sys,
+        );
+        assert!(
+            state.is_dragging,
+            "should enter drag mode after mouse moves past threshold"
+        );
         assert!(!state.is_track_clicking);
         assert!(
             (value - 81.25).abs() < 0.01,
@@ -889,7 +1217,14 @@ mod tests {
         // Frame 6: drag to y=85 → delta=10 → val_delta=12.5 → value=93.75
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
-        slider(&mut state, &mut value, spec.clone(), &input, 0.7, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.7,
+            &mut focus_sys,
+        );
         assert!(
             (value - 93.75).abs() < 0.01,
             "drag: expected 93.75, got {value}"
@@ -933,12 +1268,21 @@ mod tests {
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id);
         // Standalone slider registers second (inner) — overwrites both
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, true),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // Frame 2: parent checks — it should NOT have won either direction
-        assert!(!focus_sys.is_active_scroll_up(parent_id),
-            "parent should not win scroll-up; standalone slider blocked it");
+        assert!(
+            !focus_sys.is_active_scroll_up(parent_id),
+            "parent should not win scroll-up; standalone slider blocked it"
+        );
         // Value stays at 0.0 (clamped, can't go below min)
         assert_eq!(value, 0.0);
     }
@@ -957,11 +1301,20 @@ mod tests {
         focus_sys.begin_frame();
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id);
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, true),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
-        assert!(!focus_sys.is_active_scroll_down(parent_id),
-            "parent should not win scroll-down; standalone slider blocked it");
+        assert!(
+            !focus_sys.is_active_scroll_down(parent_id),
+            "parent should not win scroll-down; standalone slider blocked it"
+        );
         assert_eq!(value, 100.0);
     }
 
@@ -982,13 +1335,24 @@ mod tests {
         focus_sys.begin_frame();
         focus_sys.claim_scroll_left(parent_id);
         focus_sys.claim_scroll_right(parent_id);
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, true),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
-        assert!(!focus_sys.is_active_scroll_left(parent_id),
-            "parent should not win scroll-left; vertical standalone slider should block it");
-        assert!(!focus_sys.is_active_scroll_right(parent_id),
-            "parent should not win scroll-right; vertical standalone slider should block it");
+        assert!(
+            !focus_sys.is_active_scroll_left(parent_id),
+            "parent should not win scroll-left; vertical standalone slider should block it"
+        );
+        assert!(
+            !focus_sys.is_active_scroll_right(parent_id),
+            "parent should not win scroll-right; vertical standalone slider should block it"
+        );
     }
 
     // ── Propagating slider (scrollbar-within-scroll-area mode) ─────────────────
@@ -1006,15 +1370,24 @@ mod tests {
 
         // Frame 1: parent claims, then inner propagating slider
         focus_sys.begin_frame();
-        focus_sys.claim_scroll_up(parent_id);   // parent can scroll up
+        focus_sys.claim_scroll_up(parent_id); // parent can scroll up
         focus_sys.claim_scroll_down(parent_id);
         // Inner propagating slider at min: skips claim_scroll_up
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, false),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // Parent should have retained the scroll-up claim
-        assert!(focus_sys.is_active_scroll_up(parent_id),
-            "parent should win scroll-up when inner is at its minimum");
+        assert!(
+            focus_sys.is_active_scroll_up(parent_id),
+            "parent should win scroll-up when inner is at its minimum"
+        );
         assert_eq!(value, 0.0, "inner value unchanged");
     }
 
@@ -1032,11 +1405,20 @@ mod tests {
         focus_sys.begin_frame();
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id); // parent can scroll down
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, false),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
-        assert!(focus_sys.is_active_scroll_down(parent_id),
-            "parent should win scroll-down when inner is at its maximum");
+        assert!(
+            focus_sys.is_active_scroll_down(parent_id),
+            "parent should win scroll-down when inner is at its maximum"
+        );
         assert_eq!(value, 100.0, "inner value unchanged");
     }
 
@@ -1056,11 +1438,24 @@ mod tests {
         focus_sys.begin_frame();
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id);
-        slider(&mut state, &mut value, test_spec(0.0, 100.0, false), &input, 0.0, &mut focus_sys);
+        slider(
+            &mut state,
+            &mut value,
+            test_spec(0.0, 100.0, false),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
-        assert!(!focus_sys.is_active_scroll_up(parent_id), "parent should not win");
-        assert!(!focus_sys.is_active_scroll_down(parent_id), "parent should not win");
+        assert!(
+            !focus_sys.is_active_scroll_up(parent_id),
+            "parent should not win"
+        );
+        assert!(
+            !focus_sys.is_active_scroll_down(parent_id),
+            "parent should not win"
+        );
     }
 
     // ── Visual Tests ───────────────────────────────────────────────────────────
@@ -1071,18 +1466,33 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        
+
         let input = Input::new();
         focus_sys.begin_frame();
-        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        let cmds = slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         // Standalone slider draws: track (FillRect), fill bar (FillRect), thumb (FillRect), thumb border (StrokeRect)
         assert_eq!(cmds.len(), 4);
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)); // track
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)); // fill bar (idle)
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_color)); // thumb fill
-        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)); // thumb border
+        assert!(
+            matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)
+        ); // track
+        assert!(
+            matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)
+        ); // fill bar (idle)
+        assert!(
+            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_color)
+        ); // thumb fill
+        assert!(
+            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)
+        ); // thumb border
     }
 
     #[test]
@@ -1091,18 +1501,29 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        
+
         let mut input = Input::new();
         // Hover over the thumb.
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        
+
         focus_sys.begin_frame();
-        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        let cmds = slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         assert_eq!(cmds.len(), 4);
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_hover_color));
-        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color));
+        assert!(
+            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_hover_color)
+        );
+        assert!(
+            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)
+        );
     }
 
     #[test]
@@ -1112,18 +1533,31 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        
+
         let mut input = Input::new();
         input.mouse_down = true;
         focus_sys.begin_frame();
-        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        let cmds = slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         assert_eq!(cmds.len(), 4);
         // During drag, fill bar and thumb fill/border use the drag color
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color));
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color));
-        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_drag_color));
+        assert!(
+            matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color)
+        );
+        assert!(
+            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color)
+        );
+        assert!(
+            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_drag_color)
+        );
     }
 
     #[test]
@@ -1132,16 +1566,25 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        
+
         focus_sys.take_focus(state.focus_id);
-        
+
         let input = Input::new();
         focus_sys.begin_frame();
-        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        let cmds = slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
         focus_sys.end_frame();
 
         assert_eq!(cmds.len(), 5, "Focus ring adds one draw command");
         // Focus ring is drawn first
-        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == spec.style.focus_outline_color && *width == 2.0));
+        assert!(
+            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == spec.style.focus_outline_color && *width == 2.0)
+        );
     }
 }

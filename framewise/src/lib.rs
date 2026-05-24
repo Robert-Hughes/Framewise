@@ -40,6 +40,7 @@ pub use builder::{Builder, BuilderCtx};
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
+pub use theme::Theme;
 pub use types::{Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, WidgetResult};
 

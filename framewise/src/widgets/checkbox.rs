@@ -1,5 +1,8 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}, widget::{WidgetSpec, WidgetSpecBuilder}
+    draw::{DrawCmd, DrawCommands},
+    types::{Color, Rect, Vec2},
+    widget::{WidgetSpec, WidgetSpecBuilder},
+    WidgetResult,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -11,10 +14,44 @@ pub enum CheckState {
 
 pub struct CheckboxSpec {
     /// Top-left of the 14×14 box.
-    pub rect:     Rect,
-    pub state:    CheckState,
-    pub focused:  bool,
+    pub rect: Rect,
+    pub state: CheckState,
+    pub focused: bool,
     pub disabled: bool,
+    pub style: CheckboxStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CheckboxStyle {
+    pub size: f32,
+    pub background: Color,
+    pub selected_fill: Color,
+    pub border: Color,
+    pub mark: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub mark_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+    pub disabled_alpha: f32,
+}
+
+impl Default for CheckboxStyle {
+    fn default() -> Self {
+        Self {
+            size: 14.0,
+            background: Color::from_srgb_u8(251, 249, 244, 255),
+            selected_fill: Color::from_srgb_u8(21, 19, 15, 255),
+            border: Color::from_srgb_u8(21, 19, 15, 255),
+            mark: Color::from_srgb_u8(244, 241, 234, 255),
+            focus: Color::from_srgb_u8(194, 90, 44, 255),
+            border_width: 1.5,
+            mark_width: 1.5,
+            focus_width: 2.0,
+            focus_offset: 2.0,
+            disabled_alpha: 0.35,
+        }
+    }
 }
 impl WidgetSpec for CheckboxSpec {
     type Builder = CheckboxSpecBuilder;
@@ -31,7 +68,20 @@ impl CheckboxSpecBuilder {
                 state,
                 focused: false,
                 disabled: false,
-            }
+                style: CheckboxStyle {
+                    size: 14.0,
+                    background: Color::WHITE,
+                    selected_fill: Color::BLACK,
+                    border: Color::BLACK,
+                    mark: Color::WHITE,
+                    focus: Color::BLACK,
+                    border_width: 1.5,
+                    mark_width: 1.5,
+                    focus_width: 2.0,
+                    focus_offset: 2.0,
+                    disabled_alpha: 0.35,
+                },
+            },
         }
     }
 
@@ -42,6 +92,11 @@ impl CheckboxSpecBuilder {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.spec.disabled = disabled;
+        self
+    }
+
+    pub fn style(mut self, style: CheckboxStyle) -> Self {
+        self.spec.style = style;
         self
     }
 }
@@ -57,13 +112,18 @@ impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for CheckboxSpecBu
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        self.spec.style = theme.checkbox_style();
+        self
+    }
+
     fn build(self) -> Self::Spec {
         self.spec
     }
 }
 
 pub struct CheckboxResult {
-    pub draw:  DrawCommands,
+    pub draw: DrawCommands,
 }
 impl WidgetResult for CheckboxResult {
     type Info = ();
@@ -74,34 +134,37 @@ impl WidgetResult for CheckboxResult {
 }
 
 pub fn checkbox(spec: CheckboxSpec) -> CheckboxResult {
-    let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
-    let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
+    let s = spec.style;
+    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-    let r = Rect::new(spec.rect.x, spec.rect.y, 14.0, 14.0);
+    let r = Rect::new(spec.rect.x, spec.rect.y, s.size, s.size);
 
     // Focus ring (outset 2px).
     if spec.focused {
         cmds.push(DrawCmd::StrokeRect {
-            rect:  r.inset(-2.0),
-            color: tint(t.rust),
-            width: 2.0,
+            rect: r.inset(-s.focus_offset),
+            color: tint(s.focus),
+            width: s.focus_width,
         });
     }
 
     // Box fill.
     let fill = match spec.state {
-        CheckState::Off => t.paper_elev,
-        _ => t.ink,
+        CheckState::Off => s.background,
+        _ => s.selected_fill,
     };
-    cmds.push(DrawCmd::FillRect { rect: r, color: tint(fill) });
+    cmds.push(DrawCmd::FillRect {
+        rect: r,
+        color: tint(fill),
+    });
 
     // Box border.
     cmds.push(DrawCmd::StrokeRect {
-        rect:  r,
-        color: tint(t.ink),
-        width: 1.5,
+        rect: r,
+        color: tint(s.border),
+        width: s.border_width,
     });
 
     // Inner mark.
@@ -111,15 +174,25 @@ pub fn checkbox(spec: CheckboxSpec) -> CheckboxResult {
             let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
             let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
             let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
-            let paper = tint(t.paper);
-            cmds.push(DrawCmd::StrokeLine { p0, p1, color: paper, width: 1.5 });
-            cmds.push(DrawCmd::StrokeLine { p0: p1, p1: p2, color: paper, width: 1.5 });
+            let mark = tint(s.mark);
+            cmds.push(DrawCmd::StrokeLine {
+                p0,
+                p1,
+                color: mark,
+                width: s.mark_width,
+            });
+            cmds.push(DrawCmd::StrokeLine {
+                p0: p1,
+                p1: p2,
+                color: mark,
+                width: s.mark_width,
+            });
         }
         CheckState::Indeterminate => {
             // Horizontal dash.
             cmds.push(DrawCmd::FillRect {
-                rect:  Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: tint(t.paper),
+                rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                color: tint(s.mark),
             });
         }
         CheckState::Off => {}
@@ -139,11 +212,14 @@ mod tests {
             state: CheckState::Off,
             focused: false,
             disabled: false,
+            style: Default::default(),
         };
         let res = checkbox(spec);
         let cmds = res.draw.0;
         assert_eq!(cmds.len(), 2, "Off state should just draw fill and border");
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(10.0, 10.0, 14.0, 14.0)));
+        assert!(
+            matches!(&cmds[0], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(10.0, 10.0, 14.0, 14.0))
+        );
         assert!(matches!(&cmds[1], DrawCmd::StrokeRect { .. }));
     }
 
@@ -154,10 +230,15 @@ mod tests {
             state: CheckState::On,
             focused: false,
             disabled: false,
+            style: Default::default(),
         };
         let res = checkbox(spec);
         let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 4, "On state should draw fill, border, and two checkmark lines");
+        assert_eq!(
+            cmds.len(),
+            4,
+            "On state should draw fill, border, and two checkmark lines"
+        );
         assert!(matches!(&cmds[2], DrawCmd::StrokeLine { .. }));
         assert!(matches!(&cmds[3], DrawCmd::StrokeLine { .. }));
     }
@@ -169,11 +250,18 @@ mod tests {
             state: CheckState::Indeterminate,
             focused: false,
             disabled: false,
+            style: Default::default(),
         };
         let res = checkbox(spec);
         let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3, "Indeterminate state should draw fill, border, and a dash");
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(12.0, 16.0, 10.0, 2.0)));
+        assert_eq!(
+            cmds.len(),
+            3,
+            "Indeterminate state should draw fill, border, and a dash"
+        );
+        assert!(
+            matches!(&cmds[2], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(12.0, 16.0, 10.0, 2.0))
+        );
     }
 
     #[test]
@@ -183,6 +271,7 @@ mod tests {
             state: CheckState::Off,
             focused: true,
             disabled: false,
+            style: Default::default(),
         };
         let res = checkbox(spec);
         let cmds = res.draw.0;
@@ -197,12 +286,16 @@ mod tests {
             state: CheckState::Off,
             focused: false,
             disabled: true,
+            style: Default::default(),
         };
         let res = checkbox(spec);
         let cmds = res.draw.0;
         assert_eq!(cmds.len(), 2);
         if let DrawCmd::FillRect { color, .. } = cmds[0] {
-            assert!(color.a < 1.0, "Disabled should be drawn with a tinted alpha");
+            assert!(
+                color.a < 1.0,
+                "Disabled should be drawn with a tinted alpha"
+            );
         } else {
             panic!("Expected FillRect");
         }
