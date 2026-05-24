@@ -297,18 +297,7 @@ mod tests {
     use crate::text::{TextSystem, TextLayout, TextHandle};
     use crate::types::Vec2;
     use crate::focus::FocusId;
-
-    struct DummyTextSys;
-    impl TextSystem for DummyTextSys {
-        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
-            TextLayout {
-                handle: TextHandle(0),
-                size: Vec2::new(0.0, 0.0),
-            }
-        }
-        fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
-        fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
-    }
+    use crate::test_utils::DummyTextSys;
     fn btn_spec(y: f32) -> ButtonSpec {
         ButtonSpec { rect: Rect::new(0.0, y, 100.0, 30.0), text: "B".into(), style: Default::default(), clip_rect: None, disabled: false }
     }
@@ -639,5 +628,152 @@ mod tests {
         input.key_released_space = true;
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         assert!(!res.input.clicked, "Should not click because it lost focus");
+    }
+
+    // ── Visual Tests ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_button_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let input = Input::default();
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::primary(),
+            clip_rect: None,
+            disabled: false,
+        };
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // 1. FillRect (background)
+        // 2. StrokeRect (border)
+        // 3. Text
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        
+        let ButtonStyle { background, border, border_width, text_color, .. } = ButtonStyle::primary();
+
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { rect, color } if *rect == Rect::new(10.0, 10.0, 100.0, 30.0) && *color == background));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { rect, color, width } if *rect == Rect::new(10.0, 10.0, 100.0, 30.0) && *color == border && *width == border_width));
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == text_color));
+    }
+
+    #[test]
+    fn test_button_visual_hovered() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::primary(),
+            clip_rect: None,
+            disabled: false,
+        };
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        let hovered_color = ButtonStyle::primary().hovered;
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == hovered_color));
+    }
+
+    #[test]
+    fn test_button_visual_pressed() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(50.0, 25.0);
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::primary(),
+            clip_rect: None,
+            disabled: false,
+        };
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        let pressed_color = ButtonStyle::primary().pressed;
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == pressed_color));
+    }
+
+    #[test]
+    fn test_button_visual_focused() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::primary(),
+            clip_rect: None,
+            disabled: false,
+        };
+
+        focus_sys.take_focus(state.focus_id);
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &Input::default(), &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 4, "Focused button should have an extra focus ring draw command");
+        
+        let focus_color = ButtonStyle::primary().focus_border;
+        let border_width = ButtonStyle::primary().border_width;
+        let expected_focus_rect = Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + 2.0));
+        
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { rect, color, width } if *rect == expected_focus_rect && *color == focus_color && *width == 2.0));
+    }
+
+    #[test]
+    fn test_button_visual_disabled() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ButtonState::default();
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::primary(),
+            clip_rect: None,
+            disabled: true,
+        };
+
+        focus_sys.begin_frame();
+        let res = button(state, spec, &Input::default(), &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        
+        let alpha = 0.32_f32;
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+        
+        let expected_bg = tint(ButtonStyle::primary().background);
+        let expected_border = tint(ButtonStyle::primary().border);
+        let expected_text = tint(ButtonStyle::primary().text_color);
+
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == expected_bg));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == expected_border));
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == expected_text));
     }
 }

@@ -156,3 +156,91 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_drag_number_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let spec = DragNumberSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+            label: "X",
+            value: 50.0,
+            min: 0.0,
+            max: 100.0,
+            active: false,
+        };
+
+        let res = drag_number(spec);
+        let cmds = res.draw.0;
+        
+        // 1. FillRect (bg)
+        // 2. StrokeRect (border)
+        // 3. FillRect (label bg)
+        // 4. Text (label text)
+        // 5. FillRect (value frac bg)
+        // 6. Text (value text)
+        assert_eq!(cmds.len(), 6);
+        
+        // Label width = DummyTextSys size x (8.0 * 1 chars) + 20.0 = 28.0
+        // Label bg color = ink
+        let t = Theme::framewise();
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == t.ink && rect.w == 28.0));
+        
+        // Value fill color = rust_soft, frac = 0.5, value width = 100 - 28 = 72, fill width = 36.0
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, rect } if *color == t.rust_soft && rect.w == 36.0));
+    }
+
+    #[test]
+    fn test_drag_number_visual_active() {
+        let mut text_sys = DummyTextSys;
+        let spec = DragNumberSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+            label: "X",
+            value: 50.0,
+            min: 0.0,
+            max: 100.0,
+            active: true,
+        };
+
+        let res = drag_number(spec);
+        let cmds = res.draw.0;
+        
+        // Active adds a focus ring stroke, so 7 cmds
+        assert_eq!(cmds.len(), 7);
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0));
+        
+        // Label bg color should be rust instead of ink
+        assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
+    }
+
+    #[test]
+    fn test_drag_number_visual_min_value() {
+        let mut text_sys = DummyTextSys;
+        let spec = DragNumberSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+            label: "X",
+            value: 0.0,
+            min: 0.0,
+            max: 100.0,
+            active: false,
+        };
+
+        let res = drag_number(spec);
+        let cmds = res.draw.0;
+        
+        // No fractional fill since value == min
+        assert_eq!(cmds.len(), 5);
+        
+        // Command 4 is now the value text
+        assert!(matches!(&cmds[4], DrawCmd::Text { .. }));
+    }
+}

@@ -127,3 +127,84 @@ pub fn checkbox(spec: CheckboxSpec) -> CheckboxResult {
 
     CheckboxResult { draw: cmds }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_checkbox_visual_off() {
+        let spec = CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            state: CheckState::Off,
+            focused: false,
+            disabled: false,
+        };
+        let res = checkbox(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 2, "Off state should just draw fill and border");
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(10.0, 10.0, 14.0, 14.0)));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { .. }));
+    }
+
+    #[test]
+    fn test_checkbox_visual_on() {
+        let spec = CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            state: CheckState::On,
+            focused: false,
+            disabled: false,
+        };
+        let res = checkbox(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 4, "On state should draw fill, border, and two checkmark lines");
+        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { .. }));
+        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { .. }));
+    }
+
+    #[test]
+    fn test_checkbox_visual_indeterminate() {
+        let spec = CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            state: CheckState::Indeterminate,
+            focused: false,
+            disabled: false,
+        };
+        let res = checkbox(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3, "Indeterminate state should draw fill, border, and a dash");
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(12.0, 16.0, 10.0, 2.0)));
+    }
+
+    #[test]
+    fn test_checkbox_visual_focused() {
+        let spec = CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            state: CheckState::Off,
+            focused: true,
+            disabled: false,
+        };
+        let res = checkbox(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3, "Focused state adds a focus ring");
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { width, .. } if *width == 2.0));
+    }
+
+    #[test]
+    fn test_checkbox_visual_disabled() {
+        let spec = CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            state: CheckState::Off,
+            focused: false,
+            disabled: true,
+        };
+        let res = checkbox(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 2);
+        if let DrawCmd::FillRect { color, .. } = cmds[0] {
+            assert!(color.a < 1.0, "Disabled should be drawn with a tinted alpha");
+        } else {
+            panic!("Expected FillRect");
+        }
+    }
+}

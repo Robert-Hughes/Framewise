@@ -601,21 +601,7 @@ mod tests {
     use crate::text::{TextHandle, TextLayout};
     use crate::types::Vec2;
 
-    struct DummyTextSys;
-    impl TextSystem for DummyTextSys {
-        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
-            TextLayout {
-                handle: TextHandle(0),
-                size: Vec2::new(100.0, 16.0),
-            }
-        }
-        fn measure_byte_x(&self, _handle: TextHandle, byte_index: usize) -> f32 {
-            byte_index as f32 * 10.0
-        }
-        fn hit_test_x(&self, _handle: TextHandle, x_offset: f32) -> usize {
-            (x_offset / 10.0).round() as usize
-        }
-    }
+    use crate::test_utils::DummyTextSys;
 
     fn spec() -> TextEditSpec {
         TextEditSpec {
@@ -749,7 +735,7 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_pos = crate::types::Vec2::new(40.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
 
@@ -760,7 +746,7 @@ mod tests {
         state.was_focused = true;
 
         input.mouse_pressed = false;
-        input.mouse_pos.x += 30.0;
+        input.mouse_pos.x += 24.0;
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(5));
@@ -781,8 +767,8 @@ mod tests {
         let mut state = TextEditState::new("hello rust world");
 
         let mut input = Input::default();
-        // Click on "rust" (byte index 8 -> pixel 80)
-        input.mouse_pos = crate::types::Vec2::new(80.0 + spec().style.padding + spec().style.border_width, 15.0);
+        // Click on "rust" (byte index 8 -> pixel 64)
+        input.mouse_pos = crate::types::Vec2::new(64.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
@@ -795,17 +781,17 @@ mod tests {
         assert!(state.is_dragging);
         assert_eq!(state.drag_word_origin, Some((6, 10)));
 
-        // Now drag right to "world" (byte index 14 -> pixel 140)
+        // Now drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
-        input.mouse_pos.x = 140.0 + spec().style.padding + spec().style.border_width;
+        input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
         assert_eq!(state.caret_byte, 16); // end of "world"
 
-        // Drag left to "hello" (byte index 2 -> pixel 20)
-        input.mouse_pos.x = 20.0 + spec().style.padding + spec().style.border_width;
+        // Drag left to "hello" (byte index 2 -> pixel 16)
+        input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         // Should select "hello rust", so from 10 to 0
@@ -899,7 +885,7 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(50.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_pos = crate::types::Vec2::new(40.0 + spec().style.padding + spec().style.border_width, 15.0);
         input.mouse_down = true;
         input.mouse_pressed = true;
 
@@ -954,5 +940,105 @@ mod tests {
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
         assert_eq!(state.caret_byte, 10);
+    }
+
+    // ── Visual Tests ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_text_edit_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let state = TextEditState::new("hello");
+        let input = Input::default();
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        
+        let cmds = res.draw;
+        // 1. bg fill
+        // 2. border stroke
+        // 3. text
+        assert_eq!(cmds.0.len(), 3);
+        let t = Theme::framewise();
+        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds.0[2], DrawCmd::Text { .. }));
+    }
+
+
+
+    #[test]
+    fn test_text_edit_visual_focused_caret() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+        focus_sys.begin_frame();
+        
+        state.was_focused = true; // ensure state knows
+        
+        let input = Input::default();
+        // Time = 0.0, so time_since_move = 0.0 < 0.5 (blink on)
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        
+        let cmds = res.draw;
+        // 1. bg fill
+        // 2. border stroke (focus_border)
+        // 3. text
+        // 4. caret
+        assert_eq!(cmds.0.len(), 4);
+        let t = Theme::framewise();
+        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == t.rust)); // Caret
+    }
+
+    #[test]
+    fn test_text_edit_visual_focused_selection() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.end_frame();
+        focus_sys.begin_frame();
+        
+        state.was_focused = true;
+        state.selection_byte = Some(0);
+        state.caret_byte = 5;
+        
+        let input = Input::default();
+        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        
+        let cmds = res.draw;
+        // 1. bg
+        // 2. border
+        // 3. selection fill
+        // 4. text
+        assert_eq!(cmds.0.len(), 4);
+        let t = Theme::framewise();
+        assert!(matches!(&cmds.0[2], DrawCmd::FillRect { color, .. } if *color == t.rust_soft)); // Selection
+        assert!(matches!(&cmds.0[3], DrawCmd::Text { .. }));
+    }
+
+    #[test]
+    fn test_text_edit_visual_error() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let state = TextEditState::new("hello");
+        let mut sp = spec();
+        sp.error = true;
+        
+        let input = Input::default();
+        let res = text_edit(state, sp, &input, 0.0, &mut text_sys, &mut focus_sys);
+        
+        let cmds = res.draw;
+        // 1. bg
+        // 2. error stripe
+        // 3. border (error color)
+        // 4. text
+        assert_eq!(cmds.0.len(), 4);
+        let _t = Theme::framewise();
+        assert!(matches!(&cmds.0[1], DrawCmd::FillRect { .. })); // Stripe (hardcoded color in logic)
+        // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
+        assert!(matches!(&cmds.0[2], DrawCmd::StrokeRect { .. }));
     }
 }

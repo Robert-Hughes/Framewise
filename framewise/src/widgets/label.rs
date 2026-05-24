@@ -67,21 +67,7 @@ pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::{TextLayout, TextHandle};
-    use crate::types::Vec2;
-
-    struct DummyTextSys;
-    impl TextSystem for DummyTextSys {
-        fn prepare(&mut self, _text: &str, _size: f32) -> TextLayout {
-            TextLayout {
-                handle: TextHandle(1),
-                size: Vec2::new(100.0, 20.0),
-            }
-        }
-        fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
-        fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
-    }
-
+    use crate::test_utils::DummyTextSys;
     #[test]
     fn test_label_draws_text() {
         let mut sys = DummyTextSys;
@@ -101,7 +87,7 @@ mod tests {
         match &draw.0[0] {
             DrawCmd::Text { rect, color: _, handle } => {
                 assert_eq!(rect.x, 0.0);
-                assert_eq!(handle.0, 1);
+                assert_eq!(handle.0, 0);
             }
             _ => panic!("Expected text command"),
         }

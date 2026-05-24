@@ -119,3 +119,69 @@ pub fn radio(spec: RadioSpec) -> RadioResult {
 
     RadioResult { draw: cmds }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_radio_visual_unselected() {
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            focused: false,
+            disabled: false,
+        };
+        let res = radio(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 2, "Unselected should draw background fill and outer ring");
+        assert!(matches!(&cmds[0], DrawCmd::FillCircle { radius, .. } if *radius == 7.0));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeCircle { radius, .. } if *radius == 7.0));
+    }
+
+    #[test]
+    fn test_radio_visual_selected() {
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: true,
+            focused: false,
+            disabled: false,
+        };
+        let res = radio(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3, "Selected should draw fill, outer ring, and inner dot");
+        assert!(matches!(&cmds[2], DrawCmd::FillCircle { radius, .. } if *radius == 3.0));
+    }
+
+    #[test]
+    fn test_radio_visual_focused() {
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            focused: true,
+            disabled: false,
+        };
+        let res = radio(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3, "Focused adds an outer stroke circle");
+        assert!(matches!(&cmds[0], DrawCmd::StrokeCircle { radius, width, .. } if *radius == 9.0 && *width == 2.0));
+    }
+
+    #[test]
+    fn test_radio_visual_disabled() {
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            focused: false,
+            disabled: true,
+        };
+        let res = radio(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 2);
+        if let DrawCmd::FillCircle { color, .. } = cmds[0] {
+            assert!(color.a < 1.0, "Disabled should be drawn with a tinted alpha");
+        } else {
+            panic!("Expected FillCircle");
+        }
+    }
+}

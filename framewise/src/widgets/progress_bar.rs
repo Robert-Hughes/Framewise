@@ -112,3 +112,74 @@ pub fn progress_bar(spec: ProgressBarSpec) -> ProgressBarResult {
 
     ProgressBarResult { draw: cmds }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_progress_bar_visual_normal() {
+        let spec = ProgressBarSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 10.0), // h=10
+            value: 0.5,
+            phase: 0.0,
+            active: false,
+        };
+        let res = progress_bar(spec);
+        let cmds = res.draw.0;
+        
+        // 1. Track background
+        // 2. Fill
+        assert_eq!(cmds.len(), 2);
+        
+        let t = Theme::framewise();
+        let track_y = 10.0 + (10.0 - 3.0) * 0.5; // 13.5
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, rect } if *color == t.line_soft && rect == &Rect::new(10.0, 13.5, 100.0, 3.0)));
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, rect } if *color == t.ink && rect == &Rect::new(10.0, 13.5, 50.0, 3.0)));
+    }
+
+    #[test]
+    fn test_progress_bar_visual_active() {
+        let spec = ProgressBarSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 10.0),
+            value: 0.5,
+            phase: 0.0,
+            active: true,
+        };
+        let res = progress_bar(spec);
+        let cmds = res.draw.0;
+        
+        assert_eq!(cmds.len(), 2);
+        
+        let t = Theme::framewise();
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == t.rust));
+    }
+
+    #[test]
+    fn test_progress_bar_visual_indeterminate() {
+        let spec = ProgressBarSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 10.0),
+            value: f32::NAN,
+            phase: 0.5,
+            active: false,
+        };
+        let res = progress_bar(spec);
+        let cmds = res.draw.0;
+        
+        assert_eq!(cmds.len(), 2);
+        
+        // Indeterminate fill width is 30% of 100.0 = 30.0
+        // Starts at phase * 100.0 = 50.0. So rect x = 60.0, w = 30.0.
+        // Wait, start = 0.5 * 100 = 50.0. x = track.x + start = 10.0 + 50.0 = 60.0.
+        // visible_w = 30.min(10 + 100 - 60).max(0) = 30.min(50).max(0) = 30.0.
+        let t = Theme::framewise();
+        if let DrawCmd::FillRect { color, rect } = cmds[1] {
+            assert_eq!(color, t.ink);
+            assert!((rect.x - 60.0).abs() < 0.01, "Expected x around 60.0, got {}", rect.x);
+            assert!((rect.w - 30.0).abs() < 0.01, "Expected w around 30.0, got {}", rect.w);
+        } else {
+            panic!("Expected FillRect");
+        }
+    }
+}

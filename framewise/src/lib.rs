@@ -30,6 +30,8 @@ pub mod types;
 pub mod widget;
 pub mod widgets;
 
+#[cfg(test)]
+pub mod test_utils;
 // ── Public re-exports ─────────────────────────────────────────────────────────
 
 pub use builder::{Builder, BuilderCtx};

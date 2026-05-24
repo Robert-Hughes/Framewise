@@ -390,25 +390,11 @@ mod tests {
     use crate::layout::{ManualLayout, Layout};
     use crate::focus::FocusSystem;
 
-    struct DummyTextSystem;
-    impl crate::text::TextSystem for DummyTextSystem {
-        fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
-            crate::text::TextLayout {
-                size: Vec2::new(10.0, 10.0),
-                handle: crate::text::TextHandle(0),
-            }
-        }
-        fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 {
-            0.0
-        }
-        fn hit_test_x(&self, _handle: crate::text::TextHandle, _x_offset: f32) -> usize {
-            0
-        }
-    }
+    use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_clipped_hit_testing() {
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
         focus_sys.begin_frame();
 
@@ -451,7 +437,7 @@ mod tests {
     fn test_nested_clip_rect_intersections() {
         // Complex nested layout test: a builder with a clip rect creates a child scroll area,
         // which creates another child scroll area. We verify the clip rects intersect correctly.
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
         focus_sys.begin_frame();
 

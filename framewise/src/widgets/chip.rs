@@ -121,3 +121,67 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_chip_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let spec = ChipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+            label: "Tag",
+            active: false,
+            focused: false,
+        };
+        let res = chip(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 3); // bg, border, text
+        let t = Theme::framewise();
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.ink));
+    }
+
+    #[test]
+    fn test_chip_visual_active() {
+        let mut text_sys = DummyTextSys;
+        let spec = ChipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+            label: "Tag",
+            active: true,
+            focused: false,
+        };
+        let res = chip(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 3);
+        let t = Theme::framewise();
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink)); // active bg
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.paper)); // active text
+    }
+
+    #[test]
+    fn test_chip_visual_focused() {
+        let mut text_sys = DummyTextSys;
+        let spec = ChipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+            label: "Tag",
+            active: false,
+            focused: true,
+        };
+        let res = chip(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 4); // focus ring + 3 normal cmds
+        let t = Theme::framewise();
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0));
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+    }
+}

@@ -388,17 +388,6 @@ mod test_helpers {
     use crate::focus::FocusSystem;
     use crate::types::Vec2;
 
-    pub struct DummyTextSystem;
-    impl crate::text::TextSystem for DummyTextSystem {
-        fn prepare(&mut self, _text: &str, _size: f32) -> crate::text::TextLayout {
-            crate::text::TextLayout {
-                handle: crate::text::TextHandle(0),
-                size: Vec2::ZERO,
-            }
-        }
-        fn measure_byte_x(&self, _handle: crate::text::TextHandle, _byte_index: usize) -> f32 { 0.0 }
-        fn hit_test_x(&self, _handle: crate::text::TextHandle, _x: f32) -> usize { 0 }
-    }
 
     /// Run `n` frames against `focus_sys`, wrapping each in begin/end_frame.
     /// `body` receives the frame index and the FocusSystem.
@@ -414,7 +403,8 @@ mod test_helpers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::test_helpers::{DummyTextSystem, frames};
+    use super::test_helpers::frames;
+    use crate::test_utils::DummyTextSys;
     use crate::layout::ManualLayout;
 
     // Helper to keep test calls the same
@@ -517,7 +507,7 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
         
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
 
         focus_sys.take_focus(btn_state.focus_id);
 
@@ -564,7 +554,7 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
 focus_sys.take_focus(btn_state.focus_id);
 
         // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
@@ -603,7 +593,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         focus_sys.take_focus(btn_state.focus_id);
 
         for _ in 0..2 {
@@ -962,7 +952,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let mut btn_visible_state = crate::widgets::button::ButtonState::default();
         let mut btn_clipped_state = crate::widgets::button::ButtonState::default();
         let mut btn_start_state = crate::widgets::button::ButtonState::default();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
 
         let btn_visible_id = btn_visible_state.focus_id;
 
@@ -1058,7 +1048,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let mut scroll_state = ScrollState::default();
         let mut btn_partial_state = crate::widgets::button::ButtonState::default();
         let mut btn_start_state = crate::widgets::button::ButtonState::default();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
 
         let btn_partial_id = btn_partial_state.focus_id;
 
@@ -1318,14 +1308,14 @@ mod nested_bubbling_tests {
         assert_eq!(outer_state.offset.y, 100.0, "Should not leak cross-axis");
     }
 
-    use super::test_helpers::DummyTextSystem;
+    use crate::test_utils::DummyTextSys;
 
     // 5. Keyboard / Inner Content / Same-axis (Bubble)
     #[test]
     fn test_nested_keyboard_content_same_axis_bubbles() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -1367,7 +1357,7 @@ mod nested_bubbling_tests {
     fn test_nested_keyboard_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -1592,7 +1582,7 @@ mod nested_bubbling_tests {
     fn test_outer_horiz_inner_vert_keyboard_content_cross_axis_isolates() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -1803,7 +1793,7 @@ mod nested_bubbling_tests {
     fn test_triple_nested_keyboard_content_middle_blocks() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
@@ -2035,7 +2025,7 @@ mod nested_bubbling_tests {
     fn test_reversed_triple_nested_keyboard_content_middle_blocks() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
@@ -2454,7 +2444,7 @@ mod nested_bubbling_tests {
     fn test_nested_2d_keyboard_content_at_extent_bubbles_to_outer() {
         let mut focus_sys = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_sys = DummyTextSystem;
+        let mut text_sys = DummyTextSys;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();

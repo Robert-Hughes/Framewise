@@ -130,3 +130,51 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_tooltip_visual_dark() {
+        let mut text_sys = DummyTextSys;
+        let spec = TooltipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Tooltip",
+            variant: TooltipVariant::Dark,
+        };
+        let res = tooltip(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 4); // bg fill, text, 2 arrow lines
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.paper));
+        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5));
+        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5));
+    }
+
+    #[test]
+    fn test_tooltip_visual_rust() {
+        let mut text_sys = DummyTextSys;
+        let spec = TooltipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+            text: "Tooltip",
+            variant: TooltipVariant::Rust,
+        };
+        let res = tooltip(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 4);
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == Color::WHITE));
+        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5));
+        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5));
+    }
+}

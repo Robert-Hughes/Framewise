@@ -150,3 +150,80 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_segmented_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let items = ["A", "B"];
+        let spec = SegmentedSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 200.0, 28.0),
+            items: &items,
+            active_index: 0,
+            focused: None,
+        };
+        let res = segmented(spec);
+        let cmds = res.draw.0;
+
+        // Commands:
+        // 0: outer bg
+        // 1: outer border
+        // Iter 0:
+        // 2: active bg
+        // 3: divider
+        // 4: text (paper color)
+        // Iter 1:
+        // 5: text (ink color)
+        assert_eq!(cmds.len(), 6);
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
+        
+        // Item 0
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
+        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // Divider
+        assert!(matches!(&cmds[4], DrawCmd::Text { color, .. } if *color == t.paper)); // Active text
+
+        // Item 1
+        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == t.ink)); // Inactive text
+    }
+
+    #[test]
+    fn test_segmented_visual_focused() {
+        let mut text_sys = DummyTextSys;
+        let items = ["A", "B"];
+        let spec = SegmentedSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 200.0, 28.0),
+            items: &items,
+            active_index: 1,
+            focused: Some(1),
+        };
+        let res = segmented(spec);
+        let cmds = res.draw.0;
+
+        // Commands:
+        // 0: outer bg
+        // 1: outer border
+        // Iter 0:
+        // 2: divider
+        // 3: text (ink color)
+        // Iter 1:
+        // 4: active bg
+        // 5: focus ring
+        // 6: text (paper color)
+        assert_eq!(cmds.len(), 7);
+        let t = Theme::framewise();
+        
+        // Item 1
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
+        assert!(matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)); // Focus
+        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == t.paper)); // Active text
+    }
+}

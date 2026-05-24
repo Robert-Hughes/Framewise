@@ -1062,4 +1062,86 @@ mod tests {
         assert!(!focus_sys.is_active_scroll_up(parent_id), "parent should not win");
         assert!(!focus_sys.is_active_scroll_down(parent_id), "parent should not win");
     }
+
+    // ── Visual Tests ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_slider_visual_normal() {
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let spec = test_spec(0.0, 100.0, true);
+        
+        let input = Input::new();
+        focus_sys.begin_frame();
+        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Standalone slider draws: track (FillRect), fill bar (FillRect), thumb (FillRect), thumb border (StrokeRect)
+        assert_eq!(cmds.len(), 4);
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)); // track
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)); // fill bar (idle)
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_color)); // thumb fill
+        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)); // thumb border
+    }
+
+    #[test]
+    fn test_slider_visual_hovered() {
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let spec = test_spec(0.0, 100.0, true);
+        
+        let mut input = Input::new();
+        // Hover over the thumb.
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        
+        focus_sys.begin_frame();
+        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(cmds.len(), 4);
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_hover_color));
+        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color));
+    }
+
+    #[test]
+    fn test_slider_visual_drag() {
+        let mut state = SliderState::default();
+        state.is_dragging = true; // Force drag state
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let spec = test_spec(0.0, 100.0, true);
+        
+        let mut input = Input::new();
+        input.mouse_down = true;
+        focus_sys.begin_frame();
+        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(cmds.len(), 4);
+        // During drag, fill bar and thumb fill/border use the drag color
+        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color));
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color));
+        assert!(matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_drag_color));
+    }
+
+    #[test]
+    fn test_slider_visual_focused() {
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let spec = test_spec(0.0, 100.0, true);
+        
+        focus_sys.take_focus(state.focus_id);
+        
+        let input = Input::new();
+        focus_sys.begin_frame();
+        let cmds = slider(&mut state, &mut value, spec.clone(), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(cmds.len(), 5, "Focus ring adds one draw command");
+        // Focus ring is drawn first
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == spec.style.focus_outline_color && *width == 2.0));
+    }
 }

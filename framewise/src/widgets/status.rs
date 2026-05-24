@@ -118,3 +118,48 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_status_visual_ok() {
+        let mut text_sys = DummyTextSys;
+        let spec = StatusSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+            label: "Online",
+            variant: StatusVariant::Ok,
+        };
+        let res = status(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 2);
+        let t = Theme::framewise();
+        let ok_color = Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0);
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == ok_color));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
+    }
+
+    #[test]
+    fn test_status_visual_warn() {
+        let mut text_sys = DummyTextSys;
+        let spec = StatusSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+            label: "Warning",
+            variant: StatusVariant::Warn,
+        };
+        let res = status(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 2);
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
+    }
+}

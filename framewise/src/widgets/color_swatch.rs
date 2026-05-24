@@ -94,3 +94,39 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         spec
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_color_swatch_visual_normal() {
+        let spec = ColorSwatchSpec::default();
+        let res = color_swatch(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 2);
+        let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
+        let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == default_color));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == default_border && *width == 1.0));
+    }
+
+    #[test]
+    fn test_color_swatch_visual_custom() {
+        let custom_color = Color::from_srgb_f32(1.0, 0.0, 0.0, 1.0);
+        let custom_border = Color::from_srgb_f32(0.0, 1.0, 0.0, 1.0);
+        let spec = ColorSwatchSpec {
+            rect: Rect::new(0.0, 0.0, 20.0, 20.0),
+            color: custom_color,
+            border: custom_border,
+        };
+        let res = color_swatch(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 2);
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == custom_color));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == custom_border && *width == 1.0));
+    }
+}

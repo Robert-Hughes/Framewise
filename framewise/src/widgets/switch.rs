@@ -114,3 +114,79 @@ pub fn switch(spec: SwitchSpec) -> SwitchResult {
 
     SwitchResult { draw: cmds }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_switch_visual_off() {
+        let spec = SwitchSpec {
+            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+            on: false,
+            focused: false,
+            disabled: false,
+        };
+        let res = switch(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3, "Off should draw track fill, track border, and thumb dot");
+        
+        let track_fill = cmds[0].clone();
+        let track_border = cmds[1].clone();
+        let thumb_dot = cmds[2].clone();
+
+        assert!(matches!(track_fill, DrawCmd::FillRect { rect, .. } if rect == Rect::new(10.0, 10.0, 30.0, 16.0)));
+        assert!(matches!(track_border, DrawCmd::StrokeRect { rect, .. } if rect == Rect::new(10.0, 10.0, 30.0, 16.0)));
+        // Left positioned thumb dot
+        assert!(matches!(thumb_dot, DrawCmd::FillRect { rect, .. } if rect == Rect::new(11.5, 13.0, 10.0, 10.0)));
+    }
+
+    #[test]
+    fn test_switch_visual_on() {
+        let spec = SwitchSpec {
+            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+            on: true,
+            focused: false,
+            disabled: false,
+        };
+        let res = switch(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        
+        let thumb_dot = cmds[2].clone();
+        // Right positioned thumb dot: x + w - 10 - 1.5 => 10 + 30 - 10 - 1.5 = 28.5
+        assert!(matches!(thumb_dot, DrawCmd::FillRect { rect, .. } if rect == Rect::new(28.5, 13.0, 10.0, 10.0)));
+    }
+
+    #[test]
+    fn test_switch_visual_focused() {
+        let spec = SwitchSpec {
+            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+            on: false,
+            focused: true,
+            disabled: false,
+        };
+        let res = switch(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 4, "Focused adds a focus ring");
+        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { width, .. } if *width == 2.0));
+    }
+
+    #[test]
+    fn test_switch_visual_disabled() {
+        let spec = SwitchSpec {
+            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+            on: false,
+            focused: false,
+            disabled: true,
+        };
+        let res = switch(spec);
+        let cmds = res.draw.0;
+        assert_eq!(cmds.len(), 3);
+        if let DrawCmd::FillRect { color, .. } = cmds[0] {
+            assert!(color.a < 1.0, "Disabled should be drawn with a tinted alpha");
+        } else {
+            panic!("Expected FillRect");
+        }
+    }
+}

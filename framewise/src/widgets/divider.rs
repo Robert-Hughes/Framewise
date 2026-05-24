@@ -40,3 +40,22 @@ pub fn divider(spec: DividerSpec) -> DividerResult {
         layout: LayoutInfo::new(spec.rect, spec.rect),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_divider_visual() {
+        let spec = DividerSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 10.0),
+        };
+        let res = divider(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 1);
+        let t = Theme::framewise();
+        
+        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, width, .. } if *color == t.line && *width == 1.0));
+    }
+}

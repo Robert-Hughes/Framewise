@@ -141,3 +141,34 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+    use crate::theme::Theme;
+
+    #[test]
+    fn test_keycap_visual() {
+        let mut text_sys = DummyTextSys;
+        let t = Theme::framewise();
+        let spec = KeycapSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 30.0, 30.0),
+            label: "K",
+            bg: t.paper_elev,
+            border: t.ink,
+            text_color: t.ink,
+            text_size: 14.0,
+        };
+        let res = keycap(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 4);
+        
+        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
+        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == t.ink && *width == 1.0));
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == Color::linear_rgba(0.0, 0.0, 0.0, 0.18))); // shadow
+        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.ink));
+    }
+}

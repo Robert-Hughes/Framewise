@@ -108,3 +108,48 @@ pub fn spinner(spec: SpinnerSpec) -> SpinnerResult {
 
     SpinnerResult { draw: cmds }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_spinner_visual_normal() {
+        let spec = SpinnerSpec {
+            rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+            large: false,
+            color: None,
+        };
+        let res = spinner(spec);
+        let cmds = res.draw.0;
+
+        // 8 corner lines + 1 rust highlight line = 9 cmds
+        assert_eq!(cmds.len(), 9);
+        let t = Theme::framewise();
+        
+        for i in 0..8 {
+            assert!(matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == t.ink));
+        }
+        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == t.rust));
+    }
+
+    #[test]
+    fn test_spinner_visual_large_custom_color() {
+        let custom_color = Color::from_srgb_f32(0.1, 0.2, 0.3, 1.0);
+        let spec = SpinnerSpec {
+            rect: Rect::new(0.0, 0.0, 24.0, 24.0),
+            large: true,
+            color: Some(custom_color),
+        };
+        let res = spinner(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 9);
+        let t = Theme::framewise();
+        
+        for i in 0..8 {
+            assert!(matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == custom_color));
+        }
+        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == t.rust));
+    }
+}

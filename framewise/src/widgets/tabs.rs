@@ -144,3 +144,79 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::DummyTextSys;
+
+    #[test]
+    fn test_tabs_visual_normal() {
+        let mut text_sys = DummyTextSys;
+        let items = ["Tab1", "Tab2"];
+        let spec = TabsSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+            items: &items,
+            active_index: 0,
+            focused: None,
+        };
+        let res = tabs(spec);
+        let cmds = res.draw.0;
+
+        // Commands:
+        // 0: bottom border line
+        // Iter 0 (Active):
+        // 1: text (ink color)
+        // 2: underbar (rust)
+        // Iter 1 (Inactive):
+        // 3: text (muted color)
+        assert_eq!(cmds.len(), 4);
+        let t = Theme::framewise();
+
+        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
+        
+        // Item 0
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.ink)); // active text
+        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == t.rust)); // active underbar
+
+        // Item 1
+        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.muted)); // inactive text
+    }
+
+    #[test]
+    fn test_tabs_visual_focused() {
+        let mut text_sys = DummyTextSys;
+        let items = ["Tab1", "Tab2"];
+        let spec = TabsSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+            items: &items,
+            active_index: 1,
+            focused: Some(1),
+        };
+        let res = tabs(spec);
+        let cmds = res.draw.0;
+
+        // Commands:
+        // 0: bottom border line
+        // Iter 0 (Inactive):
+        // 1: text (muted color)
+        // Iter 1 (Active + Focused):
+        // 2: focus ring (rust stroke)
+        // 3: text (ink color)
+        // 4: underbar (rust)
+        assert_eq!(cmds.len(), 5);
+        let t = Theme::framewise();
+
+        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
+        
+        // Item 0
+        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted)); // inactive text
+
+        // Item 1
+        assert!(matches!(&cmds[2], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)); // focus ring
+        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.ink)); // active text
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.rust)); // active underbar
+    }
+}

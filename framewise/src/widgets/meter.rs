@@ -128,3 +128,60 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
         spec
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_meter_visual_normal() {
+        let spec = MeterSpec {
+            rect: Rect::new(0.0, 0.0, 80.0, 14.0),
+            value: 0.5,
+            peak: None,
+            bars: 10,
+        };
+        let res = meter(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 10);
+        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
+        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
+
+        // Lit bars: value 0.5 * 10 = 5. First 5 should be ink.
+        for i in 0..5 {
+            assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == ink));
+        }
+        // Unlit bars
+        for i in 5..10 {
+            assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == unlit));
+        }
+    }
+
+    #[test]
+    fn test_meter_visual_peak() {
+        let spec = MeterSpec {
+            rect: Rect::new(0.0, 0.0, 80.0, 14.0),
+            value: 0.5,
+            peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
+            bars: 10,
+        };
+        let res = meter(spec);
+        let cmds = res.draw.0;
+
+        assert_eq!(cmds.len(), 10);
+        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
+        let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
+        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
+
+        for i in 0..10 {
+            if i == 7 {
+                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == rust));
+            } else if i < 5 {
+                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == ink));
+            } else {
+                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == unlit));
+            }
+        }
+    }
+}
