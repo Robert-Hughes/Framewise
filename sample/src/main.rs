@@ -953,11 +953,6 @@ impl ApplicationHandler for App {
                         dy
                     }
                 };
-                // Scroll the spec page directly when on that page.
-                if self.active_page == AppPage::WidgetSpec {
-                    self.spec_page_state.scroll_y = (self.spec_page_state.scroll_y - delta_y * 40.0)
-                        .clamp(0.0, spec_page::CONTENT_HEIGHT);
-                }
             }
 
             WindowEvent::MouseInput { state, button, .. } => {

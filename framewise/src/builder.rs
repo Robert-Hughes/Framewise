@@ -5,6 +5,7 @@ use crate::{
     widget::WidgetResult,
     widgets::{
         button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
+        divider::DividerInfo,
         frame::{frame, FrameInfo, FrameSpec, FrameStyle},
         label::{label, LabelInfo, LabelSpec},
         text_edit::{text_edit, TextEditInfo, TextEditSpec, TextEditState, TextEditStyle},
@@ -302,6 +303,12 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             self.text_system,
             self.focus_sys,
         );
+        self.emit(result)
+    }
+
+    pub fn divider(&mut self, params: S::Params) -> DividerInfo {
+        let rect = self.layout_state.layout(params);
+        let result = crate::widgets::divider::divider(crate::widgets::divider::DividerSpec { rect });
         self.emit(result)
     }
 

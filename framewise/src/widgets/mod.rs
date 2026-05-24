@@ -1,6 +1,7 @@
 pub mod button;
 pub mod chip;
 pub mod checkbox;
+pub mod divider;
 pub mod color_swatch;
 pub mod drag_number;
 pub mod frame;
@@ -27,6 +28,7 @@ pub use button::*;
 pub use chip::*;
 pub use checkbox::*;
 pub use color_swatch::*;
+pub use divider::*;
 pub use drag_number::*;
 pub use frame::*;
 pub use keycap::*;

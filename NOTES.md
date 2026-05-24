@@ -60,6 +60,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Window min/max sizing based on layout
 * Built-in themes that are good
   * A Framewise-specific one - see Framewise Widgets.html (from Claude Design) for a version of this
+    * Go through and make our 'spec page' look as similar as possible to the Claude design mockup. This will be a good way to check off features/improvements!
   * Windows native lookalike
   * Mac native lookalike
 
