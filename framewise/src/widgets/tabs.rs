@@ -1,14 +1,19 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Rect, Vec2}
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::{Rect, Vec2},
+    WidgetResult,
 };
 
 pub struct TabsSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     /// Bounding rect; only x/y/w used — height is fixed at 36.
-    pub rect:         Rect,
-    pub items:        &'a [&'a str],
+    pub rect: Rect,
+    pub items: &'a [&'a str],
+    pub font: FontId,
     pub active_index: usize,
-    pub focused:      Option<usize>,
+    pub focused: Option<usize>,
 }
 
 pub struct TabsResult {
@@ -34,8 +39,8 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
     // Bottom border across the full width.
     let border_y = spec.rect.y + tab_h;
     cmds.push(DrawCmd::StrokeLine {
-        p0:    Vec2::new(spec.rect.x, border_y),
-        p1:    Vec2::new(spec.rect.x + spec.rect.w, border_y),
+        p0: Vec2::new(spec.rect.x, border_y),
+        p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
         color: t.ink,
         width: 1.0,
     });
@@ -46,14 +51,14 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         let is_active = i == spec.active_index;
         let is_focused = spec.focused == Some(i);
 
-        let layout = spec.ts.prepare(label, t.text_md);
+        let layout = spec.ts.prepare(label, t.text_md, spec.font);
         let tab_w = layout.size.x + pad_x * 2.0;
         let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
         // Focus ring.
         if is_focused {
             cmds.push(DrawCmd::StrokeRect {
-                rect:  tab_rect.inset(-2.0),
+                rect: tab_rect.inset(-2.0),
                 color: t.rust,
                 width: 2.0,
             });
@@ -62,15 +67,15 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         let text_color = if is_active { t.ink } else { t.muted };
         let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
-            rect:   Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
-            color:  text_color,
+            rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
+            color: text_color,
             handle: layout.handle,
         });
 
         // Active underbar: 3px rust rect sitting on the bottom border.
         if is_active {
             cmds.push(DrawCmd::FillRect {
-                rect:  Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
+                rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
                 color: t.rust,
             });
         }
@@ -81,11 +86,9 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
     TabsResult { draw: cmds }
 }
 
-
-
-
 pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [&'a str]>,
+    pub font: Option<FontId>,
     pub active_index: Option<usize>,
     pub focused: Option<Option<usize>>,
     pub rect: Option<Rect>,
@@ -96,6 +99,7 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             items: None,
+            font: None,
             active_index: None,
             focused: None,
             rect: None,
@@ -105,6 +109,10 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
         self.items = Some(items);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
@@ -117,7 +125,9 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for TabsSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for TabsSpecBuilder<'a, T>
+{
     type Spec = TabsSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -139,6 +149,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
+            font: self.font.unwrap_or(FontId::SANS),
             active_index: self.active_index.unwrap(),
             focused: self.focused.unwrap(),
         }
@@ -158,6 +169,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
+            font: FontId::SANS,
             active_index: 0,
             focused: None,
         };
@@ -175,13 +187,14 @@ mod tests {
         let t = Theme::framewise();
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
-        
+
         // Item 0
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.ink)); // active text
         assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == t.rust)); // active underbar
 
         // Item 1
-        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.muted)); // inactive text
+        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.muted));
+        // inactive text
     }
 
     #[test]
@@ -192,6 +205,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
+            font: FontId::SANS,
             active_index: 1,
             focused: Some(1),
         };
@@ -210,13 +224,16 @@ mod tests {
         let t = Theme::framewise();
 
         assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // bottom border
-        
+
         // Item 0
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted)); // inactive text
 
         // Item 1
-        assert!(matches!(&cmds[2], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)); // focus ring
+        assert!(
+            matches!(&cmds[2], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+        ); // focus ring
         assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == t.ink)); // active text
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.rust)); // active underbar
+        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        // active underbar
     }
 }

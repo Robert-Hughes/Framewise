@@ -1,14 +1,19 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::Rect
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::Rect,
+    WidgetResult,
 };
 
 pub struct SelectSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     /// Bounding rect for the closed box (height h_md = 28).
-    pub rect:    Rect,
-    pub value:   &'a str,
+    pub rect: Rect,
+    pub value: &'a str,
+    pub font: FontId,
     pub options: &'a [&'a str],
-    pub open:    bool,
+    pub open: bool,
     pub focused: bool,
     /// Index of hovered option when open.
     pub hovered: Option<usize>,
@@ -35,31 +40,43 @@ pub fn select<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> Select
     // Focus / open ring.
     if spec.focused || spec.open {
         cmds.push(DrawCmd::StrokeRect {
-            rect:  r.inset(-1.0),
+            rect: r.inset(-1.0),
             color: t.rust,
             width: 2.0,
         });
     }
 
-    cmds.push(DrawCmd::FillRect { rect: r, color: t.paper_elev });
-    cmds.push(DrawCmd::StrokeRect { rect: r, color: t.ink, width: 1.0 });
+    cmds.push(DrawCmd::FillRect {
+        rect: r,
+        color: t.paper_elev,
+    });
+    cmds.push(DrawCmd::StrokeRect {
+        rect: r,
+        color: t.ink,
+        width: 1.0,
+    });
 
     // Selected value text.
-    let val_layout = spec.ts.prepare(spec.value, t.text_md);
+    let val_layout = spec.ts.prepare(spec.value, t.text_md, spec.font);
     let vty = r.y + (t.h_md - val_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(r.x + 10.0, vty, val_layout.size.x, val_layout.size.y),
-        color:  t.ink,
+        rect: Rect::new(r.x + 10.0, vty, val_layout.size.x, val_layout.size.y),
+        color: t.ink,
         handle: val_layout.handle,
     });
 
     // Chevron "v".
     let chev_color = if spec.open { t.rust } else { t.muted };
-    let chev_layout = spec.ts.prepare("v", t.text_sm);
+    let chev_layout = spec.ts.prepare("v", t.text_sm, spec.font);
     let cty = r.y + (t.h_md - chev_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(r.x + r.w - 18.0, cty, chev_layout.size.x, chev_layout.size.y),
-        color:  chev_color,
+        rect: Rect::new(
+            r.x + r.w - 18.0,
+            cty,
+            chev_layout.size.x,
+            chev_layout.size.y,
+        ),
+        color: chev_color,
         handle: chev_layout.handle,
     });
 
@@ -69,27 +86,40 @@ pub fn select<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> Select
         let popup_h = spec.options.len() as f32 * row_h + 8.0;
         let popup = Rect::new(r.x, r.y + t.h_md + 2.0, r.w, popup_h);
 
-        cmds.push(DrawCmd::FillRect { rect: popup, color: t.paper_elev });
-        cmds.push(DrawCmd::StrokeRect { rect: popup, color: t.ink, width: 1.0 });
+        cmds.push(DrawCmd::FillRect {
+            rect: popup,
+            color: t.paper_elev,
+        });
+        cmds.push(DrawCmd::StrokeRect {
+            rect: popup,
+            color: t.ink,
+            width: 1.0,
+        });
 
         for (i, opt) in spec.options.iter().enumerate() {
             let is_selected = *opt == spec.value;
-            let is_hovered  = spec.hovered == Some(i);
+            let is_hovered = spec.hovered == Some(i);
             let row_y = popup.y + 4.0 + i as f32 * row_h;
             let row_rect = Rect::new(popup.x, row_y, popup.w, row_h);
 
             if is_selected {
-                cmds.push(DrawCmd::FillRect { rect: row_rect, color: t.ink });
+                cmds.push(DrawCmd::FillRect {
+                    rect: row_rect,
+                    color: t.ink,
+                });
             } else if is_hovered {
-                cmds.push(DrawCmd::FillRect { rect: row_rect, color: t.hover });
+                cmds.push(DrawCmd::FillRect {
+                    rect: row_rect,
+                    color: t.hover,
+                });
             }
 
             let text_color = if is_selected { t.paper } else { t.ink };
-            let opt_layout = spec.ts.prepare(opt, t.text_md);
+            let opt_layout = spec.ts.prepare(opt, t.text_md, spec.font);
             let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
-                rect:   Rect::new(popup.x + 12.0, oty, opt_layout.size.x, opt_layout.size.y),
-                color:  text_color,
+                rect: Rect::new(popup.x + 12.0, oty, opt_layout.size.x, opt_layout.size.y),
+                color: text_color,
                 handle: opt_layout.handle,
             });
         }
@@ -98,11 +128,9 @@ pub fn select<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> Select
     SelectResult { draw: cmds }
 }
 
-
-
-
 pub struct SelectSpecBuilder<'a, T: crate::text::TextSystem> {
     pub value: Option<&'a str>,
+    pub font: Option<FontId>,
     pub options: Option<&'a [&'a str]>,
     pub open: Option<bool>,
     pub focused: Option<bool>,
@@ -115,6 +143,7 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             value: None,
+            font: None,
             options: None,
             open: None,
             focused: None,
@@ -126,6 +155,10 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
 
     pub fn value(mut self, value: &'a str) -> Self {
         self.value = Some(value);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
     pub fn options(mut self, options: &'a [&'a str]) -> Self {
@@ -146,7 +179,9 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for SelectSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for SelectSpecBuilder<'a, T>
+{
     type Spec = SelectSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -168,6 +203,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             value: self.value.unwrap(),
+            font: self.font.unwrap_or(FontId::SANS),
             options: self.options.unwrap(),
             open: self.open.unwrap(),
             focused: self.focused.unwrap(),

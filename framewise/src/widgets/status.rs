@@ -1,5 +1,9 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect}
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::{Color, Rect},
+    WidgetResult,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,8 +17,9 @@ pub enum StatusVariant {
 
 pub struct StatusSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
-    pub rect:    Rect,
-    pub label:   &'a str,
+    pub rect: Rect,
+    pub label: &'a str,
+    pub font: FontId,
     pub variant: StatusVariant,
 }
 
@@ -39,34 +44,37 @@ pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> Status
 
     let dot_color = match spec.variant {
         StatusVariant::Neutral => t.muted,
-        StatusVariant::Ok      => Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
-        StatusVariant::Warn    => t.rust,
-        StatusVariant::Err     => Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
-        StatusVariant::Live    => t.rust,
+        StatusVariant::Ok => Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
+        StatusVariant::Warn => t.rust,
+        StatusVariant::Err => Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
+        StatusVariant::Live => t.rust,
     };
 
     cmds.push(DrawCmd::FillRect {
-        rect:  Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
+        rect: Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
         color: dot_color,
     });
 
     let label_upper = spec.label.to_uppercase();
-    let layout = spec.ts.prepare(&label_upper, t.text_sm);
+    let layout = spec.ts.prepare(&label_upper, t.text_sm, spec.font);
     let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(spec.rect.x + dot_size + gap, ty, layout.size.x, layout.size.y),
-        color:  t.muted,
+        rect: Rect::new(
+            spec.rect.x + dot_size + gap,
+            ty,
+            layout.size.x,
+            layout.size.y,
+        ),
+        color: t.muted,
         handle: layout.handle,
     });
 
     StatusResult { draw: cmds }
 }
 
-
-
-
 pub struct StatusSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
+    pub font: Option<FontId>,
     pub variant: Option<StatusVariant>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -76,6 +84,7 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             label: None,
+            font: None,
             variant: None,
             rect: None,
             ts: None,
@@ -86,13 +95,19 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
         self.label = Some(label);
         self
     }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
     pub fn variant(mut self, variant: StatusVariant) -> Self {
         self.variant = Some(variant);
         self
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for StatusSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for StatusSpecBuilder<'a, T>
+{
     type Spec = StatusSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -114,6 +129,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
+            font: self.font.unwrap_or(FontId::MONO),
             variant: self.variant.unwrap(),
         }
     }
@@ -131,6 +147,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             label: "Online",
+            font: FontId::MONO,
             variant: StatusVariant::Ok,
         };
         let res = status(spec);
@@ -139,7 +156,7 @@ mod tests {
         assert_eq!(cmds.len(), 2);
         let t = Theme::framewise();
         let ok_color = Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0);
-        
+
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == ok_color));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
     }
@@ -151,6 +168,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             label: "Warning",
+            font: FontId::MONO,
             variant: StatusVariant::Warn,
         };
         let res = status(spec);
@@ -158,7 +176,7 @@ mod tests {
 
         assert_eq!(cmds.len(), 2);
         let t = Theme::framewise();
-        
+
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.muted));
     }

@@ -12,30 +12,30 @@ use framewise::{
     widgets::{
         button::{ButtonState, ButtonStyle},
         checkbox::{checkbox, CheckState},
-        chip::{chip},
-        color_swatch::{color_swatch},
-        drag_number::{drag_number},
+        chip::chip,
+        color_swatch::color_swatch,
+        drag_number::drag_number,
+        frame::FrameSpec,
         frame::{frame, FrameStyle},
-        keycap::{keycap},
+        keycap::keycap,
         menu::{menu, MenuItem},
-        meter::{meter},
+        meter::meter,
         progress_bar::progress_bar,
         radio::radio,
         scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
-        segmented::{segmented},
-        select::{select},
+        segmented::segmented,
+        select::select,
         slider::{Orientation as SliderOrientation, SliderState},
         spinner::spinner,
         status::{status, StatusVariant},
         switch::switch,
-        tabs::{tabs},
+        tabs::tabs,
         text_edit::TextEditState,
         tooltip::{tooltip, TooltipVariant},
         tree::{tree, TreeRow},
         window::WindowButton,
         CheckboxSpecBuilder, ProgressBarSpecBuilder, RadioSpecBuilder, SpinnerSpecBuilder,
         SwitchSpecBuilder,
-        frame::FrameSpec,
     },
 };
 
@@ -147,13 +147,25 @@ fn sec_y<S: LayoutState<Params = Rect>>(
 ) {
     b.divider(Rect::new(lx, y, w, 36.0));
     b.label_styled(Rect::new(lx, y, 40.0, 20.0), num, t.text_sm, t.muted, false);
-    b.label_styled(
+    b.label_styled_font(
         Rect::new(lx + 44.0, y, w - 44.0, 22.0),
         title,
         18.0,
         t.ink,
         false,
+        t.sans_font,
     );
+}
+
+fn label_styled_sans<S: LayoutState<Params = Rect>>(
+    b: &mut Builder<SampleTextSystem, S>,
+    t: &Theme,
+    rect: Rect,
+    text: &str,
+    size: f32,
+    color: Color,
+) {
+    b.label_styled_font(rect, text, size, color, false, t.sans_font);
 }
 
 fn group_y<S: LayoutState<Params = Rect>>(
@@ -192,6 +204,7 @@ pub fn draw_spec_page(
     ctx.text_color = t.ink;
     ctx.bg_color = t.paper;
     ctx.text_size = t.text_md;
+    ctx.text_font = t.mono_font;
     ctx.time = time;
     ctx.button_style = ButtonStyle::default();
 
@@ -238,16 +251,22 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                b.label_styled(
+                label_styled_sans(
+                    b,
+                    &t,
                     Rect::new(tx, MARGIN + 20.0, content_w - 116.0, 36.0),
                     "A widget set that explains itself.",
                     28.0,
                     t.ink,
-                    false,
                 );
-                b.label_styled(Rect::new(tx, MARGIN + 60.0, (content_w - 116.0).min(600.0), 32.0),
-            "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action.",
-            t.text_md, t.muted, false);
+                label_styled_sans(
+                    b,
+                    &t,
+                    Rect::new(tx, MARGIN + 60.0, (content_w - 116.0).min(600.0), 32.0),
+                    "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action.",
+                    t.text_md,
+                    t.muted,
+                );
 
                 // color meta row
                 let meta_items: &[(&str, &str)] = &[
@@ -914,17 +933,19 @@ pub fn draw_spec_page(
             {
                 // prefix + value display
                 let stepper_x = lx;
-                b.custom(Rect::new(stepper_x, y, 64.0, t.h_md), |rect| vec![
-                    DrawCmd::FillRect {
-                        rect,
-                        color: t.hover,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect,
-                        color: t.line,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(stepper_x, y, 64.0, t.h_md), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect,
+                            color: t.hover,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect,
+                            color: t.line,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(stepper_x + 6.0, y + 7.0, 56.0, 14.0),
                     "padding",
@@ -932,17 +953,19 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                b.custom(Rect::new(stepper_x + 64.0, y, 40.0, t.h_md), |rect| vec![
-                    DrawCmd::FillRect {
-                        rect,
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect,
-                        color: t.line,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(stepper_x + 64.0, y, 40.0, t.h_md), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect,
+                            color: t.paper_elev,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect,
+                            color: t.line,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(stepper_x + 72.0, y + 7.0, 24.0, 14.0),
                     "12",
@@ -953,35 +976,37 @@ pub fn draw_spec_page(
 
                 // +/- buttons as text
                 let sx = stepper_x + 120.0;
-                b.custom(Rect::new(sx, y, 84.0, t.h_sm), |rect| vec![
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
-                        color: t.line,
-                        width: 1.0,
-                    },
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
-                        color: t.line,
-                        width: 1.0,
-                    },
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
-                        color: t.line,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(sx, y, 84.0, t.h_sm), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
+                            color: t.paper_elev,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
+                            color: t.line,
+                            width: 1.0,
+                        },
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
+                            color: t.paper_elev,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
+                            color: t.line,
+                            width: 1.0,
+                        },
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
+                            color: t.paper_elev,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
+                            color: t.line,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(sx + 6.0, y + 4.0, 10.0, 14.0),
                     "−",
@@ -1089,7 +1114,7 @@ pub fn draw_spec_page(
                 let chip_y = y;
                 let mut chip_x = lx + 560.0;
                 for (label, active) in chip_data {
-                    let layout = b.text_system.prepare(label, t.text_sm);
+                    let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
                     b.add(
                         Rect::new(chip_x, chip_y, chip_w, 22.0),
@@ -1101,7 +1126,9 @@ pub fn draw_spec_page(
                     );
                     chip_x += chip_w + 6.0;
                 }
-                let add_layout = b.text_system.prepare("+ add backend", t.text_sm);
+                let add_layout = b
+                    .text_system
+                    .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
                 b.add(
                     Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
@@ -1222,11 +1249,13 @@ pub fn draw_spec_page(
                 // Box 1: vertical, idle
                 let b1 = Rect::new(lx, y, 180.0, 130.0);
                 let b1_content = Vec2::new(180.0, 320.0);
-                b.custom(b1, |rect| vec![DrawCmd::StrokeRect {
-                    rect,
-                    color: t.line,
-                    width: 1.0,
-                }]);
+                b.custom(b1, |rect| {
+                    vec![DrawCmd::StrokeRect {
+                        rect,
+                        color: t.line,
+                        width: 1.0,
+                    }]
+                });
                 {
                     let (pre, scope, cb, _) = begin_scroll_area(
                         b1,
@@ -1279,11 +1308,13 @@ pub fn draw_spec_page(
                 let b2_x = b1.x + b1.w + box_gap;
                 let b2 = Rect::new(b2_x, y, 180.0, 130.0);
                 let b2_content = Vec2::new(180.0, 300.0);
-                b.custom(b2, |rect| vec![DrawCmd::StrokeRect {
-                    rect,
-                    color: t.line,
-                    width: 1.0,
-                }]);
+                b.custom(b2, |rect| {
+                    vec![DrawCmd::StrokeRect {
+                        rect,
+                        color: t.line,
+                        width: 1.0,
+                    }]
+                });
                 {
                     let (pre, scope, cb, _) = begin_scroll_area(
                         b2,
@@ -1322,11 +1353,13 @@ pub fn draw_spec_page(
                 let b3_x = b2_x + b2.w + box_gap;
                 let b3 = Rect::new(b3_x, y + 15.0, 300.0, 100.0);
                 let b3_content = Vec2::new(700.0, 100.0);
-                b.custom(b3, |rect| vec![DrawCmd::StrokeRect {
-                    rect,
-                    color: t.line,
-                    width: 1.0,
-                }]);
+                b.custom(b3, |rect| {
+                    vec![DrawCmd::StrokeRect {
+                        rect,
+                        color: t.line,
+                        width: 1.0,
+                    }]
+                });
                 {
                     let (pre, scope, cb, _) = begin_scroll_area(
                         b3,
@@ -1713,7 +1746,11 @@ pub fn draw_spec_page(
                             Rect::new(kx, y, kw, 22.0),
                             keycap,
                             framewise::widgets::KeycapSpecBuilder::new()
-                                .label(key).bg(t.paper_elev).border(t.line).text_color(t.ink).text_size(t.text_sm),
+                                .label(key)
+                                .bg(t.paper_elev)
+                                .border(t.line)
+                                .text_color(t.ink)
+                                .text_size(t.text_sm),
                         );
                         kx += kw + 4.0;
                     }
@@ -1820,21 +1857,23 @@ pub fn draw_spec_page(
                 let light = t.paper;
                 let muted_l = t.muted;
 
-                b.custom(dw, |rect| vec![
-                    DrawCmd::FillRect {
-                        rect,
-                        color: dark_bg,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect,
-                        color: dark_bdr,
-                        width: 1.0,
-                    },
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
-                        color: darker,
-                    },
-                ]);
+                b.custom(dw, |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect,
+                            color: dark_bg,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect,
+                            color: dark_bdr,
+                            width: 1.0,
+                        },
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
+                            color: darker,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0),
                     "framewise · dark",
@@ -1853,26 +1892,28 @@ pub fn draw_spec_page(
                 let cx = dw.x + 16.0;
                 let cyw = y + 26.0 + 16.0;
                 // keycap row
-                b.custom(Rect::new(cx, cyw, 50.0, 22.0), |rect| vec![
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
-                        color: Color::from_srgb_u8(42, 37, 32, 255),
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
-                        color: dark_bdr,
-                        width: 1.0,
-                    },
-                    DrawCmd::FillRect {
-                        rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
-                        color: Color::from_srgb_u8(42, 37, 32, 255),
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
-                        color: dark_bdr,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(cx, cyw, 50.0, 22.0), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
+                            color: Color::from_srgb_u8(42, 37, 32, 255),
+                        },
+                        DrawCmd::StrokeRect {
+                            rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
+                            color: dark_bdr,
+                            width: 1.0,
+                        },
+                        DrawCmd::FillRect {
+                            rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
+                            color: Color::from_srgb_u8(42, 37, 32, 255),
+                        },
+                        DrawCmd::StrokeRect {
+                            rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
+                            color: dark_bdr,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0),
                     "⌘",
@@ -1897,17 +1938,19 @@ pub fn draw_spec_page(
 
                 // fake dark input
                 let inp_y = cyw + 28.0;
-                b.custom(Rect::new(cx, inp_y, dw.w - 32.0, 26.0), |rect| vec![
-                    DrawCmd::FillRect {
-                        rect,
-                        color: darker,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect,
-                        color: dark_bdr,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(cx, inp_y, dw.w - 32.0, 26.0), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect,
+                            color: darker,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect,
+                            color: dark_bdr,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0),
                     "type a command…",
@@ -1918,12 +1961,14 @@ pub fn draw_spec_page(
 
                 // fake dark tabs
                 let tab_y = inp_y + 30.0;
-                b.custom(Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0), |rect| vec![DrawCmd::StrokeLine {
-                    p0: Vec2::new(rect.x, rect.y),
-                    p1: Vec2::new(rect.x + rect.w, rect.y),
-                    color: dark_bdr,
-                    width: 1.0,
-                }]);
+                b.custom(Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0), |rect| {
+                    vec![DrawCmd::StrokeLine {
+                        p0: Vec2::new(rect.x, rect.y),
+                        p1: Vec2::new(rect.x + rect.w, rect.y),
+                        color: dark_bdr,
+                        width: 1.0,
+                    }]
+                });
                 let tab_items = ["Files", "Symbols", "Frames"];
                 let mut tab_x = cx;
                 for (i, item) in tab_items.iter().enumerate() {
@@ -1935,10 +1980,12 @@ pub fn draw_spec_page(
                         false,
                     );
                     if i == 0 {
-                        b.custom(Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0), |rect| vec![DrawCmd::FillRect {
-                            rect,
-                            color: t.rust,
-                        }]);
+                        b.custom(Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0), |rect| {
+                            vec![DrawCmd::FillRect {
+                                rect,
+                                color: t.rust,
+                            }]
+                        });
                     }
                     tab_x += 60.0;
                 }
@@ -2264,7 +2311,12 @@ pub fn draw_spec_page(
                         );
                         let msg_color = if *highlight { t.rust } else { t.ink };
                         log_page.label_styled(
-                            Rect::new(6.0 + ts_w + 8.0, row_y, fl_scroll_rect.w - ts_w - 14.0, 14.0),
+                            Rect::new(
+                                6.0 + ts_w + 8.0,
+                                row_y,
+                                fl_scroll_rect.w - ts_w - 14.0,
+                                14.0,
+                            ),
                             msg,
                             t.text_sm,
                             msg_color,

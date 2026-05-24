@@ -1,5 +1,9 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::{Color, Rect, Vec2},
+    WidgetResult,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -10,8 +14,9 @@ pub enum TooltipVariant {
 
 pub struct TooltipSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
-    pub rect:    Rect,
-    pub text:    &'a str,
+    pub rect: Rect,
+    pub text: &'a str,
+    pub font: FontId,
     pub variant: TooltipVariant,
 }
 
@@ -42,7 +47,7 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
         TooltipVariant::Rust => (t.rust, Color::WHITE),
     };
 
-    let layout = spec.ts.prepare(spec.text, t.text_sm);
+    let layout = spec.ts.prepare(spec.text, t.text_sm, spec.font);
     let box_w = (layout.size.x + pad_x * 2.0).min(240.0);
     let box_h = layout.size.y + pad_y_top + pad_y_bot;
 
@@ -50,8 +55,8 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
     cmds.push(DrawCmd::FillRect { rect: r, color: bg });
 
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(r.x + pad_x, r.y + pad_y_top, layout.size.x, layout.size.y),
-        color:  text_color,
+        rect: Rect::new(r.x + pad_x, r.y + pad_y_top, layout.size.x, layout.size.y),
+        color: text_color,
         handle: layout.handle,
     });
 
@@ -59,14 +64,14 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
     let arrow_x = r.x + 14.0;
     let arrow_y = r.y + box_h;
     cmds.push(DrawCmd::StrokeLine {
-        p0:    Vec2::new(arrow_x, arrow_y),
-        p1:    Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
+        p0: Vec2::new(arrow_x, arrow_y),
+        p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
         color: bg,
         width: 1.5,
     });
     cmds.push(DrawCmd::StrokeLine {
-        p0:    Vec2::new(arrow_x + arrow_w, arrow_y),
-        p1:    Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
+        p0: Vec2::new(arrow_x + arrow_w, arrow_y),
+        p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
         color: bg,
         width: 1.5,
     });
@@ -74,11 +79,9 @@ pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> Tool
     TooltipResult { draw: cmds }
 }
 
-
-
-
 pub struct TooltipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub text: Option<&'a str>,
+    pub font: Option<FontId>,
     pub variant: Option<TooltipVariant>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -88,6 +91,7 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             text: None,
+            font: None,
             variant: None,
             rect: None,
             ts: None,
@@ -98,13 +102,19 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
         self.text = Some(text);
         self
     }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
     pub fn variant(mut self, variant: TooltipVariant) -> Self {
         self.variant = Some(variant);
         self
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for TooltipSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for TooltipSpecBuilder<'a, T>
+{
     type Spec = TooltipSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -126,6 +136,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             text: self.text.unwrap(),
+            font: self.font.unwrap_or(FontId::MONO),
             variant: self.variant.unwrap(),
         }
     }
@@ -143,6 +154,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
+            font: FontId::MONO,
             variant: TooltipVariant::Dark,
         };
         let res = tooltip(spec);
@@ -150,11 +162,15 @@ mod tests {
 
         assert_eq!(cmds.len(), 4); // bg fill, text, 2 arrow lines
         let t = Theme::framewise();
-        
+
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == t.paper));
-        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5));
-        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5));
+        assert!(
+            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5)
+        );
+        assert!(
+            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.ink && *width == 1.5)
+        );
     }
 
     #[test]
@@ -164,6 +180,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
+            font: FontId::MONO,
             variant: TooltipVariant::Rust,
         };
         let res = tooltip(spec);
@@ -171,10 +188,14 @@ mod tests {
 
         assert_eq!(cmds.len(), 4);
         let t = Theme::framewise();
-        
+
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.rust));
         assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == Color::WHITE));
-        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5));
-        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5));
+        assert!(
+            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5)
+        );
+        assert!(
+            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == t.rust && *width == 1.5)
+        );
     }
 }

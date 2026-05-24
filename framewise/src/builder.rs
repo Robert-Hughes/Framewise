@@ -1,11 +1,17 @@
 use crate::{
-    draw::DrawCmd, input::Input, types::{Color, Rect, Vec2}, widget::{WidgetResult, WidgetSpecBuilder}, widgets::{
-        button::{ButtonInfo, ButtonSpec, ButtonStyle, button},
+    draw::DrawCmd,
+    input::Input,
+    text::FontId,
+    theme::Theme,
+    types::{Color, Rect, Vec2},
+    widget::{WidgetResult, WidgetSpecBuilder},
+    widgets::{
+        button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
         divider::DividerInfo,
-        frame::{FrameInfo, FrameSpec, FrameStyle, frame},
-        label::{LabelInfo, LabelSpec, label},
-        text_edit::{TextEditInfo, TextEditSpec, TextEditState, TextEditStyle, text_edit},
-    }
+        frame::{frame, FrameInfo, FrameSpec, FrameStyle},
+        label::{label, LabelInfo, LabelSpec},
+        text_edit::{text_edit, TextEditInfo, TextEditSpec, TextEditState, TextEditStyle},
+    },
 };
 
 // ── BuilderCtx ────────────────────────────────────────────────────────────────
@@ -15,29 +21,34 @@ use crate::{
 /// the child do not affect the parent.
 #[derive(Debug, Clone)]
 pub struct BuilderCtx {
-    pub bg_color:     Color,
+    pub theme: Theme,
+    pub bg_color: Color,
     pub accent_color: Color,
-    pub text_color:   Color,
+    pub text_color: Color,
     pub border_color: Color,
     pub button_style: ButtonStyle,
-    pub frame_style:  FrameStyle,
-    pub text_size:    f32,
-    pub time:         f64,
-    pub clip_rect:    Option<Rect>,
+    pub frame_style: FrameStyle,
+    pub text_size: f32,
+    pub text_font: FontId,
+    pub time: f64,
+    pub clip_rect: Option<Rect>,
 }
 
 impl Default for BuilderCtx {
     fn default() -> Self {
+        let theme = Theme::framewise();
         Self {
-            bg_color:     Color::from_srgb_f32(0.10, 0.10, 0.13, 1.0),
+            theme,
+            bg_color: Color::from_srgb_f32(0.10, 0.10, 0.13, 1.0),
             accent_color: Color::from_srgb_f32(0.30, 0.55, 0.95, 1.0),
-            text_color:   Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
+            text_color: Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
             border_color: Color::from_srgb_f32(0.30, 0.30, 0.38, 1.0),
             button_style: ButtonStyle::default(),
-            frame_style:  FrameStyle::default(),
-            text_size:    14.0,
-            time:         0.0,
-            clip_rect:    None,
+            frame_style: FrameStyle::default(),
+            text_size: 14.0,
+            text_font: theme.sans_font,
+            time: 0.0,
+            clip_rect: None,
         }
     }
 }
@@ -57,10 +68,10 @@ impl Default for BuilderCtx {
 /// let cmds = builder.finish();
 /// ```
 pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> {
-    pub ctx:  BuilderCtx,
+    pub ctx: BuilderCtx,
     cmds: Vec<DrawCmd>,
     pub text_system: &'a mut T,
-    pub focus_sys:   &'a mut crate::focus::FocusSystem,
+    pub focus_sys: &'a mut crate::focus::FocusSystem,
     pub layout_state: S,
     pub scroll_scope: Option<crate::widgets::scroll_area::ScrollAreaScope>,
     pub window_scope: Option<crate::widgets::window::WindowScope>,
@@ -68,12 +79,28 @@ pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
 
 impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, T, S> {
     /// Create a new top-level builder with the given context.
-    pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem, layout_state: S) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, scroll_scope: None, window_scope: None }
+    pub fn new(
+        ctx: BuilderCtx,
+        text_system: &'a mut T,
+        focus_sys: &'a mut crate::focus::FocusSystem,
+        layout_state: S,
+    ) -> Self {
+        Self {
+            ctx,
+            cmds: Vec::new(),
+            text_system,
+            focus_sys,
+            layout_state,
+            scroll_scope: None,
+            window_scope: None,
+        }
     }
 
     /// Extract a child builder's draw commands into this builder.
-    pub fn merge_child<ChildS: crate::layout::LayoutState>(&mut self, child: Builder<'_, T, ChildS>) {
+    pub fn merge_child<ChildS: crate::layout::LayoutState>(
+        &mut self,
+        child: Builder<'_, T, ChildS>,
+    ) {
         self.cmds.extend(child.cmds);
     }
 
@@ -185,7 +212,9 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
         let mut result = crate::widgets::window::window(widget_spec);
         let content_bounds = result.layout.content_bounds;
-        result.draw.push(DrawCmd::PushClip { rect: content_bounds });
+        result.draw.push(DrawCmd::PushClip {
+            rect: content_bounds,
+        });
 
         let (draw, _) = result.into_parts();
         self.cmds.extend(draw.0);
@@ -216,18 +245,22 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         input: &Input,
     ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
         let bounds = self.layout_state.layout(layout_params);
-        let (pre_cmds, scope, content_bounds, scroll_offset) = crate::widgets::scroll_area::begin_scroll_area(
-            bounds,
-            content_size,
-            h_vis,
-            v_vis,
-            state,
-            input,
-            &mut *self.focus_sys,
-            self.ctx.clip_rect,
-            self.ctx.time,
-        );
-        let offset_layout = crate::layout::OffsetLayout { offset: scroll_offset, inner: inner_layout };
+        let (pre_cmds, scope, content_bounds, scroll_offset) =
+            crate::widgets::scroll_area::begin_scroll_area(
+                bounds,
+                content_size,
+                h_vis,
+                v_vis,
+                state,
+                input,
+                &mut *self.focus_sys,
+                self.ctx.clip_rect,
+                self.ctx.time,
+            );
+        let offset_layout = crate::layout::OffsetLayout {
+            offset: scroll_offset,
+            inner: inner_layout,
+        };
 
         self.append_cmds(pre_cmds);
 
@@ -252,6 +285,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             rect,
             text: text.to_string(),
             size: self.ctx.text_size,
+            font: self.ctx.text_font,
             text_color: self.ctx.text_color,
             rule: false,
         };
@@ -260,12 +294,55 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Draw a label with explicit size, color and optional rule.
-    pub fn label_styled(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
+    pub fn label_styled(
+        &mut self,
+        layout_params: S::Params,
+        text: &str,
+        size: f32,
+        color: Color,
+        rule: bool,
+    ) -> LabelInfo {
+        self.label_styled_font(layout_params, text, size, color, rule, self.ctx.text_font)
+    }
+
+    pub fn label_sans(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
+        self.label_styled_font(
+            layout_params,
+            text,
+            self.ctx.text_size,
+            self.ctx.text_color,
+            false,
+            self.ctx.theme.sans_font,
+        )
+    }
+
+    pub fn label_mono(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
+        self.label_styled_font(
+            layout_params,
+            text,
+            self.ctx.text_size,
+            self.ctx.text_color,
+            false,
+            self.ctx.theme.mono_font,
+        )
+    }
+
+    /// Draw a label with explicit size, color, rule and font.
+    pub fn label_styled_font(
+        &mut self,
+        layout_params: S::Params,
+        text: &str,
+        size: f32,
+        color: Color,
+        rule: bool,
+        font: FontId,
+    ) -> LabelInfo {
         let rect = self.layout_state.layout(layout_params);
         let spec = LabelSpec {
             rect,
             text: text.to_string(),
             size,
+            font,
             text_color: color,
             rule,
         };
@@ -274,17 +351,30 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Emit a text_edit widget.
-    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params, input: &Input) -> TextEditInfo {
+    pub fn text_edit(
+        &mut self,
+        state: TextEditState,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> TextEditInfo {
         self.text_edit_ext(state, layout_params, false, false, input)
     }
 
     /// Emit a text_edit widget with explicit error/disabled flags.
-    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
+    pub fn text_edit_ext(
+        &mut self,
+        state: TextEditState,
+        layout_params: S::Params,
+        error: bool,
+        disabled: bool,
+        input: &Input,
+    ) -> TextEditInfo {
         let rect = self.layout_state.layout(layout_params);
         let spec = TextEditSpec {
             rect,
             style: TextEditStyle {
                 text_size: self.ctx.text_size,
+                font: self.ctx.theme.mono_font,
                 ..Default::default()
             },
             clip_rect: self.ctx.clip_rect,
@@ -307,10 +397,17 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         &mut self,
         state: crate::widgets::button::ButtonState,
         layout_params: S::Params,
-        text:  impl Into<String>,
+        text: impl Into<String>,
         input: &Input,
     ) -> ButtonInfo {
-        self.button_styled(state, layout_params, text, self.ctx.button_style, false, input)
+        self.button_styled(
+            state,
+            layout_params,
+            text,
+            self.ctx.button_style,
+            false,
+            input,
+        )
     }
 
     /// Draw a button with explicit style and disabled flag.
@@ -318,7 +415,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         &mut self,
         state: crate::widgets::button::ButtonState,
         layout_params: S::Params,
-        text:  impl Into<String>,
+        text: impl Into<String>,
         style: ButtonStyle,
         disabled: bool,
         input: &Input,
@@ -328,7 +425,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             state,
             ButtonSpec {
                 rect,
-                text:     text.into(),
+                text: text.into(),
                 style,
                 clip_rect: self.ctx.clip_rect,
                 disabled,
@@ -342,7 +439,8 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
     pub fn divider(&mut self, layout_params: S::Params) -> DividerInfo {
         let rect = self.layout_state.layout(layout_params);
-        let result = crate::widgets::divider::divider(crate::widgets::divider::DividerSpec { rect });
+        let result =
+            crate::widgets::divider::divider(crate::widgets::divider::DividerSpec { rect });
         self.emit(result)
     }
 
@@ -363,7 +461,12 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         self.append_cmds(cmds);
     }
 
-    pub fn add<'b, WR: WidgetResult, WSB: WidgetSpecBuilder<'b, T>>(&'b mut self, layout_params: S::Params, widget_func: impl FnOnce(WSB::Spec) -> WR, widget_spec_builder: WSB) -> WR::Info {
+    pub fn add<'b, WR: WidgetResult, WSB: WidgetSpecBuilder<'b, T>>(
+        &'b mut self,
+        layout_params: S::Params,
+        widget_func: impl FnOnce(WSB::Spec) -> WR,
+        widget_spec_builder: WSB,
+    ) -> WR::Info {
         let rect = self.layout_state.layout(layout_params);
         //TODO: add things like style/theme
         let widget_spec = widget_spec_builder
@@ -380,10 +483,10 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::Input;
-    use crate::types::{Vec2, Rect};
-    use crate::layout::{ManualLayout, Layout};
     use crate::focus::FocusSystem;
+    use crate::input::Input;
+    use crate::layout::{Layout, ManualLayout};
+    use crate::types::{Rect, Vec2};
 
     use crate::test_utils::DummyTextSys;
 
@@ -400,7 +503,12 @@ mod tests {
         input.mouse_down = true;
 
         let ctx = BuilderCtx::default();
-        let mut builder = Builder::new(ctx, &mut text_sys, &mut focus_sys, ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)));
+        let mut builder = Builder::new(
+            ctx,
+            &mut text_sys,
+            &mut focus_sys,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+        );
 
         // Create a scroll area positioned at Y=50, Height=100 (so it clips everything above Y=50).
         let mut scroll_state = crate::widgets::scroll_area::ScrollState::default();
@@ -411,21 +519,25 @@ mod tests {
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut scroll_state,
             ManualLayout,
-            &input
+            &input,
         );
 
         // Place a button INSIDE the scroll area, but position its mathematical Rect at Y=-30 (relative)
         // Since ManualLayout adds the parent's top_left (Y=50), the absolute Y will be 50 - 30 = 20!
         // This simulates a button that has scrolled UP and OUT of the scroll area bounds (Y=50..150).
         let btn_state = crate::widgets::button::ButtonState::default();
-        let btn_info = scroll_area.button(btn_state, Rect::new(0.0, -30.0, 50.0, 20.0), "Btn", &input);
+        let btn_info =
+            scroll_area.button(btn_state, Rect::new(0.0, -30.0, 50.0, 20.0), "Btn", &input);
 
         scroll_area.finish();
         builder.finish();
 
         // The button's absolute mathematical bounds (Y=20) contains the mouse (Y=20).
         // However, the button is rendered inside a scroll area that clips at Y=50!
-        assert_eq!(btn_info.state.is_active, false, "Button was clicked even though it was clipped out of view!");
+        assert_eq!(
+            btn_info.state.is_active, false,
+            "Button was clicked even though it was clipped out of view!"
+        );
     }
 
     #[test]
@@ -442,7 +554,12 @@ mod tests {
         // Start with an artificial clip rect for the whole app
         ctx.clip_rect = Some(Rect::new(20.0, 20.0, 500.0, 500.0));
 
-        let mut builder = Builder::new(ctx, &mut text_sys, &mut focus_sys, ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)));
+        let mut builder = Builder::new(
+            ctx,
+            &mut text_sys,
+            &mut focus_sys,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+        );
 
         // Outer scroll area: at 50,50, size 200x200
         let mut outer_state = crate::widgets::scroll_area::ScrollState::default();
@@ -453,13 +570,16 @@ mod tests {
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut outer_state,
             ManualLayout,
-            &input
+            &input,
         );
 
         // Parent clip was 20..520 (x,y). Outer bounds is 50..250.
         // Inner content bounds should be 50,50 to 238,250 (12px scrollbar).
         // Intersection should be exactly the inner content bounds.
-        assert_eq!(outer.ctx.clip_rect, Some(Rect::new(50.0, 50.0, 188.0, 200.0)));
+        assert_eq!(
+            outer.ctx.clip_rect,
+            Some(Rect::new(50.0, 50.0, 188.0, 200.0))
+        );
 
         // Inner scroll area: at 100,100, size 200x200 (extends beyond outer!)
         let mut inner_state = crate::widgets::scroll_area::ScrollState::default();
@@ -470,7 +590,7 @@ mod tests {
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             &mut inner_state,
             ManualLayout,
-            &input
+            &input,
         );
 
         // Outer clip was 50,50, w:188, h:200 => right:238, bottom:250
@@ -478,7 +598,10 @@ mod tests {
         // Inner content_bounds is w:188, h:200 => right:338, bottom:350.
         // Intersection of (50..238, 50..250) and (150..338, 150..350):
         // x=150, y=150, right=238, bottom=250 => w=88, h=100.
-        assert_eq!(inner.ctx.clip_rect, Some(Rect::new(150.0, 150.0, 88.0, 100.0)));
+        assert_eq!(
+            inner.ctx.clip_rect,
+            Some(Rect::new(150.0, 150.0, 88.0, 100.0))
+        );
 
         inner.finish();
         outer.finish();

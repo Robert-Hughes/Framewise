@@ -1,5 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    text::FontId,
     theme::Theme,
     types::{Rect, Vec2},
     widget::{LayoutInfo, WidgetResult},
@@ -11,15 +12,16 @@ pub struct WindowButton {
 
 pub struct WindowSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
-    pub rect:        Rect,
-    pub title:       &'a str,
-    pub buttons:     &'a [WindowButton],
-    pub status_bar:  bool,
+    pub rect: Rect,
+    pub title: &'a str,
+    pub buttons: &'a [WindowButton],
+    pub font: FontId,
+    pub status_bar: bool,
     pub status_text: &'a str,
 }
 
 pub struct WindowResult {
-    pub draw:   DrawCommands,
+    pub draw: DrawCommands,
     pub layout: LayoutInfo,
 }
 
@@ -28,13 +30,20 @@ pub struct WindowInfo {
 }
 
 impl WindowInfo {
-    pub fn content_rect(&self) -> Rect { self.layout.content_bounds }
+    pub fn content_rect(&self) -> Rect {
+        self.layout.content_bounds
+    }
 }
 
 impl WidgetResult for WindowResult {
     type Info = WindowInfo;
     fn into_parts(self) -> (DrawCommands, WindowInfo) {
-        (self.draw, WindowInfo { layout: self.layout })
+        (
+            self.draw,
+            WindowInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
@@ -66,19 +75,34 @@ pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> Window
     let status_h = if spec.status_bar { 22.0_f32 } else { 0.0 };
 
     // Body.
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: t.paper_elev });
-    draw.push(DrawCmd::StrokeRect { rect: spec.rect, color: t.ink, width: 1.0 });
+    draw.push(DrawCmd::FillRect {
+        rect: spec.rect,
+        color: t.paper_elev,
+    });
+    draw.push(DrawCmd::StrokeRect {
+        rect: spec.rect,
+        color: t.ink,
+        width: 1.0,
+    });
 
     // Title bar.
     let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
-    draw.push(DrawCmd::FillRect { rect: title_rect, color: t.ink });
+    draw.push(DrawCmd::FillRect {
+        rect: title_rect,
+        color: t.ink,
+    });
 
     let title_upper = spec.title.to_uppercase();
-    let title_layout = spec.ts.prepare(&title_upper, t.text_sm);
+    let title_layout = spec.ts.prepare(&title_upper, t.text_sm, spec.font);
     let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
     draw.push(DrawCmd::Text {
-        rect:   Rect::new(spec.rect.x + 10.0, tty, title_layout.size.x, title_layout.size.y),
-        color:  t.paper,
+        rect: Rect::new(
+            spec.rect.x + 10.0,
+            tty,
+            title_layout.size.x,
+            title_layout.size.y,
+        ),
+        color: t.paper,
         handle: title_layout.handle,
     });
 
@@ -86,11 +110,11 @@ pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> Window
     let mut btn_x = spec.rect.x + spec.rect.w - 4.0;
     for btn in spec.buttons.iter().rev() {
         btn_x -= btn_size + 2.0;
-        let btn_layout = spec.ts.prepare(btn.symbol, t.text_sm);
+        let btn_layout = spec.ts.prepare(btn.symbol, t.text_sm, spec.font);
         let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
-            rect:   Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
-            color:  t.paper,
+            rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
+            color: t.paper,
             handle: btn_layout.handle,
         });
     }
@@ -99,16 +123,21 @@ pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> Window
     if spec.status_bar {
         let bar_y = spec.rect.y + spec.rect.h - status_h;
         draw.push(DrawCmd::StrokeLine {
-            p0:    Vec2::new(spec.rect.x, bar_y),
-            p1:    Vec2::new(spec.rect.x + spec.rect.w, bar_y),
+            p0: Vec2::new(spec.rect.x, bar_y),
+            p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
             color: t.line,
             width: 1.0,
         });
-        let status_layout = spec.ts.prepare(spec.status_text, t.text_sm);
+        let status_layout = spec.ts.prepare(spec.status_text, t.text_sm, spec.font);
         let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
-            rect:   Rect::new(spec.rect.x + 10.0, sty, status_layout.size.x, status_layout.size.y),
-            color:  t.muted,
+            rect: Rect::new(
+                spec.rect.x + 10.0,
+                sty,
+                status_layout.size.x,
+                status_layout.size.y,
+            ),
+            color: t.muted,
             handle: status_layout.handle,
         });
     }
@@ -128,12 +157,10 @@ pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> Window
     }
 }
 
-
-
-
 pub struct WindowSpecBuilder<'a, T: crate::text::TextSystem> {
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
+    pub font: Option<FontId>,
     pub status_bar: Option<bool>,
     pub status_text: Option<&'a str>,
     pub rect: Option<Rect>,
@@ -145,6 +172,7 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
         Self {
             title: None,
             buttons: None,
+            font: None,
             status_bar: None,
             status_text: None,
             rect: None,
@@ -160,6 +188,10 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
         self.buttons = Some(buttons);
         self
     }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
     pub fn status_bar(mut self, status_bar: bool) -> Self {
         self.status_bar = Some(status_bar);
         self
@@ -170,7 +202,9 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for WindowSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for WindowSpecBuilder<'a, T>
+{
     type Spec = WindowSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -193,6 +227,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             rect: self.rect.unwrap_or_default(),
             title: self.title.unwrap(),
             buttons: self.buttons.unwrap(),
+            font: self.font.unwrap_or(FontId::MONO),
             status_bar: self.status_bar.unwrap(),
             status_text: self.status_text.unwrap(),
         }

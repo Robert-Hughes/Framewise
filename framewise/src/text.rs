@@ -1,5 +1,25 @@
 use crate::types::Vec2;
 
+/// A lightweight application-owned font handle.
+///
+/// Framewise never loads or owns font files. It only passes this handle to the
+/// application's `TextSystem`, which decides how the handle maps to real font
+/// data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FontId(pub u16);
+
+impl FontId {
+    pub const MONO: FontId = FontId(0);
+    pub const SANS: FontId = FontId(1);
+}
+
+/// Semantic font roles used by themes and builders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FontRole {
+    Sans,
+    Mono,
+}
+
 /// An opaque handle to a text layout prepared by the application's text system.
 ///
 /// Framewise does not know how text is shaped or rasterised. It just passes this
@@ -23,7 +43,7 @@ pub struct TextLayout {
 pub trait TextSystem {
     /// Prepare the given string at the specified font size.
     /// Returns a layout containing the text's size and an opaque handle.
-    fn prepare(&mut self, text: &str, size: f32) -> TextLayout;
+    fn prepare(&mut self, text: &str, size: f32, font: FontId) -> TextLayout;
 
     /// Get the X offset (in logical pixels) of the character at the given byte index.
     fn measure_byte_x(&self, handle: TextHandle, byte_index: usize) -> f32;

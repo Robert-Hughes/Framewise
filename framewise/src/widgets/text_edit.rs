@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    text::TextSystem,
+    text::{FontId, TextSystem},
     theme::Theme,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetResult},
@@ -12,14 +12,15 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextEditStyle {
-    pub background:   Color,
-    pub border:       Color,
+    pub background: Color,
+    pub border: Color,
     pub focus_border: Color,
     pub border_width: f32,
-    pub padding:      f32,
-    pub text_size:    f32,
-    pub text_color:   Color,
-    pub caret_color:  Color,
+    pub padding: f32,
+    pub text_size: f32,
+    pub font: FontId,
+    pub text_color: Color,
+    pub caret_color: Color,
     pub select_color: Color,
 }
 
@@ -27,14 +28,15 @@ impl Default for TextEditStyle {
     fn default() -> Self {
         let t = Theme::framewise();
         Self {
-            background:   t.paper_elev,
-            border:       t.ink,
+            background: t.paper_elev,
+            border: t.ink,
             focus_border: t.rust,
             border_width: t.border,
-            padding:      4.0,
-            text_size:    t.text_mono,
-            text_color:   t.ink,
-            caret_color:  t.rust,
+            padding: 4.0,
+            text_size: t.text_mono,
+            font: t.mono_font,
+            text_color: t.ink,
+            caret_color: t.rust,
             select_color: t.rust_soft,
         }
     }
@@ -92,11 +94,11 @@ impl TextEditState {
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
 pub struct TextEditSpec {
-    pub rect:      Rect,
-    pub style:     TextEditStyle,
+    pub rect: Rect,
+    pub style: TextEditStyle,
     pub clip_rect: Option<Rect>,
-    pub error:     bool,
-    pub disabled:  bool,
+    pub error: bool,
+    pub disabled: bool,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -107,9 +109,9 @@ pub enum ClipboardAction {
 }
 
 pub struct TextEditResult {
-    pub draw:   DrawCommands,
+    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-    pub state:  TextEditState,
+    pub state: TextEditState,
     pub clipboard_action: Option<ClipboardAction>,
 }
 
@@ -123,7 +125,14 @@ impl WidgetResult for TextEditResult {
     type Info = TextEditInfo;
 
     fn into_parts(self) -> (DrawCommands, TextEditInfo) {
-        (self.draw, TextEditInfo { layout: self.layout, clipboard_action: self.clipboard_action, state: self.state })
+        (
+            self.draw,
+            TextEditInfo {
+                layout: self.layout,
+                clipboard_action: self.clipboard_action,
+                state: self.state,
+            },
+        )
     }
 }
 
@@ -148,11 +157,13 @@ fn categorize(c: char) -> CharCategory {
 
 pub fn find_word_boundary(text: &str, current: usize, right: bool) -> usize {
     if right {
-        if current >= text.len() { return text.len(); }
+        if current >= text.len() {
+            return text.len();
+        }
         let mut it = text[current..].char_indices();
         let (_, first_char) = it.next().unwrap();
         let cat = categorize(first_char);
-        
+
         for (i, c) in it {
             if categorize(c) != cat {
                 return current + i;
@@ -160,15 +171,17 @@ pub fn find_word_boundary(text: &str, current: usize, right: bool) -> usize {
         }
         text.len()
     } else {
-        if current == 0 { return 0; }
-        
+        if current == 0 {
+            return 0;
+        }
+
         let mut prev = current - 1;
         while prev > 0 && !text.is_char_boundary(prev) {
             prev -= 1;
         }
         let first_char = text[prev..].chars().next().unwrap();
         let cat = categorize(first_char);
-        
+
         let mut bounds = prev;
         while prev > 0 {
             let mut check_prev = prev - 1;
@@ -182,30 +195,32 @@ pub fn find_word_boundary(text: &str, current: usize, right: bool) -> usize {
             bounds = check_prev;
             prev = check_prev;
         }
-        
+
         if prev == 0 {
             let c = text[0..].chars().next().unwrap();
             if categorize(c) == cat {
                 return 0;
             }
         }
-        
+
         bounds
     }
 }
 
 pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
-    if text.is_empty() { return (0, 0); }
+    if text.is_empty() {
+        return (0, 0);
+    }
     let safe_index = byte_index.min(text.len() - 1);
-    
+
     let mut start = safe_index;
     while start > 0 && !text.is_char_boundary(start) {
         start -= 1;
     }
-    
+
     let c = text[start..].chars().next().unwrap();
     let cat = categorize(c);
-    
+
     let mut left = start;
     while left > 0 {
         let mut prev = left - 1;
@@ -213,10 +228,12 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
             prev -= 1;
         }
         let pc = text[prev..].chars().next().unwrap();
-        if categorize(pc) != cat { break; }
+        if categorize(pc) != cat {
+            break;
+        }
         left = prev;
     }
-    
+
     let mut right = start + c.len_utf8();
     for (i, nc) in text[right..].char_indices() {
         if categorize(nc) != cat {
@@ -248,7 +265,7 @@ pub fn text_edit<T: TextSystem>(
         // Transparent bg per mockup, just border.
         if spec.style.border_width > 0.0 {
             draw.push(DrawCmd::StrokeRect {
-                rect:  spec.rect,
+                rect: spec.rect,
                 color: tint(spec.style.border),
                 width: spec.style.border_width,
             });
@@ -256,11 +273,11 @@ pub fn text_edit<T: TextSystem>(
         let inset = spec.style.border_width + spec.style.padding;
         let content_rect = spec.rect.inset(inset);
         if !state.value.is_empty() {
-            let layout = text_system.prepare(&state.value, spec.style.text_size);
+            let layout = text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
             let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
             draw.push(DrawCmd::Text {
-                rect:   Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
-                color:  tint(spec.style.text_color),
+                rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
+                color: tint(spec.style.text_color),
                 handle: layout.handle,
             });
         }
@@ -279,16 +296,18 @@ pub fn text_edit<T: TextSystem>(
     let old_selection = state.selection_byte;
 
     // Hit test mouse
-    let is_visible = spec.clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+    let is_visible = spec
+        .clip_rect
+        .map_or(true, |clip| clip.contains(input.mouse_pos));
     let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-    
+
     if just_focused {
         if !(contains && input.mouse_pressed) {
             state.selection_byte = Some(0);
             state.caret_byte = state.value.len();
         }
     }
-    
+
     // Process keyboard events if focused
     if focused {
         for ev in &input.text_events {
@@ -337,7 +356,8 @@ pub fn text_edit<T: TextSystem>(
                     }
 
                     if *ctrl {
-                        state.caret_byte = find_word_boundary(&state.value, state.caret_byte, false);
+                        state.caret_byte =
+                            find_word_boundary(&state.value, state.caret_byte, false);
                     } else if state.caret_byte > 0 {
                         let mut prev = state.caret_byte - 1;
                         while prev > 0 && !state.value.is_char_boundary(prev) {
@@ -390,7 +410,8 @@ pub fn text_edit<T: TextSystem>(
                         let start = state.caret_byte.min(sel);
                         let end = state.caret_byte.max(sel);
                         if start < end {
-                            clipboard_action = Some(ClipboardAction::Copy(state.value[start..end].to_string()));
+                            clipboard_action =
+                                Some(ClipboardAction::Copy(state.value[start..end].to_string()));
                         }
                     }
                 }
@@ -399,7 +420,8 @@ pub fn text_edit<T: TextSystem>(
                         let start = state.caret_byte.min(sel);
                         let end = state.caret_byte.max(sel);
                         if start < end {
-                            clipboard_action = Some(ClipboardAction::Cut(state.value[start..end].to_string()));
+                            clipboard_action =
+                                Some(ClipboardAction::Cut(state.value[start..end].to_string()));
                             state.remove_selection();
                         }
                     }
@@ -422,8 +444,12 @@ pub fn text_edit<T: TextSystem>(
     }
 
     // Prepare text to get layout handle
-    let text_content = if state.value.is_empty() { " " } else { &state.value };
-    let layout = text_system.prepare(text_content, spec.style.text_size);
+    let text_content = if state.value.is_empty() {
+        " "
+    } else {
+        &state.value
+    };
+    let layout = text_system.prepare(text_content, spec.style.text_size, spec.style.font);
     let handle = layout.handle;
 
     let inset = spec.style.border_width + spec.style.padding;
@@ -438,7 +464,7 @@ pub fn text_edit<T: TextSystem>(
     // Mouse interaction
     if contains && input.mouse_pressed {
         focus_sys.take_focus(state.focus_id);
-        
+
         let relative_x = input.mouse_pos.x - content_rect.x;
         let clicked_byte = text_system.hit_test_x(handle, relative_x);
         let clicked_byte = clicked_byte.min(state.value.len());
@@ -467,7 +493,7 @@ pub fn text_edit<T: TextSystem>(
             let relative_x = input.mouse_pos.x - content_rect.x;
             let current_byte = text_system.hit_test_x(handle, relative_x);
             let current_byte = current_byte.min(state.value.len());
-            
+
             if let Some((orig_start, orig_end)) = state.drag_word_origin {
                 let (cur_start, cur_end) = word_bounds(&state.value, current_byte);
                 if current_byte < orig_start {
@@ -499,12 +525,18 @@ pub fn text_edit<T: TextSystem>(
     } else {
         spec.style.background
     };
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: bg_color });
+    draw.push(DrawCmd::FillRect {
+        rect: spec.rect,
+        color: bg_color,
+    });
 
     // Error: 4px rust left stripe
     if spec.error {
         let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
-        draw.push(DrawCmd::FillRect { rect: stripe, color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) });
+        draw.push(DrawCmd::FillRect {
+            rect: stripe,
+            color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+        });
     }
 
     // Border
@@ -517,7 +549,7 @@ pub fn text_edit<T: TextSystem>(
             spec.style.border
         };
         draw.push(DrawCmd::StrokeRect {
-            rect:  spec.rect,
+            rect: spec.rect,
             color: b_color,
             width: spec.style.border_width,
         });
@@ -529,17 +561,17 @@ pub fn text_edit<T: TextSystem>(
             if sel != state.caret_byte {
                 let start = sel.min(state.caret_byte);
                 let end = sel.max(state.caret_byte);
-                
+
                 let start_x = text_system.measure_byte_x(handle, start);
                 let end_x = text_system.measure_byte_x(handle, end);
-                
+
                 let sel_rect = Rect::new(
                     content_rect.x + start_x,
                     content_rect.y,
                     end_x - start_x,
                     content_rect.h,
                 );
-                
+
                 draw.push(DrawCmd::FillRect {
                     rect: sel_rect,
                     color: spec.style.select_color,
@@ -551,7 +583,7 @@ pub fn text_edit<T: TextSystem>(
     // Text
     if !state.value.is_empty() {
         draw.push(DrawCmd::Text {
-            rect:  Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
+            rect: Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
             color: spec.style.text_color,
             handle,
         });
@@ -566,7 +598,7 @@ pub fn text_edit<T: TextSystem>(
         } else {
             time_since_move.fract() < 0.5
         };
-        
+
         if blink_on {
             let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
             let caret_rect = Rect::new(
@@ -598,8 +630,6 @@ pub fn text_edit<T: TextSystem>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
-    
 
     use crate::test_utils::DummyTextSys;
 
@@ -618,7 +648,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("");
-        
+
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
@@ -634,7 +664,10 @@ mod tests {
 
         // Move left
         input.text_events.clear();
-        input.text_events.push(TextEvent::CaretLeft { shift: false, ctrl: false });
+        input.text_events.push(TextEvent::CaretLeft {
+            shift: false,
+            ctrl: false,
+        });
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.caret_byte, 2);
@@ -660,7 +693,7 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: false });
-        
+
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "helo");
@@ -686,7 +719,7 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: true });
-        
+
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "hello rld");
@@ -711,9 +744,15 @@ mod tests {
         focus_sys.end_frame();
 
         let mut input = Input::default();
-        input.text_events.push(TextEvent::CaretRight { shift: true, ctrl: false });
-        input.text_events.push(TextEvent::CaretRight { shift: true, ctrl: false });
-        
+        input.text_events.push(TextEvent::CaretRight {
+            shift: true,
+            ctrl: false,
+        });
+        input.text_events.push(TextEvent::CaretRight {
+            shift: true,
+            ctrl: false,
+        });
+
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(1));
@@ -735,7 +774,10 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(40.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_pos = crate::types::Vec2::new(
+            40.0 + spec().style.padding + spec().style.border_width,
+            15.0,
+        );
         input.mouse_down = true;
         input.mouse_pressed = true;
 
@@ -768,7 +810,10 @@ mod tests {
 
         let mut input = Input::default();
         // Click on "rust" (byte index 8 -> pixel 64)
-        input.mouse_pos = crate::types::Vec2::new(64.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_pos = crate::types::Vec2::new(
+            64.0 + spec().style.padding + spec().style.border_width,
+            15.0,
+        );
         input.mouse_down = true;
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
@@ -806,37 +851,78 @@ mod tests {
         let mut state = TextEditState::new("hello");
         state.caret_byte = 5;
         state.was_focused = true;
-        
+
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
         let mut input = Input::default();
-        
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.6,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should be hidden during off phase");
 
-        input.text_events.push(TextEvent::CaretLeft { shift: false, ctrl: false });
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.6, &mut text_sys, &mut focus_sys);
+        input.text_events.push(TextEvent::CaretLeft {
+            shift: false,
+            ctrl: false,
+        });
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.6,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         assert_eq!(state.last_caret_move_time, 0.6);
-        
+
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
-        assert!(has_caret, "Caret should be visible immediately after moving");
-        
+        assert!(
+            has_caret,
+            "Caret should be visible immediately after moving"
+        );
+
         input.text_events.clear();
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 1.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            1.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 1.2, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            1.2,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
     }
@@ -867,11 +953,18 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let input = Input::default();
-        
+
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
-        
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, Some(0));
@@ -885,18 +978,35 @@ mod tests {
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(40.0 + spec().style.padding + spec().style.border_width, 15.0);
+        input.mouse_pos = crate::types::Vec2::new(
+            40.0 + spec().style.padding + spec().style.border_width,
+            15.0,
+        );
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
-        
+
         focus_sys.end_frame();
         focus_sys.begin_frame();
         input.mouse_pressed = false;
-        
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
 
         assert!(state.was_focused);
@@ -909,7 +1019,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
-        
+
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
@@ -919,14 +1029,28 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
         assert_eq!(state.value, "hello world");
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
@@ -935,7 +1059,14 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = text_edit(std::mem::take(&mut state), spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = text_edit(
+            std::mem::take(&mut state),
+            spec(),
+            &input,
+            0.0,
+            &mut text_sys,
+            &mut focus_sys,
+        );
         state = res.state;
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
@@ -951,7 +1082,7 @@ mod tests {
         let state = TextEditState::new("hello");
         let input = Input::default();
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
-        
+
         let cmds = res.draw;
         // 1. bg fill
         // 2. border stroke
@@ -963,8 +1094,6 @@ mod tests {
         assert!(matches!(&cmds.0[2], DrawCmd::Text { .. }));
     }
 
-
-
     #[test]
     fn test_text_edit_visual_focused_caret() {
         let mut text_sys = DummyTextSys;
@@ -973,13 +1102,13 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
         focus_sys.begin_frame();
-        
+
         state.was_focused = true; // ensure state knows
-        
+
         let input = Input::default();
         // Time = 0.0, so time_since_move = 0.0 < 0.5 (blink on)
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
-        
+
         let cmds = res.draw;
         // 1. bg fill
         // 2. border stroke (focus_border)
@@ -989,7 +1118,8 @@ mod tests {
         let t = Theme::framewise();
         assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
         assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == t.rust));
-        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == t.rust)); // Caret
+        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
+        // Caret
     }
 
     #[test]
@@ -1000,14 +1130,14 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
         focus_sys.begin_frame();
-        
+
         state.was_focused = true;
         state.selection_byte = Some(0);
         state.caret_byte = 5;
-        
+
         let input = Input::default();
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
-        
+
         let cmds = res.draw;
         // 1. bg
         // 2. border
@@ -1026,10 +1156,10 @@ mod tests {
         let state = TextEditState::new("hello");
         let mut sp = spec();
         sp.error = true;
-        
+
         let input = Input::default();
         let res = text_edit(state, sp, &input, 0.0, &mut text_sys, &mut focus_sys);
-        
+
         let cmds = res.draw;
         // 1. bg
         // 2. error stripe
@@ -1038,7 +1168,7 @@ mod tests {
         assert_eq!(cmds.0.len(), 4);
         let _t = Theme::framewise();
         assert!(matches!(&cmds.0[1], DrawCmd::FillRect { .. })); // Stripe (hardcoded color in logic)
-        // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
+                                                                 // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
         assert!(matches!(&cmds.0[2], DrawCmd::StrokeRect { .. }));
     }
 }

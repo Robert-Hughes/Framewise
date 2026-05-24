@@ -1,4 +1,6 @@
-#![doc(html_logo_url = "https://raw.githubusercontent.com/Robert-Hughes/Framewise/main/logo/framewise-mark.svg")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/Robert-Hughes/Framewise/main/logo/framewise-mark.svg"
+)]
 //! Framewise — a Rust GUI library where the app is always in control.
 //!
 //! Framewise is a small, procedural library that helps an application describe
@@ -37,7 +39,7 @@ pub mod test_utils;
 pub use builder::{Builder, BuilderCtx};
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
-pub use text::{TextHandle, TextLayout, TextSystem};
+pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use types::{Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, WidgetResult};
 

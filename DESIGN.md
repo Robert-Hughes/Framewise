@@ -178,6 +178,19 @@ fn emit<R: WidgetResult>(&mut self, result: R) -> R::Info
 It extracts draw commands into the frame's draw list and returns the info portion to the
 caller. The final render step is a fast, dumb pass over the accumulated draw list.
 
+### Theme and Font Boundaries
+
+`Theme` is part of the high-level API. The `Builder` uses it to resolve ergonomic defaults
+such as colours, spacing, and semantic font choices, but low-level widget functions must
+not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is
+passed to the widget function.
+
+Fonts follow the same rule. A font is an application-owned handle independent of any
+theme. A theme references the two handles it wants to use for sans and mono text, but it
+does not own renderer-specific font data. The builder may copy those handles from the
+theme into widget specs based on widget type; direct low-level callers choose fonts
+explicitly, often by copying a handle from a theme themselves.
+
 ---
 
 ## Input Focus

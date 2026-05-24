@@ -1,15 +1,20 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::Rect
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::Rect,
+    WidgetResult,
 };
 
 pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     /// Full bounding rect (height typically h_md = 28).
-    pub rect:   Rect,
-    pub label:  &'a str,
-    pub value:  f32,
-    pub min:    f32,
-    pub max:    f32,
+    pub rect: Rect,
+    pub label: &'a str,
+    pub font: FontId,
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
     pub active: bool,
 }
 
@@ -25,33 +30,50 @@ impl WidgetResult for DragNumberResult {
     }
 }
 
-pub fn drag_number<'a, T: crate::text::TextSystem>(spec: DragNumberSpec<'a, T>) -> DragNumberResult {
+pub fn drag_number<'a, T: crate::text::TextSystem>(
+    spec: DragNumberSpec<'a, T>,
+) -> DragNumberResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
 
     // Focus / active ring.
     if spec.active {
         cmds.push(DrawCmd::StrokeRect {
-            rect:  spec.rect.inset(-1.0),
+            rect: spec.rect.inset(-1.0),
             color: t.rust,
             width: 2.0,
         });
     }
 
-    cmds.push(DrawCmd::FillRect { rect: spec.rect, color: t.paper_elev });
-    cmds.push(DrawCmd::StrokeRect { rect: spec.rect, color: t.ink, width: 1.0 });
+    cmds.push(DrawCmd::FillRect {
+        rect: spec.rect,
+        color: t.paper_elev,
+    });
+    cmds.push(DrawCmd::StrokeRect {
+        rect: spec.rect,
+        color: t.ink,
+        width: 1.0,
+    });
 
     // Label section (ink/rust bg, paper text).
-    let label_layout = spec.ts.prepare(spec.label, t.text_md);
+    let label_layout = spec.ts.prepare(spec.label, t.text_md, spec.font);
     let label_w = label_layout.size.x + 20.0;
     let label_rect = Rect::new(spec.rect.x, spec.rect.y, label_w, spec.rect.h);
     let label_bg = if spec.active { t.rust } else { t.ink };
-    cmds.push(DrawCmd::FillRect { rect: label_rect, color: label_bg });
+    cmds.push(DrawCmd::FillRect {
+        rect: label_rect,
+        color: label_bg,
+    });
 
     let lty = spec.rect.y + (spec.rect.h - label_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(spec.rect.x + 10.0, lty, label_layout.size.x, label_layout.size.y),
-        color:  t.paper,
+        rect: Rect::new(
+            spec.rect.x + 10.0,
+            lty,
+            label_layout.size.x,
+            label_layout.size.y,
+        ),
+        color: t.paper,
         handle: label_layout.handle,
     });
 
@@ -61,29 +83,27 @@ pub fn drag_number<'a, T: crate::text::TextSystem>(spec: DragNumberSpec<'a, T>) 
     let frac = ((spec.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
     if frac > 0.0 {
         cmds.push(DrawCmd::FillRect {
-            rect:  Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
+            rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
             color: t.rust_soft,
         });
     }
 
     let value_text = format!("{:.2}", spec.value);
-    let val_layout = spec.ts.prepare(&value_text, t.text_md);
+    let val_layout = spec.ts.prepare(&value_text, t.text_md, spec.font);
     let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
     let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
-        color:  t.ink,
+        rect: Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
+        color: t.ink,
         handle: val_layout.handle,
     });
 
     DragNumberResult { draw: cmds }
 }
 
-
-
-
 pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
+    pub font: Option<FontId>,
     pub value: Option<f32>,
     pub min: Option<f32>,
     pub max: Option<f32>,
@@ -96,6 +116,7 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             label: None,
+            font: None,
             value: None,
             min: None,
             max: None,
@@ -107,6 +128,10 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
 
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
     pub fn value(mut self, value: f32) -> Self {
@@ -127,7 +152,9 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for DragNumberSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for DragNumberSpecBuilder<'a, T>
+{
     type Spec = DragNumberSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -149,6 +176,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
+            font: self.font.unwrap_or(FontId::SANS),
             value: self.value.unwrap(),
             min: self.min.unwrap(),
             max: self.max.unwrap(),
@@ -169,6 +197,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
+            font: FontId::SANS,
             value: 50.0,
             min: 0.0,
             max: 100.0,
@@ -177,7 +206,7 @@ mod tests {
 
         let res = drag_number(spec);
         let cmds = res.draw.0;
-        
+
         // 1. FillRect (bg)
         // 2. StrokeRect (border)
         // 3. FillRect (label bg)
@@ -185,14 +214,18 @@ mod tests {
         // 5. FillRect (value frac bg)
         // 6. Text (value text)
         assert_eq!(cmds.len(), 6);
-        
+
         // Label width = DummyTextSys size x (8.0 * 1 chars) + 20.0 = 28.0
         // Label bg color = ink
         let t = Theme::framewise();
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == t.ink && rect.w == 28.0));
-        
+        assert!(
+            matches!(&cmds[2], DrawCmd::FillRect { color, rect } if *color == t.ink && rect.w == 28.0)
+        );
+
         // Value fill color = rust_soft, frac = 0.5, value width = 100 - 28 = 72, fill width = 36.0
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, rect } if *color == t.rust_soft && rect.w == 36.0));
+        assert!(
+            matches!(&cmds[4], DrawCmd::FillRect { color, rect } if *color == t.rust_soft && rect.w == 36.0)
+        );
     }
 
     #[test]
@@ -202,6 +235,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
+            font: FontId::SANS,
             value: 50.0,
             min: 0.0,
             max: 100.0,
@@ -210,13 +244,15 @@ mod tests {
 
         let res = drag_number(spec);
         let cmds = res.draw.0;
-        
+
         // Active adds a focus ring stroke, so 7 cmds
         assert_eq!(cmds.len(), 7);
         let t = Theme::framewise();
-        
-        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0));
-        
+
+        assert!(
+            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+        );
+
         // Label bg color should be rust instead of ink
         assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == t.rust));
     }
@@ -228,6 +264,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
+            font: FontId::SANS,
             value: 0.0,
             min: 0.0,
             max: 100.0,
@@ -236,10 +273,10 @@ mod tests {
 
         let res = drag_number(spec);
         let cmds = res.draw.0;
-        
+
         // No fractional fill since value == min
         assert_eq!(cmds.len(), 5);
-        
+
         // Command 4 is now the value text
         assert!(matches!(&cmds[4], DrawCmd::Text { .. }));
     }

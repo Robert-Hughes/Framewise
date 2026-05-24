@@ -1,13 +1,18 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::Rect
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::Rect,
+    WidgetResult,
 };
 
 pub struct ChipSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     /// Top-left origin. Height is fixed at 22.
-    pub rect:    Rect,
-    pub label:   &'a str,
-    pub active:  bool,
+    pub rect: Rect,
+    pub label: &'a str,
+    pub font: FontId,
+    pub active: bool,
     pub focused: bool,
 }
 
@@ -30,14 +35,14 @@ pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult
     let h = 22.0_f32;
     let pad_x = 8.0_f32;
 
-    let layout = spec.ts.prepare(spec.label, t.text_sm);
+    let layout = spec.ts.prepare(spec.label, t.text_sm, spec.font);
     let w = spec.rect.w.max(32.0);
     let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
     // Focus ring.
     if spec.focused {
         cmds.push(DrawCmd::StrokeRect {
-            rect:  r.inset(-2.0),
+            rect: r.inset(-2.0),
             color: t.rust,
             width: 2.0,
         });
@@ -45,24 +50,26 @@ pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult
 
     let bg = if spec.active { t.ink } else { t.paper_elev };
     cmds.push(DrawCmd::FillRect { rect: r, color: bg });
-    cmds.push(DrawCmd::StrokeRect { rect: r, color: t.ink, width: 1.0 });
+    cmds.push(DrawCmd::StrokeRect {
+        rect: r,
+        color: t.ink,
+        width: 1.0,
+    });
 
     let text_color = if spec.active { t.paper } else { t.ink };
     let ty = r.y + (h - layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
-        rect:   Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
-        color:  text_color,
+        rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
+        color: text_color,
         handle: layout.handle,
     });
 
     ChipResult { draw: cmds }
 }
 
-
-
-
 pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
+    pub font: Option<FontId>,
     pub active: Option<bool>,
     pub focused: Option<bool>,
     pub rect: Option<Rect>,
@@ -73,6 +80,7 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             label: None,
+            font: None,
             active: None,
             focused: None,
             rect: None,
@@ -82,6 +90,10 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
 
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
     pub fn active(mut self, active: bool) -> Self {
@@ -94,7 +106,9 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for ChipSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for ChipSpecBuilder<'a, T>
+{
     type Spec = ChipSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -116,6 +130,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
+            font: self.font.unwrap_or(FontId::MONO),
             active: self.active.unwrap(),
             focused: self.focused.unwrap(),
         }
@@ -134,6 +149,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
+            font: FontId::MONO,
             active: false,
             focused: false,
         };
@@ -154,6 +170,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
+            font: FontId::MONO,
             active: true,
             focused: false,
         };
@@ -163,7 +180,8 @@ mod tests {
         assert_eq!(cmds.len(), 3);
         let t = Theme::framewise();
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.ink)); // active bg
-        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.paper)); // active text
+        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == t.paper));
+        // active text
     }
 
     #[test]
@@ -173,6 +191,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
+            font: FontId::MONO,
             active: false,
             focused: true,
         };
@@ -181,7 +200,9 @@ mod tests {
 
         assert_eq!(cmds.len(), 4); // focus ring + 3 normal cmds
         let t = Theme::framewise();
-        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0));
+        assert!(
+            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+        );
         assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
     }
 }

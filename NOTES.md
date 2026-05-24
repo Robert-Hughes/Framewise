@@ -4,6 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Move theme out of low-level widget funcs (as per DESIGN.md)
+
 ## Things Still to Figure Out
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual

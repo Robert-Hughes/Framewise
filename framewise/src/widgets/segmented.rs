@@ -1,14 +1,19 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Rect, Vec2}
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::{Rect, Vec2},
+    WidgetResult,
 };
 
 pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     /// Top-left origin. Height is fixed at h_md (28).
-    pub rect:         Rect,
-    pub items:        &'a [&'a str],
+    pub rect: Rect,
+    pub items: &'a [&'a str],
+    pub font: FontId,
     pub active_index: usize,
-    pub focused:      Option<usize>,
+    pub focused: Option<usize>,
 }
 
 pub struct SegmentedResult {
@@ -35,14 +40,25 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
     let pad_x = 14.0_f32;
 
     // Pre-prepare all labels to get their widths.
-    let layouts: Vec<_> = spec.items.iter().map(|s| spec.ts.prepare(s, t.text_md)).collect();
+    let layouts: Vec<_> = spec
+        .items
+        .iter()
+        .map(|s| spec.ts.prepare(s, t.text_md, spec.font))
+        .collect();
     let widths: Vec<f32> = layouts.iter().map(|l| l.size.x + pad_x * 2.0).collect();
     let total_w: f32 = widths.iter().sum();
 
     let outer = Rect::new(spec.rect.x, spec.rect.y, total_w, h);
 
-    cmds.push(DrawCmd::FillRect { rect: outer, color: t.paper_elev });
-    cmds.push(DrawCmd::StrokeRect { rect: outer, color: t.ink, width: 1.0 });
+    cmds.push(DrawCmd::FillRect {
+        rect: outer,
+        color: t.paper_elev,
+    });
+    cmds.push(DrawCmd::StrokeRect {
+        rect: outer,
+        color: t.ink,
+        width: 1.0,
+    });
 
     let mut x = spec.rect.x;
     for (i, (layout, &w)) in layouts.iter().zip(widths.iter()).enumerate() {
@@ -50,13 +66,16 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
         let seg_rect = Rect::new(x, spec.rect.y, w, h);
 
         if is_active {
-            cmds.push(DrawCmd::FillRect { rect: seg_rect, color: t.ink });
+            cmds.push(DrawCmd::FillRect {
+                rect: seg_rect,
+                color: t.ink,
+            });
         }
 
         // Focus ring (inset to stay within bounds).
         if spec.focused == Some(i) {
             cmds.push(DrawCmd::StrokeRect {
-                rect:  seg_rect.inset(2.0),
+                rect: seg_rect.inset(2.0),
                 color: t.rust,
                 width: 2.0,
             });
@@ -66,8 +85,8 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
         if i + 1 < spec.items.len() {
             let div_x = x + w;
             cmds.push(DrawCmd::StrokeLine {
-                p0:    Vec2::new(div_x, spec.rect.y),
-                p1:    Vec2::new(div_x, spec.rect.y + h),
+                p0: Vec2::new(div_x, spec.rect.y),
+                p1: Vec2::new(div_x, spec.rect.y + h),
                 color: t.ink,
                 width: 1.0,
             });
@@ -76,8 +95,8 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
         let text_color = if is_active { t.paper } else { t.ink };
         let ty = spec.rect.y + (h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
-            rect:   Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
-            color:  text_color,
+            rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
+            color: text_color,
             handle: layout.handle,
         });
 
@@ -87,11 +106,9 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
     SegmentedResult { draw: cmds }
 }
 
-
-
-
 pub struct SegmentedSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [&'a str]>,
+    pub font: Option<FontId>,
     pub active_index: Option<usize>,
     pub focused: Option<Option<usize>>,
     pub rect: Option<Rect>,
@@ -102,6 +119,7 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             items: None,
+            font: None,
             active_index: None,
             focused: None,
             rect: None,
@@ -111,6 +129,10 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
         self.items = Some(items);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
@@ -123,7 +145,9 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for SegmentedSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for SegmentedSpecBuilder<'a, T>
+{
     type Spec = SegmentedSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -145,6 +169,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
+            font: self.font.unwrap_or(FontId::SANS),
             active_index: self.active_index.unwrap(),
             focused: self.focused.unwrap(),
         }
@@ -164,6 +189,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
+            font: FontId::SANS,
             active_index: 0,
             focused: None,
         };
@@ -181,17 +207,18 @@ mod tests {
         // 5: text (ink color)
         assert_eq!(cmds.len(), 6);
         let t = Theme::framewise();
-        
+
         assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == t.paper_elev));
         assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == t.ink));
-        
+
         // Item 0
         assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
         assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, .. } if *color == t.ink)); // Divider
         assert!(matches!(&cmds[4], DrawCmd::Text { color, .. } if *color == t.paper)); // Active text
 
         // Item 1
-        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == t.ink)); // Inactive text
+        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == t.ink));
+        // Inactive text
     }
 
     #[test]
@@ -202,6 +229,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
+            font: FontId::SANS,
             active_index: 1,
             focused: Some(1),
         };
@@ -220,10 +248,13 @@ mod tests {
         // 6: text (paper color)
         assert_eq!(cmds.len(), 7);
         let t = Theme::framewise();
-        
+
         // Item 1
         assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == t.ink)); // Active
-        assert!(matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)); // Focus
-        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == t.paper)); // Active text
+        assert!(
+            matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == t.rust && *width == 2.0)
+        ); // Focus
+        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == t.paper));
+        // Active text
     }
 }

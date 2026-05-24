@@ -1,4 +1,4 @@
-use crate::text::{TextHandle, TextLayout, TextSystem};
+use crate::text::{FontId, TextHandle, TextLayout, TextSystem};
 use crate::types::Vec2;
 
 /// A dummy text system for unit tests that provides representative text dimensions.
@@ -6,7 +6,7 @@ use crate::types::Vec2;
 pub struct DummyTextSys;
 
 impl TextSystem for DummyTextSys {
-    fn prepare(&mut self, text: &str, _size: f32) -> TextLayout {
+    fn prepare(&mut self, text: &str, _size: f32, _font: FontId) -> TextLayout {
         let width = text.chars().count() as f32 * 8.0;
         let height = 16.0;
         TextLayout {

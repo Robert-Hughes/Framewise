@@ -1,14 +1,18 @@
 use crate::{
-    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect}
+    draw::{DrawCmd, DrawCommands},
+    text::FontId,
+    theme::Theme,
+    types::{Color, Rect},
+    WidgetResult,
 };
 
 pub struct TreeRow<'a> {
-    pub indent:   u32,
+    pub indent: u32,
     /// None = leaf, true = expanded, false = collapsed.
-    pub caret:    Option<bool>,
-    pub label:    &'a str,
+    pub caret: Option<bool>,
+    pub label: &'a str,
     /// Optional right-aligned metadata string.
-    pub meta:     Option<&'a str>,
+    pub meta: Option<&'a str>,
     pub selected: bool,
 }
 
@@ -16,6 +20,7 @@ pub struct TreeSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
     pub rect: Rect,
     pub rows: &'a [TreeRow<'a>],
+    pub font: FontId,
 }
 
 pub struct TreeResult {
@@ -42,8 +47,15 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
     let w = spec.rect.w.max(280.0);
     let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
-    cmds.push(DrawCmd::FillRect { rect: outer, color: t.paper_elev });
-    cmds.push(DrawCmd::StrokeRect { rect: outer, color: t.ink, width: 1.0 });
+    cmds.push(DrawCmd::FillRect {
+        rect: outer,
+        color: t.paper_elev,
+    });
+    cmds.push(DrawCmd::StrokeRect {
+        rect: outer,
+        color: t.ink,
+        width: 1.0,
+    });
 
     let mut y = spec.rect.y + 4.0;
 
@@ -51,7 +63,10 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
         let row_rect = Rect::new(outer.x, y, w, row_h);
 
         if row.selected {
-            cmds.push(DrawCmd::FillRect { rect: row_rect, color: t.ink });
+            cmds.push(DrawCmd::FillRect {
+                rect: row_rect,
+                color: t.ink,
+            });
         }
 
         let text_color = if row.selected { t.paper } else { t.ink };
@@ -66,35 +81,40 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
 
         // Caret symbol.
         let caret_sym = match row.caret {
-            Some(true)  => "v",
+            Some(true) => "v",
             Some(false) => ">",
-            None        => " ",
+            None => " ",
         };
-        let caret_layout = spec.ts.prepare(caret_sym, t.text_sm);
+        let caret_layout = spec.ts.prepare(caret_sym, t.text_sm, spec.font);
         let cty = y + (row_h - caret_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
-            rect:   Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
-            color:  caret_color,
+            rect: Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
+            color: caret_color,
             handle: caret_layout.handle,
         });
 
         // Label.
-        let label_layout = spec.ts.prepare(row.label, t.text_sm);
+        let label_layout = spec.ts.prepare(row.label, t.text_sm, spec.font);
         let lty = y + (row_h - label_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
-            rect:   Rect::new(indent_x + caret_w, lty, label_layout.size.x, label_layout.size.y),
-            color:  text_color,
+            rect: Rect::new(
+                indent_x + caret_w,
+                lty,
+                label_layout.size.x,
+                label_layout.size.y,
+            ),
+            color: text_color,
             handle: label_layout.handle,
         });
 
         // Meta (right-aligned).
         if let Some(meta) = row.meta {
-            let meta_layout = spec.ts.prepare(meta, t.text_sm);
+            let meta_layout = spec.ts.prepare(meta, t.text_sm, spec.font);
             let mx = outer.x + w - pad_x - meta_layout.size.x;
             let mty = y + (row_h - meta_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
-                rect:   Rect::new(mx, mty, meta_layout.size.x, meta_layout.size.y),
-                color:  meta_color,
+                rect: Rect::new(mx, mty, meta_layout.size.x, meta_layout.size.y),
+                color: meta_color,
                 handle: meta_layout.handle,
             });
         }
@@ -105,11 +125,9 @@ pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult
     TreeResult { draw: cmds }
 }
 
-
-
-
 pub struct TreeSpecBuilder<'a, T: crate::text::TextSystem> {
     pub rows: Option<&'a [TreeRow<'a>]>,
+    pub font: Option<FontId>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
 }
@@ -118,6 +136,7 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
     pub fn new() -> Self {
         Self {
             rows: None,
+            font: None,
             rect: None,
             ts: None,
         }
@@ -127,9 +146,15 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
         self.rows = Some(rows);
         self
     }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for TreeSpecBuilder<'a, T> {
+impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
+    for TreeSpecBuilder<'a, T>
+{
     type Spec = TreeSpec<'a, T>;
 
     fn with_rect(mut self, rect: Rect) -> Self {
@@ -151,6 +176,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             rows: self.rows.unwrap(),
+            font: self.font.unwrap_or(FontId::MONO),
         }
     }
 }
