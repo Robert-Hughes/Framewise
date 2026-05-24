@@ -4,6 +4,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Add to DESIGN.md - an argument for a top-down layout is that you often know the size of your window but you don't know the size of your content (e.g. if it's from user, internet etc.). So easier to reason top-down than bottom-up (auto sizing)
+
+* Layout is a builder-level concept (it helps to add new widgets in teh right place), low-level widget funcs themselves shouldn't know about layout. Change window/scroll area to return just an offset and clip rect, let the builder construct a layout from this. Add this to DESIGN.md.
+
+* Add unit tests for the visual appearance of widgets (i.e. check the drawcmds are as expected), for various states (pressed/disabled etc.) to prevent visual regressions
+
 ## Things Still to Figure Out
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual
