@@ -215,6 +215,9 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 
     fn with_theme(mut self, theme: &crate::Theme) -> Self {
         self.style = Some(theme.drag_number_style());
+        if self.font.is_none() {
+            self.font = Some(theme.sans_font);
+        }
         self
     }
 
@@ -228,7 +231,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
-            font: self.font.unwrap_or(FontId::SANS),
+            font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("DragNumberStyle is required"),
             value: self.value.unwrap(),
             min: self.min.unwrap(),
@@ -250,7 +253,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
-            font: FontId::SANS,
+            font: FontId(1),
             value: 50.0,
             min: 0.0,
             max: 100.0,
@@ -302,7 +305,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
-            font: FontId::SANS,
+            font: FontId(1),
             value: 50.0,
             min: 0.0,
             max: 100.0,
@@ -359,7 +362,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
-            font: FontId::SANS,
+            font: FontId(1),
             value: 0.0,
             min: 0.0,
             max: 100.0,

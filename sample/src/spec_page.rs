@@ -134,7 +134,7 @@ const SEC_GAP: f32 = 64.0;
 const GROUP_GAP: f32 = 28.0;
 const COL_GAP: f32 = 16.0;
 
-pub const CONTENT_HEIGHT: f32 = 5600.0;
+pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
@@ -245,32 +245,63 @@ pub fn draw_spec_page(
                     hero_logo(&t, rect.x, rect.y)
                 });
 
-                let tx = lx + 116.0;
+                let tx = lx + 124.0; // 28px gap + 96px logo = 124px
+                let hero_w = content_w - 124.0;
+
+                // Overline
                 b.label_styled(
-                    Rect::new(tx, MARGIN, content_w - 116.0, 16.0),
+                    Rect::new(tx, MARGIN, hero_w, 16.0),
                     "framewise · widget specification · v0.1",
                     t.text_sm,
                     t.muted,
                     false,
                 );
-                label_styled_sans(
-                    b,
-                    &t,
-                    Rect::new(tx, MARGIN + 20.0, content_w - 116.0, 36.0),
-                    "A widget set that explains itself.",
-                    28.0,
+
+                // Two-line Title (56px size, Bold, line-height 0.95)
+                b.label_styled_font(
+                    Rect::new(tx, MARGIN + 22.0, hero_w, 53.0),
+                    "A widget set that",
+                    56.0,
                     t.ink,
+                    false,
+                    t.sans_bold_font,
                 );
-                label_styled_sans(
-                    b,
-                    &t,
-                    Rect::new(tx, MARGIN + 60.0, (content_w - 116.0).min(600.0), 32.0),
-                    "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action.",
-                    t.text_md,
-                    t.muted,
+                b.label_styled_font(
+                    Rect::new(tx, MARGIN + 22.0 + 53.0, hero_w, 53.0),
+                    "explains itself.",
+                    56.0,
+                    t.ink,
+                    false,
+                    t.sans_bold_font,
                 );
 
-                // color meta row
+                // Description (15px size, regular, line-height 1.55)
+                b.label_styled_font(
+                    Rect::new(tx, MARGIN + 144.0, hero_w.min(600.0), 23.0),
+                    "Sharp corners, hairline borders, monospaced numerics. One accent — rust —",
+                    15.0,
+                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
+                    false,
+                    t.sans_font,
+                );
+                b.label_styled_font(
+                    Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0),
+                    "reserved for focus, drag, and primary action. Every widget describes its state",
+                    15.0,
+                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
+                    false,
+                    t.sans_font,
+                );
+                b.label_styled_font(
+                    Rect::new(tx, MARGIN + 144.0 + 46.0, hero_w.min(600.0), 23.0),
+                    "explicitly; nothing is hidden behind animation or chrome.",
+                    15.0,
+                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
+                    false,
+                    t.sans_font,
+                );
+
+                // Color Meta Row
                 let meta_items: &[(&str, &str)] = &[
                     ("ink", "#15130f"),
                     ("paper", "#f4f1ea"),
@@ -278,27 +309,31 @@ pub fn draw_spec_page(
                     ("type", "Inter Tight · JetBrains Mono"),
                 ];
                 let mut mx = tx;
+                let my = MARGIN + 234.0;
                 for (key, val) in meta_items {
-                    b.label_styled(
-                        Rect::new(mx, MARGIN + 96.0, 20.0, 14.0),
+                    // key in ink, bold / medium
+                    b.label_styled_font(
+                        Rect::new(mx, my, 60.0, 14.0),
                         key,
                         t.text_sm,
                         t.ink,
                         false,
+                        t.sans_bold_font,
                     );
                     let key_w = key.len() as f32 * 7.5 + 4.0;
-                    b.label_styled(
-                        Rect::new(mx + key_w, MARGIN + 96.0, 200.0, 14.0),
+                    b.label_styled_font(
+                        Rect::new(mx + key_w, my, 200.0, 14.0),
                         val,
                         t.text_sm,
                         t.muted,
                         false,
+                        t.sans_font,
                     );
                     mx += key_w + val.len() as f32 * 6.5 + 24.0;
                 }
             }
 
-            let mut y = MARGIN + 136.0;
+            let mut y = MARGIN + 310.0;
 
             // ── 01 · BUTTONS ─────────────────────────────────────────────────────────
             sec_y(&mut b, &t, lx, y, content_w, "01", "Buttons");

@@ -104,7 +104,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Hello".to_string(),
             size: 16.0,
-            font: FontId::SANS,
+            font: FontId(1),
             text_color: Color::WHITE,
             rule: false,
         };
@@ -130,7 +130,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Section".to_string(),
             size: 14.0,
-            font: FontId::SANS,
+            font: FontId(1),
             text_color: Color::WHITE,
             rule: true,
         };

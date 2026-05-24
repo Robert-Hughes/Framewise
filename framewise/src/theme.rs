@@ -19,6 +19,7 @@ use crate::{
 pub struct Theme {
     // Fonts
     pub sans_font: FontId,
+    pub sans_bold_font: FontId,
     pub mono_font: FontId,
 
     // Palette
@@ -52,8 +53,9 @@ pub struct Theme {
 impl Theme {
     pub fn framewise() -> Self {
         Self {
-            sans_font: FontId::SANS,
-            mono_font: FontId::MONO,
+            sans_font: FontId(1),
+            sans_bold_font: FontId(2),
+            mono_font: FontId(0),
             ink: Color::from_srgb_u8(21, 19, 15, 255),
             paper: Color::from_srgb_u8(244, 241, 234, 255),
             paper_elev: Color::from_srgb_u8(251, 249, 244, 255),

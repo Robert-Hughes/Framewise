@@ -202,6 +202,9 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 
     fn with_theme(mut self, theme: &crate::Theme) -> Self {
         self.style = Some(theme.tree_style());
+        if self.font.is_none() {
+            self.font = Some(theme.mono_font);
+        }
         self
     }
 
@@ -215,7 +218,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             rows: self.rows.unwrap(),
-            font: self.font.unwrap_or(FontId::MONO),
+            font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TreeStyle is required"),
         }
     }

@@ -55,10 +55,13 @@ impl SampleTextSystem {
         let sans_data = include_bytes!("../assets/InterTight-Regular.ttf") as &[u8];
         let sans = Font::from_bytes(sans_data, FontSettings::default())
             .expect("failed to load InterTight font");
+        let sans_bold_data = include_bytes!("../assets/InterTight-Bold.ttf") as &[u8];
+        let sans_bold = Font::from_bytes(sans_bold_data, FontSettings::default())
+            .expect("failed to load InterTight-Bold font");
 
         let atlas_size = 1024;
         Self {
-            fonts: vec![mono, sans],
+            fonts: vec![mono, sans, sans_bold],
             layout: Layout::new(CoordinateSystem::PositiveYDown),
             runs: Vec::new(),
             glyph_cache: HashMap::new(),
@@ -232,16 +235,16 @@ mod tests {
     fn glyph_cache_keys_include_font_id() {
         let mut sys = SampleTextSystem::new();
 
-        let _ = sys.prepare("A", 12.0, FontId::MONO);
-        let _ = sys.prepare("A", 12.0, FontId::SANS);
+        let _ = sys.prepare("A", 12.0, FontId(0));
+        let _ = sys.prepare("A", 12.0, FontId(1));
 
         assert!(sys
             .glyph_cache
             .keys()
-            .any(|key| key.font_id == FontId::MONO.0));
+            .any(|key| key.font_id == 0));
         assert!(sys
             .glyph_cache
             .keys()
-            .any(|key| key.font_id == FontId::SANS.0));
+            .any(|key| key.font_id == 1));
     }
 }

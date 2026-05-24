@@ -32,7 +32,7 @@ impl Default for TextEditStyle {
             border_width: 1.0,
             padding: 4.0,
             text_size: 12.0,
-            font: FontId::MONO,
+            font: FontId(0),
             text_color: Color::from_srgb_u8(21, 19, 15, 255),
             caret_color: Color::from_srgb_u8(194, 90, 44, 255),
             select_color: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),

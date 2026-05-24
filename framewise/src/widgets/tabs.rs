@@ -192,6 +192,9 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 
     fn with_theme(mut self, theme: &crate::Theme) -> Self {
         self.style = Some(theme.tabs_style());
+        if self.font.is_none() {
+            self.font = Some(theme.sans_font);
+        }
         self
     }
 
@@ -205,7 +208,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
-            font: self.font.unwrap_or(FontId::SANS),
+            font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TabsStyle is required"),
             active_index: self.active_index.unwrap(),
             focused: self.focused.unwrap(),
@@ -226,7 +229,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId::SANS,
+            font: FontId(1),
             active_index: 0,
             focused: None,
             style: Default::default(),
@@ -277,7 +280,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId::SANS,
+            font: FontId(1),
             active_index: 1,
             focused: Some(1),
             style: Default::default(),

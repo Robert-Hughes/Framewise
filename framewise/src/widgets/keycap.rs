@@ -148,6 +148,13 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
+    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+        if self.font.is_none() {
+            self.font = Some(theme.mono_font);
+        }
+        self
+    }
+
     fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
@@ -162,7 +169,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             border: self.border.unwrap(),
             text_color: self.text_color.unwrap(),
             text_size: self.text_size.unwrap(),
-            font: self.font.unwrap_or(FontId::MONO),
+            font: self.font.expect("font must be specified or resolved from a theme"),
         }
     }
 }
@@ -186,7 +193,7 @@ mod tests {
             border: custom_border,
             text_color: custom_text,
             text_size: 14.0,
-            font: FontId::MONO,
+            font: FontId(0),
         };
         let res = keycap(spec);
 

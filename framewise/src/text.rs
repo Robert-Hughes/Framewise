@@ -5,13 +5,8 @@ use crate::types::Vec2;
 /// Framewise never loads or owns font files. It only passes this handle to the
 /// application's `TextSystem`, which decides how the handle maps to real font
 /// data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FontId(pub u16);
-
-impl FontId {
-    pub const MONO: FontId = FontId(0);
-    pub const SANS: FontId = FontId(1);
-}
 
 /// Semantic font roles used by themes and builders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

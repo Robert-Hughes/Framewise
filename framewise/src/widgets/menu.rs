@@ -235,6 +235,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 
     fn with_theme(mut self, theme: &crate::Theme) -> Self {
         self.style = Some(theme.menu_style());
+        if self.label_font.is_none() {
+            self.label_font = Some(theme.sans_font);
+        }
+        if self.meta_font.is_none() {
+            self.meta_font = Some(theme.mono_font);
+        }
         self
     }
 
@@ -248,8 +254,8 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
-            label_font: self.label_font.unwrap_or(FontId::SANS),
-            meta_font: self.meta_font.unwrap_or(FontId::MONO),
+            label_font: self.label_font.expect("label_font must be specified or resolved from a theme"),
+            meta_font: self.meta_font.expect("meta_font must be specified or resolved from a theme"),
             style: self.style.expect("MenuStyle is required"),
         }
     }

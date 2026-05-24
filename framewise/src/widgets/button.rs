@@ -32,7 +32,7 @@ impl Default for ButtonStyle {
             border_width: 1.0,
             focus_border: Color::from_srgb_u8(194, 90, 44, 255),
             text_size: 13.0,
-            font: FontId::SANS,
+            font: FontId(1),
             text_color: Color::from_srgb_u8(21, 19, 15, 255),
         }
     }
@@ -48,7 +48,7 @@ impl ButtonStyle {
             border_width: 1.0,
             focus_border: Color::from_srgb_u8(194, 90, 44, 255),
             text_size: 13.0,
-            font: FontId::SANS,
+            font: FontId(1),
             text_color: Color::from_srgb_u8(244, 241, 234, 255),
         }
     }
@@ -62,7 +62,7 @@ impl ButtonStyle {
             border_width: 1.0,
             focus_border: Color::from_srgb_u8(194, 90, 44, 255),
             text_size: 13.0,
-            font: FontId::SANS,
+            font: FontId(1),
             text_color: Color::WHITE,
         }
     }
@@ -1044,7 +1044,7 @@ mod tests {
             border_width: 4.5,
             focus_border: Color::from_srgb_u8(255, 0, 0, 255),
             text_size: 19.5,
-            font: FontId::MONO,
+            font: FontId(0),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
         };
 

@@ -171,6 +171,9 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
 
     fn with_theme(mut self, theme: &crate::Theme) -> Self {
         self.style = Some(theme.tooltip_style());
+        if self.font.is_none() {
+            self.font = Some(theme.mono_font);
+        }
         self
     }
 
@@ -184,7 +187,7 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             text: self.text.unwrap(),
-            font: self.font.unwrap_or(FontId::MONO),
+            font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TooltipStyle is required"),
             variant: self.variant.unwrap(),
         }
@@ -203,7 +206,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
-            font: FontId::MONO,
+            font: FontId(0),
             variant: TooltipVariant::Dark,
             style: Default::default(),
         };
@@ -245,7 +248,7 @@ mod tests {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
-            font: FontId::MONO,
+            font: FontId(0),
             variant: TooltipVariant::Rust,
             style: Default::default(),
         };

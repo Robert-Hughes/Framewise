@@ -33,12 +33,17 @@ Tests that check visual draw cmds from widgets don't actually check the params o
 
 * How do custom widgets (i.e. functions) get used in a builder? See builder::custom() and builder::add()
 * Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
+* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc
 * Tried something with WidgetSpec and WidgetSpecBuilder - is this good? Apply to all widget kinds? Move this trait to the builder-level, as is only relevant for that?
 * Is the "optional" text-system a good design feature - it does does create some awkwardness?
 * WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the builder? Maybe we need a "outside-builder"-only spec struct?
 
 * Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
+
+//TODO: should the spec traits actually be part of the builder API, as that's the only thing that actually requires a consistent shape.
+Also having themes here might be inconsistent as they're supposed to be a high level concept!
+
 
 * Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
 
