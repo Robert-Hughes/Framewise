@@ -1,7 +1,6 @@
 use crate::{
     draw::DrawCmd,
     input::Input,
-    layout::OffsetLayout,
     types::{Rect, Vec2},
 };
 
@@ -139,18 +138,17 @@ impl ScrollAreaScope {
     }
 }
 
-pub fn begin_scroll_area<L: crate::layout::Layout>(
+pub fn begin_scroll_area(
     bounds: Rect,
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
     v_vis: ScrollbarVisibility,
     state: &mut ScrollState,
-    inner_layout: L,
     input: &Input,
     focus_sys: &mut crate::focus::FocusSystem,
     clip_rect: Option<Rect>,
     time: f64,
-) -> (Vec<DrawCmd>, ScrollAreaScope, Rect, OffsetLayout<L>) {
+) -> (Vec<DrawCmd>, ScrollAreaScope, Rect, Vec2) {
     let mut pre_cmds = Vec::new();
 
     focus_sys.push_keyboard_scroll_scope(state.id);
@@ -272,11 +270,6 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
 
     pre_cmds.push(DrawCmd::PushClip { rect: content_bounds });
 
-    let offset_layout = OffsetLayout {
-        offset: state.offset,
-        inner: inner_layout,
-    };
-
     // at_* is snapshotted AFTER this frame's scroll actions are applied so that
     // reaching the limit on a press releases the corresponding claim next frame,
     // letting the very next PgUp/PgDn press bubble to the parent. Pre-action
@@ -292,7 +285,7 @@ pub fn begin_scroll_area<L: crate::layout::Layout>(
         is_finished: false,
     };
 
-    (pre_cmds, scope, content_bounds, offset_layout)
+    (pre_cmds, scope, content_bounds, state.offset)
 }
 
 /// Route the wheel delta to the appropriate axis(es) based on mode, but only
@@ -425,23 +418,23 @@ mod tests {
     use crate::layout::ManualLayout;
 
     // Helper to keep test calls the same
-    fn scroll_area<L: crate::layout::Layout>(
+    fn scroll_area(
         bounds: Rect,
         content_size: Vec2,
         state: &mut ScrollState,
-        inner_layout: L,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
         clip_rect: Option<Rect>,
         time: f64,
-    ) -> (Vec<DrawCmd>, Rect, crate::layout::OffsetLayout<L>) {
-        let (mut pre_cmds, scope, cb, layout) = begin_scroll_area(
-            bounds, content_size, 
+    ) -> (Vec<DrawCmd>, Rect, crate::layout::OffsetLayout<crate::layout::ManualLayout>) {
+        let (mut pre_cmds, scope, cb, scroll_offset) = begin_scroll_area(
+            bounds, content_size,
             ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
-            state, inner_layout, input, focus_sys, clip_rect, time
+            state, input, focus_sys, clip_rect, time
         );
         let post_cmds = scope.finish(focus_sys);
         pre_cmds.extend(post_cmds);
+        let layout = crate::layout::OffsetLayout { offset: scroll_offset, inner: ManualLayout };
         (pre_cmds, cb, layout)
     }
 
@@ -453,7 +446,7 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
 
         let (_, content_bounds, layout) = scroll_area(
-            bounds, Vec2::new(200.0, 400.0), &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            bounds, Vec2::new(200.0, 400.0), &mut state, &input, &mut focus_sys, None, 0.0
         );
 
         assert_eq!(content_bounds.w, 188.0);
@@ -480,13 +473,13 @@ mod tests {
             let (_, outer_scope, cb, _) = begin_scroll_area(
                 outer_bounds, Vec2::new(outer_bounds.w, outer_content_h), 
                 ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
-                outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                outer_state, &input, &mut focus_sys, None, 0.0
             );
 
             let (_, inner_scope, _, _) = begin_scroll_area(
                 inner_bounds, Vec2::new(inner_bounds.w, inner_content_h),
                 ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
-                inner_state, ManualLayout, &input, &mut focus_sys, Some(cb), 0.0
+                inner_state, &input, &mut focus_sys, Some(cb), 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -533,7 +526,7 @@ mod tests {
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(400.0, 200.0),
                 ScrollbarVisibility::Auto, ScrollbarVisibility::None,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut state, &input, &mut focus_sys, None, 0.0
             );
             
             let info = crate::widgets::button::button(
@@ -581,7 +574,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -635,7 +628,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut state, &input, &mut focus_sys, None, 0.0,
             );
             scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -662,7 +655,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 1000.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -677,7 +670,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 1000.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -705,13 +698,13 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut outer, &input, &mut focus_sys, None, 0.0,
             );
             // Inner Auto+fits — no scrollbar, no claim.
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 200.0),
                 ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
-                &mut inner, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut inner, &input, &mut focus_sys, None, 0.0,
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -738,13 +731,13 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut outer, &input, &mut focus_sys, None, 0.0,
             );
             // Inner Always+fits: scrollbars drawn, no scroll possible.
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(150.0, 150.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut inner, &input, &mut focus_sys, None, 0.0,
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -768,7 +761,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, fs, None, 0.0,
+                &mut state, &input, fs, None, 0.0,
             );
             scope.finish(fs);
         });
@@ -791,14 +784,14 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope_a, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut a, ManualLayout, &input, fs, None, 0.0,
+                &mut a, &input, fs, None, 0.0,
             );
             scope_a.finish(fs);
 
             let (_, scope_b, _, _) = begin_scroll_area(
                 Rect::new(300.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut b, ManualLayout, &input, fs, None, 0.0,
+                &mut b, &input, fs, None, 0.0,
             );
             scope_b.finish(fs);
         });
@@ -821,7 +814,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, fs, None, 0.0,
+                &mut state, &input, fs, None, 0.0,
             );
             scope.finish(fs);
         });
@@ -843,7 +836,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 250.0), // content shrunk: max_scroll.y = 50
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -868,7 +861,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, cb, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut state, &input, &mut focus_sys, None, 0.0,
             );
             // content_bounds origin must follow bounds origin.
             assert_eq!(cb.x, 100.0);
@@ -889,7 +882,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state2, ManualLayout, &input, &mut focus_sys2, None, 0.0,
+                &mut state2, &input, &mut focus_sys2, None, 0.0,
             );
             scope.finish(&mut focus_sys2);
             focus_sys2.end_frame();
@@ -914,7 +907,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, fs, None, 0.0,
+                &mut state, &input, fs, None, 0.0,
             );
             scope.finish(fs);
         });
@@ -941,7 +934,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, _, _) = begin_scroll_area(
                 bounds, Vec2::new(200.0, 400.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut state, ManualLayout, &input, fs, Some(clip), 0.0,
+                &mut state, &input, fs, Some(clip), 0.0,
             );
             scope.finish(fs);
         });
@@ -991,7 +984,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, content_bounds, _) = begin_scroll_area(
                 scroll_bounds, content_size,
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut scroll_state, &input, &mut focus_sys, None, 0.0,
             );
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
@@ -1086,7 +1079,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let (_, scope, content_bounds, _) = begin_scroll_area(
                 scroll_bounds, content_size,
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut scroll_state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+                &mut scroll_state, &input, &mut focus_sys, None, 0.0,
             );
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
@@ -1144,7 +1137,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 1000.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1157,7 +1150,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 1000.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1170,7 +1163,7 @@ focus_sys.take_focus(btn_state.focus_id);
         let (_, scope, _, _) = begin_scroll_area(
             bounds, Vec2::new(200.0, 1000.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut state, ManualLayout, &input, &mut focus_sys, None, 0.0,
+            &mut state, &input, &mut focus_sys, None, 0.0,
         );
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1208,12 +1201,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1242,12 +1235,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0), 
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1276,12 +1269,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1310,12 +1303,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0), 
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1348,12 +1341,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0), // max scroll = 100
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -1390,12 +1383,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(300.0, 200.0), 
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -1424,7 +1417,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0), 
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1441,12 +1434,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1468,7 +1461,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(300.0, 200.0), 
             ScrollbarVisibility::Always, ScrollbarVisibility::None,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1485,12 +1478,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0), 
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(300.0, 200.0), 
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1533,12 +1526,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1577,12 +1570,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 400.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1615,12 +1608,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -1650,7 +1643,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1667,12 +1660,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 200.0), Vec2::new(200.0, 300.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -1729,17 +1722,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -1779,17 +1772,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -1828,17 +1821,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -1875,7 +1868,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
             ScrollbarVisibility::None, ScrollbarVisibility::Always,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -1893,17 +1886,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 300.0), Vec2::new(800.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 288.0), Vec2::new(200.0, 600.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -1963,17 +1956,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -2012,17 +2005,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -2060,17 +2053,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -2105,7 +2098,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
             ScrollbarVisibility::Always, ScrollbarVisibility::None,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -2123,17 +2116,17 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 400.0), Vec2::new(800.0, 400.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, middle_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 388.0), Vec2::new(400.0, 800.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
-                &mut middle_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut middle_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 388.0, 200.0), Vec2::new(800.0, 200.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
@@ -2182,12 +2175,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2222,12 +2215,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2272,12 +2265,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2309,12 +2302,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2345,12 +2338,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2376,7 +2369,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
             ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -2392,12 +2385,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2423,7 +2416,7 @@ mod nested_bubbling_tests {
         let (_, inner_scope, _, _) = begin_scroll_area(
             Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
             ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-            &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+            &mut inner_state, &input, &mut focus_sys, None, 0.0
         );
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
@@ -2439,12 +2432,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
@@ -2477,12 +2470,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
@@ -2520,12 +2513,12 @@ mod nested_bubbling_tests {
             let (_, outer_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 400.0, 300.0), Vec2::new(800.0, 600.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut outer_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut outer_state, &input, &mut focus_sys, None, 0.0
             );
             let (_, inner_scope, _, _) = begin_scroll_area(
                 Rect::new(0.0, 0.0, 200.0, 150.0), Vec2::new(400.0, 300.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
-                &mut inner_state, ManualLayout, &input, &mut focus_sys, None, 0.0
+                &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);

@@ -67,6 +67,39 @@ We decouple the **configuration** of a layout from its **mutable state**. This a
 "pyramid of doom" closure nesting found in many immediate-mode libraries, while maintaining
 pure, linear predictability.
 
+### Why Top-Down (Bounds-First) Layout
+
+Top-down layout — where the parent dictates the bounds children must fit into — is
+philosophically natural for GUI applications for a simple reason: **you almost always know
+the size of your container but not the size of your content.**
+
+A window's dimensions are set by the user or the OS. A panel's width comes from your app's
+layout. But the content inside — user-typed text, a dynamically-loaded list, a network-fetched
+image — is fundamentally unknown until it arrives.
+
+Bottom-up ("auto-size") layout inverts this: children measure themselves and report their
+natural size upward. This is elegant when content drives the layout, but it requires a
+separate measurement pass, makes constraint propagation complex, and forces every widget to
+handle the case where content size is genuinely unknown. Scroll areas handle the
+"content is larger than the view" case cleanly: the content gets its logical bounds, the
+view clips it.
+
+### Layout is a Builder-Level Concept
+
+`Layout` and `LayoutState` are high-level abstractions that live exclusively in the
+`Builder` layer. **Low-level widget functions know nothing about layouts.** They receive
+and return plain geometry: `Rect`, `Vec2` offset, `Option<Rect>` clip. Layout is a
+building aid — it helps place widgets in the right position — but it does not change what a
+widget does or how it draws.
+
+Concretely: `begin_scroll_area` returns `(offset: Vec2, content_bounds: Rect)`. The
+`Builder::scroll_area` method wraps these primitives into `OffsetLayout { offset, inner }`
+and creates a child builder. The window widget similarly returns a `content_bounds: Rect`;
+the builder constructs the layout from it.
+
+This separation means adding a new layout type (e.g. `GridLayout`) requires zero changes to
+any widget function.
+
 We define two traits:
 
 1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`).

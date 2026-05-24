@@ -1234,7 +1234,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::None,
                         ScrollbarVisibility::Always,
                         &mut state.scroll_vert,
-                        ManualLayout,
                         input,
                         b.focus_sys,
                         None,
@@ -1292,7 +1291,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::None,
                         ScrollbarVisibility::Always,
                         &mut state.scroll_horiz,
-                        ManualLayout,
                         input,
                         b.focus_sys,
                         None,
@@ -1336,7 +1334,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::Always,
                         ScrollbarVisibility::None,
                         &mut state.scroll_both,
-                        ManualLayout,
                         input,
                         b.focus_sys,
                         None,
@@ -2251,7 +2248,7 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::None,
                         ScrollbarVisibility::Auto,
                         &mut state.iu_log_scroll,
-                        ManualLayout,
+                        framewise::layout::ManualLayout,
                         input,
                     );
                     let loy = 4.0;

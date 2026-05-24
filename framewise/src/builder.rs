@@ -221,18 +221,18 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         input: &Input,
     ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
         let bounds = self.layout_state.layout(layout_params);
-        let (pre_cmds, scope, content_bounds, offset_layout) = crate::widgets::scroll_area::begin_scroll_area(
+        let (pre_cmds, scope, content_bounds, scroll_offset) = crate::widgets::scroll_area::begin_scroll_area(
             bounds,
             content_size,
             h_vis,
             v_vis,
             state,
-            inner_layout,
             input,
             &mut *self.focus_sys,
             self.ctx.clip_rect,
             self.ctx.time,
         );
+        let offset_layout = crate::layout::OffsetLayout { offset: scroll_offset, inner: inner_layout };
 
         self.append_cmds(pre_cmds);
 
