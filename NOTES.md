@@ -67,12 +67,14 @@ Features to design and implement, roughly in dependency order:
 
 ## Scrolling — Open Questions & Ideas
 
+- Bug! Mouse hover and scroll on the vertical slider at hte bottom of sample app - scrolls horizontally instead!
 - Middle-click hold-and-drag pan; middle-click without holding.
 - Click-and-drag pan (touch / mobile).
 - "Flinging" (momentum scrolling).
 - Consider if arrow keys, home and end should manipulate scroll bars when an inner widget is focused?
   - Clashes with potential use of arrow keys for changing focus navigation
   arrow keys should be used for chaing focus
+
 
 ---
 

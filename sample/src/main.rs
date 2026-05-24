@@ -1,4 +1,5 @@
 mod renderer;
+mod spec_page;
 mod text;
 
 use framewise::{
@@ -18,6 +19,14 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
+
+// ── App page ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum AppPage {
+    ScrollDemo,
+    WidgetSpec,
+}
 
 // ── App state ─────────────────────────────────────────────────────────────────
 
@@ -85,6 +94,10 @@ struct App {
     double_horiz_btns: [SampleButton; 20],
     right_panel_scroll: framewise::widgets::scroll_area::ScrollState,
 
+    // Page selection.
+    active_page: AppPage,
+    spec_scroll_y: f32,
+
     // Nested 2D: outer[2D] > inner[2D]
     nested_2d_outer_scroll: framewise::widgets::scroll_area::ScrollState,
     nested_2d_inner_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -147,6 +160,8 @@ impl App {
             modifiers:       winit::keyboard::ModifiersState::default(),
             input:           Input::new(),
             clipboard:       arboard::Clipboard::new().ok(),
+            active_page:     AppPage::ScrollDemo,
+            spec_scroll_y:   0.0,
             sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
             main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
             nested_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
@@ -178,6 +193,13 @@ impl App {
     }
 
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+        if self.active_page == AppPage::WidgetSpec {
+            let win_size = self.gpu.as_ref()
+                .map(|g| (g.size.width as f32, g.size.height as f32))
+                .unwrap_or((1600.0, 1200.0));
+            return spec_page::draw_spec_page(text_system, win_size.0, win_size.1, self.spec_scroll_y);
+        }
+
         self.focus_sys.begin_frame();
         let ctx = BuilderCtx {
             text_color: Color::rgb(1.0, 1.0, 1.0),
@@ -913,13 +935,21 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
-                match delta {
+                let delta_y = match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
                         self.input.scroll_delta = Vec2::new(x, y);
+                        y
                     }
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        self.input.scroll_delta = Vec2::new(pos.x as f32 / 20.0, pos.y as f32 / 20.0);
+                        let dy = pos.y as f32 / 20.0;
+                        self.input.scroll_delta = Vec2::new(pos.x as f32 / 20.0, dy);
+                        dy
                     }
+                };
+                // Scroll the spec page directly when on that page.
+                if self.active_page == AppPage::WidgetSpec {
+                    self.spec_scroll_y = (self.spec_scroll_y - delta_y * 40.0)
+                        .clamp(0.0, spec_page::CONTENT_HEIGHT);
                 }
             }
 
@@ -950,6 +980,16 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
+                // F2 toggles between scroll-demo and widget-spec pages.
+                if event.state == ElementState::Pressed {
+                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) = event.physical_key {
+                        self.active_page = match self.active_page {
+                            AppPage::ScrollDemo  => AppPage::WidgetSpec,
+                            AppPage::WidgetSpec  => AppPage::ScrollDemo,
+                        };
+                    }
+                }
+
                 match event.physical_key {
                     winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
                         if event.state == ElementState::Pressed {
