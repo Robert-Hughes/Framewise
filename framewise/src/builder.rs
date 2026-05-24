@@ -63,12 +63,13 @@ pub struct Builder<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     pub focus_sys:   &'a mut crate::focus::FocusSystem,
     pub layout_state: S,
     pub scroll_scope: Option<crate::widgets::scroll_area::ScrollAreaScope>,
+    pub window_scope: Option<crate::widgets::window::WindowScope>,
 }
 
 impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, T, S> {
     /// Create a new top-level builder with the given context.
     pub fn new(ctx: BuilderCtx, text_system: &'a mut T, focus_sys: &'a mut crate::focus::FocusSystem, layout_state: S) -> Self {
-        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, scroll_scope: None }
+        Self { ctx, cmds: Vec::new(), text_system, focus_sys, layout_state, scroll_scope: None, window_scope: None }
     }
 
     /// Extract a child builder's draw commands into this builder.
@@ -107,6 +108,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             focus_sys: &mut *self.focus_sys,
             layout_state: new_state,
             scroll_scope: None,
+            window_scope: None,
         }
     }
 
@@ -159,11 +161,53 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             let post_cmds = scope.finish(self.focus_sys);
             self.cmds.extend(post_cmds);
         }
+        if let Some(scope) = self.window_scope.take() {
+            let post_cmds = scope.finish();
+            self.cmds.extend(post_cmds);
+        }
 
         self.cmds
     }
 
     // ── Convenience widget methods ─────────────────────────────────────────
+
+    pub fn window<'b, L: crate::layout::Layout>(
+        &mut self,
+        layout_params: S::Params,
+        widget_spec_builder: crate::widgets::WindowSpecBuilder<'b, T>,
+        inner_layout: L,
+    ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
+        let rect = self.layout_state.layout(layout_params);
+        let widget_spec = widget_spec_builder
+            .with_rect(rect)
+            .with_text_system(self.text_system)
+            .build();
+            
+        let mut result = crate::widgets::window::window(widget_spec);
+        let content_bounds = result.layout.content_bounds;
+        result.draw.push(DrawCmd::PushClip { rect: content_bounds });
+        
+        let (draw, _) = result.into_parts();
+        self.cmds.extend(draw.0);
+
+        let offset_layout = crate::layout::OffsetLayout {
+            offset: Vec2::ZERO,
+            inner: inner_layout,
+        };
+
+        let parent_clip = self.ctx.clip_rect;
+        let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
+        child.window_scope = Some(crate::widgets::window::WindowScope { is_finished: false });
+
+        let new_clip = if let Some(pc) = parent_clip {
+            pc.intersect(&content_bounds)
+        } else {
+            content_bounds
+        };
+        child.ctx.clip_rect = Some(new_clip);
+
+        child
+    }
 
     /// Creates a scroll area child builder.
     pub fn scroll_area<L: crate::layout::Layout>(

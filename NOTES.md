@@ -38,6 +38,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
 
+* Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
+
 - **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
 
 ---

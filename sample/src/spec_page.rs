@@ -32,7 +32,7 @@ use framewise::{
         text_edit::TextEditState,
         tooltip::{tooltip, TooltipVariant},
         tree::{tree, TreeRow},
-        window::{window, WindowButton},
+        window::WindowButton,
         CheckboxSpecBuilder, ProgressBarSpecBuilder, RadioSpecBuilder, SpinnerSpecBuilder,
         SwitchSpecBuilder,
         frame::FrameSpec,
@@ -1736,25 +1736,25 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let win_rect = Rect::new(lx, y, 360.0, 280.0);
-                let win_info = b.add(
+                let mut win = b.window(
                     win_rect,
-                    window,
                     framewise::widgets::WindowSpecBuilder::new()
                         .title("Inspector")
                         .buttons(&win_buttons)
                         .status_bar(true)
                         .status_text("rendering  frame #00248  2.4 ms"),
+                    ManualLayout,
                 );
-                let cr = win_info.layout.content_bounds;
 
                 // Inner content: drag numbers + checkboxes
-                let mut iy = cr.y;
+                let mut iy = 0.0;
                 let drag_items: &[(&str, f32, f32, f32)] =
                     &[("X", 320.0, 0.0, 800.0), ("Y", 144.0, 0.0, 600.0)];
-                let mut drx = cr.x;
+                let mut drx = 0.0;
+                let cr_w = win_rect.w - 32.0;
                 for (label, val, min, max) in drag_items {
-                    b.add(
-                        Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
+                    win.add(
+                        Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
                         drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
                             .label(label)
@@ -1763,15 +1763,15 @@ pub fn draw_spec_page(
                             .max(*max)
                             .active(false),
                     );
-                    drx += (cr.w / 2.0) + 4.0;
+                    drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
-                drx = cr.x;
+                drx = 0.0;
                 let drag_items2: &[(&str, f32, f32, f32)] =
                     &[("W", 576.0, 0.0, 800.0), ("H", 400.0, 0.0, 600.0)];
                 for (label, val, min, max) in drag_items2 {
-                    b.add(
-                        Rect::new(drx, iy, (cr.w / 2.0) - 4.0, t.h_md),
+                    win.add(
+                        Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
                         drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
                             .label(label)
@@ -1780,24 +1780,24 @@ pub fn draw_spec_page(
                             .max(*max)
                             .active(false),
                     );
-                    drx += (cr.w / 2.0) + 4.0;
+                    drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 10.0;
-                b.divider(Rect::new(cr.x, iy, cr.w, 1.0));
+                win.divider(Rect::new(0.0, iy, cr_w, 1.0));
                 iy += 10.0;
                 let check_items: &[(CheckState, &str)] = &[
                     (CheckState::On, "clip to parent"),
                     (CheckState::Off, "debug overlay"),
                 ];
                 for (cs, label) in check_items {
-                    b.add(
-                        Rect::new(cr.x, iy, 14.0, 14.0),
+                    win.add(
+                        Rect::new(0.0, iy, 14.0, 14.0),
                         checkbox,
                         CheckboxSpecBuilder::new(*cs),
                     );
 
-                    b.label_styled(
-                        Rect::new(cr.x + 18.0, iy, cr.w - 18.0, 14.0),
+                    win.label_styled(
+                        Rect::new(18.0, iy, cr_w - 18.0, 14.0),
                         label,
                         t.text_md,
                         t.ink,
@@ -1805,6 +1805,8 @@ pub fn draw_spec_page(
                     );
                     iy += 22.0;
                 }
+                let cmds = win.finish();
+                b.append_cmds(cmds);
 
                 // Dark variant window (drawn with DrawCmds)
                 let dw = Rect::new(lx + 388.0, y, 300.0, 240.0);
@@ -1966,21 +1968,21 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let wr = Rect::new(lx, y, win_w_left, win_h_full);
-                let win_res = b.add(
+                let mut win = b.window(
                     wr,
-                    window,
                     framewise::widgets::WindowSpecBuilder::new()
                         .title("Renderer Settings")
                         .buttons(&win_buttons)
                         .status_bar(true)
                         .status_text("rendering  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa"),
+                    ManualLayout,
                 );
-                let cr = win_res.layout.content_bounds;
+                let cr_w = win_w_left - 32.0;
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                b.add(
-                    Rect::new(cr.x, cr.y, cr.w, 28.0),
+                win.add(
+                    Rect::new(0.0, 0.0, cr_w, 28.0),
                     tabs,
                     framewise::widgets::TabsSpecBuilder::new()
                         .items(&tabs_items)
@@ -1989,24 +1991,24 @@ pub fn draw_spec_page(
                 );
 
                 // Form rows
-                let form_y_start = cr.y + 38.0;
+                let form_y_start = 38.0;
                 let label_w = 84.0_f32;
-                let widget_x = cr.x + label_w + 8.0;
-                let widget_w = cr.w - label_w - 8.0;
+                let widget_x = label_w + 8.0;
+                let widget_w = cr_w - label_w - 8.0;
                 let row_h = 28.0_f32;
                 let row_gap = 8.0_f32;
                 let mut fy = form_y_start;
 
                 // backend (segmented)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "backend",
                     t.text_sm,
                     t.muted,
                     false,
                 );
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                b.add(
+                win.add(
                     Rect::new(widget_x, fy, 0.0, row_h),
                     segmented,
                     framewise::widgets::SegmentedSpecBuilder::new()
@@ -2017,14 +2019,14 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // target fps (slider)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "target fps",
                     t.text_sm,
                     t.muted,
                     false,
                 );
-                b.slider(
+                win.slider(
                     &mut state.iu_fps_slider,
                     &mut state.iu_fps_val,
                     24.0,
@@ -2034,7 +2036,7 @@ pub fn draw_spec_page(
                     Rect::new(widget_x, fy, widget_w - 40.0, row_h),
                     input,
                 );
-                b.label_styled(
+                win.label_styled(
                     Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0),
                     &format!("{:.0}", state.iu_fps_val),
                     t.text_sm,
@@ -2044,14 +2046,14 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // vsync (switch)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "vsync",
                     t.text_sm,
                     t.muted,
                     false,
                 );
-                b.add(
+                win.add(
                     Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
                     switch,
                     SwitchSpecBuilder::new()
@@ -2059,7 +2061,7 @@ pub fn draw_spec_page(
                         .focused(false)
                         .disabled(false),
                 );
-                b.label_styled(
+                win.label_styled(
                     Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0),
                     "match display",
                     t.text_sm,
@@ -2069,15 +2071,15 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // msaa (segmented)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "msaa",
                     t.text_sm,
                     t.muted,
                     false,
                 );
                 let msaa_opts = ["off", "2×", "4×", "8×"];
-                b.add(
+                win.add(
                     Rect::new(widget_x, fy, 0.0, row_h),
                     segmented,
                     framewise::widgets::SegmentedSpecBuilder::new()
@@ -2088,8 +2090,8 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // viewport (drag numbers)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "viewport",
                     t.text_sm,
                     t.muted,
@@ -2098,7 +2100,7 @@ pub fn draw_spec_page(
                 let vp_items: &[(&str, f32)] = &[("W", 1920.0), ("H", 1080.0)];
                 let mut vpx = widget_x;
                 for (label, val) in vp_items {
-                    b.add(
+                    win.add(
                         Rect::new(vpx, fy, (widget_w / 2.0) - 4.0, row_h),
                         drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
@@ -2113,21 +2115,21 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // accent (color swatch + button)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "accent",
                     t.text_sm,
                     t.muted,
                     false,
                 );
-                b.add(
+                win.add(
                     Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
                     color_swatch,
                     framewise::widgets::ColorSwatchSpecBuilder::new()
                         .color(t.rust)
                         .border(t.line),
                 );
-                b.label_styled(
+                win.label_styled(
                     Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0),
                     "#c25a2c",
                     t.text_sm,
@@ -2137,8 +2139,8 @@ pub fn draw_spec_page(
                 fy += row_h + row_gap;
 
                 // options (checkboxes)
-                b.label_styled(
-                    Rect::new(cr.x, fy + 7.0, label_w, 14.0),
+                win.label_styled(
+                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
                     "options",
                     t.text_sm,
                     t.muted,
@@ -2151,13 +2153,13 @@ pub fn draw_spec_page(
                 ];
                 for (i, (cs, label)) in opt_items.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    b.add(
+                    win.add(
                         Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
                         checkbox,
                         CheckboxSpecBuilder::new(*cs),
                     );
 
-                    b.label_styled(
+                    win.label_styled(
                         Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0),
                         label,
                         t.text_md,
@@ -2167,11 +2169,11 @@ pub fn draw_spec_page(
                 }
                 fy += 3.0 * 22.0 + 4.0;
 
-                b.divider(Rect::new(cr.x, fy, cr.w, 1.0));
+                win.divider(Rect::new(0.0, fy, cr_w, 1.0));
                 fy += 10.0;
 
                 // button row
-                let mut btn_x = cr.x + cr.w;
+                let mut btn_x = cr_w;
                 let btns: &[(&str, ButtonStyle)] = &[
                     ("Apply", ButtonStyle::primary()),
                     ("Cancel", ButtonStyle::default()),
@@ -2180,7 +2182,7 @@ pub fn draw_spec_page(
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;
                     btn_x -= bw;
-                    let btn = b.button_styled(
+                    let btn = win.button_styled(
                         std::mem::take(&mut state.iu_btns[i]),
                         Rect::new(btn_x, fy, bw, t.h_md),
                         *label,
@@ -2191,6 +2193,8 @@ pub fn draw_spec_page(
                     state.iu_btns[i] = btn.state;
                     btn_x -= 8.0;
                 }
+                let cmds = win.finish();
+                b.append_cmds(cmds);
 
                 // Right column
                 let rcol_x = lx + win_w_left + 24.0;
@@ -2204,19 +2208,20 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let fl_rect = Rect::new(rcol_x, y, rcol_w, fl_h);
-                let fl_res = b.add(
+                let mut fl_win = b.window(
                     fl_rect,
-                    window,
                     framewise::widgets::WindowSpecBuilder::new()
                         .title("Frame Log")
                         .buttons(&fl_buttons)
                         .status_bar(true)
                         .status_text("recording  248 frames  2.6 ms avg"),
+                    ManualLayout,
                 );
-                let fl_cr = fl_res.layout.content_bounds;
+                let fl_cr_w = rcol_w - 32.0;
+                let fl_cr_h = fl_h - 80.0; // 26 title + 22 status + 32 padding
 
                 // Scroll area for log content
-                let fl_scroll_rect = Rect::new(fl_cr.x, fl_cr.y, fl_cr.w, fl_cr.h);
+                let fl_scroll_rect = Rect::new(0.0, 0.0, fl_cr_w, fl_cr_h);
                 let log_lines: &[(&str, &str, bool)] = &[
                     ("00248 · 2.40ms", "frame begin", false),
                     ("00248 · 2.41ms", "layout(row) · 14 nodes", false),
@@ -2233,7 +2238,7 @@ pub fn draw_spec_page(
                 ];
                 let log_content_h = log_lines.len() as f32 * 18.0 + 8.0;
                 {
-                    let (pre, scope, lcb, _) = begin_scroll_area(
+                    let mut log_page = fl_win.scroll_area(
                         fl_scroll_rect,
                         Vec2::new(fl_scroll_rect.w, log_content_h),
                         ScrollbarVisibility::None,
@@ -2241,49 +2246,47 @@ pub fn draw_spec_page(
                         &mut state.iu_log_scroll,
                         ManualLayout,
                         input,
-                        b.focus_sys,
-                        None,
-                        time,
                     );
-                    b.append_cmds(pre);
-                    let loy = lcb.y - state.iu_log_scroll.offset.y + 4.0;
+                    let loy = 4.0;
                     for (i, (ts_str, msg, highlight)) in log_lines.iter().enumerate() {
                         let row_y = loy + i as f32 * 18.0;
                         let ts_w = 100.0_f32;
-                        b.label_styled(
-                            Rect::new(lcb.x + 6.0, row_y, ts_w, 14.0),
+                        log_page.label_styled(
+                            Rect::new(6.0, row_y, ts_w, 14.0),
                             ts_str,
                             t.text_sm,
                             t.muted,
                             false,
                         );
                         let msg_color = if *highlight { t.rust } else { t.ink };
-                        b.label_styled(
-                            Rect::new(lcb.x + 6.0 + ts_w + 8.0, row_y, lcb.w - ts_w - 14.0, 14.0),
+                        log_page.label_styled(
+                            Rect::new(6.0 + ts_w + 8.0, row_y, fl_scroll_rect.w - ts_w - 14.0, 14.0),
                             msg,
                             t.text_sm,
                             msg_color,
                             false,
                         );
                     }
-                    let post = scope.finish(b.focus_sys);
-                    b.append_cmds(post);
+                    let log_cmds = log_page.finish();
+                    fl_win.append_cmds(log_cmds);
                 }
+                let cmds = fl_win.finish();
+                b.append_cmds(cmds);
 
                 // Quick Actions window
                 let qa_y = y + fl_h + 16.0;
                 let qa_buttons = [WindowButton { symbol: "×" }];
                 let qa_rect = Rect::new(rcol_x, qa_y, rcol_w, 174.0);
-                let qa_res = b.add(
+                let mut qa_win = b.window(
                     qa_rect,
-                    window,
                     framewise::widgets::WindowSpecBuilder::new()
                         .title("Quick actions")
                         .buttons(&qa_buttons)
                         .status_bar(false)
                         .status_text(""),
+                    ManualLayout,
                 );
-                let qa_cr = qa_res.layout.content_bounds;
+                let qa_cr_w = rcol_w - 32.0;
 
                 let qa_items = [
                     MenuItem::Item {
@@ -2312,11 +2315,13 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                b.add(
-                    Rect::new(qa_cr.x, qa_cr.y - 8.0, qa_cr.w, 0.0),
+                qa_win.add(
+                    Rect::new(0.0, -8.0, qa_cr_w, 0.0),
                     menu,
                     framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
                 );
+                let cmds = qa_win.finish();
+                b.append_cmds(cmds);
 
                 y += win_h_full;
             }

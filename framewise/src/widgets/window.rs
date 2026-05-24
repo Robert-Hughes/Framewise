@@ -39,6 +39,25 @@ impl WidgetResult for WindowResult {
     }
 }
 
+pub struct WindowScope {
+    pub is_finished: bool,
+}
+
+impl Drop for WindowScope {
+    fn drop(&mut self) {
+        if !self.is_finished && !std::thread::panicking() {
+            panic!("WindowScope dropped without calling finish()! This leaks clip rects.");
+        }
+    }
+}
+
+impl WindowScope {
+    pub fn finish(mut self) -> Vec<DrawCmd> {
+        self.is_finished = true;
+        vec![DrawCmd::PopClip]
+    }
+}
+
 pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> WindowResult {
     let t = Theme::framewise();
     let mut draw = DrawCommands::new();
