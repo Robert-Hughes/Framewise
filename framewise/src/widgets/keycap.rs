@@ -189,18 +189,30 @@ mod tests {
             font: FontId::MONO,
         };
         let res = keycap(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 4);
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == custom_bg));
-        assert!(
-            matches!(&cmds[1], DrawCmd::StrokeRect { color, width, .. } if *color == custom_border && *width == 1.0)
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 30.0, 30.0),
+                    color: custom_bg,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 30.0, 30.0),
+                    color: custom_border,
+                    width: 1.0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(1.0, 30.0, 29.0, 2.0),
+                    color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(11.0, 7.0, 8.0, 16.0),
+                    color: custom_text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
         );
-        assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == Color::linear_rgba(0.0, 0.0, 0.0, 0.18))
-        ); // shadow
-        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == custom_text));
     }
 }
 

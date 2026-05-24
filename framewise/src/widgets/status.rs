@@ -194,12 +194,21 @@ mod tests {
         };
         let style = spec.style;
         let res = status(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 2);
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.ok));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 6.0, 6.0),
+                    color: style.ok,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(14.0, -5.0, 48.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -215,12 +224,21 @@ mod tests {
         };
         let style = spec.style;
         let res = status(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 2);
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.warn));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 6.0, 6.0),
+                    color: style.warn,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(14.0, -5.0, 56.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 }
 

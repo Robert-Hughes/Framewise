@@ -233,30 +233,40 @@ mod tests {
         };
         let style = spec.style;
         let res = tabs(spec);
-        let cmds = res.draw.0;
 
-        // Commands:
-        // 0: bottom border line
-        // Iter 0 (Active):
-        // 1: text (ink color)
-        // 2: underbar (rust)
-        // 3: left uptick (rust)
-        // 4: right uptick (rust)
-        // Iter 1 (Inactive):
-        // 5: text (muted color)
-        assert_eq!(cmds.len(), 6);
-
-        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // bottom border
-
-        // Item 0
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.text)); // active text
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == style.accent)); // active underbar
-        assert!(matches!(&cmds[3], DrawCmd::FillRect { color, .. } if *color == style.accent)); // left uptick
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.accent)); // right uptick
-
-        // Item 1
-        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == style.inactive_text));
-        // inactive text
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 36.0),
+                    p1: Vec2::new(300.0, 36.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(18.0, 10.0, 32.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 34.5, 68.0, 3.0),
+                    color: style.accent,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 28.5, 3.0, 9.0),
+                    color: style.accent,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(65.0, 28.5, 3.0, 9.0),
+                    color: style.accent,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(86.0, 10.0, 32.0, 16.0),
+                    color: style.inactive_text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -274,33 +284,45 @@ mod tests {
         };
         let style = spec.style;
         let res = tabs(spec);
-        let cmds = res.draw.0;
 
-        // Commands:
-        // 0: bottom border line
-        // Iter 0 (Inactive):
-        // 1: text (muted color)
-        // Iter 1 (Active + Focused):
-        // 2: focus ring (rust stroke)
-        // 3: text (ink color)
-        // 4: underbar (rust)
-        // 5: left uptick (rust)
-        // 6: right uptick (rust)
-        assert_eq!(cmds.len(), 7);
-
-        assert!(matches!(&cmds[0], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // bottom border
-
-        // Item 0
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.inactive_text)); // inactive text
-
-        // Item 1
-        assert!(
-            matches!(&cmds[2], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
-        ); // focus ring
-        assert!(matches!(&cmds[3], DrawCmd::Text { color, .. } if *color == style.text)); // active text
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.accent)); // active underbar
-        assert!(matches!(&cmds[5], DrawCmd::FillRect { color, .. } if *color == style.accent)); // left uptick
-        assert!(matches!(&cmds[6], DrawCmd::FillRect { color, .. } if *color == style.accent)); // right uptick
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 36.0),
+                    p1: Vec2::new(300.0, 36.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(18.0, 10.0, 32.0, 16.0),
+                    color: style.inactive_text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(66.0, -2.0, 72.0, 40.0),
+                    color: style.focus,
+                    width: style.focus_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(86.0, 10.0, 32.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(68.0, 34.5, 68.0, 3.0),
+                    color: style.accent,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(68.0, 28.5, 3.0, 9.0),
+                    color: style.accent,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(133.0, 28.5, 3.0, 9.0),
+                    color: style.accent,
+                },
+            ])
+        );
     }
 }
 

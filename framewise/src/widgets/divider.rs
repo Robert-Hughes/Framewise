@@ -59,11 +59,15 @@ mod tests {
             width: 1.0,
         };
         let res = divider(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 1);
-        assert!(
-            matches!(&cmds[0], DrawCmd::StrokeLine { color, width, .. } if *color == Color::WHITE && *width == 1.0)
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![DrawCmd::StrokeLine {
+                p0: Vec2::new(0.0, 5.0),
+                p1: Vec2::new(100.0, 5.0),
+                color: Color::WHITE,
+                width: 1.0,
+            }])
         );
     }
 }

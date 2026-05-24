@@ -176,19 +176,19 @@ mod tests {
         };
         let style = spec.style;
         let res = progress_bar(spec);
-        let cmds = res.draw.0;
 
-        // 1. Track background
-        // 2. Fill
-        assert_eq!(cmds.len(), 2);
-
-        let _track_y = 10.0 + (10.0 - style.track_height) * 0.5; // 13.5
-
-        assert!(
-            matches!(&cmds[0], DrawCmd::FillRect { color, rect } if *color == style.track_color && rect == &Rect::new(10.0, 13.5, 100.0, 3.0))
-        );
-        assert!(
-            matches!(&cmds[1], DrawCmd::FillRect { color, rect } if *color == style.fill_color && rect == &Rect::new(10.0, 13.5, 50.0, 3.0))
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                    color: style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 13.5, 50.0, 3.0),
+                    color: style.fill_color,
+                },
+            ])
         );
     }
 
@@ -203,11 +203,20 @@ mod tests {
         };
         let style = spec.style;
         let res = progress_bar(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 2);
-
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == style.active_fill_color));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                    color: style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 13.5, 50.0, 3.0),
+                    color: style.active_fill_color,
+                },
+            ])
+        );
     }
 
     #[test]
@@ -221,29 +230,20 @@ mod tests {
         };
         let style = spec.style;
         let res = progress_bar(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 2);
-
-        // Indeterminate fill width is 30% of 100.0 = 30.0
-        // Starts at phase * 100.0 = 50.0. So rect x = 60.0, w = 30.0.
-        // Wait, start = 0.5 * 100 = 50.0. x = track.x + start = 10.0 + 50.0 = 60.0.
-        // visible_w = 30.min(10 + 100 - 60).max(0) = 30.min(50).max(0) = 30.0.
-        if let DrawCmd::FillRect { color, rect } = cmds[1] {
-            assert_eq!(color, style.fill_color);
-            assert!(
-                (rect.x - 60.0).abs() < 0.01,
-                "Expected x around 60.0, got {}",
-                rect.x
-            );
-            assert!(
-                (rect.w - 30.0).abs() < 0.01,
-                "Expected w around 30.0, got {}",
-                rect.w
-            );
-        } else {
-            panic!("Expected FillRect");
-        }
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                    color: style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(60.0, 13.5, 30.000002, 3.0),
+                    color: style.fill_color,
+                },
+            ])
+        );
     }
 
 }

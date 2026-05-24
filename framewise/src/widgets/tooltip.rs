@@ -209,17 +209,32 @@ mod tests {
         };
         let style = spec.style;
         let res = tooltip(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 4); // bg fill, text, 2 arrow lines
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.dark_bg));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.dark_text));
-        assert!(
-            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == style.dark_bg && *width == style.arrow_width)
-        );
-        assert!(
-            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == style.dark_bg && *width == style.arrow_width)
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 27.0),
+                    color: style.dark_bg,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(8.0, 5.0, 56.0, 16.0),
+                    color: style.dark_text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(14.0, 27.0),
+                    p1: Vec2::new(18.0, 31.0),
+                    color: style.dark_bg,
+                    width: style.arrow_width,
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(22.0, 27.0),
+                    p1: Vec2::new(18.0, 31.0),
+                    color: style.dark_bg,
+                    width: style.arrow_width,
+                },
+            ])
         );
     }
 
@@ -236,17 +251,32 @@ mod tests {
         };
         let style = spec.style;
         let res = tooltip(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 4);
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.rust_bg));
-        assert!(matches!(&cmds[1], DrawCmd::Text { color, .. } if *color == style.rust_text));
-        assert!(
-            matches!(&cmds[2], DrawCmd::StrokeLine { color, width, .. } if *color == style.rust_bg && *width == style.arrow_width)
-        );
-        assert!(
-            matches!(&cmds[3], DrawCmd::StrokeLine { color, width, .. } if *color == style.rust_bg && *width == style.arrow_width)
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 27.0),
+                    color: style.rust_bg,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(8.0, 5.0, 56.0, 16.0),
+                    color: style.rust_text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(14.0, 27.0),
+                    p1: Vec2::new(18.0, 31.0),
+                    color: style.rust_bg,
+                    width: style.arrow_width,
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(22.0, 27.0),
+                    p1: Vec2::new(18.0, 31.0),
+                    color: style.rust_bg,
+                    width: style.arrow_width,
+                },
+            ])
         );
     }
 }

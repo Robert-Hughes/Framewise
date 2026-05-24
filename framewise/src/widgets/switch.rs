@@ -198,27 +198,26 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = switch(spec);
-        let cmds = res.draw.0;
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
-            cmds.len(),
-            3,
-            "Off should draw track fill, track border, and thumb dot"
-        );
-
-        let track_fill = cmds[0].clone();
-        let track_border = cmds[1].clone();
-        let thumb_dot = cmds[2].clone();
-
-        assert!(
-            matches!(track_fill, DrawCmd::FillRect { rect, .. } if rect == Rect::new(10.0, 10.0, 30.0, 16.0))
-        );
-        assert!(
-            matches!(track_border, DrawCmd::StrokeRect { rect, .. } if rect == Rect::new(10.0, 10.0, 30.0, 16.0))
-        );
-        // Left positioned thumb dot
-        assert!(
-            matches!(thumb_dot, DrawCmd::FillRect { rect, .. } if rect == Rect::new(11.5, 13.0, 10.0, 10.0))
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.off_fill,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    color: s.off_thumb,
+                },
+            ])
         );
     }
 
@@ -231,14 +230,26 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = switch(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3);
-
-        let thumb_dot = cmds[2].clone();
-        // Right positioned thumb dot: x + w - 10 - 1.5 => 10 + 30 - 10 - 1.5 = 28.5
-        assert!(
-            matches!(thumb_dot, DrawCmd::FillRect { rect, .. } if rect == Rect::new(28.5, 13.0, 10.0, 10.0))
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.on_fill,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(28.5, 13.0, 10.0, 10.0),
+                    color: s.on_thumb,
+                },
+            ])
         );
     }
 
@@ -251,10 +262,32 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = switch(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 4, "Focused adds a focus ring");
-        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { width, .. } if *width == 2.0));
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeRect {
+                    rect: r.inset(-s.focus_offset),
+                    color: s.focus,
+                    width: s.focus_width,
+                },
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.off_fill,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    color: s.off_thumb,
+                },
+            ])
+        );
     }
 
     #[test]
@@ -266,16 +299,28 @@ mod tests {
             disabled: true,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = switch(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3);
-        if let DrawCmd::FillRect { color, .. } = cmds[0] {
-            assert!(
-                color.a < 1.0,
-                "Disabled should be drawn with a tinted alpha"
-            );
-        } else {
-            panic!("Expected FillRect");
-        }
+        let alpha = s.disabled_alpha;
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: tint(s.off_fill),
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: tint(s.border),
+                    width: s.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    color: tint(s.off_thumb),
+                },
+            ])
+        );
     }
 }

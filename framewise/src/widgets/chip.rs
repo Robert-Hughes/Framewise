@@ -207,12 +207,26 @@ mod tests {
         };
         let style = spec.style;
         let res = chip(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 3); // bg, border, text
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.background));
-        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == style.border));
-        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == style.text));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                    color: style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(8.0, 3.0, 24.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -229,11 +243,26 @@ mod tests {
         };
         let style = spec.style;
         let res = chip(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 3);
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // active bg
-        assert!(matches!(&cmds[2], DrawCmd::Text { color, .. } if *color == style.active_text));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                    color: style.active_bg,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(8.0, 3.0, 24.0, 16.0),
+                    color: style.active_text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -250,13 +279,33 @@ mod tests {
         };
         let style = spec.style;
         let res = chip(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 4); // focus ring + 3 normal cmds
-        assert!(
-            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
+        let r = Rect::new(0.0, 0.0, 50.0, 22.0);
+        let expected_focus_rect = r.inset(-style.focus_offset);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeRect {
+                    rect: expected_focus_rect,
+                    color: style.focus,
+                    width: style.focus_width,
+                },
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(8.0, 3.0, 24.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
         );
-        assert!(matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == style.background));
     }
 }
 

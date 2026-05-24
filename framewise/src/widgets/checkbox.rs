@@ -214,13 +214,22 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = checkbox(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 2, "Off state should just draw fill and border");
-        assert!(
-            matches!(&cmds[0], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(10.0, 10.0, 14.0, 14.0))
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                    color: s.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                    color: s.border,
+                    width: s.border_width,
+                },
+            ])
         );
-        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { .. }));
     }
 
     #[test]
@@ -232,15 +241,38 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = checkbox(spec);
-        let cmds = res.draw.0;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
+        let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
+        let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
         assert_eq!(
-            cmds.len(),
-            4,
-            "On state should draw fill, border, and two checkmark lines"
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_fill,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: s.mark,
+                    width: s.mark_width,
+                },
+                DrawCmd::StrokeLine {
+                    p0: p1,
+                    p1: p2,
+                    color: s.mark,
+                    width: s.mark_width,
+                },
+            ])
         );
-        assert!(matches!(&cmds[2], DrawCmd::StrokeLine { .. }));
-        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { .. }));
     }
 
     #[test]
@@ -252,15 +284,26 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = checkbox(spec);
-        let cmds = res.draw.0;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         assert_eq!(
-            cmds.len(),
-            3,
-            "Indeterminate state should draw fill, border, and a dash"
-        );
-        assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { rect, .. } if *rect == Rect::new(12.0, 16.0, 10.0, 2.0))
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_fill,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: s.mark,
+                },
+            ])
         );
     }
 
@@ -273,10 +316,28 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = checkbox(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3, "Focused state adds a focus ring");
-        assert!(matches!(&cmds[0], DrawCmd::StrokeRect { width, .. } if *width == 2.0));
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeRect {
+                    rect: r.inset(-s.focus_offset),
+                    color: s.focus,
+                    width: s.focus_width,
+                },
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                },
+            ])
+        );
     }
 
     #[test]
@@ -288,16 +349,24 @@ mod tests {
             disabled: true,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = checkbox(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 2);
-        if let DrawCmd::FillRect { color, .. } = cmds[0] {
-            assert!(
-                color.a < 1.0,
-                "Disabled should be drawn with a tinted alpha"
-            );
-        } else {
-            panic!("Expected FillRect");
-        }
+        let alpha = s.disabled_alpha;
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: tint(s.background),
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: tint(s.border),
+                    width: s.border_width,
+                },
+            ])
+        );
     }
 }

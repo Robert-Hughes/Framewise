@@ -142,20 +142,19 @@ mod tests {
             bars: 10,
         };
         let res = meter(spec);
-        let cmds = res.draw.0;
-
-        assert_eq!(cmds.len(), 10);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
-        // Lit bars: value 0.5 * 10 = 5. First 5 should be ink.
-        for i in 0..5 {
-            assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == ink));
+        let mut expected = Vec::new();
+        for i in 0..10 {
+            let color = if i < 5 { ink } else { unlit };
+            expected.push(DrawCmd::FillRect {
+                rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
+                color,
+            });
         }
-        // Unlit bars
-        for i in 5..10 {
-            assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == unlit));
-        }
+
+        assert_eq!(res.draw, DrawCommands(expected));
     }
 
     #[test]
@@ -167,21 +166,25 @@ mod tests {
             bars: 10,
         };
         let res = meter(spec);
-        let cmds = res.draw.0;
-
-        assert_eq!(cmds.len(), 10);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
+        let mut expected = Vec::new();
         for i in 0..10 {
-            if i == 7 {
-                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == rust));
+            let color = if i == 7 {
+                rust
             } else if i < 5 {
-                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == ink));
+                ink
             } else {
-                assert!(matches!(&cmds[i], DrawCmd::FillRect { color, .. } if *color == unlit));
-            }
+                unlit
+            };
+            expected.push(DrawCmd::FillRect {
+                rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
+                color,
+            });
         }
+
+        assert_eq!(res.draw, DrawCommands(expected));
     }
 }

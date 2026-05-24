@@ -6,7 +6,7 @@ use crate::types::{Color, Rect, Vec2};
 /// Draw commands are backend-agnostic. The renderer in the application crate
 /// is responsible for turning them into GPU calls. Commands must be executed
 /// in order; later commands appear visually above earlier ones.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DrawCmd {
     /// Fill a rectangle with a solid colour.
     FillRect { rect: Rect, color: Color },
@@ -40,7 +40,7 @@ pub enum DrawCmd {
 /// Widgets build a `DrawCommands` value and return it as part of their result.
 /// The `Builder` accumulates all commands into a single flat `Vec<DrawCmd>` for
 /// the renderer.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct DrawCommands(pub Vec<DrawCmd>);
 
 impl DrawCommands {

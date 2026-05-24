@@ -189,15 +189,25 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = radio(spec);
-        let cmds = res.draw.0;
+        let center = Vec2::new(17.0, 17.0);
         assert_eq!(
-            cmds.len(),
-            2,
-            "Unselected should draw background fill and outer ring"
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border,
+                    width: s.border_width,
+                },
+            ])
         );
-        assert!(matches!(&cmds[0], DrawCmd::FillCircle { radius, .. } if *radius == 7.0));
-        assert!(matches!(&cmds[1], DrawCmd::StrokeCircle { radius, .. } if *radius == 7.0));
     }
 
     #[test]
@@ -209,14 +219,30 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = radio(spec);
-        let cmds = res.draw.0;
+        let center = Vec2::new(17.0, 17.0);
         assert_eq!(
-            cmds.len(),
-            3,
-            "Selected should draw fill, outer ring, and inner dot"
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border,
+                    width: s.border_width,
+                },
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.dot_radius,
+                    color: s.dot,
+                },
+            ])
         );
-        assert!(matches!(&cmds[2], DrawCmd::FillCircle { radius, .. } if *radius == 3.0));
     }
 
     #[test]
@@ -228,11 +254,30 @@ mod tests {
             disabled: false,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = radio(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 3, "Focused adds an outer stroke circle");
-        assert!(
-            matches!(&cmds[0], DrawCmd::StrokeCircle { radius, width, .. } if *radius == 9.0 && *width == 2.0)
+        let center = Vec2::new(17.0, 17.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius + s.focus_offset,
+                    color: s.focus,
+                    width: s.focus_width,
+                },
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border,
+                    width: s.border_width,
+                },
+            ])
         );
     }
 
@@ -245,16 +290,26 @@ mod tests {
             disabled: true,
             style: Default::default(),
         };
+        let s = spec.style;
         let res = radio(spec);
-        let cmds = res.draw.0;
-        assert_eq!(cmds.len(), 2);
-        if let DrawCmd::FillCircle { color, .. } = cmds[0] {
-            assert!(
-                color.a < 1.0,
-                "Disabled should be drawn with a tinted alpha"
-            );
-        } else {
-            panic!("Expected FillCircle");
-        }
+        let alpha = s.disabled_alpha;
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+        let center = Vec2::new(17.0, 17.0);
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: tint(s.background),
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: tint(s.border),
+                    width: s.border_width,
+                },
+            ])
+        );
     }
 }

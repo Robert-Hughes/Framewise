@@ -1081,14 +1081,25 @@ mod tests {
         let input = Input::default();
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
-        let cmds = res.draw;
-        // 1. bg fill
-        // 2. border stroke
-        // 3. text
-        assert_eq!(cmds.0.len(), 3);
-        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == spec().style.background));
-        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == spec().style.border));
-        assert!(matches!(&cmds.0[2], DrawCmd::Text { .. }));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.border,
+                    width: spec().style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -1103,19 +1114,31 @@ mod tests {
         state.was_focused = true; // ensure state knows
 
         let input = Input::default();
-        // Time = 0.0, so time_since_move = 0.0 < 0.5 (blink on)
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
-        let cmds = res.draw;
-        // 1. bg fill
-        // 2. border stroke (focus_border)
-        // 3. text
-        // 4. caret
-        assert_eq!(cmds.0.len(), 4);
-        assert!(matches!(&cmds.0[0], DrawCmd::FillRect { color, .. } if *color == spec().style.background));
-        assert!(matches!(&cmds.0[1], DrawCmd::StrokeRect { color, .. } if *color == spec().style.focus_border));
-        assert!(matches!(&cmds.0[3], DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
-        // Caret
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.focus_border,
+                    width: spec().style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(45.0, 7.0, 1.0, 16.0),
+                    color: spec().style.caret_color,
+                },
+            ])
+        );
     }
 
     #[test]
@@ -1134,14 +1157,29 @@ mod tests {
         let input = Input::default();
         let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
-        let cmds = res.draw;
-        // 1. bg
-        // 2. border
-        // 3. selection fill
-        // 4. text
-        assert_eq!(cmds.0.len(), 4);
-        assert!(matches!(&cmds.0[2], DrawCmd::FillRect { color, .. } if *color == spec().style.select_color)); // Selection
-        assert!(matches!(&cmds.0[3], DrawCmd::Text { .. }));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: spec().style.focus_border,
+                    width: spec().style.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(5.0, 5.0, 40.0, 20.0),
+                    color: spec().style.select_color,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -1155,15 +1193,29 @@ mod tests {
         let input = Input::default();
         let res = text_edit(state, sp, &input, 0.0, &mut text_sys, &mut focus_sys);
 
-        let cmds = res.draw;
-        // 1. bg
-        // 2. error stripe
-        // 3. border (error color)
-        // 4. text
-        assert_eq!(cmds.0.len(), 4);
-        assert!(matches!(&cmds.0[1], DrawCmd::FillRect { .. })); // Stripe (hardcoded color in logic)
-                                                                 // Error border is hardcoded rust in logic: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0)
-        assert!(matches!(&cmds.0[2], DrawCmd::StrokeRect { .. }));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0),
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 4.0, 30.0),
+                    color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                    color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+                    width: spec().style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(9.0, 7.0, 186.0, 20.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 }
 

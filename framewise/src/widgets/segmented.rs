@@ -243,30 +243,41 @@ mod tests {
         };
         let style = spec.style;
         let res = segmented(spec);
-        let cmds = res.draw.0;
 
-        // Commands:
-        // 0: outer bg
-        // 1: outer border
-        // Iter 0:
-        // 2: active bg
-        // 3: divider
-        // 4: text (paper color)
-        // Iter 1:
-        // 5: text (ink color)
-        assert_eq!(cmds.len(), 6);
-
-        assert!(matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == style.background));
-        assert!(matches!(&cmds[1], DrawCmd::StrokeRect { color, .. } if *color == style.border));
-
-        // Item 0
-        assert!(matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // Active
-        assert!(matches!(&cmds[3], DrawCmd::StrokeLine { color, .. } if *color == style.border)); // Divider
-        assert!(matches!(&cmds[4], DrawCmd::Text { color, .. } if *color == style.active_text)); // Active text
-
-        // Item 1
-        assert!(matches!(&cmds[5], DrawCmd::Text { color, .. } if *color == style.text));
-        // Inactive text
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 28.0),
+                    color: style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 28.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 36.0, 28.0),
+                    color: style.active_bg,
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(36.0, 0.0),
+                    p1: Vec2::new(36.0, 28.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(14.0, 6.0, 8.0, 16.0),
+                    color: style.active_text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(50.0, 6.0, 8.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
     #[test]
@@ -284,27 +295,46 @@ mod tests {
         };
         let style = spec.style;
         let res = segmented(spec);
-        let cmds = res.draw.0;
 
-        // Commands:
-        // 0: outer bg
-        // 1: outer border
-        // Iter 0:
-        // 2: divider
-        // 3: text (ink color)
-        // Iter 1:
-        // 4: active bg
-        // 5: focus ring
-        // 6: text (paper color)
-        assert_eq!(cmds.len(), 7);
-
-        // Item 1
-        assert!(matches!(&cmds[4], DrawCmd::FillRect { color, .. } if *color == style.active_bg)); // Active
-        assert!(
-            matches!(&cmds[5], DrawCmd::StrokeRect { color, width, .. } if *color == style.focus && *width == style.focus_width)
-        ); // Focus
-        assert!(matches!(&cmds[6], DrawCmd::Text { color, .. } if *color == style.active_text));
-        // Active text
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 28.0),
+                    color: style.background,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(0.0, 0.0, 72.0, 28.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(36.0, 0.0),
+                    p1: Vec2::new(36.0, 28.0),
+                    color: style.border,
+                    width: style.border_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(14.0, 6.0, 8.0, 16.0),
+                    color: style.text,
+                    handle: crate::text::TextHandle(0),
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(36.0, 0.0, 36.0, 28.0),
+                    color: style.active_bg,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(38.0, 2.0, 32.0, 24.0),
+                    color: style.focus,
+                    width: style.focus_width,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(50.0, 6.0, 8.0, 16.0),
+                    color: style.active_text,
+                    handle: crate::text::TextHandle(0),
+                },
+            ])
+        );
     }
 
 }

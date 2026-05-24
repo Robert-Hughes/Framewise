@@ -118,17 +118,19 @@ mod tests {
         assert_eq!(content.h, 40.0);
 
         // Should draw background and border
-        assert_eq!(draw.0.len(), 2);
-        match &draw.0[0] {
-            DrawCmd::FillRect { rect, .. } => assert_eq!(rect.x, 10.0),
-            _ => panic!("Expected FillRect"),
-        }
-        match &draw.0[1] {
-            DrawCmd::StrokeRect { rect, width, .. } => {
-                assert_eq!(rect.x, 10.0);
-                assert_eq!(width, &2.0);
-            }
-            _ => panic!("Expected StrokeRect"),
-        }
+        assert_eq!(
+            draw,
+            DrawCommands(vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 10.0, 100.0, 50.0),
+                    color: Color::WHITE,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(10.0, 10.0, 100.0, 50.0),
+                    color: Color::linear_rgb(0.5, 0.5, 0.5),
+                    width: 2.0,
+                },
+            ])
+        );
     }
 }

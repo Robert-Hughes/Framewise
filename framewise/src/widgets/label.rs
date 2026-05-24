@@ -113,18 +113,14 @@ mod tests {
         let (draw, info) = res.into_parts();
         assert_eq!(info.layout.bounds.w, 100.0);
 
-        assert_eq!(draw.0.len(), 1);
-        match &draw.0[0] {
-            DrawCmd::Text {
-                rect,
-                color: _,
-                handle,
-            } => {
-                assert_eq!(rect.x, 0.0);
-                assert_eq!(handle.0, 0);
-            }
-            _ => panic!("Expected text command"),
-        }
+        assert_eq!(
+            draw,
+            DrawCommands(vec![DrawCmd::Text {
+                rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+                color: Color::WHITE,
+                handle: TextHandle(0),
+            }])
+        );
     }
 
     #[test]
@@ -140,8 +136,22 @@ mod tests {
         };
         let res = label(spec, &mut sys);
         let (draw, _) = res.into_parts();
-        assert_eq!(draw.0.len(), 2);
-        assert!(matches!(draw.0[1], DrawCmd::StrokeLine { .. }));
+        assert_eq!(
+            draw,
+            DrawCommands(vec![
+                DrawCmd::Text {
+                    rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+                    color: Color::WHITE,
+                    handle: TextHandle(0),
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 20.0),
+                    p1: Vec2::new(100.0, 20.0),
+                    color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
+                    width: 1.0,
+                }
+            ])
+        );
     }
 
     #[test]

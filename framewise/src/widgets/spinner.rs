@@ -221,15 +221,26 @@ mod tests {
         };
         let style = spec.style;
         let res = spinner(spec);
-        let cmds = res.draw.0;
 
-        // 8 corner lines + 1 rust highlight line = 9 cmds
-        assert_eq!(cmds.len(), 9);
-
-        for i in 0..8 {
-            assert!(matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == style.color));
-        }
-        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == style.highlight));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                // Top-left
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 5.0), p1: Vec2::new(0.0, 0.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 0.0), p1: Vec2::new(5.0, 0.0), color: style.color, width: style.width },
+                // Top-right
+                DrawCmd::StrokeLine { p0: Vec2::new(11.0, 0.0), p1: Vec2::new(16.0, 0.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 0.0), p1: Vec2::new(16.0, 5.0), color: style.color, width: style.width },
+                // Bottom-right
+                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 11.0), p1: Vec2::new(16.0, 16.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 16.0), p1: Vec2::new(11.0, 16.0), color: style.color, width: style.width },
+                // Bottom-left
+                DrawCmd::StrokeLine { p0: Vec2::new(5.0, 16.0), p1: Vec2::new(0.0, 16.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 16.0), p1: Vec2::new(0.0, 11.0), color: style.color, width: style.width },
+                // Highlight
+                DrawCmd::StrokeLine { p0: Vec2::new(1.6, 0.0), p1: Vec2::new(8.0, 0.0), color: style.highlight, width: style.width },
+            ])
+        );
     }
 
     #[test]
@@ -243,16 +254,26 @@ mod tests {
         };
         let style = spec.style;
         let res = spinner(spec);
-        let cmds = res.draw.0;
 
-        assert_eq!(cmds.len(), 9);
-
-        for i in 0..8 {
-            assert!(
-                matches!(&cmds[i], DrawCmd::StrokeLine { color, .. } if *color == custom_color)
-            );
-        }
-        assert!(matches!(&cmds[8], DrawCmd::StrokeLine { color, .. } if *color == style.highlight));
+        assert_eq!(
+            res.draw,
+            DrawCommands(vec![
+                // Top-left
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 7.0), p1: Vec2::new(0.0, 0.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 0.0), p1: Vec2::new(7.0, 0.0), color: custom_color, width: style.width },
+                // Top-right
+                DrawCmd::StrokeLine { p0: Vec2::new(17.0, 0.0), p1: Vec2::new(24.0, 0.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 0.0), p1: Vec2::new(24.0, 7.0), color: custom_color, width: style.width },
+                // Bottom-right
+                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 17.0), p1: Vec2::new(24.0, 24.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 24.0), p1: Vec2::new(17.0, 24.0), color: custom_color, width: style.width },
+                // Bottom-left
+                DrawCmd::StrokeLine { p0: Vec2::new(7.0, 24.0), p1: Vec2::new(0.0, 24.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 24.0), p1: Vec2::new(0.0, 17.0), color: custom_color, width: style.width },
+                // Highlight
+                DrawCmd::StrokeLine { p0: Vec2::new(2.4, 0.0), p1: Vec2::new(12.0, 0.0), color: style.highlight, width: style.width },
+            ])
+        );
     }
 }
 

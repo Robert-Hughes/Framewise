@@ -1479,20 +1479,28 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        // Standalone slider draws: track (FillRect), fill bar (FillRect), thumb (FillRect), thumb border (StrokeRect)
-        assert_eq!(cmds.len(), 4);
-        assert!(
-            matches!(&cmds[0], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)
-        ); // track
-        assert!(
-            matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.track_color)
-        ); // fill bar (idle)
-        assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_color)
-        ); // thumb fill
-        assert!(
-            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)
-        ); // thumb border
+        assert_eq!(
+            cmds,
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 100.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_color,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_border_color,
+                    width: spec.style.thumb_border_width,
+                },
+            ]
+        );
     }
 
     #[test]
@@ -1503,7 +1511,6 @@ mod tests {
         let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
-        // Hover over the thumb.
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
 
         focus_sys.begin_frame();
@@ -1517,19 +1524,34 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert_eq!(cmds.len(), 4);
-        assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_hover_color)
-        );
-        assert!(
-            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_border_color)
+        assert_eq!(
+            cmds,
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 100.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_hover_color,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_border_color,
+                    width: spec.style.thumb_border_width,
+                },
+            ]
         );
     }
 
     #[test]
     fn test_slider_visual_drag() {
         let mut state = SliderState::default();
-        state.is_dragging = true; // Force drag state
+        state.is_dragging = true;
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
@@ -1547,16 +1569,27 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert_eq!(cmds.len(), 4);
-        // During drag, fill bar and thumb fill/border use the drag color
-        assert!(
-            matches!(&cmds[1], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color)
-        );
-        assert!(
-            matches!(&cmds[2], DrawCmd::FillRect { color, .. } if *color == spec.style.thumb_drag_color)
-        );
-        assert!(
-            matches!(&cmds[3], DrawCmd::StrokeRect { color, .. } if *color == spec.style.thumb_drag_color)
+        assert_eq!(
+            cmds,
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 100.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                    color: spec.style.thumb_drag_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_drag_color,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_drag_color,
+                    width: spec.style.thumb_border_width,
+                },
+            ]
         );
     }
 
@@ -1581,10 +1614,32 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert_eq!(cmds.len(), 5, "Focus ring adds one draw command");
-        // Focus ring is drawn first
-        assert!(
-            matches!(&cmds[0], DrawCmd::StrokeRect { color, width, .. } if *color == spec.style.focus_outline_color && *width == 2.0)
+        assert_eq!(
+            cmds,
+            vec![
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
+                    color: spec.style.focus_outline_color,
+                    width: 2.0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 100.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                    color: spec.style.track_color,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_color,
+                },
+                DrawCmd::StrokeRect {
+                    rect: Rect::new(4.0, 44.0, 12.0, 12.0),
+                    color: spec.style.thumb_border_color,
+                    width: spec.style.thumb_border_width,
+                },
+            ]
         );
     }
 }
