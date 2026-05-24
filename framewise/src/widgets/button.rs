@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     input::Input,
-    text::TextSystem,
     theme::Theme,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetResult},
@@ -167,9 +166,9 @@ impl WidgetResult for ButtonResult {
 /// Hit-testing is performed immediately against `input`. The returned
 /// `ButtonResult` already contains the resolved interaction state.
 pub fn button<T: crate::text::TextSystem>(
-    mut state: ButtonState, 
-    spec: ButtonSpec, 
-    input: &Input, 
+    mut state: ButtonState,
+    spec: ButtonSpec,
+    input: &Input,
     text_system: &mut T,
     focus_sys: &mut crate::focus::FocusSystem,
 ) -> ButtonResult {
@@ -309,7 +308,7 @@ mod tests {
         }
         fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 { 0.0 }
         fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
-    } 
+    }
     fn btn_spec(y: f32) -> ButtonSpec {
         ButtonSpec { rect: Rect::new(0.0, y, 100.0, 30.0), text: "B".into(), style: Default::default(), clip_rect: None, disabled: false }
     }
@@ -390,7 +389,7 @@ mod tests {
     #[test]
     fn test_drag_off_and_release_does_not_click_other_button() {
         let mut text_system = DummyTextSys;
-        
+
         let mut state1 = ButtonState::default();
         let mut state2 = ButtonState::default();
 
@@ -449,7 +448,7 @@ mod tests {
     fn test_click_triggers_clicked_state() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        
+
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
@@ -476,7 +475,7 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_clicked = true;
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
-        
+
         assert!(res.input.clicked, "Button should register as clicked");
     }
 
@@ -485,7 +484,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
-        
+
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
@@ -512,7 +511,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
-        
+
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
@@ -559,7 +558,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
-        
+
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
@@ -582,7 +581,7 @@ mod tests {
         state = res.state;
         assert!(res.input.pressed, "Button should be visually pressed while space is down");
         assert!(!res.input.clicked, "Button should not be clicked yet");
-        
+
         // Frame 3: Space held
         input.key_pressed_space = false;
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
@@ -603,7 +602,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
-        
+
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
@@ -630,7 +629,7 @@ mod tests {
         input.key_pressed_space = false;
         focus_sys.take_focus(FocusId::new()); // Give focus to something else
         focus_sys.end_frame();
-        
+
         let res = button(state, spec(), &input, &mut text_system, &mut focus_sys).into_parts().1;
         state = res.state;
         assert!(!res.input.pressed, "Should lose pressed state when focus lost");

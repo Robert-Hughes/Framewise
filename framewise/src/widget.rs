@@ -46,3 +46,23 @@ pub trait WidgetResult {
     /// Consume `self`, yielding the draw commands and the caller-facing info.
     fn into_parts(self) -> (DrawCommands, Self::Info);
 }
+
+//TODO: should the spec traits actually be part of the builder API, as that's the only
+// thing that actually requires a consistent shape.
+
+/// Trait for input structs widget functions, so that `Builder` can work with them.
+/// Provides common things that all widgets will have, like a rect for layout.
+/// A not-fully-specified widget spec, turned into a fully specified WidgetSpec upon build.
+pub trait WidgetSpecBuilder {
+    type Spec;
+
+    fn with_rect(self, rect: Rect) -> Self;
+    fn with_style(self) -> Self;
+
+    fn build(self) -> Self::Spec;
+}
+
+/// Fully-specified, ready to be passed into a widget function
+pub trait WidgetSpec {
+    type Builder;
+}

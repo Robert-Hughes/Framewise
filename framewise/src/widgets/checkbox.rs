@@ -1,7 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    theme::Theme,
-    types::{Color, Rect, Vec2},
+    WidgetResult, draw::{DrawCmd, DrawCommands}, theme::Theme, types::{Color, Rect, Vec2}, widget::{WidgetSpec, WidgetSpecBuilder}
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,8 +16,64 @@ pub struct CheckboxSpec {
     pub focused:  bool,
     pub disabled: bool,
 }
+impl WidgetSpec for CheckboxSpec {
+    type Builder = CheckboxSpecBuilder;
+}
 
-pub fn checkbox(spec: CheckboxSpec) -> DrawCommands {
+pub struct CheckboxSpecBuilder {
+    spec: CheckboxSpec,
+}
+impl CheckboxSpecBuilder {
+    pub fn new(state: CheckState) -> Self {
+        Self {
+            spec: CheckboxSpec {
+                rect: Rect::ZERO,
+                state,
+                focused: false,
+                disabled: false,
+            }
+        }
+    }
+
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.spec.focused = focused;
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.spec.disabled = disabled;
+        self
+    }
+}
+impl WidgetSpecBuilder for CheckboxSpecBuilder {
+    type Spec = CheckboxSpec;
+
+    fn with_rect(mut self, rect: Rect) -> Self {
+        self.spec.rect = rect;
+        self
+    }
+
+    fn with_style(self) -> Self {
+        self
+    }
+
+    fn build(self) -> Self::Spec {
+        self.spec
+    }
+}
+
+pub struct CheckboxResult {
+    pub draw:  DrawCommands,
+}
+impl WidgetResult for CheckboxResult {
+    type Info = ();
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (self.draw, ())
+    }
+}
+
+pub fn checkbox(spec: CheckboxSpec) -> CheckboxResult {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
     let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
@@ -71,5 +125,5 @@ pub fn checkbox(spec: CheckboxSpec) -> DrawCommands {
         CheckState::Off => {}
     }
 
-    cmds
+    CheckboxResult { draw: cmds }
 }

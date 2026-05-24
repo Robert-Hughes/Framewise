@@ -57,10 +57,9 @@ impl TextVertex {
 pub struct Renderer {
     quad_pipeline: wgpu::RenderPipeline,
     text_pipeline: wgpu::RenderPipeline,
-    
+
     atlas_texture: wgpu::Texture,
     atlas_bind_group: wgpu::BindGroup,
-    atlas_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl Renderer {
@@ -118,7 +117,7 @@ impl Renderer {
             label:  Some("text_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("text.wgsl").into()),
         });
-        
+
         let atlas_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("atlas_bind_group_layout"),
             entries: &[
@@ -205,7 +204,7 @@ impl Renderer {
             ],
         });
 
-        Self { quad_pipeline, text_pipeline, atlas_texture, atlas_bind_group, atlas_bind_group_layout }
+        Self { quad_pipeline, text_pipeline, atlas_texture, atlas_bind_group }
     }
 
     /// Convert a list of `DrawCmd`s into vertices and render them.
@@ -385,7 +384,7 @@ impl Renderer {
                     let bottom = (r.y + r.h).min(window_size.1 as f32);
                     let w = if right > x as f32 { (right - x as f32) as u32 } else { 0 };
                     let h = if bottom > y as f32 { (bottom - y as f32) as u32 } else { 0 };
-                    
+
                     if w > 0 && h > 0 {
                         pass.set_scissor_rect(x, y, w, h);
                     } else {
@@ -561,28 +560,28 @@ fn push_text_run(
         if let Some(info) = text_system.glyph_cache.get(&key) {
             let src = &info.atlas_rect;
             if src.w == 0 || src.h == 0 { continue; } // Space character
-            
+
             // Destination rect on screen
             let gx = rect.x + g.x;
             let gy = rect.y + g.y;
             let gw = g.width as f32;
             let gh = g.height as f32;
-            
+
             let tl_pos = to_clip(gx, gy, sw, sh);
             let tr_pos = to_clip(gx + gw, gy, sw, sh);
             let bl_pos = to_clip(gx, gy + gh, sw, sh);
             let br_pos = to_clip(gx + gw, gy + gh, sw, sh);
-            
+
             // Source UV in atlas
             let u0 = src.x as f32 / atlas_size;
             let v0 = src.y as f32 / atlas_size;
             let u1 = (src.x + src.w) as f32 / atlas_size;
             let v1 = (src.y + src.h) as f32 / atlas_size;
-            
+
             verts.push(TextVertex { pos: tl_pos, uv: [u0, v0], color: c });
             verts.push(TextVertex { pos: bl_pos, uv: [u0, v1], color: c });
             verts.push(TextVertex { pos: tr_pos, uv: [u1, v0], color: c });
-            
+
             verts.push(TextVertex { pos: tr_pos, uv: [u1, v0], color: c });
             verts.push(TextVertex { pos: bl_pos, uv: [u0, v1], color: c });
             verts.push(TextVertex { pos: br_pos, uv: [u1, v1], color: c });

@@ -1,16 +1,11 @@
 use crate::{
-    draw::DrawCmd,
-    input::Input,
-    types::{Color, Rect, Vec2},
-    widget::WidgetResult,
-    widgets::{
-        button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
+    draw::DrawCmd, input::Input, types::{Color, Rect, Vec2}, widget::{WidgetResult, WidgetSpecBuilder}, widgets::{
+        button::{ButtonInfo, ButtonSpec, ButtonStyle, button},
         divider::DividerInfo,
-        frame::{frame, FrameInfo, FrameSpec, FrameStyle},
-        label::{label, LabelInfo, LabelSpec},
-        text_edit::{text_edit, TextEditInfo, TextEditSpec, TextEditState, TextEditStyle},
-    },
-    layout::LayoutState,
+        frame::{FrameInfo, FrameSpec, FrameStyle, frame},
+        label::{LabelInfo, LabelSpec, label},
+        text_edit::{TextEditInfo, TextEditSpec, TextEditState, TextEditStyle, text_edit},
+    }
 };
 
 // ── BuilderCtx ────────────────────────────────────────────────────────────────
@@ -327,6 +322,14 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         //TODO: clipping, input, focus? Maybe this is just a "custom draw"?
         //TODO: more generally, how do custom widgets (i.e. functions) get used in a builder?
         self.append_cmds(cmds);
+    }
+
+    pub fn add<WR: WidgetResult, WSB: WidgetSpecBuilder>(&mut self, layout_params: S::Params, widget_func: impl FnOnce(WSB::Spec) -> WR, widget_spec_builder: WSB) -> WR::Info {
+        let rect = self.layout_state.layout(layout_params);
+        //TODO: add things like style/theme
+        let widget_spec = widget_spec_builder.with_rect(rect).build();
+        let result = widget_func(widget_spec);
+        self.emit(result)
     }
 }
 

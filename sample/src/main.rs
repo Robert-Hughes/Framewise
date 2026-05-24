@@ -4,8 +4,7 @@ mod text;
 
 use framewise::{
     builder::{Builder, BuilderCtx},
-    draw::DrawCmd,
-    input::{Input, TextEvent},
+    input::{Input},
     layout::Layout,
     types::{Color, Rect, Vec2},
 };
@@ -15,7 +14,7 @@ use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{ElementState, MouseButton, WindowEvent},
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
@@ -942,7 +941,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
-                let delta_y = match delta {
+                let _delta_y = match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
                         self.input.scroll_delta = Vec2::new(x, y);
                         y

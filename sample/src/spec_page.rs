@@ -9,29 +9,7 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Vec2},
     widgets::{
-        button::{ButtonState, ButtonStyle},
-        checkbox::{checkbox, CheckState, CheckboxSpec},
-        chip::{chip, ChipSpec},
-        color_swatch::{color_swatch, ColorSwatchSpec},
-        drag_number::{drag_number, DragNumberSpec},
-        frame::{frame, FrameSpec, FrameStyle},
-        keycap::{keycap, KeycapSpec},
-        menu::{menu, MenuItem, MenuSpec},
-        meter::{meter, MeterSpec},
-        progress_bar::{progress_bar, ProgressBarSpec},
-        radio::{radio, RadioSpec},
-        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
-        segmented::{segmented, SegmentedSpec},
-        select::{select, SelectSpec},
-        slider::{Orientation as SliderOrientation, SliderState},
-        spinner::{spinner, SpinnerSpec},
-        status::{status, StatusSpec, StatusVariant},
-        switch::{switch, SwitchSpec},
-        tabs::{tabs, TabsSpec},
-        text_edit::TextEditState,
-        tooltip::{tooltip, TooltipSpec, TooltipVariant},
-        tree::{tree, TreeRow, TreeSpec},
-        window::{window, WindowButton, WindowSpec},
+        CheckboxSpecBuilder, button::{ButtonState, ButtonStyle}, checkbox::{CheckState, checkbox}, chip::{ChipSpec, chip}, color_swatch::{ColorSwatchSpec, color_swatch}, drag_number::{DragNumberSpec, drag_number}, frame::{FrameSpec, FrameStyle, frame}, keycap::{KeycapSpec, keycap}, menu::{MenuItem, MenuSpec, menu}, meter::{MeterSpec, meter}, progress_bar::{ProgressBarSpec, progress_bar}, radio::{RadioSpec, radio}, scroll_area::{ScrollState, ScrollbarVisibility, begin_scroll_area}, segmented::{SegmentedSpec, segmented}, select::{SelectSpec, select}, slider::{Orientation as SliderOrientation, SliderState}, spinner::{SpinnerSpec, spinner}, status::{StatusSpec, StatusVariant, status}, switch::{SwitchSpec, switch}, tabs::{TabsSpec, tabs}, text_edit::TextEditState, tooltip::{TooltipSpec, TooltipVariant, tooltip}, tree::{TreeRow, TreeSpec, tree}, window::{WindowButton, WindowSpec, window}
     },
 };
 
@@ -391,11 +369,6 @@ pub fn draw_spec_page(
                     ("→", ButtonStyle::default()),
                 ];
                 // draw group border
-                let grp1_x = bx;
-                let grp1_w: f32 = grp1
-                    .iter()
-                    .map(|(l, _)| l.len() as f32 * 7.0 + 20.0)
-                    .sum::<f32>();
                 for (i, (label, style)) in grp1.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
                     let btn = b.button_styled(
@@ -409,11 +382,6 @@ pub fn draw_spec_page(
                     state.btn_grp1[i] = btn.state;
                     bx += w;
                 }
-                b.append_cmds(vec![DrawCmd::StrokeRect {
-                    rect: Rect::new(grp1_x, y, grp1_w, t.h_md),
-                    color: t.line,
-                    width: 1.0,
-                }]);
                 bx += COL_GAP;
 
                 // button group 2: Build | Run | Ship
@@ -422,11 +390,6 @@ pub fn draw_spec_page(
                     ("Run", ButtonStyle::default()),
                     ("Ship", ButtonStyle::primary()),
                 ];
-                let grp2_x = bx;
-                let grp2_w: f32 = grp2
-                    .iter()
-                    .map(|(l, _)| l.len() as f32 * 7.0 + 20.0)
-                    .sum::<f32>();
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
                     let btn = b.button_styled(
@@ -440,11 +403,6 @@ pub fn draw_spec_page(
                     state.btn_grp2[i] = btn.state;
                     bx += w;
                 }
-                b.append_cmds(vec![DrawCmd::StrokeRect {
-                    rect: Rect::new(grp2_x, y, grp2_w, t.h_md),
-                    color: t.line,
-                    width: 1.0,
-                }]);
                 let _ = bx;
             }
             y += t.h_md + SEC_GAP;
@@ -535,17 +493,19 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                b.append_cmds(vec![
-                    DrawCmd::FillRect {
-                        rect: Rect::new(pf_x, y + 18.0, 24.0, t.h_md),
-                        color: t.hover,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(pf_x, y + 18.0, 24.0, t.h_md),
-                        color: t.line,
-                        width: 1.0,
-                    },
-                ]);
+                b.custom(Rect::new(pf_x, y + 18.0, 24.0, t.h_md), |rect| {
+                    vec![
+                        DrawCmd::FillRect {
+                            rect,
+                            color: t.ink,
+                        },
+                        DrawCmd::StrokeRect {
+                            rect,
+                            color: t.line,
+                            width: 1.0,
+                        },
+                    ]
+                });
                 b.label_styled(
                     Rect::new(pf_x + 6.0, y + 18.0 + 7.0, 16.0, 14.0),
                     "v",
@@ -634,13 +594,8 @@ pub fn draw_spec_page(
                     (CheckState::On, false, true),
                 ];
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-                    let dc = checkbox(CheckboxSpec {
-                        rect: Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
-                        state: *cs,
-                        focused: *focused,
-                        disabled: *disabled,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
+                        checkbox, CheckboxSpecBuilder::new(*cs).focused(*focused).disabled(*disabled));
                 }
                 y += 14.0 + 12.0;
 
@@ -654,13 +609,8 @@ pub fn draw_spec_page(
                 );
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
-                    let dc = checkbox(CheckboxSpec {
-                        rect: Rect::new(cx, y, 14.0, 14.0),
-                        state: *cs,
-                        focused: *focused,
-                        disabled: *disabled,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(Rect::new(cx, y, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs).focused(*focused).disabled(*disabled));
+
                     let label_alpha = if *disabled { t.muted } else { t.ink };
                     b.label_styled(
                         Rect::new(cx + 18.0, y, 60.0, 14.0),
@@ -1856,13 +1806,8 @@ pub fn draw_spec_page(
                     (CheckState::Off, "debug overlay"),
                 ];
                 for (cs, label) in check_items {
-                    let dc = checkbox(CheckboxSpec {
-                        rect: Rect::new(cr.x, iy, 14.0, 14.0),
-                        state: *cs,
-                        focused: false,
-                        disabled: false,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(Rect::new(cr.x, iy, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs));
+
                     b.label_styled(
                         Rect::new(cr.x + 18.0, iy, cr.w - 18.0, 14.0),
                         label,
@@ -2226,13 +2171,8 @@ pub fn draw_spec_page(
                 ];
                 for (i, (cs, label)) in opt_items.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    let dc = checkbox(CheckboxSpec {
-                        rect: Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
-                        state: *cs,
-                        focused: false,
-                        disabled: false,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0), checkbox, CheckboxSpecBuilder::new(*cs));
+
                     b.label_styled(
                         Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0),
                         label,
