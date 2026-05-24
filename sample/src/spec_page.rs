@@ -333,7 +333,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "states · default button");
             y += 20.0;
             {
-                let col_labels = ["", "default", "hover", "pressed", "focused", "disabled"];
+                let col_labels = ["default", "hover", "pressed", "focused", "disabled"];
                 let row_labels = ["secondary", "primary", "accent", "ghost"];
                 let row_styles: &[ButtonStyle] = &[
                     ButtonStyle::default(),
@@ -459,7 +459,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "states · single-line");
             y += 20.0;
             {
-                let col_labels = ["", "default", "hover", "focused", "error", "disabled"];
+                let col_labels = ["default", "hover", "focused", "error", "disabled"];
                 let row_labels = ["empty", "filled"];
                 let cell_w = 160.0_f32;
                 let label_w = 60.0_f32;
@@ -606,7 +606,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "checkbox");
             y += 20.0;
             {
-                let col_labels = ["", "off", "on", "mixed", "focused", "disabled"];
+                let col_labels = ["off", "on", "mixed", "focused", "disabled"];
                 let label_w = 80.0_f32;
                 let cell_w = 100.0_f32;
                 for (ci, col) in col_labels.iter().enumerate() {
