@@ -67,7 +67,6 @@ Features to design and implement, roughly in dependency order:
 
 ## Scrolling — Open Questions & Ideas
 
-- Bug! Mouse hover and scroll on the vertical slider at hte bottom of sample app - scrolls horizontally instead!
 - Middle-click hold-and-drag pan; middle-click without holding.
 - Click-and-drag pan (touch / mobile).
 - "Flinging" (momentum scrolling).

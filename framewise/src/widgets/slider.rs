@@ -242,15 +242,10 @@ pub fn slider(
         };
 
         if spec.claim_scroll_at_ends {
-            if is_vert {
-                focus_sys.claim_scroll_up(state.focus_id);
-                focus_sys.claim_scroll_down(state.focus_id);
-            } else {
-                focus_sys.claim_scroll_left(state.focus_id);
-                focus_sys.claim_scroll_right(state.focus_id);
-                focus_sys.claim_scroll_up(state.focus_id);
-                focus_sys.claim_scroll_down(state.focus_id);
-            }
+            focus_sys.claim_scroll_up(state.focus_id);
+            focus_sys.claim_scroll_down(state.focus_id);
+            focus_sys.claim_scroll_left(state.focus_id);
+            focus_sys.claim_scroll_right(state.focus_id);
         } else {
             if is_vert {
                 // Vertical slider:
@@ -968,6 +963,32 @@ mod tests {
         assert!(!focus_sys.is_active_scroll_down(parent_id),
             "parent should not win scroll-down; standalone slider blocked it");
         assert_eq!(value, 100.0);
+    }
+
+    #[test]
+    fn test_vertical_standalone_slider_blocks_horizontal_scroll() {
+        // Regression: vertical standalone slider inside a horizontal scroll area was
+        // letting horizontal scroll events propagate because claim_scroll_at_ends only
+        // claimed up/down, not left/right.
+        let mut state = SliderState::default();
+        let mut value = 50.0;
+        let mut focus_sys = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.x = 3.0; // horizontal scroll only
+
+        focus_sys.begin_frame();
+        focus_sys.claim_scroll_left(parent_id);
+        focus_sys.claim_scroll_right(parent_id);
+        slider(&mut state, &mut value, test_spec(0.0, 100.0, true), &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert!(!focus_sys.is_active_scroll_left(parent_id),
+            "parent should not win scroll-left; vertical standalone slider should block it");
+        assert!(!focus_sys.is_active_scroll_right(parent_id),
+            "parent should not win scroll-right; vertical standalone slider should block it");
     }
 
     // ── Propagating slider (scrollbar-within-scroll-area mode) ─────────────────
