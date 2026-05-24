@@ -29,6 +29,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   glyph atlas cache miss, that might be awkward to figure out in profiling. Will see how
   this plays out in practice.
 
+* How do custom widgets (i.e. functions) get used in a builder? See builder::custom()
+
 - **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
 
 ---

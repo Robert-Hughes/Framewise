@@ -90,10 +90,10 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     /// bounds using `parent_params` and passes them to the new layout's `begin` method.
     pub fn child_with_layout<L: crate::layout::Layout>(
         &mut self,
-        parent_params: S::Params,
+        parent_layout_params: S::Params,
         layout_config: L,
     ) -> Builder<'_, T, L::State> {
-        let bounds = self.layout_state.layout(parent_params);
+        let bounds = self.layout_state.layout(parent_layout_params);
         self.child_with_manual_bounds(bounds, layout_config)
     }
 
@@ -104,7 +104,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         layout_config: L,
     ) -> Builder<'_, T, L::State> {
         let new_state = layout_config.begin(bounds);
-        
+
         Builder {
             ctx: self.ctx.clone(),
             cmds: Vec::new(),
@@ -131,10 +131,10 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         max: f32,
         page_step: f32,
         orientation: crate::widgets::slider::Orientation,
-        params: S::Params,
+        layout_params: S::Params,
         input: &Input,
     ) {
-        let rect = self.layout_state.layout(params);
+        let rect = self.layout_state.layout(layout_params);
         let spec = crate::widgets::slider::SliderSpec {
             rect,
             min,
@@ -173,7 +173,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     /// Creates a scroll area child builder.
     pub fn scroll_area<L: crate::layout::Layout>(
         &mut self,
-        params: S::Params,
+        layout_params: S::Params,
         content_size: Vec2,
         h_vis: crate::widgets::scroll_area::ScrollbarVisibility,
         v_vis: crate::widgets::scroll_area::ScrollbarVisibility,
@@ -181,7 +181,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         inner_layout: L,
         input: &Input,
     ) -> Builder<'_, T, crate::layout::OffsetState<L::State>> {
-        let bounds = self.layout_state.layout(params);
+        let bounds = self.layout_state.layout(layout_params);
         let (pre_cmds, scope, content_bounds, offset_layout) = crate::widgets::scroll_area::begin_scroll_area(
             bounds,
             content_size,
@@ -200,7 +200,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         let parent_clip = self.ctx.clip_rect;
         let mut child = self.child_with_manual_bounds(content_bounds, offset_layout);
         child.scroll_scope = Some(scope);
-        
+
         let new_clip = if let Some(pc) = parent_clip {
             pc.intersect(&content_bounds)
         } else {
@@ -212,8 +212,8 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Draw a label and return its info.
-    pub fn label(&mut self, params: S::Params, text: &str) -> LabelInfo {
-        let rect = self.layout_state.layout(params);
+    pub fn label(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
+        let rect = self.layout_state.layout(layout_params);
         let spec = LabelSpec {
             rect,
             text: text.to_string(),
@@ -226,8 +226,8 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Draw a label with explicit size, color and optional rule.
-    pub fn label_styled(&mut self, params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
-        let rect = self.layout_state.layout(params);
+    pub fn label_styled(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
+        let rect = self.layout_state.layout(layout_params);
         let spec = LabelSpec {
             rect,
             text: text.to_string(),
@@ -240,13 +240,13 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     }
 
     /// Emit a text_edit widget.
-    pub fn text_edit(&mut self, state: TextEditState, params: S::Params, input: &Input) -> TextEditInfo {
-        self.text_edit_ext(state, params, false, false, input)
+    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params, input: &Input) -> TextEditInfo {
+        self.text_edit_ext(state, layout_params, false, false, input)
     }
 
     /// Emit a text_edit widget with explicit error/disabled flags.
-    pub fn text_edit_ext(&mut self, state: TextEditState, params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
-        let rect = self.layout_state.layout(params);
+    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
+        let rect = self.layout_state.layout(layout_params);
         let spec = TextEditSpec {
             rect,
             style: TextEditStyle {
@@ -272,24 +272,24 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
     pub fn button(
         &mut self,
         state: crate::widgets::button::ButtonState,
-        params: S::Params,
+        layout_params: S::Params,
         text:  impl Into<String>,
         input: &Input,
     ) -> ButtonInfo {
-        self.button_styled(state, params, text, self.ctx.button_style, false, input)
+        self.button_styled(state, layout_params, text, self.ctx.button_style, false, input)
     }
 
     /// Draw a button with explicit style and disabled flag.
     pub fn button_styled(
         &mut self,
         state: crate::widgets::button::ButtonState,
-        params: S::Params,
+        layout_params: S::Params,
         text:  impl Into<String>,
         style: ButtonStyle,
         disabled: bool,
         input: &Input,
     ) -> ButtonInfo {
-        let rect = self.layout_state.layout(params);
+        let rect = self.layout_state.layout(layout_params);
         let result = button(
             state,
             ButtonSpec {
@@ -306,19 +306,27 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         self.emit(result)
     }
 
-    pub fn divider(&mut self, params: S::Params) -> DividerInfo {
-        let rect = self.layout_state.layout(params);
+    pub fn divider(&mut self, layout_params: S::Params) -> DividerInfo {
+        let rect = self.layout_state.layout(layout_params);
         let result = crate::widgets::divider::divider(crate::widgets::divider::DividerSpec { rect });
         self.emit(result)
     }
 
-    pub fn frame(&mut self, params: S::Params) -> FrameInfo {
-        let rect = self.layout_state.layout(params);
+    pub fn frame(&mut self, layout_params: S::Params) -> FrameInfo {
+        let rect = self.layout_state.layout(layout_params);
         let result = frame(FrameSpec {
             rect,
             style: self.ctx.frame_style,
         });
         self.emit(result)
+    }
+
+    pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
+        let rect = self.layout_state.layout(layout_params);
+        let cmds = draw_fn(rect);
+        //TODO: clipping, input, focus? Maybe this is just a "custom draw"?
+        //TODO: more generally, how do custom widgets (i.e. functions) get used in a builder?
+        self.append_cmds(cmds);
     }
 }
 
@@ -364,12 +372,12 @@ mod tests {
         // Create a scroll area positioned at Y=50, Height=100 (so it clips everything above Y=50).
         let mut scroll_state = crate::widgets::scroll_area::ScrollState::default();
         let mut scroll_area = builder.scroll_area(
-            Rect::new(10.0, 50.0, 100.0, 100.0), 
+            Rect::new(10.0, 50.0, 100.0, 100.0),
             Vec2::new(100.0, 500.0),
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
-            &mut scroll_state, 
-            ManualLayout, 
+            &mut scroll_state,
+            ManualLayout,
             &input
         );
 
@@ -378,7 +386,7 @@ mod tests {
         // This simulates a button that has scrolled UP and OUT of the scroll area bounds (Y=50..150).
         let btn_state = crate::widgets::button::ButtonState::default();
         let btn_info = scroll_area.button(btn_state, Rect::new(0.0, -30.0, 50.0, 20.0), "Btn", &input);
-        
+
         scroll_area.finish();
         builder.finish();
 
@@ -389,33 +397,33 @@ mod tests {
 
     #[test]
     fn test_nested_clip_rect_intersections() {
-        // Complex nested layout test: a builder with a clip rect creates a child scroll area, 
+        // Complex nested layout test: a builder with a clip rect creates a child scroll area,
         // which creates another child scroll area. We verify the clip rects intersect correctly.
         let mut text_sys = DummyTextSystem;
         let mut focus_sys = FocusSystem::new();
         focus_sys.begin_frame();
 
         let input = Input::new();
-        
+
         let mut ctx = BuilderCtx::default();
         // Start with an artificial clip rect for the whole app
         ctx.clip_rect = Some(Rect::new(20.0, 20.0, 500.0, 500.0));
-        
+
         let mut builder = Builder::new(ctx, &mut text_sys, &mut focus_sys, ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)));
 
         // Outer scroll area: at 50,50, size 200x200
         let mut outer_state = crate::widgets::scroll_area::ScrollState::default();
         let mut outer = builder.scroll_area(
-            Rect::new(50.0, 50.0, 200.0, 200.0), 
+            Rect::new(50.0, 50.0, 200.0, 200.0),
             Vec2::new(200.0, 1000.0),
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
-            &mut outer_state, 
-            ManualLayout, 
+            &mut outer_state,
+            ManualLayout,
             &input
         );
 
-        // Parent clip was 20..520 (x,y). Outer bounds is 50..250. 
+        // Parent clip was 20..520 (x,y). Outer bounds is 50..250.
         // Inner content bounds should be 50,50 to 238,250 (12px scrollbar).
         // Intersection should be exactly the inner content bounds.
         assert_eq!(outer.ctx.clip_rect, Some(Rect::new(50.0, 50.0, 188.0, 200.0)));
@@ -423,12 +431,12 @@ mod tests {
         // Inner scroll area: at 100,100, size 200x200 (extends beyond outer!)
         let mut inner_state = crate::widgets::scroll_area::ScrollState::default();
         let inner = outer.scroll_area(
-            Rect::new(100.0, 100.0, 200.0, 200.0), 
+            Rect::new(100.0, 100.0, 200.0, 200.0),
             Vec2::new(200.0, 1000.0),
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
             crate::widgets::scroll_area::ScrollbarVisibility::Auto,
-            &mut inner_state, 
-            ManualLayout, 
+            &mut inner_state,
+            ManualLayout,
             &input
         );
 
@@ -438,7 +446,7 @@ mod tests {
         // Intersection of (50..238, 50..250) and (150..338, 150..350):
         // x=150, y=150, right=238, bottom=250 => w=88, h=100.
         assert_eq!(inner.ctx.clip_rect, Some(Rect::new(150.0, 150.0, 88.0, 100.0)));
-        
+
         inner.finish();
         outer.finish();
     }

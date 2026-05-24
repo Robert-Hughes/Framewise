@@ -222,53 +222,9 @@ pub fn draw_spec_page(
 
             // ── HERO ─────────────────────────────────────────────────────────────────
             {
-                // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
-                let ls = 0.48_f32;
-                let lx0 = lx;
-                let ly0 = MARGIN;
-                let lw = 4.8_f32;
-                b.append_cmds(vec![
-                    // left bracket
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 56. * ls, ly0 + 40. * ls),
-                        p1: Vec2::new(lx0 + 40. * ls, ly0 + 40. * ls),
-                        color: t.ink,
-                        width: lw,
-                    },
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 40. * ls, ly0 + 40. * ls),
-                        p1: Vec2::new(lx0 + 40. * ls, ly0 + 160. * ls),
-                        color: t.ink,
-                        width: lw,
-                    },
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 40. * ls, ly0 + 160. * ls),
-                        p1: Vec2::new(lx0 + 56. * ls, ly0 + 160. * ls),
-                        color: t.ink,
-                        width: lw,
-                    },
-                    // top horizontal
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 78. * ls, ly0 + 40. * ls),
-                        p1: Vec2::new(lx0 + 140. * ls, ly0 + 40. * ls),
-                        color: t.ink,
-                        width: lw,
-                    },
-                    // middle horizontal (rust)
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 78. * ls, ly0 + 96. * ls),
-                        p1: Vec2::new(lx0 + 120. * ls, ly0 + 96. * ls),
-                        color: t.rust,
-                        width: lw,
-                    },
-                    // vertical
-                    DrawCmd::StrokeLine {
-                        p0: Vec2::new(lx0 + 78. * ls, ly0 + 40. * ls),
-                        p1: Vec2::new(lx0 + 78. * ls, ly0 + 160. * ls),
-                        color: t.ink,
-                        width: lw,
-                    },
-                ]);
+                b.custom(Rect::new(lx, MARGIN, 96.0, 96.0), |rect| {
+                    hero_logo(&t, rect.x, rect.y)
+                });
 
                 let tx = lx + 116.0;
                 b.label_styled(
@@ -2487,6 +2443,59 @@ pub fn draw_spec_page(
     }; // end page_cmds block
     b.append_cmds(page_cmds);
     b.finish()
+}
+
+fn hero_logo(t: &Theme, lx: f32, y0: f32) -> Vec<DrawCmd> {
+    let mut cmds = vec![];
+
+    // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
+    let ls = 0.48_f32;
+    let lx0 = lx;
+    let lw = 4.8_f32;
+    cmds.extend(vec![
+        // left bracket
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 56. * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + 40. * ls, y0 + 40. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 40. * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + 40. * ls, y0 + 160. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 40. * ls, y0 + 160. * ls),
+            p1: Vec2::new(lx0 + 56. * ls, y0 + 160. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        // top horizontal
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 78. * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + 140. * ls, y0 + 40. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        // middle horizontal (rust)
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 78. * ls, y0 + 96. * ls),
+            p1: Vec2::new(lx0 + 120. * ls, y0 + 96. * ls),
+            color: t.rust,
+            width: lw,
+        },
+        // vertical
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 78. * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + 78. * ls, y0 + 160. * ls),
+            color: t.ink,
+            width: lw,
+        },
+    ]);
+
+    cmds
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
