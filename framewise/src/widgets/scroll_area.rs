@@ -543,6 +543,7 @@ mod tests {
                     text: "dummy".into(),
                     style: crate::widgets::button::ButtonStyle::default(),
                     clip_rect: None,
+                    disabled: false,
                 },
                 &input,
                 &mut text_sys,
@@ -589,6 +590,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "".into(),
                     style: Default::default(),
                     clip_rect: None,
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -624,6 +626,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "".into(),
                     style: Default::default(),
                     clip_rect: None,
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -999,6 +1002,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "visible".into(),
                     style: Default::default(),
                     clip_rect: Some(content_bounds),
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -1014,6 +1018,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "clipped".into(),
                     style: Default::default(),
                     clip_rect: Some(content_bounds),
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -1029,6 +1034,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "start".into(),
                     style: Default::default(),
                     clip_rect: None,
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -1092,6 +1098,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "partial".into(),
                     style: Default::default(),
                     clip_rect: Some(content_bounds),
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -1107,6 +1114,7 @@ focus_sys.take_focus(btn_state.focus_id);
                     text: "start".into(),
                     style: Default::default(),
                     clip_rect: None,
+                    disabled: false,
                 },
                 &input, &mut text_sys, &mut focus_sys,
             );
@@ -1349,7 +1357,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;
@@ -1391,7 +1399,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;
@@ -1616,7 +1624,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;
@@ -1834,7 +1842,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;
@@ -2066,7 +2074,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;
@@ -2478,7 +2486,7 @@ mod nested_bubbling_tests {
             );
             let info = crate::widgets::button::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None },
+                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
             );
             btn_state = info.state;

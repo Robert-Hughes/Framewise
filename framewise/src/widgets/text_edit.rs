@@ -92,9 +92,11 @@ impl TextEditState {
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
 pub struct TextEditSpec {
-    pub rect:  Rect,
-    pub style: TextEditStyle,
+    pub rect:      Rect,
+    pub style:     TextEditStyle,
     pub clip_rect: Option<Rect>,
+    pub error:     bool,
+    pub disabled:  bool,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -238,6 +240,37 @@ pub fn text_edit<T: TextSystem>(
     let mut draw = DrawCommands::new();
 
     let mut clipboard_action = None;
+
+    // Disabled: draw at reduced alpha, no interaction.
+    if spec.disabled {
+        let alpha = 0.55_f32;
+        let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+        // Transparent bg per mockup, just border.
+        if spec.style.border_width > 0.0 {
+            draw.push(DrawCmd::StrokeRect {
+                rect:  spec.rect,
+                color: tint(spec.style.border),
+                width: spec.style.border_width,
+            });
+        }
+        let inset = spec.style.border_width + spec.style.padding;
+        let content_rect = spec.rect.inset(inset);
+        if !state.value.is_empty() {
+            let layout = text_system.prepare(&state.value, spec.style.text_size);
+            let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
+            draw.push(DrawCmd::Text {
+                rect:   Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
+                color:  tint(spec.style.text_color),
+                handle: layout.handle,
+            });
+        }
+        return TextEditResult {
+            draw,
+            layout: LayoutInfo::new(spec.rect, content_rect),
+            state,
+            clipboard_action: None,
+        };
+    }
 
     let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
     let just_focused = focused && !state.was_focused;
@@ -394,7 +427,12 @@ pub fn text_edit<T: TextSystem>(
     let handle = layout.handle;
 
     let inset = spec.style.border_width + spec.style.padding;
-    let content_rect = spec.rect.inset(inset);
+    let mut content_rect = spec.rect.inset(inset);
+    if spec.error {
+        // shift content right to clear the 4px error stripe
+        content_rect.x += 4.0;
+        content_rect.w -= 4.0;
+    }
     let text_y = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
 
     // Mouse interaction
@@ -456,11 +494,28 @@ pub fn text_edit<T: TextSystem>(
     }
 
     // Drawing Background
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: spec.style.background });
+    let bg_color = if spec.error {
+        Color::rgb(0.961, 0.914, 0.890) // rust_soft
+    } else {
+        spec.style.background
+    };
+    draw.push(DrawCmd::FillRect { rect: spec.rect, color: bg_color });
+
+    // Error: 4px rust left stripe
+    if spec.error {
+        let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
+        draw.push(DrawCmd::FillRect { rect: stripe, color: Color::rgb(0.761, 0.353, 0.173) });
+    }
 
     // Border
     if spec.style.border_width > 0.0 {
-        let b_color = if focused { spec.style.focus_border } else { spec.style.border };
+        let b_color = if spec.error {
+            Color::rgb(0.761, 0.353, 0.173) // rust
+        } else if focused {
+            spec.style.focus_border
+        } else {
+            spec.style.border
+        };
         draw.push(DrawCmd::StrokeRect {
             rect:  spec.rect,
             color: b_color,
@@ -567,6 +622,8 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
             style: TextEditStyle::default(),
             clip_rect: None,
+            error: false,
+            disabled: false,
         }
     }
 

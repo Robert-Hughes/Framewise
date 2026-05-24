@@ -96,7 +96,7 @@ struct App {
 
     // Page selection.
     active_page: AppPage,
-    spec_scroll_y: f32,
+    spec_page_state: spec_page::SpecPageState,
 
     // Nested 2D: outer[2D] > inner[2D]
     nested_2d_outer_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -161,7 +161,7 @@ impl App {
             input:           Input::new(),
             clipboard:       arboard::Clipboard::new().ok(),
             active_page:     AppPage::ScrollDemo,
-            spec_scroll_y:   0.0,
+            spec_page_state: spec_page::SpecPageState::default(),
             sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
             main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
             nested_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
@@ -193,11 +193,23 @@ impl App {
     }
 
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+        let win_size = self.gpu.as_ref()
+            .map(|g| (g.size.width as f32, g.size.height as f32))
+            .unwrap_or((1600.0, 1200.0));
+
         if self.active_page == AppPage::WidgetSpec {
-            let win_size = self.gpu.as_ref()
-                .map(|g| (g.size.width as f32, g.size.height as f32))
-                .unwrap_or((1600.0, 1200.0));
-            return spec_page::draw_spec_page(text_system, win_size.0, win_size.1, self.spec_scroll_y);
+            self.focus_sys.begin_frame();
+            let cmds = spec_page::draw_spec_page(
+                text_system,
+                &mut self.focus_sys,
+                &mut self.spec_page_state,
+                &self.input,
+                self.start_time.elapsed().as_secs_f64(),
+                win_size.0,
+                win_size.1,
+            );
+            self.focus_sys.end_frame();
+            return cmds;
         }
 
         self.focus_sys.begin_frame();
@@ -207,11 +219,6 @@ impl App {
             time: self.start_time.elapsed().as_secs_f64(),
             ..Default::default()
         };
-        let win_size = self
-            .gpu
-            .as_ref()
-            .map(|g| (g.size.width as f32, g.size.height as f32))
-            .unwrap_or((800.0, 600.0));
 
         let mut builder = Builder::new(
             ctx,
@@ -948,7 +955,7 @@ impl ApplicationHandler for App {
                 };
                 // Scroll the spec page directly when on that page.
                 if self.active_page == AppPage::WidgetSpec {
-                    self.spec_scroll_y = (self.spec_scroll_y - delta_y * 40.0)
+                    self.spec_page_state.scroll_y = (self.spec_page_state.scroll_y - delta_y * 40.0)
                         .clamp(0.0, spec_page::CONTENT_HEIGHT);
                 }
             }

@@ -210,7 +210,7 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         child
     }
 
-    /// Draw a label (text stub) and return its info.
+    /// Draw a label and return its info.
     pub fn label(&mut self, params: S::Params, text: &str) -> LabelInfo {
         let rect = self.layout_state.layout(params);
         let spec = LabelSpec {
@@ -218,6 +218,21 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             text: text.to_string(),
             size: self.ctx.text_size,
             text_color: self.ctx.text_color,
+            rule: false,
+        };
+        let res = label(spec, self.text_system);
+        self.emit(res)
+    }
+
+    /// Draw a label with explicit size, color and optional rule.
+    pub fn label_styled(&mut self, params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
+        let rect = self.layout_state.layout(params);
+        let spec = LabelSpec {
+            rect,
+            text: text.to_string(),
+            size,
+            text_color: color,
+            rule,
         };
         let res = label(spec, self.text_system);
         self.emit(res)
@@ -225,15 +240,21 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
 
     /// Emit a text_edit widget.
     pub fn text_edit(&mut self, state: TextEditState, params: S::Params, input: &Input) -> TextEditInfo {
+        self.text_edit_ext(state, params, false, false, input)
+    }
+
+    /// Emit a text_edit widget with explicit error/disabled flags.
+    pub fn text_edit_ext(&mut self, state: TextEditState, params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
         let rect = self.layout_state.layout(params);
         let spec = TextEditSpec {
             rect,
             style: TextEditStyle {
                 text_size: self.ctx.text_size,
-                // you could merge theme colours here
                 ..Default::default()
             },
             clip_rect: self.ctx.clip_rect,
+            error,
+            disabled,
         };
         let res = text_edit(
             state,
@@ -254,14 +275,28 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
         text:  impl Into<String>,
         input: &Input,
     ) -> ButtonInfo {
+        self.button_styled(state, params, text, self.ctx.button_style, false, input)
+    }
+
+    /// Draw a button with explicit style and disabled flag.
+    pub fn button_styled(
+        &mut self,
+        state: crate::widgets::button::ButtonState,
+        params: S::Params,
+        text:  impl Into<String>,
+        style: ButtonStyle,
+        disabled: bool,
+        input: &Input,
+    ) -> ButtonInfo {
         let rect = self.layout_state.layout(params);
         let result = button(
             state,
             ButtonSpec {
                 rect,
-                text:  text.into(),
-                style: self.ctx.button_style,
+                text:     text.into(),
+                style,
                 clip_rect: self.ctx.clip_rect,
+                disabled,
             },
             input,
             self.text_system,

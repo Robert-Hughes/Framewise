@@ -89,10 +89,11 @@ impl ButtonStyle {
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
 pub struct ButtonSpec {
-    pub rect:  Rect,
-    pub text:  String,
-    pub style: ButtonStyle,
+    pub rect:      Rect,
+    pub text:      String,
+    pub style:     ButtonStyle,
     pub clip_rect: Option<Rect>,
+    pub disabled:  bool,
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -172,11 +173,37 @@ pub fn button<T: crate::text::TextSystem>(
     text_system: &mut T,
     focus_sys: &mut crate::focus::FocusSystem,
 ) -> ButtonResult {
+    // Disabled: register for layout but skip all interaction.
+    if spec.disabled {
+        let alpha = 0.32_f32;
+        let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+        let mut draw = DrawCommands::new();
+        draw.push(DrawCmd::FillRect { rect: spec.rect, color: tint(spec.style.background) });
+        if spec.style.border_width > 0.0 {
+            draw.push(DrawCmd::StrokeRect { rect: spec.rect, color: tint(spec.style.border), width: spec.style.border_width });
+        }
+        let text_layout = text_system.prepare(&spec.text, spec.style.text_size);
+        let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
+        let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+        draw.push(DrawCmd::Text {
+            rect: Rect::new(tx, ty, text_layout.size.x, text_layout.size.y),
+            color: tint(spec.style.text_color),
+            handle: text_layout.handle,
+        });
+        return ButtonResult {
+            draw,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
+            input:  InputInfo { hovered: false, pressed: false, clicked: false },
+            state,
+            focused: false,
+        };
+    }
+
     let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
 
     let is_visible = spec.clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
     let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-    
+
     if contains && input.mouse_pressed {
         state.is_active = true;
     }
@@ -284,7 +311,7 @@ mod tests {
         fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize { 0 }
     } 
     fn btn_spec(y: f32) -> ButtonSpec {
-        ButtonSpec { rect: Rect::new(0.0, y, 100.0, 30.0), text: "B".into(), style: Default::default(), clip_rect: None }
+        ButtonSpec { rect: Rect::new(0.0, y, 100.0, 30.0), text: "B".into(), style: Default::default(), clip_rect: None, disabled: false }
     }
 
     /// Run one frame with two buttons and return their states.
@@ -372,12 +399,14 @@ mod tests {
             text: "Click Me".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
         let btn2_spec = || ButtonSpec {
             rect: Rect::new(0.0, 100.0, 100.0, 50.0),
             text: "Btn2".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Mouse down on Btn1
@@ -426,6 +455,7 @@ mod tests {
             text: "Btn".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Mouse pressed
@@ -461,6 +491,7 @@ mod tests {
             text: "Btn".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Register and take focus explicitly
@@ -487,6 +518,7 @@ mod tests {
             text: "Btn".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Mouse outside
@@ -533,6 +565,7 @@ mod tests {
             text: "Btn".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Focus
@@ -576,6 +609,7 @@ mod tests {
             text: "Btn".to_string(),
             style: ButtonStyle::default(),
             clip_rect: None,
+            disabled:  false,
         };
 
         // Frame 1: Focus
