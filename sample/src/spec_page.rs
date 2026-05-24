@@ -9,7 +9,7 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Vec2},
     widgets::{
-        CheckboxSpecBuilder, button::{ButtonState, ButtonStyle}, checkbox::{CheckState, checkbox}, chip::{ChipSpec, chip}, color_swatch::{ColorSwatchSpec, color_swatch}, drag_number::{DragNumberSpec, drag_number}, frame::{FrameSpec, FrameStyle, frame}, keycap::{KeycapSpec, keycap}, menu::{MenuItem, MenuSpec, menu}, meter::{MeterSpec, meter}, progress_bar::{ProgressBarSpec, progress_bar}, radio::{RadioSpec, radio}, scroll_area::{ScrollState, ScrollbarVisibility, begin_scroll_area}, segmented::{SegmentedSpec, segmented}, select::{SelectSpec, select}, slider::{Orientation as SliderOrientation, SliderState}, spinner::{SpinnerSpec, spinner}, status::{StatusSpec, StatusVariant, status}, switch::{SwitchSpec, switch}, tabs::{TabsSpec, tabs}, text_edit::TextEditState, tooltip::{TooltipSpec, TooltipVariant, tooltip}, tree::{TreeRow, TreeSpec, tree}, window::{WindowButton, WindowSpec, window}
+        CheckboxSpecBuilder, RadioSpecBuilder, button::{ButtonState, ButtonStyle}, checkbox::{CheckState, checkbox}, chip::{ChipSpec, chip}, color_swatch::{ColorSwatchSpec, color_swatch}, drag_number::{DragNumberSpec, drag_number}, frame::{FrameSpec, FrameStyle, frame}, keycap::{KeycapSpec, keycap}, menu::{MenuItem, MenuSpec, menu}, meter::{MeterSpec, meter}, progress_bar::{ProgressBarSpec, progress_bar}, radio::{RadioSpec, radio}, scroll_area::{ScrollState, ScrollbarVisibility, begin_scroll_area}, segmented::{SegmentedSpec, segmented}, select::{SelectSpec, select}, slider::{Orientation as SliderOrientation, SliderState}, spinner::{SpinnerSpec, spinner}, status::{StatusSpec, StatusVariant, status}, switch::{SwitchSpec, switch}, tabs::{TabsSpec, tabs}, text_edit::TextEditState, tooltip::{TooltipSpec, TooltipVariant, tooltip}, tree::{TreeRow, TreeSpec, tree}, window::{WindowButton, WindowSpec, window}
     },
 };
 
@@ -641,13 +641,7 @@ pub fn draw_spec_page(
                 ];
                 for (i, (selected, focused, disabled, label)) in radio_items.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    let dc = radio(RadioSpec {
-                        rect: Rect::new(lx, ry, 14.0, 14.0),
-                        selected: *selected,
-                        focused: *focused,
-                        disabled: *disabled,
-                    });
-                    b.append_cmds(dc.0);
+                    b.add(Rect::new(lx, ry, 14.0, 14.0), radio, RadioSpecBuilder::new().selected(*selected).focused(*focused).disabled(*disabled));
                     b.label_styled(
                         Rect::new(lx + 18.0, ry, 140.0, 14.0),
                         label,
