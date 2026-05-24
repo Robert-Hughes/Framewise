@@ -29,9 +29,9 @@ pub fn status<T: TextSystem>(spec: StatusSpec<'_>, ts: &mut T) -> DrawCommands {
 
     let dot_color = match spec.variant {
         StatusVariant::Neutral => t.muted,
-        StatusVariant::Ok      => Color::rgb(0.302, 0.541, 0.227),
+        StatusVariant::Ok      => Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
         StatusVariant::Warn    => t.rust,
-        StatusVariant::Err     => Color::rgb(0.702, 0.145, 0.122),
+        StatusVariant::Err     => Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
         StatusVariant::Live    => t.rust,
     };
 

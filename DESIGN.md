@@ -236,6 +236,48 @@ maintaining complete renderer agnosticism.
 
 ---
 
+## Colour Pipeline
+
+Framewise uses a **linear-light colour pipeline** throughout.
+
+### Why linear?
+
+All blending, interpolation (`lerp`), and brightness operations (`darken`) are
+physically correct only in linear light space. In sRGB space these operations
+produce dark midpoints — most visibly in hover/press transitions and gradients.
+
+### The contract
+
+* **`Color` always stores linear RGBA.** The struct fields `r`, `g`, `b`, `a`
+  are all linear-light values in [0.0, 1.0].
+* **Alpha is never gamma-encoded.** All constructors treat `a` as linear.
+* **The renderer framebuffer is sRGB.** The GPU hardware encodes linear values
+  to the sRGB display curve at no CPU cost. The `init_wgpu` function selects
+  the first sRGB surface format available (`surface_caps.formats.iter().find(|f| f.is_srgb())`).
+
+### Constructing colours
+
+| Source                          | Constructor                    |
+|---------------------------------|--------------------------------|
+| Hex code / 8-bit palette values | `Color::from_srgb_u8(r,g,b,a)` |
+| `0xRRGGBB` hex literal          | `Color::from_srgb_hex(0xRRGGBB)` |
+| f32 values expressed as sRGB    | `Color::from_srgb_f32(r,g,b,a)` |
+| Already-linear f32 values       | `Color::linear_rgba(r,g,b,a)`  |
+
+`Color::linear_rgba` and `Color::linear_rgb` take **linear** inputs and are
+intended for programmatic construction (e.g. copying components from another
+`Color` with a different alpha). Do not pass perceptual sRGB values to these;
+use the `from_srgb_*` variants instead.
+
+### Theme colours
+
+All palette entries in `Theme::framewise()` are defined as sRGB hex/u8 values
+(matching design-tool exports) and decoded to linear at construction time.
+Derived colours that carry the ink or rust RGB at reduced opacity use
+`Color::from_srgb_f32` so the RGB channels receive the same decode.
+
+---
+
 ## Draw Pipeline
 
 ```

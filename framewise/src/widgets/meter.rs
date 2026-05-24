@@ -44,9 +44,9 @@ impl WidgetResult for MeterResult {
 pub fn meter(spec: MeterSpec) -> MeterResult {
     let mut draw = DrawCommands::new();
 
-    let ink    = Color::rgb(0.082, 0.075, 0.059);
-    let rust   = Color::rgb(0.761, 0.353, 0.173);
-    let unlit  = Color::new(0.082, 0.075, 0.059, 0.15);
+    let ink    = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
+    let rust   = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
+    let unlit  = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
     let n = spec.bars.max(1);
     let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;

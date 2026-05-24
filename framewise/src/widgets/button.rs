@@ -45,8 +45,8 @@ impl ButtonStyle {
         let t = Theme::framewise();
         Self {
             background:   t.ink,
-            hovered:      Color::rgb(0.0, 0.0, 0.0),
-            pressed:      Color::from_u8(42, 37, 32, 255),
+            hovered:      Color::BLACK,
+            pressed:      Color::from_srgb_u8(42, 37, 32, 255),
             border:       t.ink,
             border_width: t.border,
             focus_border: t.rust,
@@ -60,8 +60,8 @@ impl ButtonStyle {
         let t = Theme::framewise();
         Self {
             background:   t.rust,
-            hovered:      Color::from_u8(176, 79, 35, 255),
-            pressed:      Color::from_u8(156, 69, 32, 255),
+            hovered:      Color::from_srgb_u8(176, 79, 35, 255),
+            pressed:      Color::from_srgb_u8(156, 69, 32, 255),
             border:       t.rust,
             border_width: t.border,
             focus_border: t.rust,
@@ -176,7 +176,7 @@ pub fn button<T: crate::text::TextSystem>(
     // Disabled: register for layout but skip all interaction.
     if spec.disabled {
         let alpha = 0.32_f32;
-        let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let mut draw = DrawCommands::new();
         draw.push(DrawCmd::FillRect { rect: spec.rect, color: tint(spec.style.background) });
         if spec.style.border_width > 0.0 {

@@ -84,7 +84,23 @@ impl Rect {
 
 // ── Color ─────────────────────────────────────────────────────────────────────
 
-/// An RGBA colour with components in [0.0, 1.0].
+/// Linear-light RGBA colour with components in [0.0, 1.0].
+///
+/// All components are in **linear** (physically-based) light space, not
+/// perceptual/sRGB space. This matches the expectation of a GPU pipeline
+/// using an sRGB framebuffer: the hardware gamma-encodes the linear values
+/// on output, so vertex and uniform colours must already be linear.
+///
+/// ## Constructing colours
+///
+/// | Source                     | Constructor              |
+/// |----------------------------|--------------------------|
+/// | Hex code / `u8` RGB        | [`Color::from_srgb_u8`]  |
+/// | `0xRRGGBB` hex literal     | [`Color::from_srgb_hex`] |
+/// | f32 values typed as sRGB   | [`Color::from_srgb_f32`] |
+/// | Already-linear f32 values  | [`Color::linear_rgba`]   |
+///
+/// **Alpha is never gamma-encoded** — all constructors treat it as linear.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
@@ -93,30 +109,66 @@ pub struct Color {
     pub a: f32,
 }
 
+fn srgb_to_linear(x: f32) -> f32 {
+    if x <= 0.04045 {
+        x / 12.92
+    } else {
+        ((x + 0.055) / 1.055).powf(2.4)
+    }
+}
+
 impl Color {
-    pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    /// Construct from **linear** RGBA components.
+    pub const fn linear_rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 
-    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
+    /// Construct from **linear** RGB components with full opacity.
+    pub const fn linear_rgb(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b, a: 1.0 }
     }
 
-    pub const BLACK:       Color = Color::rgb(0.0, 0.0, 0.0);
-    pub const WHITE:       Color = Color::rgb(1.0, 1.0, 1.0);
-    pub const TRANSPARENT: Color = Color::new(0.0, 0.0, 0.0, 0.0);
+    pub const BLACK:       Color = Color::linear_rgb(0.0, 0.0, 0.0);
+    pub const WHITE:       Color = Color::linear_rgb(1.0, 1.0, 1.0);
+    pub const TRANSPARENT: Color = Color::linear_rgba(0.0, 0.0, 0.0, 0.0);
 
-    /// Construct from 0–255 integer components.
-    pub fn from_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
+    /// Construct from sRGB `u8` components (0–255).
+    ///
+    /// RGB channels are decoded from sRGB to linear light. Alpha is linear
+    /// (255 = fully opaque).
+    pub fn from_srgb_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self {
-            r: r as f32 / 255.0,
-            g: g as f32 / 255.0,
-            b: b as f32 / 255.0,
+            r: srgb_to_linear(r as f32 / 255.0),
+            g: srgb_to_linear(g as f32 / 255.0),
+            b: srgb_to_linear(b as f32 / 255.0),
             a: a as f32 / 255.0,
         }
     }
 
-    /// Blend towards `other` by `t` (0.0 = self, 1.0 = other).
+    /// Construct from sRGB f32 components (0.0–1.0).
+    ///
+    /// RGB channels are decoded from sRGB to linear light. Alpha is linear
+    /// (1.0 = fully opaque).
+    pub fn from_srgb_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self {
+            r: srgb_to_linear(r),
+            g: srgb_to_linear(g),
+            b: srgb_to_linear(b),
+            a,
+        }
+    }
+
+    /// Construct from a 6-digit sRGB hex literal (e.g. `Color::from_srgb_hex(0x15130f)`).
+    pub fn from_srgb_hex(hex: u32) -> Self {
+        Self::from_srgb_u8(
+            ((hex >> 16) & 0xFF) as u8,
+            ((hex >> 8)  & 0xFF) as u8,
+             (hex        & 0xFF) as u8,
+            255,
+        )
+    }
+
+    /// Blend towards `other` by `t` (0.0 = self, 1.0 = other). Linear space.
     pub fn lerp(&self, other: Color, t: f32) -> Self {
         let t = t.clamp(0.0, 1.0);
         Self {
@@ -127,7 +179,7 @@ impl Color {
         }
     }
 
-    /// Multiply RGB by `factor` (brightness adjustment, clamped to [0, 1]).
+    /// Multiply RGB by `factor` (brightness adjustment, clamped to [0, 1]). Linear space.
     pub fn darken(&self, factor: f32) -> Self {
         Self {
             r: (self.r * factor).clamp(0.0, 1.0),

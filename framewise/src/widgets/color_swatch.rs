@@ -15,8 +15,8 @@ impl Default for ColorSwatchSpec {
     fn default() -> Self {
         Self {
             rect:   Rect::new(0.0, 0.0, 16.0, 16.0),
-            color:  Color::rgb(0.5, 0.5, 0.5),
-            border: Color::new(0.0, 0.0, 0.0, 0.20),
+            color:  Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
+            border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
         }
     }
 }

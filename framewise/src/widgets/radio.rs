@@ -16,7 +16,7 @@ pub fn radio(spec: RadioSpec) -> DrawCommands {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
     let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
-    let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
     let cx = spec.rect.x + 7.0;
     let cy = spec.rect.y + 7.0;

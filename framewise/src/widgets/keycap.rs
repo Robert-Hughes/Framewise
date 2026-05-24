@@ -22,9 +22,9 @@ impl<'a> Default for KeycapSpec<'a> {
         Self {
             rect:       Rect::new(0.0, 0.0, 28.0, 22.0),
             label:      "",
-            bg:         Color::rgb(0.984, 0.976, 0.957), // paper_elev
-            border:     Color::rgb(0.541, 0.514, 0.471), // muted
-            text_color: Color::rgb(0.082, 0.075, 0.059), // ink
+            bg:         Color::from_srgb_f32(0.984, 0.976, 0.957, 1.0), // paper_elev
+            border:     Color::from_srgb_f32(0.541, 0.514, 0.471, 1.0), // muted
+            text_color: Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0), // ink
             text_size:  11.0,
         }
     }
@@ -54,7 +54,7 @@ pub fn keycap<T: TextSystem>(spec: KeycapSpec<'_>, ts: &mut T) -> KeycapResult {
     draw.push(DrawCmd::StrokeRect { rect: spec.rect, color: spec.border, width: 1.0 });
     // Bottom shadow line
     let shadow_rect = Rect::new(spec.rect.x + 1.0, spec.rect.y + spec.rect.h, spec.rect.w - 1.0, 2.0);
-    draw.push(DrawCmd::FillRect { rect: shadow_rect, color: Color::new(0.0, 0.0, 0.0, 0.18) });
+    draw.push(DrawCmd::FillRect { rect: shadow_rect, color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18) });
 
     // Label, centered
     if !spec.label.is_empty() {

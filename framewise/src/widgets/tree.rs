@@ -46,7 +46,7 @@ pub fn tree<T: TextSystem>(spec: TreeSpec<'_>, ts: &mut T) -> DrawCommands {
 
         let text_color = if row.selected { t.paper } else { t.ink };
         let meta_color: Color = if row.selected {
-            Color::new(t.paper.r, t.paper.g, t.paper.b, 0.7)
+            Color::linear_rgba(t.paper.r, t.paper.g, t.paper.b, 0.7)
         } else {
             t.muted
         };

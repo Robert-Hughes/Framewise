@@ -53,7 +53,7 @@ pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult
         draw.push(DrawCmd::StrokeLine {
             p0: Vec2::new(spec.rect.x, y),
             p1: Vec2::new(spec.rect.x + spec.rect.w, y),
-            color: Color::new(0.0, 0.0, 0.0, 0.12),
+            color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
             width: 1.0,
         });
     }
@@ -89,7 +89,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Hello".to_string(),
             size: 16.0,
-            text_color: Color::rgb(1.0, 1.0, 1.0),
+            text_color: Color::WHITE,
             rule: false,
         };
         let res = label(spec, &mut sys);
@@ -114,7 +114,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Section".to_string(),
             size: 14.0,
-            text_color: Color::rgb(1.0, 1.0, 1.0),
+            text_color: Color::WHITE,
             rule: true,
         };
         let res = label(spec, &mut sys);

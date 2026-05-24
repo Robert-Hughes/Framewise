@@ -344,9 +344,10 @@ impl Renderer {
                 view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load:  wgpu::LoadOp::Clear(wgpu::Color {
-                        // paper: #f4f1ea
-                        r: 244.0 / 255.0, g: 241.0 / 255.0, b: 234.0 / 255.0, a: 1.0,
+                    load:  wgpu::LoadOp::Clear({
+                        // paper: #f4f1ea — converted to linear for sRGB framebuffer
+                        let p = Color::from_srgb_u8(244, 241, 234, 255);
+                        wgpu::Color { r: p.r as f64, g: p.g as f64, b: p.b as f64, a: 1.0 }
                     }),
                     store: wgpu::StoreOp::Store,
                 },

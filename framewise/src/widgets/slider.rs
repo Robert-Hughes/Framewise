@@ -49,7 +49,7 @@ impl SliderStyle {
     pub fn scrollbar() -> Self {
         let t = Theme::framewise();
         Self {
-            track_color:         Color::new(t.ink.r, t.ink.g, t.ink.b, 0.04),
+            track_color:         Color::linear_rgba(t.ink.r, t.ink.g, t.ink.b, 0.04),
             thumb_color:         t.ink,
             thumb_border_color:  Color::TRANSPARENT,
             thumb_border_width:  0.0,

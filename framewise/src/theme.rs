@@ -35,20 +35,17 @@ pub struct Theme {
 
 impl Theme {
     pub fn framewise() -> Self {
-        let ink_r = 21.0_f32  / 255.0;
-        let ink_g = 19.0_f32  / 255.0;
-        let ink_b = 15.0_f32  / 255.0;
         Self {
-            ink:        Color::from_u8(21,  19,  15,  255),
-            paper:      Color::from_u8(244, 241, 234, 255),
-            paper_elev: Color::from_u8(251, 249, 244, 255),
-            rust:       Color::from_u8(194, 90,  44,  255),
-            muted:      Color::from_u8(138, 131, 120, 255),
-            rust_soft:  Color::new(194.0/255.0, 90.0/255.0, 44.0/255.0, 0.14),
-            line:       Color::new(ink_r, ink_g, ink_b, 0.20),
-            line_soft:  Color::new(ink_r, ink_g, ink_b, 0.10),
-            hover:      Color::new(ink_r, ink_g, ink_b, 0.06),
-            press:      Color::new(ink_r, ink_g, ink_b, 0.14),
+            ink:        Color::from_srgb_u8(21,  19,  15,  255),
+            paper:      Color::from_srgb_u8(244, 241, 234, 255),
+            paper_elev: Color::from_srgb_u8(251, 249, 244, 255),
+            rust:       Color::from_srgb_u8(194, 90,  44,  255),
+            muted:      Color::from_srgb_u8(138, 131, 120, 255),
+            rust_soft:  Color::from_srgb_f32(194.0/255.0, 90.0/255.0, 44.0/255.0, 0.14),
+            line:       Color::from_srgb_f32(21.0/255.0, 19.0/255.0, 15.0/255.0, 0.20),
+            line_soft:  Color::from_srgb_f32(21.0/255.0, 19.0/255.0, 15.0/255.0, 0.10),
+            hover:      Color::from_srgb_f32(21.0/255.0, 19.0/255.0, 15.0/255.0, 0.06),
+            press:      Color::from_srgb_f32(21.0/255.0, 19.0/255.0, 15.0/255.0, 0.14),
             h_sm:       22.0,
             h_md:       28.0,
             h_lg:       36.0,

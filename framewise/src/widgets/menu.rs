@@ -71,7 +71,7 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
             }
             MenuItem::Item { label, shortcut, selected, disabled } => {
                 let alpha = if *disabled { 0.4_f32 } else { 1.0 };
-                let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+                let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
                 let row_rect = Rect::new(outer.x, y, w, row_h);
 
@@ -90,7 +90,7 @@ pub fn menu<T: TextSystem>(spec: MenuSpec<'_>, ts: &mut T) -> DrawCommands {
 
                 if let Some(sc) = shortcut {
                     let sc_color = if *selected {
-                        Color::new(t.paper.r, t.paper.g, t.paper.b, 0.6 * alpha)
+                        Color::linear_rgba(t.paper.r, t.paper.g, t.paper.b, 0.6 * alpha)
                     } else {
                         tint(t.muted)
                     };

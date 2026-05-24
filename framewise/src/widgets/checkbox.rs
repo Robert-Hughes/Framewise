@@ -23,7 +23,7 @@ pub fn checkbox(spec: CheckboxSpec) -> DrawCommands {
     let t = Theme::framewise();
     let mut cmds = DrawCommands::new();
     let alpha = if spec.disabled { 0.35_f32 } else { 1.0 };
-    let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
     let r = Rect::new(spec.rect.x, spec.rect.y, 14.0, 14.0);
 

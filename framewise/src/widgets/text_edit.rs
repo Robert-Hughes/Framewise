@@ -244,7 +244,7 @@ pub fn text_edit<T: TextSystem>(
     // Disabled: draw at reduced alpha, no interaction.
     if spec.disabled {
         let alpha = 0.55_f32;
-        let tint = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         // Transparent bg per mockup, just border.
         if spec.style.border_width > 0.0 {
             draw.push(DrawCmd::StrokeRect {
@@ -495,7 +495,7 @@ pub fn text_edit<T: TextSystem>(
 
     // Drawing Background
     let bg_color = if spec.error {
-        Color::rgb(0.961, 0.914, 0.890) // rust_soft
+        Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0) // rust_soft
     } else {
         spec.style.background
     };
@@ -504,13 +504,13 @@ pub fn text_edit<T: TextSystem>(
     // Error: 4px rust left stripe
     if spec.error {
         let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
-        draw.push(DrawCmd::FillRect { rect: stripe, color: Color::rgb(0.761, 0.353, 0.173) });
+        draw.push(DrawCmd::FillRect { rect: stripe, color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) });
     }
 
     // Border
     if spec.style.border_width > 0.0 {
         let b_color = if spec.error {
-            Color::rgb(0.761, 0.353, 0.173) // rust
+            Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) // rust
         } else if focused {
             spec.style.focus_border
         } else {

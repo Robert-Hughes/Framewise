@@ -97,8 +97,8 @@ mod tests {
         let spec = FrameSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 50.0),
             style: FrameStyle {
-                background: Color::rgb(1.0, 1.0, 1.0),
-                border: Color::rgb(0.5, 0.5, 0.5),
+                background: Color::WHITE,
+                border: Color::linear_rgb(0.5, 0.5, 0.5),
                 border_width: 2.0,
                 padding: 3.0,
             },

@@ -33,10 +33,10 @@ pub struct BuilderCtx {
 impl Default for BuilderCtx {
     fn default() -> Self {
         Self {
-            bg_color:     Color::rgb(0.10, 0.10, 0.13),
-            accent_color: Color::rgb(0.30, 0.55, 0.95),
-            text_color:   Color::rgb(0.90, 0.90, 0.95),
-            border_color: Color::rgb(0.30, 0.30, 0.38),
+            bg_color:     Color::from_srgb_f32(0.10, 0.10, 0.13, 1.0),
+            accent_color: Color::from_srgb_f32(0.30, 0.55, 0.95, 1.0),
+            text_color:   Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
+            border_color: Color::from_srgb_f32(0.30, 0.30, 0.38, 1.0),
             button_style: ButtonStyle::default(),
             frame_style:  FrameStyle::default(),
             text_size:    14.0,
