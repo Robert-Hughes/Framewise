@@ -179,7 +179,7 @@ fn group_y<S: LayoutState<Params = Rect>>(
 ) {
     b.label_styled(
         Rect::new(lx, y, 400.0, 16.0),
-        text,
+        &text.to_uppercase(),
         t.text_sm,
         t.muted,
         false,
@@ -251,7 +251,7 @@ pub fn draw_spec_page(
                 // Overline
                 b.label_styled(
                     Rect::new(tx, MARGIN, hero_w, 16.0),
-                    "framewise · widget specification · v0.1",
+                    "FRAMEWISE · WIDGET SPECIFICATION · V0.1",
                     t.text_sm,
                     t.muted,
                     false,
@@ -303,10 +303,10 @@ pub fn draw_spec_page(
 
                 // Color Meta Row
                 let meta_items: &[(&str, &str)] = &[
-                    ("ink", "#15130f"),
-                    ("paper", "#f4f1ea"),
-                    ("rust", "#c25a2c"),
-                    ("type", "Inter Tight · JetBrains Mono"),
+                    ("INK", "#15130F"),
+                    ("PAPER", "#F4F1EA"),
+                    ("RUST", "#C25A2C"),
+                    ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
                 ];
                 let mut mx = tx;
                 let my = MARGIN + 234.0;
@@ -370,7 +370,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "states · default button");
             y += 20.0;
             {
-                let col_labels = ["default", "hover", "pressed", "focused", "disabled"];
+                let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
                 let row_labels = ["secondary", "primary", "accent", "ghost"];
                 let row_styles: &[ButtonStyle] = &[
                     ButtonStyle::default(),
@@ -496,7 +496,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "states · single-line");
             y += 20.0;
             {
-                let col_labels = ["default", "hover", "focused", "error", "disabled"];
+                let col_labels = ["DEFAULT", "HOVER", "FOCUSED", "ERROR", "DISABLED"];
                 let row_labels = ["empty", "filled"];
                 let cell_w = 160.0_f32;
                 let label_w = 60.0_f32;
@@ -545,7 +545,7 @@ pub fn draw_spec_page(
                 let field_x = lx;
                 b.label_styled(
                     Rect::new(field_x, y, 120.0, 14.0),
-                    "crate name",
+                    "CRATE NAME",
                     t.text_sm,
                     t.muted,
                     false,
@@ -570,7 +570,7 @@ pub fn draw_spec_page(
                 let pf_x = lx + 200.0;
                 b.label_styled(
                     Rect::new(pf_x, y, 120.0, 14.0),
-                    "version",
+                    "VERSION",
                     t.text_sm,
                     t.muted,
                     false,
@@ -612,7 +612,7 @@ pub fn draw_spec_page(
                 let ml_x = lx + 420.0;
                 b.label_styled(
                     Rect::new(ml_x, y, 120.0, 14.0),
-                    "description",
+                    "DESCRIPTION",
                     t.text_sm,
                     t.muted,
                     false,
@@ -643,7 +643,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "checkbox");
             y += 20.0;
             {
-                let col_labels = ["off", "on", "mixed", "focused", "disabled"];
+                let col_labels = ["OFF", "ON", "MIXED", "FOCUSED", "DISABLED"];
                 let label_w = 80.0_f32;
                 let cell_w = 100.0_f32;
                 for (ci, col) in col_labels.iter().enumerate() {
@@ -1183,7 +1183,7 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let items1 = [
-                    MenuItem::Group("Frame"),
+                    MenuItem::Group("FRAME"),
                     MenuItem::Item {
                         label: "New panel",
                         shortcut: Some("⌘ N"),
@@ -1203,7 +1203,7 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                     MenuItem::Separator,
-                    MenuItem::Group("Inspect"),
+                    MenuItem::Group("INSPECT"),
                     MenuItem::Item {
                         label: "Show layout grid",
                         shortcut: Some("G"),
@@ -1231,7 +1231,7 @@ pub fn draw_spec_page(
                 );
 
                 let items2 = [
-                    MenuItem::Group("Theme"),
+                    MenuItem::Group("THEME"),
                     MenuItem::Item {
                         label: "framewise · default",
                         shortcut: None,
@@ -1609,11 +1609,11 @@ pub fn draw_spec_page(
                 );
 
                 let status_items: &[(&str, StatusVariant)] = &[
-                    ("idle", StatusVariant::Neutral),
-                    ("ready", StatusVariant::Ok),
-                    ("frame drop", StatusVariant::Warn),
-                    ("panic", StatusVariant::Err),
-                    ("rendering", StatusVariant::Live),
+                    ("IDLE", StatusVariant::Neutral),
+                    ("READY", StatusVariant::Ok),
+                    ("FRAME DROP", StatusVariant::Warn),
+                    ("PANIC", StatusVariant::Err),
+                    ("RENDERING", StatusVariant::Live),
                 ];
                 let mut sx = lx + 180.0;
                 for (label, variant) in status_items {
@@ -1856,7 +1856,7 @@ pub fn draw_spec_page(
                         .title("Inspector")
                         .buttons(&win_buttons)
                         .status_bar(true)
-                        .status_text("rendering  frame #00248  2.4 ms"),
+                        .status_text("RENDERING  frame #00248  2.4 ms"),
                     ManualLayout,
                 );
 
@@ -1949,7 +1949,7 @@ pub fn draw_spec_page(
                 });
                 b.label_styled(
                     Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0),
-                    "framewise · dark",
+                    "FRAMEWISE · DARK",
                     t.text_sm,
                     light,
                     false,
@@ -2098,7 +2098,7 @@ pub fn draw_spec_page(
                         .title("Renderer Settings")
                         .buttons(&win_buttons)
                         .status_bar(true)
-                        .status_text("rendering  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa"),
+                        .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa"),
                     ManualLayout,
                 );
                 let cr_w = win_w_left - 32.0;
@@ -2126,7 +2126,7 @@ pub fn draw_spec_page(
                 // backend (segmented)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "backend",
+                    "BACKEND",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2145,7 +2145,7 @@ pub fn draw_spec_page(
                 // target fps (slider)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "target fps",
+                    "TARGET FPS",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2172,7 +2172,7 @@ pub fn draw_spec_page(
                 // vsync (switch)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "vsync",
+                    "VSYNC",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2197,7 +2197,7 @@ pub fn draw_spec_page(
                 // msaa (segmented)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "msaa",
+                    "MSAA",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2216,7 +2216,7 @@ pub fn draw_spec_page(
                 // viewport (drag numbers)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "viewport",
+                    "VIEWPORT",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2241,7 +2241,7 @@ pub fn draw_spec_page(
                 // accent (color swatch + button)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "accent",
+                    "ACCENT",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2265,7 +2265,7 @@ pub fn draw_spec_page(
                 // options (checkboxes)
                 win.label_styled(
                     Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "options",
+                    "OPTIONS",
                     t.text_sm,
                     t.muted,
                     false,
@@ -2338,7 +2338,7 @@ pub fn draw_spec_page(
                         .title("Frame Log")
                         .buttons(&fl_buttons)
                         .status_bar(true)
-                        .status_text("recording  248 frames  2.6 ms avg"),
+                        .status_text("RECORDING  248 frames  2.6 ms avg"),
                     ManualLayout,
                 );
                 let fl_cr_w = rcol_w - 32.0;
@@ -2461,11 +2461,11 @@ pub fn draw_spec_page(
                 b.divider(Rect::new(lx, y, content_w, 1.0));
                 y += 10.0;
                 let foot_items: &[(&str, &str)] = &[
-                    ("spec", "v0.1 · 12 sections"),
-                    ("radius", "0 px"),
-                    ("borders", "1 px ink"),
-                    ("focus", "2 px rust outset"),
-                    ("density", "28 px row · 14 px label · 12 px mono"),
+                    ("SPEC", "V0.1 · 12 SECTIONS"),
+                    ("RADIUS", "0 PX"),
+                    ("BORDERS", "1 PX INK"),
+                    ("FOCUS", "2 PX RUST OUTSET"),
+                    ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
                 ];
                 let mut fx = lx;
                 for (key, val) in foot_items {
@@ -2482,7 +2482,7 @@ pub fn draw_spec_page(
                 }
                 b.label_styled(
                     Rect::new(lx + content_w - 200.0, y, 200.0, 14.0),
-                    "framewise · widget specification",
+                    "FRAMEWISE · WIDGET SPECIFICATION",
                     t.text_sm,
                     t.ink,
                     false,
