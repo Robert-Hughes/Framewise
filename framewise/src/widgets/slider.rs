@@ -215,6 +215,7 @@ pub mod raw {
 
         // Track click (mouse down on track, not on thumb)
         if input.mouse_pressed && !thumb_rect.contains(input.mouse_pos) && track_rect.contains(input.mouse_pos) {
+            focus_sys.take_focus(state.focus_id);
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
             state.next_repeat_time = _time + 0.5;
@@ -228,6 +229,7 @@ pub mod raw {
 
         // Thumb drag start
         if input.mouse_pressed && thumb_rect.contains(input.mouse_pos) {
+            focus_sys.take_focus(state.focus_id);
             state.is_dragging = true;
             state.drag_start_mouse_coord = mouse_coord;
             state.drag_start_val = *value;
@@ -1099,6 +1101,36 @@ mod tests {
             "Tab should move focus from slider_a to slider_b"
         );
         assert_eq!(value_a, 50.0, "Value must not change on Tab");
+    }
+
+    #[test]
+    fn test_slider_click_takes_focus() {
+        let mut state = SliderState::default();
+        let mut focus_sys = FocusSystem::new();
+        let mut value = 50.0_f32;
+        let spec = test_spec(0.0, 100.0, true);
+
+        // Click on the track
+        let mut input = crate::input::Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
+        input.mouse_pressed = true;
+
+        focus_sys.begin_frame();
+        raw::slider(
+            &mut state,
+            &mut value,
+            spec.clone(),
+            &input,
+            0.0,
+            &mut focus_sys,
+        );
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.focus_id),
+            "Clicking slider must request focus"
+        );
     }
 
     #[test]
