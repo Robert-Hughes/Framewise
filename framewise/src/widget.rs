@@ -1,3 +1,4 @@
+use crate::Input;
 use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
 use crate::layout::LayoutState;
@@ -67,6 +68,8 @@ pub struct WidgetContext<'a, T: TextSystem, S: LayoutState> {
     // System resources
     pub text_system: &'a mut T,
     pub focus_sys: &'a mut FocusSystem,
+    pub input: &'a Input,
+
     pub layout_state: S,
     cmds: Vec<DrawCmd>,
 }
@@ -76,6 +79,7 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
         theme: Theme,
         text_system: &'a mut T,
         focus_sys: &'a mut FocusSystem,
+        input: &'a Input,
         layout_state: S,
     ) -> Self {
         Self {
@@ -92,6 +96,7 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
             theme,
             text_system,
             focus_sys,
+            input,
             layout_state,
             cmds: Vec::new(),
         }

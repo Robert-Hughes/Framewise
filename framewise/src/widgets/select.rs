@@ -405,7 +405,6 @@ pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem>(
     state: SelectState,
     layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,
-    input: &Input,
 ) -> SelectInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -415,7 +414,7 @@ pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem>(
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::select(state, spec, input, ctx.focus_sys, ctx.text_system);
+    let result = raw::select(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
 

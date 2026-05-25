@@ -215,9 +215,9 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     let mut resolved_builder = builder
         .with_rect(bounds)
         .with_theme(&parent.theme);
-    
+
     resolved_builder.ts = Some(unsafe { &mut *ts_ptr });
-    
+
     if resolved_builder.status_bar.is_none() {
         resolved_builder.status_bar = Some(false);
     }
@@ -227,22 +227,23 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     if resolved_builder.buttons.is_none() {
         resolved_builder.buttons = Some(&[]);
     }
-    
+
     let spec = resolved_builder.build();
     let (pre_cmds, scope, content) = raw::begin_window(spec);
     parent.append_cmds(pre_cmds);
-    
+
     use crate::layout::Layout;
-    
+
     let mut child = unsafe {
         WidgetContext::new(
             parent.theme.clone(),
             &mut *ts_ptr,
             &mut *fs_ptr,
+            parent.input,
             inner_layout.begin(content),
         )
     };
-    
+
     child.bg_color = parent.bg_color;
     child.accent_color = parent.accent_color;
     child.text_color = parent.text_color;
@@ -252,7 +253,7 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     child.text_size = parent.text_size;
     child.text_font = parent.text_font;
     child.time = parent.time;
-    
+
     let parent_clip = parent.clip_rect;
     let new_clip = Some(parent_clip.map_or(content, |pc| pc.intersect(&content)));
     child.clip_rect = new_clip;

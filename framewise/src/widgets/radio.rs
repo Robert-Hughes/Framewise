@@ -292,7 +292,6 @@ pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: RadioState,
     layout_params: S::Params,
     builder: RadioSpecBuilder,
-    input: &Input,
 ) -> RadioInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -302,10 +301,10 @@ pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.spec.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::radio(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::radio(state, spec, ctx.input, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     RadioInfo {
         layout: result.layout,
         input: result.input,

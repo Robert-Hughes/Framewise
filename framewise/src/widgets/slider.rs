@@ -495,7 +495,6 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     value: &mut f32,
     layout_params: S::Params,
     builder: SliderSpecBuilder,
-    input: &Input,
 ) {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -505,7 +504,7 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let cmds = raw::slider(state, value, spec, input, ctx.time, ctx.focus_sys);
+    let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(cmds);
 }
 

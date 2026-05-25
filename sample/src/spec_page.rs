@@ -221,9 +221,10 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         ctx: BuilderCtx,
         text_system: &'a mut T,
         focus_sys: &'a mut FocusSystem,
+        input: &'a Input,
         layout_state: S,
     ) -> Self {
-        let mut w_ctx = WidgetContext::new(ctx.theme, text_system, focus_sys, layout_state);
+        let mut w_ctx = WidgetContext::new(ctx.theme, text_system, focus_sys, input, layout_state);
         w_ctx.bg_color = ctx.bg_color;
         w_ctx.accent_color = ctx.accent_color;
         w_ctx.text_color = ctx.text_color;
@@ -263,6 +264,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             self.ctx.theme.clone(),
             self.ctx.text_system,
             self.ctx.focus_sys,
+            self.ctx.input,
             layout_config.begin(bounds),
         );
         w_ctx.bg_color = self.ctx.bg_color;
@@ -286,7 +288,6 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         v_vis: ScrollbarVisibility,
         state: &'a mut ScrollState,
         inner_layout: L,
-        input: &Input,
     ) -> Builder<'_, T, OffsetState<L::State>> {
         let (widget_context, scope) = begin_scroll_area(
             &mut self.ctx,
@@ -296,7 +297,6 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             v_vis,
             state,
             inner_layout,
-            input,
         );
         Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
     }
@@ -321,6 +321,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             self.ctx.theme.clone(),
             self.ctx.text_system,
             self.ctx.focus_sys,
+            self.ctx.input,
             inner_layout.begin(content_bounds),
         );
         w_ctx.bg_color = self.ctx.bg_color;
@@ -371,55 +372,55 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         divider(&mut self.ctx, layout_params, spec_builder)
     }
 
-    pub fn button(&mut self, state: ButtonState, layout_params: S::Params, text: String, input: &Input) -> ButtonInfo {
+    pub fn button(&mut self, state: ButtonState, layout_params: S::Params, text: String) -> ButtonInfo {
         let spec_builder = ButtonSpecBuilder::new(text)
             .style(self.ctx.button_style)
             .disabled(false);
-        button(&mut self.ctx, state, layout_params, spec_builder, input)
+        button(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn button_styled(&mut self, state: ButtonState, layout_params: S::Params, text: &str, style: ButtonStyle, disabled: bool, input: &Input) -> ButtonInfo {
+    pub fn button_styled(&mut self, state: ButtonState, layout_params: S::Params, text: &str, style: ButtonStyle, disabled: bool) -> ButtonInfo {
         let spec_builder = ButtonSpecBuilder::new(text.to_string())
             .style(style)
             .disabled(disabled);
-        button(&mut self.ctx, state, layout_params, spec_builder, input)
+        button(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn checkbox(&mut self, state: CheckboxState, layout_params: S::Params, input: &Input) -> CheckboxInfo {
+    pub fn checkbox(&mut self, state: CheckboxState, layout_params: S::Params) -> CheckboxInfo {
         let spec_builder = CheckboxSpecBuilder::new(state.check)
             .disabled(false)
             .style(self.ctx.theme.checkbox_style())
             .clip_rect(self.ctx.clip_rect);
-        checkbox(&mut self.ctx, state, layout_params, spec_builder, input)
+        checkbox(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn radio(&mut self, state: RadioState, layout_params: S::Params, input: &Input) -> RadioInfo {
+    pub fn radio(&mut self, state: RadioState, layout_params: S::Params) -> RadioInfo {
         let spec_builder = RadioSpecBuilder::new()
             .selected(state.selected)
             .disabled(false)
             .style(self.ctx.theme.radio_style())
             .clip_rect(self.ctx.clip_rect);
-        radio(&mut self.ctx, state, layout_params, spec_builder, input)
+        radio(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn switch(&mut self, state: SwitchState, layout_params: S::Params, input: &Input) -> SwitchInfo {
-        self.switch_styled(state, layout_params, false, input)
+    pub fn switch(&mut self, state: SwitchState, layout_params: S::Params) -> SwitchInfo {
+        self.switch_styled(state, layout_params, false)
     }
 
-    pub fn switch_styled(&mut self, state: SwitchState, layout_params: S::Params, disabled: bool, input: &Input) -> SwitchInfo {
+    pub fn switch_styled(&mut self, state: SwitchState, layout_params: S::Params, disabled: bool) -> SwitchInfo {
         let spec_builder = SwitchSpecBuilder::new()
             .on(state.on)
             .disabled(disabled)
             .style(self.ctx.theme.switch_style())
             .clip_rect(self.ctx.clip_rect);
-        switch(&mut self.ctx, state, layout_params, spec_builder, input)
+        switch(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn select(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, input: &Input) -> SelectInfo {
-        self.select_styled(state, options, layout_params, false, input)
+    pub fn select(&mut self, state: SelectState, options: &[&str], layout_params: S::Params) -> SelectInfo {
+        self.select_styled(state, options, layout_params, false)
     }
 
-    pub fn select_styled(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, disabled: bool, input: &Input) -> SelectInfo {
+    pub fn select_styled(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, disabled: bool) -> SelectInfo {
         let value = if state.selected_index < options.len() {
             options[state.selected_index]
         } else {
@@ -432,7 +433,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .disabled(disabled)
             .style(self.ctx.theme.select_style())
             .clip_rect(self.ctx.clip_rect);
-        let result = select_raw(state, spec_builder.build(), input, self.ctx.focus_sys, self.ctx.text_system);
+        let result = select_raw(state, spec_builder.build(), self.ctx.input, self.ctx.focus_sys, self.ctx.text_system);
         self.ctx.append_cmds(result.draw.0);
         SelectInfo {
             layout: result.layout,
@@ -442,7 +443,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         }
     }
 
-    pub fn segmented(&mut self, state: SegmentedState, items: &[&str], layout_params: S::Params, input: &Input) -> SegmentedInfo {
+    pub fn segmented(&mut self, state: SegmentedState, items: &[&str], layout_params: S::Params) -> SegmentedInfo {
         let spec_builder = SegmentedSpecBuilder::new()
             .items(items)
             .font(self.ctx.text_font)
@@ -450,23 +451,23 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .disabled(false)
             .style(self.ctx.theme.segmented_style())
             .clip_rect(self.ctx.clip_rect);
-        segmented(&mut self.ctx, state, layout_params, spec_builder, input)
+        segmented(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params, input: &Input) -> TextEditInfo {
-        self.text_edit_ext(state, layout_params, false, false, input)
+    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params) -> TextEditInfo {
+        self.text_edit_ext(state, layout_params, false, false)
     }
 
-    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
+    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool) -> TextEditInfo {
         let spec_builder = TextEditSpecBuilder::new()
             .style(self.ctx.theme.text_edit_style())
             .clip_rect(self.ctx.clip_rect)
             .error(error)
             .disabled(disabled);
-        text_edit(&mut self.ctx, state, layout_params, spec_builder, input)
+        text_edit(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn drag_number(&mut self, state: DragNumberState, label: &str, min: f32, max: f32, layout_params: S::Params, input: &Input) -> DragNumberInfo {
+    pub fn drag_number(&mut self, state: DragNumberState, label: &str, min: f32, max: f32, layout_params: S::Params) -> DragNumberInfo {
         let spec_builder = DragNumberSpecBuilder::new()
             .label(label)
             .font(self.ctx.text_font)
@@ -476,20 +477,20 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .disabled(false)
             .style(self.ctx.theme.drag_number_style())
             .clip_rect(self.ctx.clip_rect);
-        drag_number(&mut self.ctx, state,layout_params, spec_builder, input)
+        drag_number(&mut self.ctx, state,layout_params, spec_builder)
     }
 
-    pub fn chip(&mut self, state: ChipState, label: &str, layout_params: S::Params, input: &Input) -> ChipInfo {
+    pub fn chip(&mut self, state: ChipState, label: &str, layout_params: S::Params) -> ChipInfo {
         let spec_builder = ChipSpecBuilder::new()
             .label(label)
             .font(self.ctx.text_font)
             .disabled(false)
             .style(self.ctx.theme.chip_style())
             .clip_rect(self.ctx.clip_rect);
-        chip(&mut self.ctx, state, layout_params, spec_builder, input)
+        chip(&mut self.ctx, state, layout_params, spec_builder)
     }
 
-    pub fn tabs(&mut self, state: TabsState, items: &[&str], layout_params: S::Params, input: &Input) -> TabsInfo {
+    pub fn tabs(&mut self, state: TabsState, items: &[&str], layout_params: S::Params) -> TabsInfo {
         let spec_builder = TabsSpecBuilder::new()
             .items(items)
             .font(self.ctx.text_font)
@@ -497,7 +498,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .disabled(false)
             .style(self.ctx.theme.tabs_style())
             .clip_rect(self.ctx.clip_rect);
-        tabs(&mut self.ctx, state, layout_params, spec_builder, input)
+        tabs(&mut self.ctx, state, layout_params, spec_builder)
     }
 
     pub fn slider(
@@ -509,7 +510,6 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         step: f32,
         orientation: SliderOrientation,
         layout_params: S::Params,
-        input: &Input,
     ) {
         let spec_builder = SliderSpecBuilder::new()
             .min(min)
@@ -521,7 +521,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .style(self.ctx.theme.slider_style())
             .clip_rect(self.ctx.clip_rect)
             .claim_scroll_at_ends(true);
-        slider(&mut self.ctx, state, value, layout_params, spec_builder, input);
+        slider(&mut self.ctx, state, value, layout_params, spec_builder);
     }
 
     pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
@@ -1028,7 +1028,7 @@ pub fn draw_spec_page(
     ctx.button_style = ButtonStyle::default();
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
-    let mut b = Builder::new(ctx, ts, focus_sys, ManualLayout.begin(win_rect));
+    let mut b = Builder::new(ctx, ts, focus_sys, input, ManualLayout.begin(win_rect));
 
     // Background fill (outside clip so it covers the whole viewport).
     let bg = frame_raw(FrameSpec {
@@ -1051,7 +1051,6 @@ pub fn draw_spec_page(
             ScrollbarVisibility::Auto,
             &mut state.page_scroll,
             ManualLayout,
-            input,
         );
         {
             let mut b = &mut page;
@@ -1175,7 +1174,6 @@ pub fn draw_spec_page(
                         *label,
                         style.clone(),
                         false,
-                        input,
                     );
                     state.btn_variants[i] = btn.state;
                     bx += w + COL_GAP;
@@ -1233,8 +1231,7 @@ pub fn draw_spec_page(
                                     "Action",
                                     row_styles[ri].clone(),
                                     disabled,
-                                    input,
-                                );
+                                            );
                                 state.btn_matrix[idx] = btn.state;
                             }
                         }
@@ -1262,7 +1259,6 @@ pub fn draw_spec_page(
                         *label,
                         style.clone(),
                         false,
-                        input,
                     );
                     state.btn_sizes[i] = btn.state;
                     bx += w + COL_GAP;
@@ -1284,7 +1280,6 @@ pub fn draw_spec_page(
                         *label,
                         style.clone(),
                         false,
-                        input,
                     );
                     state.btn_grp1[i] = btn.state;
                     bx += w;
@@ -1305,7 +1300,6 @@ pub fn draw_spec_page(
                         *label,
                         style.clone(),
                         false,
-                        input,
                     );
                     state.btn_grp2[i] = btn.state;
                     bx += w;
@@ -1354,8 +1348,7 @@ pub fn draw_spec_page(
                             Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md),
                             error,
                             disabled,
-                            input,
-                        );
+                            );
                         state.te_matrix[idx] = info.state;
                     }
                     y += t.h_md + 8.0;
@@ -1380,7 +1373,6 @@ pub fn draw_spec_page(
                     Rect::new(field_x, y + 18.0, 160.0, t.h_md),
                     false,
                     false,
-                    input,
                 );
                 state.te_labelled = info.state;
                 b.label_styled(
@@ -1422,7 +1414,6 @@ pub fn draw_spec_page(
                     Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md),
                     false,
                     false,
-                    input,
                 );
                 state.te_prefixed = info.state;
                 b.label_styled(
@@ -1447,7 +1438,6 @@ pub fn draw_spec_page(
                     Rect::new(ml_x, y + 18.0, 280.0, 68.0),
                     false,
                     false,
-                    input,
                 );
                 state.te_multiline = info.state;
             }
@@ -1503,8 +1493,7 @@ pub fn draw_spec_page(
                         let info = b.checkbox(
                             std::mem::take(&mut state.cb_matrix[ci]),
                             rect,
-                            input,
-                        );
+                            );
                         state.cb_matrix[ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
@@ -1526,8 +1515,7 @@ pub fn draw_spec_page(
                         let info = b.checkbox(
                             std::mem::take(&mut state.cb_matrix[3 + ci]),
                             Rect::new(cx, y, 14.0, 14.0),
-                            input,
-                        );
+                            );
                         state.cb_matrix[3 + ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(
@@ -1562,8 +1550,7 @@ pub fn draw_spec_page(
                         let info = b.radio(
                             std::mem::take(&mut state.radio_states[i]),
                             Rect::new(lx, ry, 14.0, 14.0),
-                            input,
-                        );
+                            );
                         state.radio_states[i] = info.state;
                         if info.input.clicked {
                             for j in 0..3 {
@@ -1593,16 +1580,14 @@ pub fn draw_spec_page(
                                 std::mem::take(&mut state.switch_states[2]),
                                 Rect::new(sw_x, ry, 30.0, 16.0),
                                 true,
-                                input,
-                            );
+                                    );
                             state.switch_states[2] = info.state;
                         }
                         _ => {
                             let info = b.switch(
                                 std::mem::take(&mut state.switch_states[i]),
                                 Rect::new(sw_x, ry, 30.0, 16.0),
-                                input,
-                            );
+                                    );
                             state.switch_states[i] = info.state;
                         }
                     }
@@ -1643,7 +1628,6 @@ pub fn draw_spec_page(
                     0.1,
                     SliderOrientation::Horizontal,
                     Rect::new(lx, y, slider_w, t.h_md),
-                    input,
                 );
                 b.label_styled(
                     Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
@@ -1662,7 +1646,6 @@ pub fn draw_spec_page(
                     0.1,
                     SliderOrientation::Horizontal,
                     Rect::new(lx, y, slider_w, t.h_md),
-                    input,
                 );
                 b.label_styled(
                     Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
@@ -1681,7 +1664,6 @@ pub fn draw_spec_page(
                     0.1,
                     SliderOrientation::Horizontal,
                     Rect::new(lx, y, slider_w, t.h_md),
-                    input,
                 );
                 b.label_styled(
                     Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
@@ -1701,7 +1683,6 @@ pub fn draw_spec_page(
                     1.0,
                     SliderOrientation::Horizontal,
                     Rect::new(lx, y, slider_w, t.h_md),
-                    input,
                 );
                 b.label_styled(
                     Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
@@ -1791,18 +1772,18 @@ pub fn draw_spec_page(
             {
                 let mut bx = lx;
                 // X — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[0]), "X", 0.0, 800.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[0]), "X", 0.0, 800.0, Rect::new(bx, y, 100.0, t.h_md));
                 state.dn_showcase[0] = info.state;
                 bx += 100.0 + 8.0;
                 // Y — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[1]), "Y", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[1]), "Y", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md));
                 state.dn_showcase[1] = info.state;
                 bx += 100.0 + 8.0;
                 // W — fake (forced active/dragging)
                 draw_drag_number_fake_state(&mut b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
                 bx += 100.0 + 8.0;
                 // H — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[2]), "H", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[2]), "H", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md));
                 state.dn_showcase[2] = info.state;
             }
             y += t.h_md + GROUP_GAP;
@@ -1945,7 +1926,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.sel_state),
                     LAYOUT_OPTS,
                     Rect::new(lx, y, 160.0, t.h_md),
-                    input,
                 );
                 state.sel_state = sel_info.state;
                 draw_select_fake_state(
@@ -1966,7 +1946,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.seg1_state),
                     SEGS1,
                     Rect::new(seg_x, y, 0.0, t.h_md),
-                    input,
                 );
                 state.seg1_state = seg1_info.state;
                 const SEGS2: &[&str] = &["start", "center", "end"];
@@ -1974,7 +1953,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.seg2_state),
                     SEGS2,
                     Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
-                    input,
                 );
                 state.seg2_state = seg2_info.state;
 
@@ -1989,7 +1967,6 @@ pub fn draw_spec_page(
                         std::mem::take(&mut state.chip_states[i]),
                         label,
                         Rect::new(chip_x, chip_y, chip_w, 22.0),
-                        input,
                     );
                     state.chip_states[i] = chip_info.state;
                     chip_x += chip_w + 6.0;
@@ -2002,7 +1979,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.chip_states[4]),
                     "+ add backend",
                     Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
-                    input,
                 );
                 state.chip_states[4] = add_info.state;
             }
@@ -2131,7 +2107,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::Always,
                         &mut state.scroll_vert,
                         ManualLayout,
-                        input,
                     );
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
@@ -2186,7 +2161,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::Always,
                         &mut state.scroll_horiz,
                         ManualLayout,
-                        input,
                     );
                     for i in 0..15 {
                         sa.label_styled(
@@ -2227,7 +2201,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::None,
                         &mut state.scroll_both,
                         ManualLayout,
-                        input,
                     );
                     sa.label_styled(
                         Rect::new(6.0, 6.0, 680.0, 14.0),
@@ -2266,7 +2239,6 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::Always,
                         &mut state.scroll_both_axes,
                         ManualLayout,
-                        input,
                     );
                     sa.label_styled(
                         Rect::new(12.0, 10.0, 280.0, 14.0),
@@ -2306,7 +2278,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.tabs1_state),
                     TABS1,
                     Rect::new(lx, y, content_w.min(640.0), 36.0),
-                    input,
                 );
                 state.tabs1_state = t1_info.state;
                 y += 36.0 + 20.0;
@@ -2316,7 +2287,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.tabs2_state),
                     TABS2,
                     Rect::new(lx, y, content_w.min(480.0), 36.0),
-                    input,
                 );
                 state.tabs2_state = t2_info.state;
                 y += 36.0;
@@ -2693,14 +2663,14 @@ pub fn draw_spec_page(
                 let mut drx = 0.0;
                 let cr_w = win_rect.w - 32.0;
                 for (i, (label, min, max)) in [("X", 0.0_f32, 800.0_f32), ("Y", 0.0, 600.0)].iter().enumerate() {
-                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md), input);
+                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md));
                     state.win11_drags[i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
                 drx = 0.0;
                 for (i, (label, min, max)) in [("W", 0.0_f32, 800.0_f32), ("H", 0.0, 600.0)].iter().enumerate() {
-                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[2 + i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md), input);
+                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[2 + i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md));
                     state.win11_drags[2 + i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
@@ -2712,8 +2682,7 @@ pub fn draw_spec_page(
                     let cb_info = win.checkbox(
                         std::mem::take(&mut state.win11_cbs[i]),
                         Rect::new(0.0, iy, 14.0, 14.0),
-                        input,
-                    );
+                        );
                     state.win11_cbs[i] = cb_info.state;
                     win.label_styled(
                         Rect::new(18.0, iy, cr_w - 18.0, 14.0),
@@ -2914,7 +2883,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.iu_tabs),
                     &tabs_items,
                     Rect::new(0.0, 0.0, cr_w, 28.0),
-                    input,
                 );
                 state.iu_tabs = tabs_info.state;
 
@@ -2940,7 +2908,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.iu_backend),
                     &backends,
                     Rect::new(widget_x, fy, 0.0, row_h),
-                    input,
                 );
                 state.iu_backend = backend_info.state;
                 fy += row_h + row_gap;
@@ -2961,7 +2928,6 @@ pub fn draw_spec_page(
                     10.0,
                     SliderOrientation::Horizontal,
                     Rect::new(widget_x, fy, widget_w - 40.0, row_h),
-                    input,
                 );
                 win.label_styled(
                     Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0),
@@ -2983,7 +2949,6 @@ pub fn draw_spec_page(
                 let switch_res = win.switch(
                     std::mem::take(&mut state.iu_vsync),
                     Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
-                    input,
                 );
                 state.iu_vsync = switch_res.state;
                 win.label_styled(
@@ -3008,7 +2973,6 @@ pub fn draw_spec_page(
                     std::mem::take(&mut state.iu_msaa),
                     &msaa_opts,
                     Rect::new(widget_x, fy, 0.0, row_h),
-                    input,
                 );
                 state.iu_msaa = seg_res.state;
                 fy += row_h + row_gap;
@@ -3027,7 +2991,6 @@ pub fn draw_spec_page(
                     0.0,
                     7680.0,
                     Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h),
-                    input,
                 );
                 state.iu_vp_w = w_res.state;
 
@@ -3037,7 +3000,6 @@ pub fn draw_spec_page(
                     0.0,
                     7680.0,
                     Rect::new(widget_x + (widget_w / 2.0) + 4.0, fy, (widget_w / 2.0) - 4.0, row_h),
-                    input,
                 );
                 state.iu_vp_h = h_res.state;
                 fy += row_h + row_gap;
@@ -3080,8 +3042,7 @@ pub fn draw_spec_page(
                     let cb_res = win.checkbox(
                         std::mem::take(&mut state.iu_options[i]),
                         Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
-                        input,
-                    );
+                        );
                     state.iu_options[i] = cb_res.state;
 
                     win.label_styled(
@@ -3113,8 +3074,7 @@ pub fn draw_spec_page(
                         *label,
                         style.clone(),
                         false,
-                        input,
-                    );
+                        );
                     state.iu_btns[i] = btn.state;
                     btn_x -= 8.0;
                 }
@@ -3170,8 +3130,7 @@ pub fn draw_spec_page(
                         ScrollbarVisibility::Auto,
                         &mut state.iu_log_scroll,
                         framewise::layout::ManualLayout,
-                        input,
-                    );
+                        );
                     let loy = 4.0;
                     for (i, (ts_str, msg, highlight)) in log_lines.iter().enumerate() {
                         let row_y = loy + i as f32 * 18.0;

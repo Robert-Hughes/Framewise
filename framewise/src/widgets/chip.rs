@@ -231,7 +231,6 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: ChipState,
     layout_params: S::Params,
     builder: ChipSpecBuilder<'a>,
-    input: &Input,
 ) -> ChipInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -241,7 +240,7 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::chip(state, spec, input, ctx.focus_sys, ctx.text_system);
+    let result = raw::chip(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
 

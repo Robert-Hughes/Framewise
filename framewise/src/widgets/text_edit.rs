@@ -639,7 +639,6 @@ pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: TextEditState,
     layout_params: S::Params,
     builder: TextEditSpecBuilder,
-    input: &Input,
 ) -> TextEditInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -650,10 +649,10 @@ pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
     let spec = builder.build();
     let ts_ptr = ctx.text_system as *mut T;
-    let result = raw::text_edit(state, spec, input, ctx.time, unsafe { &mut *ts_ptr }, ctx.focus_sys);
-    
+    let result = raw::text_edit(state, spec, ctx.input, ctx.time, unsafe { &mut *ts_ptr }, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     TextEditInfo {
         layout: result.layout,
         clipboard_action: result.clipboard_action,

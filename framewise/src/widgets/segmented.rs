@@ -285,7 +285,6 @@ pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: SegmentedState,
     layout_params: S::Params,
     builder: SegmentedSpecBuilder<'a, T>,
-    input: &Input,
 ) -> SegmentedInfo {
     let rect = ctx.layout(layout_params);
     let ts_ptr = ctx.text_system as *mut T;
@@ -297,10 +296,10 @@ pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::segmented(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::segmented(state, spec, ctx.input, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     SegmentedInfo {
         layout: result.layout,
         input: result.input,

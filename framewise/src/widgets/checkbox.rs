@@ -321,7 +321,6 @@ pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: CheckboxState,
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,
-    input: &Input,
 ) -> CheckboxInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -331,10 +330,10 @@ pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.spec.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::checkbox(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::checkbox(state, spec, ctx.input, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     CheckboxInfo {
         layout: result.layout,
         input: result.input,

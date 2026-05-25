@@ -214,6 +214,7 @@ impl App {
             Theme::default(),
             text_system,
             &mut self.focus_sys,
+            &self.input,
             framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_size.0, win_size.1)),
         );
         ctx.text_color = Color::WHITE;
@@ -234,6 +235,7 @@ impl App {
                     ctx.theme.clone(),
                     ctx.text_system,
                     ctx.focus_sys,
+                    ctx.input,
                     layout.begin(bounds),
                 );
                 child.bg_color = ctx.bg_color;
@@ -259,6 +261,7 @@ impl App {
                         main_row.theme.clone(),
                         main_row.text_system,
                         main_row.focus_sys,
+                        main_row.input,
                         layout.begin(bounds),
                     );
                     child.bg_color = main_row.bg_color;
@@ -297,7 +300,6 @@ impl App {
                     ScrollbarVisibility::Auto,
                     &mut self.sidebar_scroll,
                     framewise::layout::ColumnLayout { spacing: 8.0 },
-                    &self.input,
                 );
 
                 for i in 0..20 {
@@ -307,12 +309,11 @@ impl App {
                         let state = std::mem::take(&mut self.sidebar_btns[i].state);
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(sidebar_scroll.button_style)
                             .disabled(false)
                         ;
-                        button(&mut sidebar_scroll, state, layout_params, spec_builder, input)
+                        button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
                     self.sidebar_btns[i].state = btn.state;
@@ -335,7 +336,6 @@ impl App {
                     ScrollbarVisibility::Always,
                     &mut self.right_panel_scroll,
                     framewise::layout::ColumnLayout { spacing: 15.0 },
-                    &self.input,
                 );
                 let inner_w = win_size.0 - 240.0 - 15.0;
 
@@ -349,6 +349,7 @@ impl App {
                             content_col.theme.clone(),
                             content_col.text_system,
                             content_col.focus_sys,
+                            content_col.input,
                             layout.begin(bounds),
                         );
                         child.bg_color = content_col.bg_color;
@@ -370,13 +371,12 @@ impl App {
                     let info = {
                         let state = std::mem::take(&mut self.text_edit_state);
                         let layout_params = Vec2::new(300.0, 40.0);
-                        let input: &Input = &self.input;
                         let spec_builder = TextEditSpecBuilder::new()
                             .style(header_row.theme.text_edit_style())
                             .clip_rect(header_row.clip_rect)
                             .error(false)
                             .disabled(false);
-                        text_edit(&mut header_row, state, layout_params, spec_builder, input)
+                        text_edit(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.text_edit_state = info.state;
 
@@ -393,12 +393,11 @@ impl App {
                         let state = std::mem::take(&mut self.top_btn1.state);
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile".to_string();
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(header_row.button_style)
                             .disabled(false)
                         ;
-                        button(&mut header_row, state, layout_params, spec_builder, input)
+                        button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn1.state = btn1.state;
 
@@ -406,12 +405,11 @@ impl App {
                         let state = std::mem::take(&mut self.top_btn2.state);
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings".to_string();
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(header_row.button_style)
                             .disabled(false)
                         ;
-                        button(&mut header_row, state, layout_params, spec_builder, input)
+                        button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn2.state = btn2.state;
 
@@ -429,6 +427,7 @@ impl App {
                             content_col.theme.clone(),
                             content_col.text_system,
                             content_col.focus_sys,
+                            content_col.input,
                             layout.begin(bounds),
                         );
                         child.bg_color = content_col.bg_color;
@@ -468,6 +467,7 @@ impl App {
                                     grid_col.theme.clone(),
                                     grid_col.text_system,
                                     grid_col.focus_sys,
+                                    grid_col.input,
                                     layout.begin(bounds),
                                 );
                                 child.bg_color = grid_col.bg_color;
@@ -490,12 +490,11 @@ impl App {
                                     let state = std::mem::take(&mut self.grid_btns[idx].state);
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
-                                    let input: &Input = &self.input;
                                     let spec_builder = ButtonSpecBuilder::new(text)
                                         .style(grid_row.button_style)
                                         .disabled(false)
                                     ;
-                                    button(&mut grid_row, state, layout_params, spec_builder, input)
+                                    button(&mut grid_row, state, layout_params, spec_builder)
                                 };
                                 self.grid_btns[idx].state = btn.state;
                             }
@@ -517,6 +516,7 @@ impl App {
                             content_col.theme.clone(),
                             content_col.text_system,
                             content_col.focus_sys,
+                            content_col.input,
                             layout.begin(bounds),
                         );
                         child.bg_color = content_col.bg_color;
@@ -550,7 +550,6 @@ impl App {
                         let step = 20.0;
                         let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, 100.0);
-                        let input: &Input = &self.input;
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(orientation)
                             .min(0.0)
@@ -561,7 +560,7 @@ impl App {
                             .style(SliderStyle::default())
                             .clip_rect(slider_row.clip_rect)
                             .claim_scroll_at_ends(true);
-                        slider(&mut slider_row, state, value, layout_params, spec_builder, input);
+                        slider(&mut slider_row, state, value, layout_params, spec_builder);
                     };
 
                     slider_row.finish()
@@ -588,7 +587,6 @@ impl App {
                     ScrollbarVisibility::Auto,
                     &mut self.main_scroll,
                     framewise::layout::ColumnLayout { spacing: 10.0 },
-                    &self.input,
                 );
                 main_scroll.button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
                 main_scroll.button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
@@ -601,12 +599,11 @@ impl App {
                         let state = std::mem::take(&mut self.main_btns[i].state);
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(main_scroll.button_style)
                             .disabled(false)
                         ;
-                        button(&mut main_scroll, state, layout_params, spec_builder, input)
+                        button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
                     self.main_btns[i].state = btn.state;
@@ -637,7 +634,6 @@ impl App {
                     ScrollbarVisibility::Auto,
                     &mut self.nested_outer_scroll,
                     framewise::layout::ColumnLayout { spacing: 10.0 },
-                    &self.input,
                 );
 
                 for i in 0..3 {
@@ -651,6 +647,7 @@ impl App {
                             outer_scroll.theme.clone(),
                             outer_scroll.text_system,
                             outer_scroll.focus_sys,
+                            outer_scroll.input,
                             layout.begin(bounds),
                         );
                         child.bg_color = outer_scroll.bg_color;
@@ -679,12 +676,11 @@ impl App {
                         let state = std::mem::take(&mut row_state.btn1.state);
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(row_builder.button_style)
                             .disabled(false)
                         ;
-                        button(&mut row_builder, state, layout_params, spec_builder, input)
+                        button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.clicked();
                     row_state.btn1.state = btn1.state;
@@ -700,8 +696,7 @@ impl App {
                         ScrollbarVisibility::Auto,
                         &mut row_state.inner_scroll,
                         framewise::layout::ColumnLayout { spacing: 8.0 },
-                        &self.input,
-                    );
+                        );
 
                     for j in 0..6 {
                         let shade = (j % 2) as f32 * 0.15;
@@ -710,12 +705,11 @@ impl App {
                             let state = std::mem::take(&mut row_state.inner_btns[j].state);
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(inner_scroll.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut inner_scroll, state, layout_params, spec_builder, input)
+                            button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.inner_btns[j].state = btn.state;
@@ -734,8 +728,7 @@ impl App {
                         ScrollbarVisibility::None,
                         &mut row_state.horiz_scroll,
                         framewise::layout::RowLayout { spacing: 8.0 },
-                        &self.input,
-                    );
+                        );
 
                     for j in 0..10 {
                         let shade = (j % 2) as f32 * 0.15;
@@ -744,12 +737,11 @@ impl App {
                             let state = std::mem::take(&mut row_state.horiz_btns[j].state);
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(horiz_scroll.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut horiz_scroll, state, layout_params, spec_builder, input)
+                            button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.horiz_btns[j].state = btn.state;
@@ -769,8 +761,7 @@ impl App {
                         ScrollbarVisibility::Auto,
                         &mut row_state.both_scroll,
                         framewise::layout::ManualLayout,
-                        &self.input,
-                    );
+                        );
 
                     for j in 0..48 {
                         let x = (j % 8) as f32 * 88.0;
@@ -782,12 +773,11 @@ impl App {
                             let state = std::mem::take(&mut row_state.both_btns[j].state);
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(both_scroll.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut both_scroll, state, layout_params, spec_builder, input)
+                            button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.both_btns[j].state = btn.state;
@@ -803,7 +793,6 @@ impl App {
                         let step = 20.0;
                         let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, row_h);
-                        let input: &Input = &self.input;
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(orientation)
                             .min(0.0)
@@ -814,7 +803,7 @@ impl App {
                             .style(SliderStyle::default())
                             .clip_rect(row_builder.clip_rect)
                             .claim_scroll_at_ends(true);
-                        slider(&mut row_builder, state, value, layout_params, spec_builder, input);
+                        slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
                     // Standalone horizontal slider
@@ -824,7 +813,6 @@ impl App {
                         let step = 20.0;
                         let orientation = SliderOrientation::Horizontal;
                         let layout_params = Vec2::new(100.0, 30.0);
-                        let input: &Input = &self.input;
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(orientation)
                             .min(0.0)
@@ -835,7 +823,7 @@ impl App {
                             .style(SliderStyle::default())
                             .clip_rect(row_builder.clip_rect)
                             .claim_scroll_at_ends(true);
-                        slider(&mut row_builder, state, value, layout_params, spec_builder, input);
+                        slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
                     let row_cmds = row_builder.finish();
@@ -863,7 +851,6 @@ impl App {
                     ScrollbarVisibility::None,
                     &mut self.double_horiz_outer_scroll,
                     framewise::layout::RowLayout { spacing: 20.0 },
-                    &self.input,
                 );
 
                 // Left spacer/button
@@ -876,7 +863,7 @@ impl App {
                         .style(d_outer_scroll.button_style)
                         .disabled(false)
                     ;
-                    button(&mut d_outer_scroll, state, layout_params, spec_builder, input)
+                    button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
                 // Inner horizontal scroll area
@@ -888,7 +875,6 @@ impl App {
                     ScrollbarVisibility::None,
                     &mut self.double_horiz_inner_scroll,
                     framewise::layout::RowLayout { spacing: 8.0 },
-                    &self.input,
                 );
 
                 for j in 0..20 {
@@ -896,12 +882,11 @@ impl App {
                         let state = std::mem::take(&mut self.double_horiz_btns[j].state);
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
-                        let input: &Input = &self.input;
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(d_inner_scroll.button_style)
                             .disabled(false)
                         ;
-                        button(&mut d_inner_scroll, state, layout_params, spec_builder, input)
+                        button(&mut d_inner_scroll, state, layout_params, spec_builder)
                     };
                     self.double_horiz_btns[j].state = btn.state;
                 }
@@ -918,7 +903,7 @@ impl App {
                         .style(d_outer_scroll.button_style)
                         .disabled(false)
                     ;
-                    button(&mut d_outer_scroll, state, layout_params, spec_builder, input)
+                    button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
                 let d_outer_cmds = d_outer_scroll.finish();
@@ -951,8 +936,7 @@ impl App {
                         ScrollbarVisibility::Always,
                         &mut self.nested_2d_outer_scroll,
                         framewise::layout::ManualLayout,
-                        &self.input,
-                    );
+                        );
 
                     // Status label at top-left of outer content
                     {
@@ -980,12 +964,11 @@ impl App {
                             let state = std::mem::take(&mut self.nested_2d_outer_btns[k].state);
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label.to_string();
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(outer.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut outer, state, layout_params, spec_builder, input)
+                            button(&mut outer, state, layout_params, spec_builder)
                         };
                         self.nested_2d_outer_btns[k].state = btn.state;
                     }
@@ -999,8 +982,7 @@ impl App {
                         ScrollbarVisibility::Always,
                         &mut self.nested_2d_inner_scroll,
                         framewise::layout::ManualLayout,
-                        &self.input,
-                    );
+                        );
 
                     for j in 0..20 {
                         let col = j % 4;
@@ -1012,12 +994,11 @@ impl App {
                             let state = std::mem::take(&mut self.nested_2d_inner_btns[j].state);
                             let layout_params = Rect::new(col as f32 * 120.0 + 5.0, row as f32 * 58.0 + 5.0, 110.0, 48.0);
                             let text = format!("2D {:02}", j + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(inner.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut inner, state, layout_params, spec_builder, input)
+                            button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.nested_2d_inner_btns[j].state = btn.state;
@@ -1057,8 +1038,7 @@ impl App {
                         ScrollbarVisibility::Always,
                         &mut self.triple_outer_scroll,
                         framewise::layout::ColumnLayout { spacing: 10.0 },
-                        &self.input,
-                    );
+                        );
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
@@ -1084,8 +1064,7 @@ impl App {
                         ScrollbarVisibility::None,
                         &mut self.triple_middle_scroll,
                         framewise::layout::RowLayout { spacing: 10.0 },
-                        &self.input,
-                    );
+                        );
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
@@ -1108,8 +1087,7 @@ impl App {
                         ScrollbarVisibility::Always,
                         &mut self.triple_inner_scroll,
                         framewise::layout::ColumnLayout { spacing: 6.0 },
-                        &self.input,
-                    );
+                        );
 
                     for j in 0..12 {
                         let shade = (j % 2) as f32 * 0.12;
@@ -1119,12 +1097,11 @@ impl App {
                             let state = std::mem::take(&mut self.triple_inner_btns[j].state);
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(inner_scroll.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut inner_scroll, state, layout_params, spec_builder, input)
+                            button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.triple_inner_btns[j].state = btn.state;
@@ -1141,8 +1118,7 @@ impl App {
                         ScrollbarVisibility::None,
                         &mut self.triple_innermost_scroll,
                         framewise::layout::RowLayout { spacing: 6.0 },
-                        &self.input,
-                    );
+                        );
                     for k in 0..5 {
                         innermost_scroll.button_style.background = Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
                         innermost_scroll.button_style.hovered    = Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
@@ -1150,12 +1126,11 @@ impl App {
                             let state = std::mem::take(&mut self.triple_innermost_btns[k].state);
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
-                            let input: &Input = &self.input;
-                            let spec_builder = ButtonSpecBuilder::new(text)
+                                let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(innermost_scroll.button_style)
                                 .disabled(false)
                             ;
-                            button(&mut innermost_scroll, state, layout_params, spec_builder, input)
+                            button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.triple_innermost_btns[k].state = btn.state;
@@ -1174,7 +1149,6 @@ impl App {
                         let step = 20.0;
                         let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, 130.0);
-                        let input: &Input = &self.input;
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(orientation)
                             .min(0.0)
@@ -1185,7 +1159,7 @@ impl App {
                             .style(SliderStyle::default())
                             .clip_rect(middle_scroll.clip_rect)
                             .claim_scroll_at_ends(true);
-                        slider(&mut middle_scroll, state, value, layout_params, spec_builder, input);
+                        slider(&mut middle_scroll, state, value, layout_params, spec_builder);
                     };
 
                     {

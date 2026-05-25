@@ -299,7 +299,6 @@ pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: SwitchState,
     layout_params: S::Params,
     builder: SwitchSpecBuilder,
-    input: &Input,
 ) -> SwitchInfo {
     let rect = ctx.layout(layout_params);
     let mut builder = builder
@@ -309,10 +308,10 @@ pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.spec.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::switch(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::switch(state, spec, ctx.input, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     SwitchInfo {
         layout: result.layout,
         input: result.input,

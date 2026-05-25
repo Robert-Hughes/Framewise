@@ -367,7 +367,6 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     state: ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
-    input: &Input,
 ) -> ButtonInfo {
     let rect = ctx.layout(layout_params);
     let style = builder.style.unwrap_or(ctx.button_style);
@@ -378,10 +377,10 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         .build();
     spec.rect = rect;
 
-    let result = raw::button(state, spec, input, ctx.text_system, ctx.focus_sys);
-    
+    let result = raw::button(state, spec, ctx.input, ctx.text_system, ctx.focus_sys);
+
     ctx.append_cmds(result.draw.0);
-    
+
     ButtonInfo {
         layout: result.layout,
         input: result.input,
