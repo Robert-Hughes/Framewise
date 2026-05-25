@@ -5,6 +5,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Add AGENTS.md with notes about running tests, clippy, cargo fmt, keeping the sample app tidy with these as well as the lib crate.
+
 * Try to add tests for the WidgetContext nesting and scopes, to make sure things are finished in the right order, we don't miss scopes etc.
 * DESIGN.md doesn't mention the current implementation's automatic scope finishing in WidgetContext::finish() vs the design document's explicit end_* function pattern. Need to figure out what we want to do here.
 * SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback? Make this explicit in DESIGN.md and check the code. Add tests for fallback?

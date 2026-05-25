@@ -500,8 +500,7 @@ impl WidgetScope for ScrollAreaScope {
 impl ScrollAreaScope {
     pub fn finish(mut self, focus_sys: &mut crate::focus::FocusSystem) -> Vec<DrawCmd> {
         self.is_finished = true;
-        let mut post_cmds = Vec::new();
-        post_cmds.push(DrawCmd::PopClip);
+        let post_cmds = vec![DrawCmd::PopClip];
 
         let popped = focus_sys.pop_keyboard_scroll_scope();
         debug_assert_eq!(

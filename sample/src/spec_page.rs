@@ -52,8 +52,10 @@ fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let mut state = CheckboxState::default();
-    state.check = state_val;
+    let state = CheckboxState {
+        check: state_val,
+        ..Default::default()
+    };
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
@@ -90,8 +92,10 @@ fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let mut state = RadioState::default();
-    state.selected = selected;
+    let state = RadioState {
+        selected,
+        ..Default::default()
+    };
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
@@ -124,8 +128,10 @@ fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let mut state = SwitchState::default();
-    state.on = on;
+    let state = SwitchState {
+        on,
+        ..Default::default()
+    };
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
@@ -150,7 +156,7 @@ fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     };
 }
 
-fn draw_select_fake_state<'a, 's, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     b: &mut WidgetContext<T, LS, Scope>,
     layout_params: LS::Params,
     value: &'s str,
@@ -161,9 +167,11 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, LS: LayoutState, Scope: WidgetS
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let mut state = SelectState::default();
-    state.open = is_open;
-    state.hovered = hovered_row;
+    let state = SelectState {
+        open: is_open,
+        hovered: hovered_row,
+        ..Default::default()
+    };
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
@@ -205,9 +213,11 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScop
     is_active: bool,
 ) {
     let rect = b.layout(layout_params);
-    let mut state = DragNumberState::default();
-    state.value = val;
-    state.is_dragging = is_active;
+    let state = framewise::widgets::DragNumberState {
+        value: val,
+        is_dragging: is_active,
+        ..Default::default()
+    };
 
     let dummy_input = Input::default();
     let spec = DragNumberSpec {
