@@ -12,7 +12,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn begin_window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> (Vec<DrawCmd>, WindowScope, Rect) {
+    pub fn begin_window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a>,
+        text_system: &mut T) -> (Vec<DrawCmd>, WindowScope, Rect)
+    {
         let mut draw = Vec::new();
         let s = spec.style;
 
@@ -43,7 +45,7 @@ pub mod raw {
         });
 
         let title_upper = spec.title.to_uppercase();
-        let title_layout = spec.ts.prepare(&title_upper, s.text_size, spec.font);
+        let title_layout = text_system.prepare(&title_upper, s.text_size, spec.font);
         let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
             rect: Rect::new(
@@ -60,7 +62,7 @@ pub mod raw {
         let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
-            let btn_layout = spec.ts.prepare(btn.symbol, s.text_size, spec.font);
+            let btn_layout = text_system.prepare(btn.symbol, s.text_size, spec.font);
             let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
@@ -78,7 +80,7 @@ pub mod raw {
                 color: s.status_border,
                 width: s.border_width,
             });
-            let status_layout = spec.ts.prepare(spec.status_text, s.text_size, spec.font);
+            let status_layout = text_system.prepare(spec.status_text, s.text_size, spec.font);
             let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -120,8 +122,7 @@ pub struct WindowButton {
     pub symbol: &'static str,
 }
 
-pub struct WindowSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct WindowSpec<'a> {
     pub rect: Rect,
     pub title: &'a str,
     pub buttons: &'a [WindowButton],
@@ -202,21 +203,17 @@ impl WindowScope {
 ///
 /// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
 /// and returns a child WidgetContext and the window scope.
-pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
-    parent: &'b mut WidgetContext<'_, T, S>,
+pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
+    parent: &'b mut WidgetContext<'a, T, S>,
     layout_params: S::Params,
-    builder: WindowSpecBuilder<'b, T>,
+    builder: WindowSpecBuilder<'c>,
     inner_layout: L,
 ) -> WidgetContext<'b, T, L::State> {
     let bounds = parent.layout(layout_params);
-    let ts_ptr = parent.text_system as *mut T;
-    let fs_ptr = parent.focus_sys as *mut crate::focus::FocusSystem;
 
     let mut resolved_builder = builder
         .with_rect(bounds)
         .with_theme(&parent.theme);
-
-    resolved_builder.ts = Some(unsafe { &mut *ts_ptr });
 
     if resolved_builder.status_bar.is_none() {
         resolved_builder.status_bar = Some(false);
@@ -229,33 +226,13 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     }
 
     let spec = resolved_builder.build();
-    let (pre_cmds, scope, content) = raw::begin_window(spec);
+    let (pre_cmds, scope, content) = raw::begin_window(spec, parent.text_system);
     parent.append_cmds(pre_cmds);
 
-    use crate::layout::Layout;
+    let new_clip = Some(parent.clip_rect.map_or(content, |pc| pc.intersect(&content)));
 
-    let mut child = unsafe {
-        WidgetContext::new(
-            parent.theme.clone(),
-            &mut *ts_ptr,
-            &mut *fs_ptr,
-            parent.input,
-            inner_layout.begin(content),
-        )
-    };
+    let mut child = parent.child_with_layout(inner_layout.begin(content));
 
-    child.bg_color = parent.bg_color;
-    child.accent_color = parent.accent_color;
-    child.text_color = parent.text_color;
-    child.border_color = parent.border_color;
-    child.button_style = parent.button_style;
-    child.frame_style = parent.frame_style;
-    child.text_size = parent.text_size;
-    child.text_font = parent.text_font;
-    child.time = parent.time;
-
-    let parent_clip = parent.clip_rect;
-    let new_clip = Some(parent_clip.map_or(content, |pc| pc.intersect(&content)));
     child.clip_rect = new_clip;
 
     child.window_scope = Some(scope); //TODO: assert non-empty?
@@ -279,7 +256,7 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
 // ── Re-export raw functions for direct use ───────────────────────────────────────────
 pub use raw::{begin_window as begin_window_raw, end_window as end_window_raw};
 
-pub struct WindowSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct WindowSpecBuilder<'a> {
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
     pub font: Option<FontId>,
@@ -287,10 +264,9 @@ pub struct WindowSpecBuilder<'a, T: crate::text::TextSystem> {
     pub status_bar: Option<bool>,
     pub status_text: Option<&'a str>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
+impl<'a> WindowSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             title: None,
@@ -300,7 +276,6 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
             status_bar: None,
             status_text: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -330,7 +305,7 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
+impl<'a> WindowSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -344,14 +319,8 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> WindowSpec<'a, T> {
+    pub fn build(self) -> WindowSpec<'a> {
         WindowSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             title: self.title.unwrap(),
             buttons: self.buttons.unwrap(),

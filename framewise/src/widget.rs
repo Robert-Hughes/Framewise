@@ -80,7 +80,7 @@ pub struct WidgetContext<'a, T: TextSystem, S: LayoutState> {
 }
 
 impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
-    pub fn new(
+    pub fn root(
         theme: Theme,
         text_system: &'a mut T,
         focus_sys: &'a mut FocusSystem,
@@ -109,6 +109,29 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
         }
     }
 
+    pub fn child_with_layout<'c, S2: LayoutState>(&'c mut self, inner_layout_state: S2) -> WidgetContext<'c, T, S2> {
+        WidgetContext {
+            theme: self.theme.clone(),
+            bg_color: self.bg_color.clone(),
+            accent_color: self.accent_color.clone(),
+            text_color: self.text_color.clone(),
+            border_color: self.border_color.clone(),
+            button_style: self.button_style.clone(),
+            frame_style: self.frame_style.clone(),
+            text_size: self.text_size.clone(),
+            text_font: self.text_font.clone(),
+            time: self.time.clone(),
+            clip_rect: self.clip_rect.clone(),
+            text_system: self.text_system,
+            focus_sys: self.focus_sys,
+            input: self.input,
+            layout_state: inner_layout_state,
+            cmds: vec![],
+            scroll_scope: None, //TODO: ?
+            window_scope: None,//TODO: ?
+        }
+   }
+
     /// Append draw commands to the context's accumulated list.
     pub fn append_cmds(&mut self, mut cmds: Vec<DrawCmd>) {
         self.cmds.append(&mut cmds);
@@ -128,8 +151,14 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
     }
 
 
+
+
     /// Resolve layout using the context's layout state.
     pub fn layout(&mut self, params: S::Params) -> Rect {
         self.layout_state.layout(params)
+    }
+
+    pub fn finish_child<'a2, 'b, T2: TextSystem, S2: LayoutState>(&'b mut self, child: WidgetContext<'a2, T2, S2>) {
+         self.append_cmds(child.finish());
     }
 }

@@ -12,7 +12,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a, T>) -> KeycapResult {
+    pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a>,
+     text_system: &mut T) -> KeycapResult {
         let mut draw = DrawCommands::new();
 
         // Background + border
@@ -39,7 +40,7 @@ pub mod raw {
 
         // Label, centered
         if !spec.label.is_empty() {
-            let layout = spec.ts.prepare(spec.label, spec.text_size, spec.font);
+            let layout = text_system.prepare(spec.label, spec.text_size, spec.font);
             let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
             let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
             draw.push(DrawCmd::Text {
@@ -56,8 +57,7 @@ pub mod raw {
     }
 }
 
-pub struct KeycapSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct KeycapSpec<'a> {
     pub rect: Rect,
     pub label: &'a str,
     /// Background fill (default: paper_elev).
@@ -98,16 +98,15 @@ impl KeycapResult {
 pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     layout_params: S::Params,
-    builder: KeycapSpecBuilder<'a, T>,
+    builder: KeycapSpecBuilder<'a>,
 ) -> KeycapInfo {
     let rect = ctx.layout(layout_params);
     let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     let spec = builder.build();
-    let result = raw::keycap(spec);
+    let result = raw::keycap(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
     KeycapInfo { layout: result.layout }
 }
@@ -115,7 +114,7 @@ pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::keycap as keycap_raw;
 
-pub struct KeycapSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub bg: Option<Color>,
     pub border: Option<Color>,
@@ -123,10 +122,9 @@ pub struct KeycapSpecBuilder<'a, T: crate::text::TextSystem> {
     pub text_size: Option<f32>,
     pub font: Option<FontId>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
+impl<'a> KeycapSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             label: None,
@@ -136,7 +134,6 @@ impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
             text_size: None,
             font: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -166,7 +163,7 @@ impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
+impl<'a> KeycapSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -179,14 +176,8 @@ impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> KeycapSpec<'a, T> {
+    pub fn build(self) -> KeycapSpec<'a> {
         KeycapSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             bg: self.bg.unwrap(),

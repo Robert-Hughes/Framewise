@@ -210,7 +210,7 @@ impl App {
         }
 
         self.focus_sys.begin_frame();
-        let mut ctx = WidgetContext::new(
+        let mut ctx = WidgetContext::root(
             Theme::default(),
             text_system,
             &mut self.focus_sys,
@@ -231,24 +231,7 @@ impl App {
                 let layout_params = Rect::new(10.0, 10.0, win_size.0 - 20.0, win_size.1 - 20.0);
                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
                 let bounds = ctx.layout(layout_params);
-                let mut child = WidgetContext::new(
-                    ctx.theme.clone(),
-                    ctx.text_system,
-                    ctx.focus_sys,
-                    ctx.input,
-                    layout.begin(bounds),
-                );
-                child.bg_color = ctx.bg_color;
-                child.accent_color = ctx.accent_color;
-                child.text_color = ctx.text_color;
-                child.border_color = ctx.border_color;
-                child.button_style = ctx.button_style;
-                child.frame_style = ctx.frame_style;
-                child.text_size = ctx.text_size;
-                child.text_font = ctx.text_font;
-                child.time = ctx.time;
-                child.clip_rect = ctx.clip_rect;
-                child
+                ctx.child_with_layout(layout.begin(bounds))
             };
 
             // -- SIDEBAR (Left Column) --
@@ -257,24 +240,7 @@ impl App {
                     let layout_params = Vec2::new(200.0, win_size.1 - 20.0);
                     let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                     let bounds = main_row.layout(layout_params);
-                    let mut child = WidgetContext::new(
-                        main_row.theme.clone(),
-                        main_row.text_system,
-                        main_row.focus_sys,
-                        main_row.input,
-                        layout.begin(bounds),
-                    );
-                    child.bg_color = main_row.bg_color;
-                    child.accent_color = main_row.accent_color;
-                    child.text_color = main_row.text_color;
-                    child.border_color = main_row.border_color;
-                    child.button_style = main_row.button_style;
-                    child.frame_style = main_row.frame_style;
-                    child.text_size = main_row.text_size;
-                    child.text_font = main_row.text_font;
-                    child.time = main_row.time;
-                    child.clip_rect = main_row.clip_rect;
-                    child
+                    main_row.child_with_layout(layout.begin(bounds))
                 };
                 sidebar_col.button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
                 sidebar_col.button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
@@ -345,24 +311,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 40.0);
                         let layout = framewise::layout::RowLayout { spacing: 10.0 };
                         let bounds = content_col.layout(layout_params);
-                        let mut child = WidgetContext::new(
-                            content_col.theme.clone(),
-                            content_col.text_system,
-                            content_col.focus_sys,
-                            content_col.input,
-                            layout.begin(bounds),
-                        );
-                        child.bg_color = content_col.bg_color;
-                        child.accent_color = content_col.accent_color;
-                        child.text_color = content_col.text_color;
-                        child.border_color = content_col.border_color;
-                        child.button_style = content_col.button_style;
-                        child.frame_style = content_col.frame_style;
-                        child.text_size = content_col.text_size;
-                        child.text_font = content_col.text_font;
-                        child.time = content_col.time;
-                        child.clip_rect = content_col.clip_rect;
-                        child
+                        content_col.child_with_layout(layout.begin(bounds))
                     };
                     header_row.button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
                     header_row.button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
@@ -423,24 +372,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 200.0);
                         let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                         let bounds = content_col.layout(layout_params);
-                        let mut child = WidgetContext::new(
-                            content_col.theme.clone(),
-                            content_col.text_system,
-                            content_col.focus_sys,
-                            content_col.input,
-                            layout.begin(bounds),
-                        );
-                        child.bg_color = content_col.bg_color;
-                        child.accent_color = content_col.accent_color;
-                        child.text_color = content_col.text_color;
-                        child.border_color = content_col.border_color;
-                        child.button_style = content_col.button_style;
-                        child.frame_style = content_col.frame_style;
-                        child.text_size = content_col.text_size;
-                        child.text_font = content_col.text_font;
-                        child.time = content_col.time;
-                        child.clip_rect = content_col.clip_rect;
-                        child
+                        content_col.child_with_layout(layout.begin(bounds))
                     };
                     grid_col.button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
                     grid_col.button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
@@ -463,24 +395,7 @@ impl App {
                                 let layout_params = Vec2::new(inner_w, 32.0);
                                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
                                 let bounds = grid_col.layout(layout_params);
-                                let mut child = WidgetContext::new(
-                                    grid_col.theme.clone(),
-                                    grid_col.text_system,
-                                    grid_col.focus_sys,
-                                    grid_col.input,
-                                    layout.begin(bounds),
-                                );
-                                child.bg_color = grid_col.bg_color;
-                                child.accent_color = grid_col.accent_color;
-                                child.text_color = grid_col.text_color;
-                                child.border_color = grid_col.border_color;
-                                child.button_style = grid_col.button_style;
-                                child.frame_style = grid_col.frame_style;
-                                child.text_size = grid_col.text_size;
-                                child.text_font = grid_col.text_font;
-                                child.time = grid_col.time;
-                                child.clip_rect = grid_col.clip_rect;
-                                child
+                                grid_col.child_with_layout(layout.begin(bounds))
                             };
                             for col in 0..4 {
                                 let idx = row * 4 + col;
@@ -512,24 +427,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 100.0);
                         let layout = framewise::layout::RowLayout { spacing: 20.0 };
                         let bounds = content_col.layout(layout_params);
-                        let mut child = WidgetContext::new(
-                            content_col.theme.clone(),
-                            content_col.text_system,
-                            content_col.focus_sys,
-                            content_col.input,
-                            layout.begin(bounds),
-                        );
-                        child.bg_color = content_col.bg_color;
-                        child.accent_color = content_col.accent_color;
-                        child.text_color = content_col.text_color;
-                        child.border_color = content_col.border_color;
-                        child.button_style = content_col.button_style;
-                        child.frame_style = content_col.frame_style;
-                        child.text_size = content_col.text_size;
-                        child.text_font = content_col.text_font;
-                        child.time = content_col.time;
-                        child.clip_rect = content_col.clip_rect;
-                        child
+                        content_col.child_with_layout(layout.begin(bounds))
                     };
 
                     {
@@ -643,24 +541,7 @@ impl App {
                         let layout_params = Vec2::new(800.0, row_h);
                         let layout = framewise::layout::RowLayout { spacing: 10.0 };
                         let bounds = outer_scroll.layout(layout_params);
-                        let mut child = WidgetContext::new(
-                            outer_scroll.theme.clone(),
-                            outer_scroll.text_system,
-                            outer_scroll.focus_sys,
-                            outer_scroll.input,
-                            layout.begin(bounds),
-                        );
-                        child.bg_color = outer_scroll.bg_color;
-                        child.accent_color = outer_scroll.accent_color;
-                        child.text_color = outer_scroll.text_color;
-                        child.border_color = outer_scroll.border_color;
-                        child.button_style = outer_scroll.button_style;
-                        child.frame_style = outer_scroll.frame_style;
-                        child.text_size = outer_scroll.text_size;
-                        child.text_font = outer_scroll.text_font;
-                        child.time = outer_scroll.time;
-                        child.clip_rect = outer_scroll.clip_rect;
-                        child
+                        outer_scroll.child_with_layout(layout.begin(bounds))
                     };
                     let (base_r, base_g, base_b) = match i {
                         0 => (0.40, 0.80, 0.10), // Lime green
@@ -715,8 +596,9 @@ impl App {
                         row_state.inner_btns[j].state = btn.state;
                         if clicked { row_state.inner_btns[j].clicks += 1; }
                     }
-                    let inner_cmds = inner_scroll.finish();
-                    row_builder.append_cmds(inner_cmds);
+                    let cmds = inner_scroll.finish();
+                    row_builder.append_cmds(cmds);
+                    // row_builder.finish_child(inner_scroll);//TODO:
 
                     // 2. Horizontal Inner scroll area (using None for vertical scrollbar)
                     let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;

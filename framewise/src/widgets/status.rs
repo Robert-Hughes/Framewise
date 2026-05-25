@@ -12,7 +12,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> StatusResult {
+    pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a>,
+        text_system: &mut T) -> StatusResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -33,7 +34,7 @@ pub mod raw {
         });
 
         let label_upper = spec.label.to_uppercase();
-        let layout = spec.ts.prepare(&label_upper, s.text_size, spec.font);
+        let layout = text_system.prepare(&label_upper, s.text_size, spec.font);
         let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -59,8 +60,7 @@ pub enum StatusVariant {
     Live,
 }
 
-pub struct StatusSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct StatusSpec<'a> {
     pub rect: Rect,
     pub label: &'a str,
     pub font: FontId,
@@ -115,32 +115,29 @@ impl StatusResult {
 pub fn status<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     layout_params: S::Params,
-    builder: StatusSpecBuilder<'a, T>,
+    builder: StatusSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     let spec = builder.build();
-    let result = raw::status(spec);
+    let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::status as status_raw;
 
-pub struct StatusSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct StatusSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<StatusStyle>,
     pub variant: Option<StatusVariant>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
+impl<'a> StatusSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             label: None,
@@ -148,7 +145,6 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
             style: None,
             variant: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -170,7 +166,7 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
+impl<'a> StatusSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -184,14 +180,8 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> StatusSpec<'a, T> {
+    pub fn build(self) -> StatusSpec<'a> {
         StatusSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
@@ -210,7 +200,6 @@ mod tests {
     fn test_status_visual_ok() {
         let mut text_sys = DummyTextSys;
         let spec = StatusSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             label: "Online",
             font: FontId(0),

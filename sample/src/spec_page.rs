@@ -218,7 +218,6 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
 
     let dummy_input = Input::default();
     let spec = DragNumberSpec {
-        ts: b.text_system,
         rect,
         label,
         font: b.theme.sans_font,
@@ -236,6 +235,7 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
         spec,
         &dummy_input,
         &mut dummy_focus_sys,
+        b.text_system,
     );
     {
         let this = &mut *b;
@@ -560,7 +560,7 @@ pub fn draw_spec_page(
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
     let mut b = {
         let layout_state = ManualLayout.begin(win_rect);
-        let mut w_ctx = WidgetContext::new(t, ts, focus_sys, input, layout_state);
+        let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state);
         w_ctx.bg_color = t.paper;
         w_ctx.accent_color = Color::BLACK;
         w_ctx.text_color = Color::BLACK;
@@ -2706,13 +2706,12 @@ pub fn draw_spec_page(
                 ];
                 let win_rect = Rect::new(lx, y, 360.0, 280.0);
                 let mut win = {
-                    let this = &mut *b;
                     let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
                                         .title("Inspector")
                                         .buttons(&win_buttons)
                                         .status_bar(true)
                                         .status_text("RENDERING  frame #00248  2.4 ms");
-                    begin_window(this, win_rect, widget_spec_builder, ManualLayout)
+                    begin_window(b, win_rect, widget_spec_builder, ManualLayout)
                 };
 
                 // Inner content: drag numbers + checkboxes
@@ -2801,10 +2800,7 @@ pub fn draw_spec_page(
                     iy += 22.0;
                 }
                 let cmds = win.finish();
-                {
-                    let this = &mut *b;
-                    this.append_cmds(cmds);
-                };
+                b.append_cmds(cmds);
 
                 // Dark variant window (drawn with DrawCmds)
                 let dw = Rect::new(lx + 388.0, y, 300.0, 240.0);

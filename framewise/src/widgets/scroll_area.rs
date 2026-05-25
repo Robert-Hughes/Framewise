@@ -409,8 +409,8 @@ impl ScrollAreaScope {
 ///
 /// This function accepts scroll parameters, performs layout on the parent context,
 /// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
-pub fn begin_scroll_area<'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
-    parent: &'b mut WidgetContext<'_, T, S>,
+pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
+    parent: &'b mut WidgetContext<'a, T, S>,
     layout_params: S::Params,
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
@@ -441,28 +441,8 @@ pub fn begin_scroll_area<'b, T: crate::text::TextSystem, S: crate::layout::Layou
     let parent_clip = parent.clip_rect;
     let new_clip = Some(parent_clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
 
-    // Safety reborrow of parent resources to bypass compiler lock:
-    let ts_ptr = parent.text_system as *mut T;
-    let fs_ptr = parent.focus_sys as *mut crate::focus::FocusSystem;
+    let mut child = parent.child_with_layout(offset_layout.begin(content_bounds));
 
-    let mut child = unsafe {
-        WidgetContext::new(
-            parent.theme.clone(),
-            &mut *ts_ptr,
-            &mut *fs_ptr,
-            parent.input,
-            offset_layout.begin(content_bounds),
-        )
-    };
-    child.bg_color = parent.bg_color;
-    child.accent_color = parent.accent_color;
-    child.text_color = parent.text_color;
-    child.border_color = parent.border_color;
-    child.button_style = parent.button_style;
-    child.frame_style = parent.frame_style;
-    child.text_size = parent.text_size;
-    child.text_font = parent.text_font;
-    child.time = parent.time;
     child.clip_rect = new_clip;
     child.scroll_scope = Some(scope); //TODO: assert non-empty?
 

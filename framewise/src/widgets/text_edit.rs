@@ -648,8 +648,7 @@ pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let ts_ptr = ctx.text_system as *mut T;
-    let result = raw::text_edit(state, spec, ctx.input, ctx.time, unsafe { &mut *ts_ptr }, ctx.focus_sys);
+    let result = raw::text_edit(state, spec, ctx.input, ctx.time, ctx.text_system, ctx.focus_sys);
 
     ctx.append_cmds(result.draw.0);
 

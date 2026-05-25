@@ -15,9 +15,10 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn segmented<'a, T: crate::text::TextSystem>(
         mut state: SegmentedState,
-        spec: SegmentedSpec<'a, T>,
+        spec: SegmentedSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
+        text_system: &mut T,
     ) -> SegmentedResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
@@ -39,7 +40,7 @@ pub mod raw {
         let layouts: Vec<_> = spec
             .items
             .iter()
-            .map(|text| spec.ts.prepare(text, s.text_size, spec.font))
+            .map(|text| text_system.prepare(text, s.text_size, spec.font))
             .collect();
         let widths: Vec<f32> = layouts.iter().map(|l| l.size.x + pad_x * 2.0).collect();
         let total_w: f32 = widths.iter().sum();
@@ -167,8 +168,7 @@ pub mod raw {
     }
 }
 
-pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct SegmentedSpec<'a> {
     /// Top-left origin. Height is fixed at h_md (28).
     pub rect: Rect,
     pub items: &'a [&'a str],
@@ -284,19 +284,17 @@ pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: SegmentedState,
     layout_params: S::Params,
-    builder: SegmentedSpecBuilder<'a, T>,
+    builder: SegmentedSpecBuilder<'a>,
 ) -> SegmentedInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let mut builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::segmented(state, spec, ctx.input, ctx.focus_sys);
+    let result = raw::segmented(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
 
@@ -311,18 +309,17 @@ pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::segmented as segmented_raw;
 
-pub struct SegmentedSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
     pub style: Option<SegmentedStyle>,
     pub active_index: Option<usize>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
 }
 
-impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
+impl<'a> SegmentedSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             items: None,
@@ -331,7 +328,6 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
             active_index: None,
             disabled: None,
             rect: None,
-            ts: None,
             clip_rect: None,
         }
     }
@@ -362,7 +358,7 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
+impl<'a> SegmentedSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -376,14 +372,8 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> SegmentedSpec<'a, T> {
+    pub fn build(self) -> SegmentedSpec<'a> {
         SegmentedSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
@@ -400,7 +390,7 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn seg_mented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
+    fn seg_mented<'a>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
         segmented_raw(
             SegmentedState::default(),
             spec,

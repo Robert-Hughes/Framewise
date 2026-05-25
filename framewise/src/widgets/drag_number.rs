@@ -15,9 +15,10 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn drag_number<'a, T: crate::text::TextSystem>(
         mut state: DragNumberState,
-        spec: DragNumberSpec<'a, T>,
+        spec: DragNumberSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
+        text_system: &mut T,
     ) -> DragNumberResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -40,7 +41,7 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let label_layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
+        let label_layout = text_system.prepare(spec.label, s.text_size, spec.font);
         let label_w = label_layout.size.x + s.label_pad_x * 2.0;
         let value_x = spec.rect.x + label_w;
         let value_w = (spec.rect.w - label_w).max(20.0);
@@ -139,7 +140,7 @@ pub mod raw {
         }
 
         let value_text = format!("{:.2}", state.value);
-        let val_layout = spec.ts.prepare(&value_text, s.text_size, spec.font);
+        let val_layout = text_system.prepare(&value_text, s.text_size, spec.font);
         let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
         let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
@@ -162,8 +163,7 @@ pub mod raw {
     }
 }
 
-pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct DragNumberSpec<'a> {
     /// Full bounding rect (height typically h_md = 28).
     pub rect: Rect,
     pub label: &'a str,
@@ -289,19 +289,18 @@ pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     ctx: &mut WidgetContext<T, S>,
     state: DragNumberState,
     layout_params: S::Params,
-    builder: DragNumberSpecBuilder<'a, T>,
+    builder: DragNumberSpecBuilder<'a>,
 ) -> DragNumberInfo {
     let rect = ctx.layout(layout_params);
     let ts_ptr = ctx.text_system as *mut T;
     let mut builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys);
+    let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
 
@@ -316,7 +315,7 @@ pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::drag_number as drag_number_raw;
 
-pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct DragNumberSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<DragNumberStyle>,
@@ -325,11 +324,10 @@ pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
     pub max: Option<f32>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
 }
 
-impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
+impl<'a> DragNumberSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             label: None,
@@ -340,7 +338,6 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
             max: None,
             disabled: None,
             rect: None,
-            ts: None,
             clip_rect: None,
         }
     }
@@ -379,7 +376,7 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
+impl<'a> DragNumberSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -393,14 +390,8 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> DragNumberSpec<'a, T> {
+    pub fn build(self) -> DragNumberSpec<'a> {
         DragNumberSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),

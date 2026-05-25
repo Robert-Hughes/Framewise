@@ -12,7 +12,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult {
+    pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a>,
+    text_system: &mut T) -> MenuResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -60,7 +61,7 @@ pub mod raw {
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {
-                    let layout = spec.ts.prepare(label, s.meta_size, spec.meta_font);
+                    let layout = text_system.prepare(label, s.meta_size, spec.meta_font);
                     let ty = y + s.group_text_y;
                     cmds.push(DrawCmd::Text {
                         rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -92,7 +93,7 @@ pub mod raw {
                     } else {
                         tint(s.text)
                     };
-                    let layout = spec.ts.prepare(label, s.label_size, spec.label_font);
+                    let layout = text_system.prepare(label, s.label_size, spec.label_font);
                     let ty = y + (row_h - layout.size.y) * 0.5;
                     cmds.push(DrawCmd::Text {
                         rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -111,7 +112,7 @@ pub mod raw {
                         } else {
                             tint(s.muted)
                         };
-                        let sc_layout = spec.ts.prepare(sc, s.meta_size, spec.meta_font);
+                        let sc_layout = text_system.prepare(sc, s.meta_size, spec.meta_font);
                         let sc_x = outer.x + w - pad_x - sc_layout.size.x;
                         let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
                         cmds.push(DrawCmd::Text {
@@ -145,8 +146,7 @@ pub enum MenuItem<'a> {
     Group(&'a str),
 }
 
-pub struct MenuSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct MenuSpec<'a> {
     /// Top-left origin; width is at least 200.
     pub rect: Rect,
     pub items: &'a [MenuItem<'a>],
@@ -202,16 +202,14 @@ impl MenuResult {
 pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     layout_params: S::Params,
-    builder: MenuSpecBuilder<'a, T>,
+    builder: MenuSpecBuilder<'a>,
 ) -> MenuInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     let spec = builder.build();
-    let result = raw::menu(spec);
+    let result = raw::menu(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
     MenuInfo { layout: result.layout }
 }
@@ -219,16 +217,15 @@ pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::menu as menu_raw;
 
-pub struct MenuSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct MenuSpecBuilder<'a> {
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,
     pub meta_font: Option<FontId>,
     pub style: Option<MenuStyle>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
+impl<'a> MenuSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             items: None,
@@ -236,7 +233,6 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
             meta_font: None,
             style: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -258,7 +254,7 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
+impl<'a> MenuSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -275,14 +271,8 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> MenuSpec<'a, T> {
+    pub fn build(self) -> MenuSpec<'a> {
         MenuSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
             label_font: self.label_font.expect("label_font must be specified or resolved from a theme"),

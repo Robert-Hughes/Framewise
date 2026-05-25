@@ -12,7 +12,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> TooltipResult {
+    pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a>,
+    text_system: &mut T) -> TooltipResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -27,7 +28,7 @@ pub mod raw {
             TooltipVariant::Rust => (s.rust_bg, s.rust_text),
         };
 
-        let layout = spec.ts.prepare(spec.text, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
         let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
         let box_h = layout.size.y + pad_y_top + pad_y_bot;
 
@@ -66,8 +67,7 @@ pub enum TooltipVariant {
     Rust,
 }
 
-pub struct TooltipSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct TooltipSpec<'a> {
     pub rect: Rect,
     pub text: &'a str,
     pub font: FontId,
@@ -130,32 +130,29 @@ impl TooltipResult {
 pub fn tooltip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     layout_params: S::Params,
-    builder: TooltipSpecBuilder<'a, T>,
+    builder: TooltipSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     let spec = builder.build();
-    let result = raw::tooltip(spec);
+    let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::tooltip as tooltip_raw;
 
-pub struct TooltipSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct TooltipSpecBuilder<'a> {
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<TooltipStyle>,
     pub variant: Option<TooltipVariant>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
+impl<'a> TooltipSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             text: None,
@@ -163,7 +160,6 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
             style: None,
             variant: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -185,7 +181,7 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
+impl<'a> TooltipSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -199,14 +195,8 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> TooltipSpec<'a, T> {
+    pub fn build(self) -> TooltipSpec<'a> {
         TooltipSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             text: self.text.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
@@ -225,7 +215,6 @@ mod tests {
     fn test_tooltip_visual_dark() {
         let mut text_sys = DummyTextSys;
         let spec = TooltipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
             font: FontId(0),

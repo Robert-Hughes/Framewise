@@ -12,7 +12,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a, T>) -> TreeResult {
+    pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a>,
+        text_system: &mut T) -> TreeResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -71,7 +72,7 @@ pub mod raw {
                 Some(false) => ">",
                 None => " ",
             };
-            let caret_layout = spec.ts.prepare(caret_sym, s.text_size, spec.font);
+            let caret_layout = text_system.prepare(caret_sym, s.text_size, spec.font);
             let cty = y + (row_h - caret_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
                 rect: Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
@@ -80,7 +81,7 @@ pub mod raw {
             });
 
             // Label.
-            let label_layout = spec.ts.prepare(row.label, s.text_size, spec.font);
+            let label_layout = text_system.prepare(row.label, s.text_size, spec.font);
             let lty = y + (row_h - label_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -95,7 +96,7 @@ pub mod raw {
 
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
-                let meta_layout = spec.ts.prepare(meta, s.text_size, spec.font);
+                let meta_layout = text_system.prepare(meta, s.text_size, spec.font);
                 let mx = outer.x + w - pad_x - meta_layout.size.x;
                 let mty = y + (row_h - meta_layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
@@ -122,8 +123,7 @@ pub struct TreeRow<'a> {
     pub selected: bool,
 }
 
-pub struct TreeSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct TreeSpec<'a> {
     pub rect: Rect,
     pub rows: &'a [TreeRow<'a>],
     pub font: FontId,
@@ -167,38 +167,34 @@ impl TreeResult {
 pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     layout_params: S::Params,
-    builder: TreeSpecBuilder<'a, T>,
+    builder: TreeSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     let spec = builder.build();
-    let result = raw::tree(spec);
+    let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::tree as tree_raw;
 
-pub struct TreeSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct TreeSpecBuilder<'a> {
     pub rows: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,
     pub style: Option<TreeStyle>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
 }
 
-impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
+impl<'a> TreeSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             rows: None,
             font: None,
             style: None,
             rect: None,
-            ts: None,
         }
     }
 
@@ -216,7 +212,7 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
+impl<'a> TreeSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -230,14 +226,8 @@ impl<'a, T: crate::text::TextSystem> TreeSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> TreeSpec<'a, T> {
+    pub fn build(self) -> TreeSpec<'a> {
         TreeSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             rows: self.rows.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
