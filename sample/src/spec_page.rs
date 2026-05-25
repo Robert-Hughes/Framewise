@@ -254,52 +254,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         self.ctx.finish()
     }
 
-    pub fn child_with_layout<L: Layout>(
-        &mut self,
-        parent_layout_params: S::Params,
-        layout_config: L,
-    ) -> Builder<'_, T, L::State> {
-        let bounds = self.ctx.layout(parent_layout_params);
-        let mut w_ctx = WidgetContext::new(
-            self.ctx.theme.clone(),
-            self.ctx.text_system,
-            self.ctx.focus_sys,
-            self.ctx.input,
-            layout_config.begin(bounds),
-        );
-        w_ctx.bg_color = self.ctx.bg_color;
-        w_ctx.accent_color = self.ctx.accent_color;
-        w_ctx.text_color = self.ctx.text_color;
-        w_ctx.border_color = self.ctx.border_color;
-        w_ctx.button_style = self.ctx.button_style;
-        w_ctx.frame_style = self.ctx.frame_style;
-        w_ctx.text_size = self.ctx.text_size;
-        w_ctx.text_font = self.ctx.text_font;
-        w_ctx.time = self.ctx.time;
-        w_ctx.clip_rect = self.ctx.clip_rect;
-        Builder { ctx: w_ctx, scroll_scope: None, window_scope: None }
-    }
 
-    pub fn scroll_area<L: Layout>(
-        &mut self,
-        layout_params: S::Params,
-        content_size: Vec2,
-        h_vis: ScrollbarVisibility,
-        v_vis: ScrollbarVisibility,
-        state: &'a mut ScrollState,
-        inner_layout: L,
-    ) -> Builder<'_, T, OffsetState<L::State>> {
-        let (widget_context, scope) = begin_scroll_area(
-            &mut self.ctx,
-            layout_params,
-            content_size,
-            h_vis,
-            v_vis,
-            state,
-            inner_layout,
-        );
-        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
-    }
 
     pub fn window<L: Layout>(
         &mut self,
@@ -336,192 +291,6 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
 
         Builder { ctx: w_ctx, scroll_scope: None, window_scope: Some(scope) }
-    }
-
-    pub fn label(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
-        let spec_builder = LabelSpecBuilder::new(text.to_string())
-            .size(self.ctx.text_size)
-            .font(self.ctx.text_font)
-            .text_color(self.ctx.text_color)
-            .rule(false);
-        label(&mut self.ctx, layout_params, spec_builder)
-    }
-
-    pub fn label_styled(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
-        let spec_builder = LabelSpecBuilder::new(text.to_string())
-            .size(size)
-            .font(self.ctx.text_font)
-            .text_color(color)
-            .rule(rule);
-        label(&mut self.ctx, layout_params, spec_builder)
-    }
-
-    pub fn label_styled_font(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool, font: framewise::text::FontId) -> LabelInfo {
-        let spec_builder = LabelSpecBuilder::new(text.to_string())
-            .size(size)
-            .font(font)
-            .text_color(color)
-            .rule(rule);
-        label(&mut self.ctx, layout_params, spec_builder)
-    }
-
-    pub fn divider(&mut self, layout_params: S::Params) -> DividerInfo {
-        let spec_builder = DividerSpecBuilder::new()
-            .color(self.ctx.theme.line)
-            .width(1.0);
-        divider(&mut self.ctx, layout_params, spec_builder)
-    }
-
-    pub fn button(&mut self, state: ButtonState, layout_params: S::Params, text: String) -> ButtonInfo {
-        let spec_builder = ButtonSpecBuilder::new(text)
-            .style(self.ctx.button_style)
-            .disabled(false);
-        button(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn button_styled(&mut self, state: ButtonState, layout_params: S::Params, text: &str, style: ButtonStyle, disabled: bool) -> ButtonInfo {
-        let spec_builder = ButtonSpecBuilder::new(text.to_string())
-            .style(style)
-            .disabled(disabled);
-        button(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn checkbox(&mut self, state: CheckboxState, layout_params: S::Params) -> CheckboxInfo {
-        let spec_builder = CheckboxSpecBuilder::new(state.check)
-            .disabled(false)
-            .style(self.ctx.theme.checkbox_style())
-            .clip_rect(self.ctx.clip_rect);
-        checkbox(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn radio(&mut self, state: RadioState, layout_params: S::Params) -> RadioInfo {
-        let spec_builder = RadioSpecBuilder::new()
-            .selected(state.selected)
-            .disabled(false)
-            .style(self.ctx.theme.radio_style())
-            .clip_rect(self.ctx.clip_rect);
-        radio(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn switch(&mut self, state: SwitchState, layout_params: S::Params) -> SwitchInfo {
-        self.switch_styled(state, layout_params, false)
-    }
-
-    pub fn switch_styled(&mut self, state: SwitchState, layout_params: S::Params, disabled: bool) -> SwitchInfo {
-        let spec_builder = SwitchSpecBuilder::new()
-            .on(state.on)
-            .disabled(disabled)
-            .style(self.ctx.theme.switch_style())
-            .clip_rect(self.ctx.clip_rect);
-        switch(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn select(&mut self, state: SelectState, options: &[&str], layout_params: S::Params) -> SelectInfo {
-        self.select_styled(state, options, layout_params, false)
-    }
-
-    pub fn select_styled(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, disabled: bool) -> SelectInfo {
-        let value = if state.selected_index < options.len() {
-            options[state.selected_index]
-        } else {
-            ""
-        };
-        let spec_builder = SelectSpecBuilder::new()
-            .value(value)
-            .font(self.ctx.text_font)
-            .options(options)
-            .disabled(disabled)
-            .style(self.ctx.theme.select_style())
-            .clip_rect(self.ctx.clip_rect);
-        let result = select_raw(state, spec_builder.build(), self.ctx.input, self.ctx.focus_sys, self.ctx.text_system);
-        self.ctx.append_cmds(result.draw.0);
-        SelectInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        }
-    }
-
-    pub fn segmented(&mut self, state: SegmentedState, items: &[&str], layout_params: S::Params) -> SegmentedInfo {
-        let spec_builder = SegmentedSpecBuilder::new()
-            .items(items)
-            .font(self.ctx.text_font)
-            .active_index(state.active_index)
-            .disabled(false)
-            .style(self.ctx.theme.segmented_style())
-            .clip_rect(self.ctx.clip_rect);
-        segmented(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params) -> TextEditInfo {
-        self.text_edit_ext(state, layout_params, false, false)
-    }
-
-    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool) -> TextEditInfo {
-        let spec_builder = TextEditSpecBuilder::new()
-            .style(self.ctx.theme.text_edit_style())
-            .clip_rect(self.ctx.clip_rect)
-            .error(error)
-            .disabled(disabled);
-        text_edit(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn drag_number(&mut self, state: DragNumberState, label: &str, min: f32, max: f32, layout_params: S::Params) -> DragNumberInfo {
-        let spec_builder = DragNumberSpecBuilder::new()
-            .label(label)
-            .font(self.ctx.text_font)
-            .value(state.value)
-            .min(min)
-            .max(max)
-            .disabled(false)
-            .style(self.ctx.theme.drag_number_style())
-            .clip_rect(self.ctx.clip_rect);
-        drag_number(&mut self.ctx, state,layout_params, spec_builder)
-    }
-
-    pub fn chip(&mut self, state: ChipState, label: &str, layout_params: S::Params) -> ChipInfo {
-        let spec_builder = ChipSpecBuilder::new()
-            .label(label)
-            .font(self.ctx.text_font)
-            .disabled(false)
-            .style(self.ctx.theme.chip_style())
-            .clip_rect(self.ctx.clip_rect);
-        chip(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn tabs(&mut self, state: TabsState, items: &[&str], layout_params: S::Params) -> TabsInfo {
-        let spec_builder = TabsSpecBuilder::new()
-            .items(items)
-            .font(self.ctx.text_font)
-            .active_index(state.active_index)
-            .disabled(false)
-            .style(self.ctx.theme.tabs_style())
-            .clip_rect(self.ctx.clip_rect);
-        tabs(&mut self.ctx, state, layout_params, spec_builder)
-    }
-
-    pub fn slider(
-        &mut self,
-        state: &mut SliderState,
-        value: &mut f32,
-        min: f32,
-        max: f32,
-        step: f32,
-        orientation: SliderOrientation,
-        layout_params: S::Params,
-    ) {
-        let spec_builder = SliderSpecBuilder::new()
-            .min(min)
-            .max(max)
-            .page_step(step)
-            .step(step)
-            .orientation(orientation)
-            .thumb_size_ratio(None)
-            .style(self.ctx.theme.slider_style())
-            .clip_rect(self.ctx.clip_rect)
-            .claim_scroll_at_ends(true);
-        slider(&mut self.ctx, state, value, layout_params, spec_builder);
     }
 
     pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
@@ -964,27 +733,38 @@ fn sec_y<S: LayoutState<Params = Rect>>(
     num: &str,
     title: &str,
 ) {
-    b.divider(Rect::new(lx, y, w, 36.0));
-    b.label_styled(Rect::new(lx, y, 40.0, 20.0), num, t.text_sm, t.muted, false);
-    b.label_styled_font(
-        Rect::new(lx + 44.0, y, w - 44.0, 22.0),
-        title,
-        18.0,
-        t.ink,
-        false,
-        t.sans_font,
-    );
-}
-
-fn label_styled_sans<S: LayoutState<Params = Rect>>(
-    b: &mut Builder<SampleTextSystem, S>,
-    t: &Theme,
-    rect: Rect,
-    text: &str,
-    size: f32,
-    color: Color,
-) {
-    b.label_styled_font(rect, text, size, color, false, t.sans_font);
+    {
+        let this = &mut *b;
+        let layout_params = Rect::new(lx, y, w, 36.0);
+        let spec_builder = DividerSpecBuilder::new()
+                .color(this.ctx.theme.line)
+                .width(1.0);
+        divider(&mut this.ctx, layout_params, spec_builder)
+    };
+    {
+        let this = &mut *b;
+        let layout_params = Rect::new(lx, y, 40.0, 20.0);
+        let size = t.text_sm;
+        let color = t.muted;
+        let spec_builder = LabelSpecBuilder::new(num.to_string())
+                .size(size)
+                .font(this.ctx.text_font)
+                .text_color(color)
+                .rule(false);
+        label(&mut this.ctx, layout_params, spec_builder)
+    };
+    {
+        let this = &mut *b;
+        let layout_params = Rect::new(lx + 44.0, y, w - 44.0, 22.0);
+        let color = t.ink;
+        let font = t.sans_font;
+        let spec_builder = LabelSpecBuilder::new(title.to_string())
+                .size(18.0)
+                .font(font)
+                .text_color(color)
+                .rule(false);
+        label(&mut this.ctx, layout_params, spec_builder)
+    };
 }
 
 fn group_y<S: LayoutState<Params = Rect>>(
@@ -994,13 +774,19 @@ fn group_y<S: LayoutState<Params = Rect>>(
     y: f32,
     text: &str,
 ) {
-    b.label_styled(
-        Rect::new(lx, y, 400.0, 16.0),
-        &text.to_uppercase(),
-        t.text_sm,
-        t.muted,
-        false,
-    );
+    {
+        let this = &mut *b;
+        let layout_params = Rect::new(lx, y, 400.0, 16.0);
+        let text: &str = &text.to_uppercase();
+        let size = t.text_sm;
+        let color = t.muted;
+        let spec_builder = LabelSpecBuilder::new(text.to_string())
+                .size(size)
+                .font(this.ctx.text_font)
+                .text_color(color)
+                .rule(false);
+        label(&mut this.ctx, layout_params, spec_builder)
+    };
 }
 
 // ── Main function ─────────────────────────────────────────────────────────────
@@ -1044,14 +830,22 @@ pub fn draw_spec_page(
 
     // Scroll area provides clip + scroll offset for all page content.
     let page_cmds = {
-        let mut page = b.scroll_area(
-            win_rect,
-            Vec2::new(content_w, CONTENT_HEIGHT),
-            ScrollbarVisibility::None,
-            ScrollbarVisibility::Auto,
-            &mut state.page_scroll,
-            ManualLayout,
-        );
+        let mut page = {
+            let this = &mut b;
+            let content_size = Vec2::new(content_w, CONTENT_HEIGHT);
+            let h_vis = ScrollbarVisibility::None;
+            let v_vis = ScrollbarVisibility::Auto;
+            let (widget_context, scope) = begin_scroll_area(
+                    &mut this.ctx,
+                    win_rect,
+                    content_size,
+                    h_vis,
+                    v_vis,
+                    &mut state.page_scroll,
+                    ManualLayout,
+                );
+            Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+        };
         {
             let mut b = &mut page;
 
@@ -1065,57 +859,82 @@ pub fn draw_spec_page(
                 let hero_w = content_w - 124.0;
 
                 // Overline
-                b.label_styled(
-                    Rect::new(tx, MARGIN, hero_w, 16.0),
-                    "FRAMEWISE · WIDGET SPECIFICATION · V0.1",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN, hero_w, 16.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("FRAMEWISE · WIDGET SPECIFICATION · V0.1".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Two-line Title (56px size, Bold, line-height 0.95)
-                b.label_styled_font(
-                    Rect::new(tx, MARGIN + 22.0, hero_w, 53.0),
-                    "A widget set that",
-                    56.0,
-                    t.ink,
-                    false,
-                    t.sans_bold_font,
-                );
-                b.label_styled_font(
-                    Rect::new(tx, MARGIN + 22.0 + 53.0, hero_w, 53.0),
-                    "explains itself.",
-                    56.0,
-                    t.ink,
-                    false,
-                    t.sans_bold_font,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w, 53.0);
+                    let color = t.ink;
+                    let font = t.sans_bold_font;
+                    let spec_builder = LabelSpecBuilder::new("A widget set that".to_string())
+                            .size(56.0)
+                            .font(font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN + 22.0 + 53.0, hero_w, 53.0);
+                    let color = t.ink;
+                    let font = t.sans_bold_font;
+                    let spec_builder = LabelSpecBuilder::new("explains itself.".to_string())
+                            .size(56.0)
+                            .font(font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Description (15px size, regular, line-height 1.55)
-                b.label_styled_font(
-                    Rect::new(tx, MARGIN + 144.0, hero_w.min(600.0), 23.0),
-                    "Sharp corners, hairline borders, monospaced numerics. One accent — rust —",
-                    15.0,
-                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
-                    false,
-                    t.sans_font,
-                );
-                b.label_styled_font(
-                    Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0),
-                    "reserved for focus, drag, and primary action. Every widget describes its state",
-                    15.0,
-                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
-                    false,
-                    t.sans_font,
-                );
-                b.label_styled_font(
-                    Rect::new(tx, MARGIN + 144.0 + 46.0, hero_w.min(600.0), 23.0),
-                    "explicitly; nothing is hidden behind animation or chrome.",
-                    15.0,
-                    Color::from_srgb_u8(58, 53, 45, 255), // #3a352d
-                    false,
-                    t.sans_font,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN + 144.0, hero_w.min(600.0), 23.0);
+                    let color = Color::from_srgb_u8(58, 53, 45, 255);
+                    let font = t.sans_font;
+                    let spec_builder = LabelSpecBuilder::new("Sharp corners, hairline borders, monospaced numerics. One accent — rust —".to_string())
+                            .size(15.0)
+                            .font(font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0);
+                    let color = Color::from_srgb_u8(58, 53, 45, 255);
+                    let font = t.sans_font;
+                    let spec_builder = LabelSpecBuilder::new("reserved for focus, drag, and primary action. Every widget describes its state".to_string())
+                            .size(15.0)
+                            .font(font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(tx, MARGIN + 144.0 + 46.0, hero_w.min(600.0), 23.0);
+                    let color = Color::from_srgb_u8(58, 53, 45, 255);
+                    let font = t.sans_font;
+                    let spec_builder = LabelSpecBuilder::new("explicitly; nothing is hidden behind animation or chrome.".to_string())
+                            .size(15.0)
+                            .font(font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Color Meta Row
                 let meta_items: &[(&str, &str)] = &[
@@ -1128,23 +947,33 @@ pub fn draw_spec_page(
                 let my = MARGIN + 234.0;
                 for (key, val) in meta_items {
                     // key in ink, bold / medium
-                    b.label_styled_font(
-                        Rect::new(mx, my, 60.0, 14.0),
-                        key,
-                        t.text_sm,
-                        t.ink,
-                        false,
-                        t.sans_bold_font,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(mx, my, 60.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.ink;
+                        let font = t.sans_bold_font;
+                        let spec_builder = LabelSpecBuilder::new(key.to_string())
+                                .size(size)
+                                .font(font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     let key_w = key.len() as f32 * 7.5 + 4.0;
-                    b.label_styled_font(
-                        Rect::new(mx + key_w, my, 200.0, 14.0),
-                        val,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                        t.sans_font,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(mx + key_w, my, 200.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let font = t.sans_font;
+                        let spec_builder = LabelSpecBuilder::new(val.to_string())
+                                .size(size)
+                                .font(font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     mx += key_w + val.len() as f32 * 6.5 + 24.0;
                 }
             }
@@ -1168,13 +997,17 @@ pub fn draw_spec_page(
                 let mut bx = lx;
                 for (i, (label, style, _)) in styles.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 24.0;
-                    let btn = b.button_styled(
-                        std::mem::take(&mut state.btn_variants[i]),
-                        Rect::new(bx, y, w, t.h_md),
-                        *label,
-                        style.clone(),
-                        false,
-                    );
+                    let btn = {
+                        let this = &mut *b;
+                        let state = std::mem::take(&mut state.btn_variants[i]);
+                        let layout_params = Rect::new(bx, y, w, t.h_md);
+                        let text: &str = *label;
+                        let style = style.clone();
+                        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+                                .style(style)
+                                .disabled(false);
+                        button(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.btn_variants[i] = btn.state;
                     bx += w + COL_GAP;
                 }
@@ -1198,24 +1031,34 @@ pub fn draw_spec_page(
 
                 // column headers
                 for (ci, col) in col_labels.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0),
-                        col,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(col.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 y += 20.0;
 
                 for (ri, row_label) in row_labels.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(lx, y, label_w - 8.0, t.h_md),
-                        row_label,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx, y, label_w - 8.0, t.h_md);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(row_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     for ci in 0..5 {
                         let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
                         match ci {
@@ -1225,13 +1068,15 @@ pub fn draw_spec_page(
                             _ => {
                                 let disabled = ci == 4;
                                 let idx = ri * 2 + ci / 4; // ci=0 → idx 0 (default), ci=4 → idx 1 (disabled)
-                                let btn = b.button_styled(
-                                    std::mem::take(&mut state.btn_matrix[idx]),
-                                    rect,
-                                    "Action",
-                                    row_styles[ri].clone(),
-                                    disabled,
-                                            );
+                                let btn = {
+                                    let this = &mut *b;
+                                    let state = std::mem::take(&mut state.btn_matrix[idx]);
+                                    let style = row_styles[ri].clone();
+                                    let spec_builder = ButtonSpecBuilder::new("Action".to_string())
+                                            .style(style)
+                                            .disabled(disabled);
+                                    button(&mut this.ctx, state, rect, spec_builder)
+                                };
                                 state.btn_matrix[idx] = btn.state;
                             }
                         }
@@ -1253,13 +1098,17 @@ pub fn draw_spec_page(
                 let mut bx = lx;
                 for (i, (label, h, style)) in size_defs.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = b.button_styled(
-                        std::mem::take(&mut state.btn_sizes[i]),
-                        Rect::new(bx, y, w, *h),
-                        *label,
-                        style.clone(),
-                        false,
-                    );
+                    let btn = {
+                        let this = &mut *b;
+                        let state = std::mem::take(&mut state.btn_sizes[i]);
+                        let layout_params = Rect::new(bx, y, w, *h);
+                        let text: &str = *label;
+                        let style = style.clone();
+                        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+                                .style(style)
+                                .disabled(false);
+                        button(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.btn_sizes[i] = btn.state;
                     bx += w + COL_GAP;
                 }
@@ -1274,13 +1123,17 @@ pub fn draw_spec_page(
                 // draw group border
                 for (i, (label, style)) in grp1.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = b.button_styled(
-                        std::mem::take(&mut state.btn_grp1[i]),
-                        Rect::new(bx, y, w, t.h_md),
-                        *label,
-                        style.clone(),
-                        false,
-                    );
+                    let btn = {
+                        let this = &mut *b;
+                        let state = std::mem::take(&mut state.btn_grp1[i]);
+                        let layout_params = Rect::new(bx, y, w, t.h_md);
+                        let text: &str = *label;
+                        let style = style.clone();
+                        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+                                .style(style)
+                                .disabled(false);
+                        button(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.btn_grp1[i] = btn.state;
                     bx += w;
                 }
@@ -1294,13 +1147,17 @@ pub fn draw_spec_page(
                 ];
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = b.button_styled(
-                        std::mem::take(&mut state.btn_grp2[i]),
-                        Rect::new(bx, y, w, t.h_md),
-                        *label,
-                        style.clone(),
-                        false,
-                    );
+                    let btn = {
+                        let this = &mut *b;
+                        let state = std::mem::take(&mut state.btn_grp2[i]);
+                        let layout_params = Rect::new(bx, y, w, t.h_md);
+                        let text: &str = *label;
+                        let style = style.clone();
+                        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+                                .style(style)
+                                .disabled(false);
+                        button(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.btn_grp2[i] = btn.state;
                     bx += w;
                 }
@@ -1321,34 +1178,49 @@ pub fn draw_spec_page(
                 let label_w = 60.0_f32;
 
                 for (ci, col) in col_labels.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0),
-                        col,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(col.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 y += 20.0;
 
                 for (ri, row_label) in row_labels.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(lx, y, label_w - 4.0, t.h_md),
-                        row_label,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx, y, label_w - 4.0, t.h_md);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(row_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     for ci in 0..5 {
                         let idx = ri * 5 + ci;
                         let error = ci == 3;
                         let disabled = ci == 4;
-                        let info = b.text_edit_ext(
-                            std::mem::take(&mut state.te_matrix[idx]),
-                            Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md),
-                            error,
-                            disabled,
-                            );
+                        let info = {
+                            let this = &mut *b;
+                            let state = std::mem::take(&mut state.te_matrix[idx]);
+                            let layout_params = Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md);
+                            let spec_builder = TextEditSpecBuilder::new()
+                                    .style(this.ctx.theme.text_edit_style())
+                                    .clip_rect(this.ctx.clip_rect)
+                                    .error(error)
+                                    .disabled(disabled);
+                            text_edit(&mut this.ctx, state, layout_params, spec_builder)
+                        };
                         state.te_matrix[idx] = info.state;
                     }
                     y += t.h_md + 8.0;
@@ -1361,37 +1233,57 @@ pub fn draw_spec_page(
             {
                 // Labelled field
                 let field_x = lx;
-                b.label_styled(
-                    Rect::new(field_x, y, 120.0, 14.0),
-                    "CRATE NAME",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                let info = b.text_edit_ext(
-                    std::mem::take(&mut state.te_labelled),
-                    Rect::new(field_x, y + 18.0, 160.0, t.h_md),
-                    false,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(field_x, y, 120.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("CRATE NAME".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.te_labelled);
+                    let layout_params = Rect::new(field_x, y + 18.0, 160.0, t.h_md);
+                    let spec_builder = TextEditSpecBuilder::new()
+                            .style(this.ctx.theme.text_edit_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .error(false)
+                            .disabled(false);
+                    text_edit(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.te_labelled = info.state;
-                b.label_styled(
-                    Rect::new(field_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0),
-                    "a–z, 0–9, hyphen; max 64",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(field_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("a–z, 0–9, hyphen; max 64".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Prefixed field (draw prefix addon manually)
                 let pf_x = lx + 200.0;
-                b.label_styled(
-                    Rect::new(pf_x, y, 120.0, 14.0),
-                    "VERSION",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(pf_x, y, 120.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("VERSION".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 b.custom(Rect::new(pf_x, y + 18.0, 24.0, t.h_md), |rect| {
                     vec![
                         DrawCmd::FillRect { rect, color: t.ink },
@@ -1402,43 +1294,68 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(pf_x + 6.0, y + 18.0 + 7.0, 16.0, 14.0),
-                    "v",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                let info = b.text_edit_ext(
-                    std::mem::take(&mut state.te_prefixed),
-                    Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md),
-                    false,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(pf_x + 6.0, y + 18.0 + 7.0, 16.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("v".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.te_prefixed);
+                    let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md);
+                    let spec_builder = TextEditSpecBuilder::new()
+                            .style(this.ctx.theme.text_edit_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .error(false)
+                            .disabled(false);
+                    text_edit(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.te_prefixed = info.state;
-                b.label_styled(
-                    Rect::new(pf_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0),
-                    "semver mismatch — bump minor",
-                    t.text_sm,
-                    t.rust,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(pf_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.rust;
+                    let spec_builder = LabelSpecBuilder::new("semver mismatch — bump minor".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Multiline field
                 let ml_x = lx + 420.0;
-                b.label_styled(
-                    Rect::new(ml_x, y, 120.0, 14.0),
-                    "DESCRIPTION",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                let info = b.text_edit_ext(
-                    std::mem::take(&mut state.te_multiline),
-                    Rect::new(ml_x, y + 18.0, 280.0, 68.0),
-                    false,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(ml_x, y, 120.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("DESCRIPTION".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.te_multiline);
+                    let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
+                    let spec_builder = TextEditSpecBuilder::new()
+                            .style(this.ctx.theme.text_edit_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .error(false)
+                            .disabled(false);
+                    text_edit(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.te_multiline = info.state;
             }
             y += 18.0 + 68.0 + 4.0 + 14.0 + SEC_GAP;
@@ -1462,24 +1379,34 @@ pub fn draw_spec_page(
                 let label_w = 80.0_f32;
                 let cell_w = 100.0_f32;
                 for (ci, col) in col_labels.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0),
-                        col,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(col.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 y += 18.0;
 
                 // Row 1: box only
-                b.label_styled(
-                    Rect::new(lx, y, label_w - 4.0, 14.0),
-                    "box",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx, y, label_w - 4.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("box".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 let box_specs: &[(CheckState, bool, bool)] = &[
                     (CheckState::Off, false, false),
                     (CheckState::On, false, false),
@@ -1490,10 +1417,15 @@ pub fn draw_spec_page(
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0);
                     if ci < 3 {
-                        let info = b.checkbox(
-                            std::mem::take(&mut state.cb_matrix[ci]),
-                            rect,
-                            );
+                        let info = {
+                            let this = &mut *b;
+                            let state = std::mem::take(&mut state.cb_matrix[ci]);
+                            let spec_builder = CheckboxSpecBuilder::new(state.check)
+                                    .disabled(false)
+                                    .style(this.ctx.theme.checkbox_style())
+                                    .clip_rect(this.ctx.clip_rect);
+                            checkbox(&mut this.ctx, state, rect, spec_builder)
+                        };
                         state.cb_matrix[ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
@@ -1502,20 +1434,31 @@ pub fn draw_spec_page(
                 y += 14.0 + 12.0;
 
                 // Row 2: with label
-                b.label_styled(
-                    Rect::new(lx, y, label_w - 4.0, 14.0),
-                    "with label",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx, y, label_w - 4.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("with label".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
                     if ci < 3 {
-                        let info = b.checkbox(
-                            std::mem::take(&mut state.cb_matrix[3 + ci]),
-                            Rect::new(cx, y, 14.0, 14.0),
-                            );
+                        let info = {
+                            let this = &mut *b;
+                            let state = std::mem::take(&mut state.cb_matrix[3 + ci]);
+                            let layout_params = Rect::new(cx, y, 14.0, 14.0);
+                            let spec_builder = CheckboxSpecBuilder::new(state.check)
+                                    .disabled(false)
+                                    .style(this.ctx.theme.checkbox_style())
+                                    .clip_rect(this.ctx.clip_rect);
+                            checkbox(&mut this.ctx, state, layout_params, spec_builder)
+                        };
                         state.cb_matrix[3 + ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(
@@ -1528,13 +1471,17 @@ pub fn draw_spec_page(
                     }
 
                     let label_alpha = if *disabled { t.muted } else { t.ink };
-                    b.label_styled(
-                        Rect::new(cx + 18.0, y, 60.0, 14.0),
-                        "vsync",
-                        t.text_sm,
-                        label_alpha,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(cx + 18.0, y, 60.0, 14.0);
+                        let size = t.text_sm;
+                        let spec_builder = LabelSpecBuilder::new("vsync".to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(label_alpha)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 y += 14.0;
             }
@@ -1544,13 +1491,20 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
-                for (i, label) in radio_labels.iter().enumerate() {
+                for (i, radio_label) in radio_labels.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
                     if i < 3 {
-                        let info = b.radio(
-                            std::mem::take(&mut state.radio_states[i]),
-                            Rect::new(lx, ry, 14.0, 14.0),
-                            );
+                        let info = {
+                            let this = &mut *b;
+                            let state = std::mem::take(&mut state.radio_states[i]);
+                            let layout_params = Rect::new(lx, ry, 14.0, 14.0);
+                            let spec_builder = RadioSpecBuilder::new()
+                                    .selected(state.selected)
+                                    .disabled(false)
+                                    .style(this.ctx.theme.radio_style())
+                                    .clip_rect(this.ctx.clip_rect);
+                            radio(&mut this.ctx, state, layout_params, spec_builder)
+                        };
                         state.radio_states[i] = info.state;
                         if info.input.clicked {
                             for j in 0..3 {
@@ -1560,44 +1514,69 @@ pub fn draw_spec_page(
                     } else {
                         draw_radio_fake_state(&mut b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
                     }
-                    b.label_styled(
-                        Rect::new(lx + 18.0, ry, 140.0, 14.0),
-                        label,
-                        t.text_md,
-                        t.ink,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx + 18.0, ry, 140.0, 14.0);
+                        let size = t.text_md;
+                        let color = t.ink;
+                        let spec_builder = LabelSpecBuilder::new(radio_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 let sw_x = lx + 220.0;
                 let switch_labels = ["debug overlay", "show layout grid", "vsync", "multisampling"];
-                for (i, label) in switch_labels.iter().enumerate() {
+                for (i, switch_label) in switch_labels.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
                     let label_color = if i == 3 { t.muted } else { t.ink };
                     match i {
                         2 => draw_switch_fake_state(&mut b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false),
                         3 => {
-                            let info = b.switch_styled(
-                                std::mem::take(&mut state.switch_states[2]),
-                                Rect::new(sw_x, ry, 30.0, 16.0),
-                                true,
-                                    );
+                            let info = {
+                                let this = &mut *b;
+                                let state = std::mem::take(&mut state.switch_states[2]);
+                                let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
+                                let spec_builder = SwitchSpecBuilder::new()
+                                        .on(state.on)
+                                        .disabled(true)
+                                        .style(this.ctx.theme.switch_style())
+                                        .clip_rect(this.ctx.clip_rect);
+                                switch(&mut this.ctx, state, layout_params, spec_builder)
+                            };
                             state.switch_states[2] = info.state;
                         }
                         _ => {
-                            let info = b.switch(
-                                std::mem::take(&mut state.switch_states[i]),
-                                Rect::new(sw_x, ry, 30.0, 16.0),
-                                    );
+                            let info = {
+                                let this = &mut *b;
+                                let state = std::mem::take(&mut state.switch_states[i]);
+                                let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
+                                {
+                                    let this = &mut *this;
+                                    let spec_builder = SwitchSpecBuilder::new()
+                                            .on(state.on)
+                                            .disabled(false)
+                                            .style(this.ctx.theme.switch_style())
+                                            .clip_rect(this.ctx.clip_rect);
+                                    switch(&mut this.ctx, state, layout_params, spec_builder)
+                                }
+                            };
                             state.switch_states[i] = info.state;
                         }
                     }
-                    b.label_styled(
-                        Rect::new(sw_x + 36.0, ry, 140.0, 16.0),
-                        label,
-                        t.text_md,
-                        label_color,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(sw_x + 36.0, ry, 140.0, 16.0);
+                        let size = t.text_md;
+                        let spec_builder = LabelSpecBuilder::new(switch_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(label_color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
             }
             y += 4.0 * 22.0 + SEC_GAP;
@@ -1620,77 +1599,133 @@ pub fn draw_spec_page(
                 let slider_w = 360.0_f32;
                 let row_gap = 14.0_f32;
 
-                b.slider(
-                    &mut state.slider1_state,
-                    &mut state.slider1_val,
-                    0.0,
-                    1.0,
-                    0.1,
-                    SliderOrientation::Horizontal,
-                    Rect::new(lx, y, slider_w, t.h_md),
-                );
-                b.label_styled(
-                    Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
-                    &format!("{:.2}", state.slider1_val),
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let step = 0.1;
+                    let orientation = SliderOrientation::Horizontal;
+                    let layout_params = Rect::new(lx, y, slider_w, t.h_md);
+                    let spec_builder = SliderSpecBuilder::new()
+                            .min(0.0)
+                            .max(1.0)
+                            .page_step(step)
+                            .step(step)
+                            .orientation(orientation)
+                            .thumb_size_ratio(None)
+                            .style(this.ctx.theme.slider_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .claim_scroll_at_ends(true);
+                    slider(&mut this.ctx, &mut state.slider1_state, &mut state.slider1_val, layout_params, spec_builder);
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+                    let text: &str = &format!("{:.2}", state.slider1_val);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(text.to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 y += t.h_md + row_gap;
 
-                b.slider(
-                    &mut state.slider2_state,
-                    &mut state.slider2_val,
-                    0.0,
-                    1.0,
-                    0.1,
-                    SliderOrientation::Horizontal,
-                    Rect::new(lx, y, slider_w, t.h_md),
-                );
-                b.label_styled(
-                    Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
-                    &format!("{:.2}", state.slider2_val),
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let step = 0.1;
+                    let orientation = SliderOrientation::Horizontal;
+                    let layout_params = Rect::new(lx, y, slider_w, t.h_md);
+                    let spec_builder = SliderSpecBuilder::new()
+                            .min(0.0)
+                            .max(1.0)
+                            .page_step(step)
+                            .step(step)
+                            .orientation(orientation)
+                            .thumb_size_ratio(None)
+                            .style(this.ctx.theme.slider_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .claim_scroll_at_ends(true);
+                    slider(&mut this.ctx, &mut state.slider2_state, &mut state.slider2_val, layout_params, spec_builder);
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+                    let text: &str = &format!("{:.2}", state.slider2_val);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(text.to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 y += t.h_md + row_gap;
 
-                b.slider(
-                    &mut state.slider3_state,
-                    &mut state.slider3_val,
-                    0.0,
-                    1.0,
-                    0.1,
-                    SliderOrientation::Horizontal,
-                    Rect::new(lx, y, slider_w, t.h_md),
-                );
-                b.label_styled(
-                    Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
-                    &format!("{:.2}", state.slider3_val),
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let step = 0.1;
+                    let orientation = SliderOrientation::Horizontal;
+                    let layout_params = Rect::new(lx, y, slider_w, t.h_md);
+                    let spec_builder = SliderSpecBuilder::new()
+                            .min(0.0)
+                            .max(1.0)
+                            .page_step(step)
+                            .step(step)
+                            .orientation(orientation)
+                            .thumb_size_ratio(None)
+                            .style(this.ctx.theme.slider_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .claim_scroll_at_ends(true);
+                    slider(&mut this.ctx, &mut state.slider3_state, &mut state.slider3_val, layout_params, spec_builder);
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+                    let text: &str = &format!("{:.2}", state.slider3_val);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(text.to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 y += t.h_md + row_gap;
 
                 // Stepped slider (0–9) with tick marks
-                b.slider(
-                    &mut state.slider4_state,
-                    &mut state.slider4_val,
-                    0.0,
-                    9.0,
-                    1.0,
-                    SliderOrientation::Horizontal,
-                    Rect::new(lx, y, slider_w, t.h_md),
-                );
-                b.label_styled(
-                    Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0),
-                    &format!("{:.0} / 9", state.slider4_val),
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let step = 1.0;
+                    let orientation = SliderOrientation::Horizontal;
+                    let layout_params = Rect::new(lx, y, slider_w, t.h_md);
+                    let spec_builder = SliderSpecBuilder::new()
+                            .min(0.0)
+                            .max(9.0)
+                            .page_step(step)
+                            .step(step)
+                            .orientation(orientation)
+                            .thumb_size_ratio(None)
+                            .style(this.ctx.theme.slider_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .claim_scroll_at_ends(true);
+                    slider(&mut this.ctx, &mut state.slider4_state, &mut state.slider4_val, layout_params, spec_builder);
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+                    let text: &str = &format!("{:.0} / 9", state.slider4_val);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(text.to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 // tick marks below track
                 let tick_y = y + t.h_md + 2.0;
                 let tick_h = 4.0;
@@ -1757,13 +1792,18 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(lx + track_w + 12.0, y + 6.0, 80.0, 14.0),
-                    ".24–.76",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + track_w + 12.0, y + 6.0, 80.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(".24–.76".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
             }
             y += t.h_md + GROUP_GAP;
 
@@ -1772,18 +1812,60 @@ pub fn draw_spec_page(
             {
                 let mut bx = lx;
                 // X — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[0]), "X", 0.0, 800.0, Rect::new(bx, y, 100.0, t.h_md));
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.dn_showcase[0]);
+                    let layout_params = Rect::new(bx, y, 100.0, t.h_md);
+                    let spec_builder = DragNumberSpecBuilder::new()
+                            .label("X")
+                            .font(this.ctx.text_font)
+                            .value(state.value)
+                            .min(0.0)
+                            .max(800.0)
+                            .disabled(false)
+                            .style(this.ctx.theme.drag_number_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                };
                 state.dn_showcase[0] = info.state;
                 bx += 100.0 + 8.0;
                 // Y — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[1]), "Y", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md));
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.dn_showcase[1]);
+                    let layout_params = Rect::new(bx, y, 100.0, t.h_md);
+                    let spec_builder = DragNumberSpecBuilder::new()
+                            .label("Y")
+                            .font(this.ctx.text_font)
+                            .value(state.value)
+                            .min(0.0)
+                            .max(600.0)
+                            .disabled(false)
+                            .style(this.ctx.theme.drag_number_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                };
                 state.dn_showcase[1] = info.state;
                 bx += 100.0 + 8.0;
                 // W — fake (forced active/dragging)
                 draw_drag_number_fake_state(&mut b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
                 bx += 100.0 + 8.0;
                 // H — real
-                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[2]), "H", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md));
+                let info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.dn_showcase[2]);
+                    let layout_params = Rect::new(bx, y, 100.0, t.h_md);
+                    let spec_builder = DragNumberSpecBuilder::new()
+                            .label("H")
+                            .font(this.ctx.text_font)
+                            .value(state.value)
+                            .min(0.0)
+                            .max(600.0)
+                            .disabled(false)
+                            .style(this.ctx.theme.drag_number_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                };
                 state.dn_showcase[2] = info.state;
             }
             y += t.h_md + GROUP_GAP;
@@ -1806,13 +1888,18 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(stepper_x + 6.0, y + 7.0, 56.0, 14.0),
-                    "padding",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(stepper_x + 6.0, y + 7.0, 56.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("padding".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 b.custom(Rect::new(stepper_x + 64.0, y, 40.0, t.h_md), |rect| {
                     vec![
                         DrawCmd::FillRect {
@@ -1826,13 +1913,18 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(stepper_x + 72.0, y + 7.0, 24.0, 14.0),
-                    "12",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(stepper_x + 72.0, y + 7.0, 24.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("12".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // +/- buttons as text
                 let sx = stepper_x + 120.0;
@@ -1867,27 +1959,42 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(sx + 6.0, y + 4.0, 10.0, 14.0),
-                    "−",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
-                b.label_styled(
-                    Rect::new(sx + 28.0, y + 4.0, 28.0, 14.0),
-                    "12",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
-                b.label_styled(
-                    Rect::new(sx + 68.0, y + 4.0, 10.0, 14.0),
-                    "+",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(sx + 6.0, y + 4.0, 10.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("−".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(sx + 28.0, y + 4.0, 28.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("12".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(sx + 68.0, y + 4.0, 10.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("+".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // color swatches
                 let sw_x = sx + 100.0;
@@ -1901,13 +2008,18 @@ pub fn draw_spec_page(
                             .color(*color)
                             .border(t.line),
                     );
-                    b.label_styled(
-                        Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0),
-                        hex,
-                        t.text_sm,
-                        t.ink,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.ink;
+                        let spec_builder = LabelSpecBuilder::new(hex.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     bx += 86.0;
                 }
             }
@@ -1922,11 +2034,35 @@ pub fn draw_spec_page(
             {
                 // Select widgets
                 const LAYOUT_OPTS: &[&str] = &["Layout: row", "Layout: column", "Layout: grid"];
-                let sel_info = b.select(
-                    std::mem::take(&mut state.sel_state),
-                    LAYOUT_OPTS,
-                    Rect::new(lx, y, 160.0, t.h_md),
-                );
+                let sel_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.sel_state);
+                    let layout_params = Rect::new(lx, y, 160.0, t.h_md);
+                    {
+                        let this = &mut *this;
+                        let layout_params = layout_params;
+                        let value = if state.selected_index < LAYOUT_OPTS.len() {
+                                LAYOUT_OPTS[state.selected_index]
+                            } else {
+                                ""
+                            };
+                        let spec_builder = SelectSpecBuilder::new()
+                                .value(value)
+                                .font(this.ctx.text_font)
+                                .options(LAYOUT_OPTS)
+                                .disabled(false)
+                                .style(this.ctx.theme.select_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        let result = select_raw(state, spec_builder.build(), this.ctx.input, this.ctx.focus_sys, this.ctx.text_system);
+                        this.ctx.append_cmds(result.draw.0);
+                        SelectInfo {
+                                layout: result.layout,
+                                input: result.input,
+                                state: result.state,
+                                focused: result.focused,
+                            }
+                    }
+                };
                 state.sel_state = sel_info.state;
                 draw_select_fake_state(
                     &mut b,
@@ -1942,18 +2078,34 @@ pub fn draw_spec_page(
                 // Segmented controls
                 let seg_x = lx + 200.0;
                 const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
-                let seg1_info = b.segmented(
-                    std::mem::take(&mut state.seg1_state),
-                    SEGS1,
-                    Rect::new(seg_x, y, 0.0, t.h_md),
-                );
+                let seg1_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.seg1_state);
+                    let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
+                    let spec_builder = SegmentedSpecBuilder::new()
+                            .items(SEGS1)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.segmented_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    segmented(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.seg1_state = seg1_info.state;
                 const SEGS2: &[&str] = &["start", "center", "end"];
-                let seg2_info = b.segmented(
-                    std::mem::take(&mut state.seg2_state),
-                    SEGS2,
-                    Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
-                );
+                let seg2_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.seg2_state);
+                    let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
+                    let spec_builder = SegmentedSpecBuilder::new()
+                            .items(SEGS2)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.segmented_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    segmented(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.seg2_state = seg2_info.state;
 
                 // Chips
@@ -1963,11 +2115,18 @@ pub fn draw_spec_page(
                 for (i, label) in chip_labels.iter().enumerate() {
                     let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
-                    let chip_info = b.chip(
-                        std::mem::take(&mut state.chip_states[i]),
-                        label,
-                        Rect::new(chip_x, chip_y, chip_w, 22.0),
-                    );
+                    let chip_info = {
+                        let this = &mut *b;
+                        let state = std::mem::take(&mut state.chip_states[i]);
+                        let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
+                        let spec_builder = ChipSpecBuilder::new()
+                                .label(label)
+                                .font(this.ctx.text_font)
+                                .disabled(false)
+                                .style(this.ctx.theme.chip_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        chip(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.chip_states[i] = chip_info.state;
                     chip_x += chip_w + 6.0;
                 }
@@ -1975,11 +2134,18 @@ pub fn draw_spec_page(
                     .text_system
                     .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
-                let add_info = b.chip(
-                    std::mem::take(&mut state.chip_states[4]),
-                    "+ add backend",
-                    Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
-                );
+                let add_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.chip_states[4]);
+                    let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
+                    let spec_builder = ChipSpecBuilder::new()
+                            .label("+ add backend")
+                            .font(this.ctx.text_font)
+                            .disabled(false)
+                            .style(this.ctx.theme.chip_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    chip(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.chip_states[4] = add_info.state;
             }
             let select_open_h = 3.0 * 26.0 + 8.0;
@@ -2100,14 +2266,21 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let mut sa = b.scroll_area(
-                        b1,
-                        b1_content,
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Always,
-                        &mut state.scroll_vert,
-                        ManualLayout,
-                    );
+                    let mut sa = {
+                        let this = &mut *b;
+                        let h_vis = ScrollbarVisibility::None;
+                        let v_vis = ScrollbarVisibility::Always;
+                        let (widget_context, scope) = begin_scroll_area(
+                                &mut this.ctx,
+                                b1,
+                                b1_content,
+                                h_vis,
+                                v_vis,
+                                &mut state.scroll_vert,
+                                ManualLayout,
+                            );
+                        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+                    };
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
                         "  ctx.window(\"Inspector\", |w| {",
@@ -2123,24 +2296,34 @@ pub fn draw_spec_page(
                         "}",
                     ];
                     for (i, line) in code_lines.iter().enumerate() {
-                        sa.label_styled(
-                            Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0),
-                            line,
-                            t.text_sm,
-                            t.muted,
-                            false,
-                        );
+                        {
+                            let this = &mut sa;
+                            let layout_params = Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0);
+                            let size = t.text_sm;
+                            let color = t.muted;
+                            let spec_builder = LabelSpecBuilder::new(line.to_string())
+                                    .size(size)
+                                    .font(this.ctx.text_font)
+                                    .text_color(color)
+                                    .rule(false);
+                            label(&mut this.ctx, layout_params, spec_builder)
+                        };
                     }
                     let sa_cmds = sa.finish();
                     b.append_cmds(sa_cmds);
                 }
-                b.label_styled(
-                    Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h),
-                    "vertical · idle",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("vertical · idle".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Box 2: vertical, dragging (same implementation, user can drag)
                 let b2_x = b1.x + b1.w + box_gap;
@@ -2154,33 +2337,51 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let mut sa = b.scroll_area(
-                        b2,
-                        b2_content,
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Always,
-                        &mut state.scroll_horiz,
-                        ManualLayout,
-                    );
+                    let mut sa = {
+                        let this = &mut *b;
+                        let h_vis = ScrollbarVisibility::None;
+                        let v_vis = ScrollbarVisibility::Always;
+                        let (widget_context, scope) = begin_scroll_area(
+                                &mut this.ctx,
+                                b2,
+                                b2_content,
+                                h_vis,
+                                v_vis,
+                                &mut state.scroll_horiz,
+                                ManualLayout,
+                            );
+                        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+                    };
                     for i in 0..15 {
-                        sa.label_styled(
-                            Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0),
-                            &format!("// entry {:02}/24 — frame state", i + 1),
-                            t.text_sm,
-                            t.muted,
-                            false,
-                        );
+                        {
+                            let this = &mut sa;
+                            let layout_params = Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0);
+                            let text: &str = &format!("// entry {:02}/24 — frame state", i + 1);
+                            let size = t.text_sm;
+                            let color = t.muted;
+                            let spec_builder = LabelSpecBuilder::new(text.to_string())
+                                    .size(size)
+                                    .font(this.ctx.text_font)
+                                    .text_color(color)
+                                    .rule(false);
+                            label(&mut this.ctx, layout_params, spec_builder)
+                        };
                     }
                     let sa_cmds = sa.finish();
                     b.append_cmds(sa_cmds);
                 }
-                b.label_styled(
-                    Rect::new(b2.x, y + b2.h + 4.0, b2.w, cap_h),
-                    "vertical · dragging (rust)",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(b2.x, y + b2.h + 4.0, b2.w, cap_h);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("vertical · dragging (rust)".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Box 3: horizontal
                 let b3_x = b2_x + b2.w + box_gap;
@@ -2194,31 +2395,48 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let mut sa = b.scroll_area(
-                        b3,
-                        b3_content,
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::None,
-                        &mut state.scroll_both,
-                        ManualLayout,
-                    );
-                    sa.label_styled(
-                        Rect::new(6.0, 6.0, 680.0, 14.0),
-                        "frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )",
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    let mut sa = {
+                        let this = &mut *b;
+                        let h_vis = ScrollbarVisibility::Always;
+                        let v_vis = ScrollbarVisibility::None;
+                        let (widget_context, scope) = begin_scroll_area(
+                                &mut this.ctx,
+                                b3,
+                                b3_content,
+                                h_vis,
+                                v_vis,
+                                &mut state.scroll_both,
+                                ManualLayout,
+                            );
+                        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+                    };
+                    {
+                        let this = &mut sa;
+                        let layout_params = Rect::new(6.0, 6.0, 680.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )".to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     let sa_cmds = sa.finish();
                     b.append_cmds(sa_cmds);
                 }
-                b.label_styled(
-                    Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h),
-                    "horizontal",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("horizontal".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // Box 4: both axes
                 let b4_x = b3_x + b3.w + box_gap;
@@ -2232,38 +2450,60 @@ pub fn draw_spec_page(
                     }]
                 });
                 {
-                    let mut sa = b.scroll_area(
-                        b4,
-                        b4_content,
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::Always,
-                        &mut state.scroll_both_axes,
-                        ManualLayout,
-                    );
-                    sa.label_styled(
-                        Rect::new(12.0, 10.0, 280.0, 14.0),
-                        "scroll surface with",
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
-                    sa.label_styled(
-                        Rect::new(12.0, 28.0, 280.0, 14.0),
-                        "both bars + corner",
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    let mut sa = {
+                        let this = &mut *b;
+                        let h_vis = ScrollbarVisibility::Always;
+                        let v_vis = ScrollbarVisibility::Always;
+                        let (widget_context, scope) = begin_scroll_area(
+                                &mut this.ctx,
+                                b4,
+                                b4_content,
+                                h_vis,
+                                v_vis,
+                                &mut state.scroll_both_axes,
+                                ManualLayout,
+                            );
+                        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+                    };
+                    {
+                        let this = &mut sa;
+                        let layout_params = Rect::new(12.0, 10.0, 280.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new("scroll surface with".to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
+                    {
+                        let this = &mut sa;
+                        let layout_params = Rect::new(12.0, 28.0, 280.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new("both bars + corner".to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     let sa_cmds = sa.finish();
                     b.append_cmds(sa_cmds);
                 }
-                b.label_styled(
-                    Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h),
-                    "both axes",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("both axes".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 y += 140.0 + cap_h + 8.0;
             }
@@ -2274,20 +2514,36 @@ pub fn draw_spec_page(
             y += 46.0;
             {
                 const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
-                let t1_info = b.tabs(
-                    std::mem::take(&mut state.tabs1_state),
-                    TABS1,
-                    Rect::new(lx, y, content_w.min(640.0), 36.0),
-                );
+                let t1_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.tabs1_state);
+                    let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
+                    let spec_builder = TabsSpecBuilder::new()
+                            .items(TABS1)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.tabs_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    tabs(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.tabs1_state = t1_info.state;
                 y += 36.0 + 20.0;
 
                 const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-                let t2_info = b.tabs(
-                    std::mem::take(&mut state.tabs2_state),
-                    TABS2,
-                    Rect::new(lx, y, content_w.min(480.0), 36.0),
-                );
+                let t2_info = {
+                    let this = &mut *b;
+                    let state = std::mem::take(&mut state.tabs2_state);
+                    let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
+                    let spec_builder = TabsSpecBuilder::new()
+                            .items(TABS2)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.tabs_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    tabs(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.tabs2_state = t2_info.state;
                 y += 36.0;
             }
@@ -2315,7 +2571,7 @@ pub fn draw_spec_page(
                     (f32::NAN, true, "indeterminate"),
                 ];
                 let bar_w = 240.0_f32;
-                for (val, active, label) in bar_items {
+                for (val, active, bar_label) in bar_items {
                     b.add(
                         Rect::new(lx, y + 8.0, bar_w, 3.0),
                         progress_bar::<SampleTextSystem, framewise::layout::ManualState>,
@@ -2323,13 +2579,18 @@ pub fn draw_spec_page(
                             .phase((time as f32) * 0.5)
                             .active(*active),
                     );
-                    b.label_styled(
-                        Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0),
-                        label,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(bar_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     y += 22.0;
                 }
             }
@@ -2344,23 +2605,33 @@ pub fn draw_spec_page(
                     ("FRAME", 1.0, None),
                 ];
                 let mut bx = lx;
-                for (label, val, peak) in meters {
-                    b.label_styled(
-                        Rect::new(bx, y, 36.0, 14.0),
-                        label,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                for (meter_label, val, peak) in meters {
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(bx, y, 36.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(meter_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     bx += 40.0;
-                    if *label == "FRAME" {
-                        b.label_styled(
-                            Rect::new(bx, y - 1.0, 60.0, 16.0),
-                            "2.4 ms",
-                            t.text_sm,
-                            t.ink,
-                            false,
-                        );
+                    if *meter_label == "FRAME" {
+                        {
+                            let this = &mut *b;
+                            let layout_params = Rect::new(bx, y - 1.0, 60.0, 16.0);
+                            let size = t.text_sm;
+                            let color = t.ink;
+                            let spec_builder = LabelSpecBuilder::new("2.4 ms".to_string())
+                                    .size(size)
+                                    .font(this.ctx.text_font)
+                                    .text_color(color)
+                                    .rule(false);
+                            label(&mut this.ctx, layout_params, spec_builder)
+                        };
                         bx += 70.0;
                     } else {
                         b.add(
@@ -2385,26 +2656,36 @@ pub fn draw_spec_page(
                     spinner::<SampleTextSystem, framewise::layout::ManualState>,
                     SpinnerSpecBuilder::new(),
                 );
-                b.label_styled(
-                    Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0),
-                    "loading",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("loading".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 b.add(
                     Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
                     spinner::<SampleTextSystem, framewise::layout::ManualState>,
                     SpinnerSpecBuilder::new().large(true),
                 );
-                b.label_styled(
-                    Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0),
-                    "large",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("large".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 let status_items: &[(&str, StatusVariant)] = &[
                     ("IDLE", StatusVariant::Neutral),
@@ -2625,13 +2906,18 @@ pub fn draw_spec_page(
                         );
                         kx += kw + 4.0;
                     }
-                    b.label_styled(
-                        Rect::new(kx + 4.0, y + 3.0, 200.0, 14.0),
-                        desc,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(kx + 4.0, y + 3.0, 200.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(desc.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     y += 28.0;
                 }
             }
@@ -2663,34 +2949,84 @@ pub fn draw_spec_page(
                 let mut drx = 0.0;
                 let cr_w = win_rect.w - 32.0;
                 for (i, (label, min, max)) in [("X", 0.0_f32, 800.0_f32), ("Y", 0.0, 600.0)].iter().enumerate() {
-                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md));
+                    let info = {
+                        let this = &mut win;
+                        let state = std::mem::take(&mut state.win11_drags[i]);
+                        let min = *min;
+                        let max = *max;
+                        let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
+                        let spec_builder = DragNumberSpecBuilder::new()
+                                .label(label)
+                                .font(this.ctx.text_font)
+                                .value(state.value)
+                                .min(min)
+                                .max(max)
+                                .disabled(false)
+                                .style(this.ctx.theme.drag_number_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                    };
                     state.win11_drags[i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
                 drx = 0.0;
                 for (i, (label, min, max)) in [("W", 0.0_f32, 800.0_f32), ("H", 0.0, 600.0)].iter().enumerate() {
-                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[2 + i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md));
+                    let info = {
+                        let this = &mut win;
+                        let state = std::mem::take(&mut state.win11_drags[2 + i]);
+                        let min = *min;
+                        let max = *max;
+                        let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
+                        let spec_builder = DragNumberSpecBuilder::new()
+                                .label(label)
+                                .font(this.ctx.text_font)
+                                .value(state.value)
+                                .min(min)
+                                .max(max)
+                                .disabled(false)
+                                .style(this.ctx.theme.drag_number_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                    };
                     state.win11_drags[2 + i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 10.0;
-                win.divider(Rect::new(0.0, iy, cr_w, 1.0));
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, iy, cr_w, 1.0);
+                    let spec_builder = DividerSpecBuilder::new()
+                            .color(this.ctx.theme.line)
+                            .width(1.0);
+                    divider(&mut this.ctx, layout_params, spec_builder)
+                };
                 iy += 10.0;
                 let check_labels = ["clip to parent", "debug overlay"];
-                for (i, label) in check_labels.iter().enumerate() {
-                    let cb_info = win.checkbox(
-                        std::mem::take(&mut state.win11_cbs[i]),
-                        Rect::new(0.0, iy, 14.0, 14.0),
-                        );
+                for (i, check_label) in check_labels.iter().enumerate() {
+                    let cb_info = {
+                        let this = &mut win;
+                        let state = std::mem::take(&mut state.win11_cbs[i]);
+                        let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
+                        let spec_builder = CheckboxSpecBuilder::new(state.check)
+                                .disabled(false)
+                                .style(this.ctx.theme.checkbox_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        checkbox(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.win11_cbs[i] = cb_info.state;
-                    win.label_styled(
-                        Rect::new(18.0, iy, cr_w - 18.0, 14.0),
-                        label,
-                        t.text_md,
-                        t.ink,
-                        false,
-                    );
+                    {
+                        let this = &mut win;
+                        let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
+                        let size = t.text_md;
+                        let color = t.ink;
+                        let spec_builder = LabelSpecBuilder::new(check_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     iy += 22.0;
                 }
                 let cmds = win.finish();
@@ -2721,20 +3057,28 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0),
-                    "FRAMEWISE · DARK",
-                    t.text_sm,
-                    light,
-                    false,
-                );
-                b.label_styled(
-                    Rect::new(dw.x + dw.w - 28.0, y + 6.0, 20.0, 14.0),
-                    "✕",
-                    t.text_sm,
-                    light,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("FRAMEWISE · DARK".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(light)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(dw.x + dw.w - 28.0, y + 6.0, 20.0, 14.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("✕".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(light)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 let cx = dw.x + 16.0;
                 let cyw = y + 26.0 + 16.0;
@@ -2761,27 +3105,39 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0),
-                    "⌘",
-                    t.text_sm,
-                    light,
-                    false,
-                );
-                b.label_styled(
-                    Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0),
-                    "K",
-                    t.text_sm,
-                    light,
-                    false,
-                );
-                b.label_styled(
-                    Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0),
-                    "search everything",
-                    t.text_sm,
-                    muted_l,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("⌘".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(light)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("K".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(light)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("search everything".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(muted_l)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // fake dark input
                 let inp_y = cyw + 28.0;
@@ -2798,13 +3154,17 @@ pub fn draw_spec_page(
                         },
                     ]
                 });
-                b.label_styled(
-                    Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0),
-                    "type a command…",
-                    t.text_sm,
-                    muted_l,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0);
+                    let size = t.text_sm;
+                    let spec_builder = LabelSpecBuilder::new("type a command…".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(muted_l)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
 
                 // fake dark tabs
                 let tab_y = inp_y + 30.0;
@@ -2819,13 +3179,18 @@ pub fn draw_spec_page(
                 let tab_items = ["Files", "Symbols", "Frames"];
                 let mut tab_x = cx;
                 for (i, item) in tab_items.iter().enumerate() {
-                    b.label_styled(
-                        Rect::new(tab_x, tab_y + 5.0, 60.0, 14.0),
-                        item,
-                        t.text_sm,
-                        if i == 0 { light } else { muted_l },
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(tab_x, tab_y + 5.0, 60.0, 14.0);
+                        let size = t.text_sm;
+                        let color = if i == 0 { light } else { muted_l };
+                        let spec_builder = LabelSpecBuilder::new(item.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     if i == 0 {
                         b.custom(Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0), |rect| {
                             vec![DrawCmd::FillRect {
@@ -2841,13 +3206,17 @@ pub fn draw_spec_page(
                     .iter()
                     .enumerate()
                 {
-                    b.label_styled(
-                        Rect::new(cx, file_y + i as f32 * 18.0, 200.0, 14.0),
-                        file,
-                        t.text_sm,
-                        muted_l,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(cx, file_y + i as f32 * 18.0, 200.0, 14.0);
+                        let size = t.text_sm;
+                        let spec_builder = LabelSpecBuilder::new(file.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(muted_l)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
 
                 y += 280.0 + SEC_GAP;
@@ -2879,11 +3248,20 @@ pub fn draw_spec_page(
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                let tabs_info = win.tabs(
-                    std::mem::take(&mut state.iu_tabs),
-                    &tabs_items,
-                    Rect::new(0.0, 0.0, cr_w, 28.0),
-                );
+                let tabs_info = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_tabs);
+                    let items: &[&str] = &tabs_items;
+                    let layout_params = Rect::new(0.0, 0.0, cr_w, 28.0);
+                    let spec_builder = TabsSpecBuilder::new()
+                            .items(items)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.tabs_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    tabs(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.iu_tabs = tabs_info.state;
 
                 // Form rows
@@ -2896,122 +3274,215 @@ pub fn draw_spec_page(
                 let mut fy = form_y_start;
 
                 // backend (segmented)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "BACKEND",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("BACKEND".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                let backend_info = win.segmented(
-                    std::mem::take(&mut state.iu_backend),
-                    &backends,
-                    Rect::new(widget_x, fy, 0.0, row_h),
-                );
+                let backend_info = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_backend);
+                    let items: &[&str] = &backends;
+                    let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
+                    let spec_builder = SegmentedSpecBuilder::new()
+                            .items(items)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.segmented_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    segmented(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.iu_backend = backend_info.state;
                 fy += row_h + row_gap;
 
                 // target fps (slider)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "TARGET FPS",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                win.slider(
-                    &mut state.iu_fps_slider,
-                    &mut state.iu_fps_val,
-                    24.0,
-                    240.0,
-                    10.0,
-                    SliderOrientation::Horizontal,
-                    Rect::new(widget_x, fy, widget_w - 40.0, row_h),
-                );
-                win.label_styled(
-                    Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0),
-                    &format!("{:.0}", state.iu_fps_val),
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("TARGET FPS".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                {
+                    let this = &mut win;
+                    let step = 10.0;
+                    let orientation = SliderOrientation::Horizontal;
+                    let layout_params = Rect::new(widget_x, fy, widget_w - 40.0, row_h);
+                    let spec_builder = SliderSpecBuilder::new()
+                            .min(24.0)
+                            .max(240.0)
+                            .page_step(step)
+                            .step(step)
+                            .orientation(orientation)
+                            .thumb_size_ratio(None)
+                            .style(this.ctx.theme.slider_style())
+                            .clip_rect(this.ctx.clip_rect)
+                            .claim_scroll_at_ends(true);
+                    slider(&mut this.ctx, &mut state.iu_fps_slider, &mut state.iu_fps_val, layout_params, spec_builder);
+                };
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0);
+                    let text: &str = &format!("{:.0}", state.iu_fps_val);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new(text.to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 fy += row_h + row_gap;
 
                 // vsync (switch)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "VSYNC",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                let switch_res = win.switch(
-                    std::mem::take(&mut state.iu_vsync),
-                    Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("VSYNC".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                let switch_res = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_vsync);
+                    let layout_params = Rect::new(widget_x, fy + 6.0, 30.0, 16.0);
+                    {
+                        let this = &mut *this;
+                        let spec_builder = SwitchSpecBuilder::new()
+                                .on(state.on)
+                                .disabled(false)
+                                .style(this.ctx.theme.switch_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        switch(&mut this.ctx, state, layout_params, spec_builder)
+                    }
+                };
                 state.iu_vsync = switch_res.state;
-                win.label_styled(
-                    Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0),
-                    "match display",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("match display".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 fy += row_h + row_gap;
 
                 // msaa (segmented)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "MSAA",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("MSAA".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 let msaa_opts = ["off", "2×", "4×", "8×"];
-                let seg_res = win.segmented(
-                    std::mem::take(&mut state.iu_msaa),
-                    &msaa_opts,
-                    Rect::new(widget_x, fy, 0.0, row_h),
-                );
+                let seg_res = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_msaa);
+                    let items: &[&str] = &msaa_opts;
+                    let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
+                    let spec_builder = SegmentedSpecBuilder::new()
+                            .items(items)
+                            .font(this.ctx.text_font)
+                            .active_index(state.active_index)
+                            .disabled(false)
+                            .style(this.ctx.theme.segmented_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    segmented(&mut this.ctx, state, layout_params, spec_builder)
+                };
                 state.iu_msaa = seg_res.state;
                 fy += row_h + row_gap;
 
                 // viewport (drag numbers)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "VIEWPORT",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
-                let w_res = win.drag_number(
-                    std::mem::take(&mut state.iu_vp_w),
-                    "W",
-                    0.0,
-                    7680.0,
-                    Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h),
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("VIEWPORT".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
+                let w_res = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_vp_w);
+                    let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
+                    let spec_builder = DragNumberSpecBuilder::new()
+                            .label("W")
+                            .font(this.ctx.text_font)
+                            .value(state.value)
+                            .min(0.0)
+                            .max(7680.0)
+                            .disabled(false)
+                            .style(this.ctx.theme.drag_number_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                };
                 state.iu_vp_w = w_res.state;
 
-                let h_res = win.drag_number(
-                    std::mem::take(&mut state.iu_vp_h),
-                    "H",
-                    0.0,
-                    7680.0,
-                    Rect::new(widget_x + (widget_w / 2.0) + 4.0, fy, (widget_w / 2.0) - 4.0, row_h),
-                );
+                let h_res = {
+                    let this = &mut win;
+                    let state = std::mem::take(&mut state.iu_vp_h);
+                    let layout_params = Rect::new(widget_x + (widget_w / 2.0) + 4.0, fy, (widget_w / 2.0) - 4.0, row_h);
+                    let spec_builder = DragNumberSpecBuilder::new()
+                            .label("H")
+                            .font(this.ctx.text_font)
+                            .value(state.value)
+                            .min(0.0)
+                            .max(7680.0)
+                            .disabled(false)
+                            .style(this.ctx.theme.drag_number_style())
+                            .clip_rect(this.ctx.clip_rect);
+                    drag_number(&mut this.ctx, state,layout_params, spec_builder)
+                };
                 state.iu_vp_h = h_res.state;
                 fy += row_h + row_gap;
 
                 // accent (color swatch + button)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "ACCENT",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("ACCENT".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 win.add(
                     Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
                     color_swatch::<SampleTextSystem, framewise::layout::ManualState>,
@@ -3019,43 +3490,71 @@ pub fn draw_spec_page(
                         .color(t.rust)
                         .border(t.line),
                 );
-                win.label_styled(
-                    Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0),
-                    "#c25a2c",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("#c25a2c".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 fy += row_h + row_gap;
 
                 // options (checkboxes)
-                win.label_styled(
-                    Rect::new(0.0, fy + 7.0, label_w, 14.0),
-                    "OPTIONS",
-                    t.text_sm,
-                    t.muted,
-                    false,
-                );
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
+                    let size = t.text_sm;
+                    let color = t.muted;
+                    let spec_builder = LabelSpecBuilder::new("OPTIONS".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
                 let opt_labels = ["show layout grid", "log every frame", "tessellate (per-mesh)"];
-                for (i, label) in opt_labels.iter().enumerate() {
+                for (i, opt_label) in opt_labels.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    let cb_res = win.checkbox(
-                        std::mem::take(&mut state.iu_options[i]),
-                        Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
-                        );
+                    let cb_res = {
+                        let this = &mut win;
+                        let state = std::mem::take(&mut state.iu_options[i]);
+                        let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
+                        let spec_builder = CheckboxSpecBuilder::new(state.check)
+                                .disabled(false)
+                                .style(this.ctx.theme.checkbox_style())
+                                .clip_rect(this.ctx.clip_rect);
+                        checkbox(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.iu_options[i] = cb_res.state;
 
-                    win.label_styled(
-                        Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0),
-                        label,
-                        t.text_md,
-                        t.ink,
-                        false,
-                    );
+                    {
+                        let this = &mut win;
+                        let layout_params = Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0);
+                        let size = t.text_md;
+                        let color = t.ink;
+                        let spec_builder = LabelSpecBuilder::new(opt_label.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                 }
                 fy += 3.0 * 22.0 + 4.0;
 
-                win.divider(Rect::new(0.0, fy, cr_w, 1.0));
+                {
+                    let this = &mut win;
+                    let layout_params = Rect::new(0.0, fy, cr_w, 1.0);
+                    let spec_builder = DividerSpecBuilder::new()
+                            .color(this.ctx.theme.line)
+                            .width(1.0);
+                    divider(&mut this.ctx, layout_params, spec_builder)
+                };
                 fy += 10.0;
 
                 // button row
@@ -3068,13 +3567,17 @@ pub fn draw_spec_page(
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;
                     btn_x -= bw;
-                    let btn = win.button_styled(
-                        std::mem::take(&mut state.iu_btns[i]),
-                        Rect::new(btn_x, fy, bw, t.h_md),
-                        *label,
-                        style.clone(),
-                        false,
-                        );
+                    let btn = {
+                        let this = &mut win;
+                        let state = std::mem::take(&mut state.iu_btns[i]);
+                        let layout_params = Rect::new(btn_x, fy, bw, t.h_md);
+                        let text: &str = *label;
+                        let style = style.clone();
+                        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+                                .style(style)
+                                .disabled(false);
+                        button(&mut this.ctx, state, layout_params, spec_builder)
+                    };
                     state.iu_btns[i] = btn.state;
                     btn_x -= 8.0;
                 }
@@ -3123,38 +3626,56 @@ pub fn draw_spec_page(
                 ];
                 let log_content_h = log_lines.len() as f32 * 18.0 + 8.0;
                 {
-                    let mut log_page = fl_win.scroll_area(
-                        fl_scroll_rect,
-                        Vec2::new(fl_scroll_rect.w, log_content_h),
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Auto,
-                        &mut state.iu_log_scroll,
-                        framewise::layout::ManualLayout,
-                        );
+                    let mut log_page = {
+                        let this = &mut fl_win;
+                        let content_size = Vec2::new(fl_scroll_rect.w, log_content_h);
+                        let h_vis = ScrollbarVisibility::None;
+                        let v_vis = ScrollbarVisibility::Auto;
+                        let inner_layout = framewise::layout::ManualLayout;
+                        let (widget_context, scope) = begin_scroll_area(
+                                &mut this.ctx,
+                                fl_scroll_rect,
+                                content_size,
+                                h_vis,
+                                v_vis,
+                                &mut state.iu_log_scroll,
+                                inner_layout,
+                            );
+                        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
+                    };
                     let loy = 4.0;
                     for (i, (ts_str, msg, highlight)) in log_lines.iter().enumerate() {
                         let row_y = loy + i as f32 * 18.0;
                         let ts_w = 100.0_f32;
-                        log_page.label_styled(
-                            Rect::new(6.0, row_y, ts_w, 14.0),
-                            ts_str,
-                            t.text_sm,
-                            t.muted,
-                            false,
-                        );
+                        {
+                            let this = &mut log_page;
+                            let layout_params = Rect::new(6.0, row_y, ts_w, 14.0);
+                            let size = t.text_sm;
+                            let color = t.muted;
+                            let spec_builder = LabelSpecBuilder::new(ts_str.to_string())
+                                    .size(size)
+                                    .font(this.ctx.text_font)
+                                    .text_color(color)
+                                    .rule(false);
+                            label(&mut this.ctx, layout_params, spec_builder)
+                        };
                         let msg_color = if *highlight { t.rust } else { t.ink };
-                        log_page.label_styled(
-                            Rect::new(
-                                6.0 + ts_w + 8.0,
-                                row_y,
-                                fl_scroll_rect.w - ts_w - 14.0,
-                                14.0,
-                            ),
-                            msg,
-                            t.text_sm,
-                            msg_color,
-                            false,
-                        );
+                        {
+                            let this = &mut log_page;
+                            let layout_params = Rect::new(
+                                                        6.0 + ts_w + 8.0,
+                                                        row_y,
+                                                        fl_scroll_rect.w - ts_w - 14.0,
+                                                        14.0,
+                                                    );
+                            let size = t.text_sm;
+                            let spec_builder = LabelSpecBuilder::new(msg.to_string())
+                                    .size(size)
+                                    .font(this.ctx.text_font)
+                                    .text_color(msg_color)
+                                    .rule(false);
+                            label(&mut this.ctx, layout_params, spec_builder)
+                        };
                     }
                     let log_cmds = log_page.finish();
                     fl_win.append_cmds(log_cmds);
@@ -3218,7 +3739,14 @@ pub fn draw_spec_page(
 
             // ── FOOTER ───────────────────────────────────────────────────────────────
             {
-                b.divider(Rect::new(lx, y, content_w, 1.0));
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx, y, content_w, 1.0);
+                    let spec_builder = DividerSpecBuilder::new()
+                            .color(this.ctx.theme.line)
+                            .width(1.0);
+                    divider(&mut this.ctx, layout_params, spec_builder)
+                };
                 y += 10.0;
                 let foot_items: &[(&str, &str)] = &[
                     ("SPEC", "V0.1 · 12 SECTIONS"),
@@ -3229,24 +3757,45 @@ pub fn draw_spec_page(
                 ];
                 let mut fx = lx;
                 for (key, val) in foot_items {
-                    b.label_styled(Rect::new(fx, y, 32.0, 14.0), key, t.text_sm, t.ink, false);
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(fx, y, 32.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.ink;
+                        let spec_builder = LabelSpecBuilder::new(key.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     let kw = key.len() as f32 * 7.0 + 8.0;
-                    b.label_styled(
-                        Rect::new(fx + kw, y, 220.0, 14.0),
-                        val,
-                        t.text_sm,
-                        t.muted,
-                        false,
-                    );
+                    {
+                        let this = &mut *b;
+                        let layout_params = Rect::new(fx + kw, y, 220.0, 14.0);
+                        let size = t.text_sm;
+                        let color = t.muted;
+                        let spec_builder = LabelSpecBuilder::new(val.to_string())
+                                .size(size)
+                                .font(this.ctx.text_font)
+                                .text_color(color)
+                                .rule(false);
+                        label(&mut this.ctx, layout_params, spec_builder)
+                    };
                     fx += kw + val.len() as f32 * 6.5 + 24.0;
                 }
-                b.label_styled(
-                    Rect::new(lx + content_w - 200.0, y, 200.0, 14.0),
-                    "FRAMEWISE · WIDGET SPECIFICATION",
-                    t.text_sm,
-                    t.ink,
-                    false,
-                );
+                {
+                    let this = &mut *b;
+                    let layout_params = Rect::new(lx + content_w - 200.0, y, 200.0, 14.0);
+                    let size = t.text_sm;
+                    let color = t.ink;
+                    let spec_builder = LabelSpecBuilder::new("FRAMEWISE · WIDGET SPECIFICATION".to_string())
+                            .size(size)
+                            .font(this.ctx.text_font)
+                            .text_color(color)
+                            .rule(false);
+                    label(&mut this.ctx, layout_params, spec_builder)
+                };
             }
             let _ = (y, b);
         } // end content block (drops `b` alias, releases borrow on `page`)
