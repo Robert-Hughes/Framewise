@@ -2503,44 +2503,51 @@ fn hero_logo(t: &Theme, lx: f32, y0: f32) -> Vec<DrawCmd> {
     let ls = 0.48_f32;
     let lx0 = lx;
     let lw = 4.8_f32;
+    
+    // Since lines are drawn using "butt end caps" (which terminate flat at endpoints),
+    // we manually extend/overlap connected segment coordinates by half the stroke width
+    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and 
+    // simulate square cap endings.
+    let ext = 5.0_f32;
+
     cmds.extend(vec![
         // left bracket
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 56. * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + 40. * ls, y0 + 40. * ls),
+            p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
             color: t.ink,
             width: lw,
         },
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 40. * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + 40. * ls, y0 + 160. * ls),
+            p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
+            p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
             width: lw,
         },
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 40. * ls, y0 + 160. * ls),
-            p1: Vec2::new(lx0 + 56. * ls, y0 + 160. * ls),
+            p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
+            p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
             color: t.ink,
             width: lw,
         },
         // top horizontal
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 78. * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + 140. * ls, y0 + 40. * ls),
+            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
             color: t.ink,
             width: lw,
         },
         // middle horizontal (rust)
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 78. * ls, y0 + 96. * ls),
-            p1: Vec2::new(lx0 + 120. * ls, y0 + 96. * ls),
+            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
+            p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
             color: t.rust,
             width: lw,
         },
         // vertical
         DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 78. * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + 78. * ls, y0 + 160. * ls),
+            p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
+            p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
             width: lw,
         },

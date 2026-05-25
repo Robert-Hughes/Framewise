@@ -15,6 +15,11 @@ pub enum DrawCmd {
     StrokeRect { rect: Rect, color: Color, width: f32 },
 
     /// Draw a straight line segment.
+    ///
+    /// The line is drawn using "butt end caps", meaning the stroke terminates flat and
+    /// stops immediately at `p0` and `p1` without projecting past them. For connected
+    /// line segments to meet cleanly at corners, their endpoints should be manually
+    /// extended or overlapped in the widget layout.
     StrokeLine { p0: Vec2, p1: Vec2, color: Color, width: f32 },
 
     /// Fill a circle with a solid colour.

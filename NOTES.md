@@ -2,7 +2,6 @@
 
 Working notes, TODOs, open questions, and half-baked ideas.
 
-Tests that check visual draw cmds from widgets don't actually check the params of the DrawCmds, just the type. THis means geometry could shift without us knowing!
 
 ---
 
@@ -127,6 +126,9 @@ Features to design and implement, roughly in dependency order:
   - did a little work on this already and there's some tests but it's not good yet.
   - if navigating within a scroll area, it should probably prefer to move to a (currently) not visible widget within that scroll area then to pop out to one outside (which should scroll the new one into view)
 - Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)
+* Buttons text auto-ellipses (same for labels etc. All text?), due to top down layout this is more likely to occur so should be handled nicely. Also have a tooltip to show the full text. Reusable component for this functionality?
+
+
 
 
 
