@@ -493,9 +493,18 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: &mut SliderState,
     value: &mut f32,
-    spec: SliderSpec,
+    layout_params: S::Params,
+    builder: SliderSpecBuilder,
     input: &Input,
 ) {
+    let rect = ctx.layout(layout_params);
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let cmds = raw::slider(state, value, spec, input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(cmds);
 }
@@ -503,9 +512,110 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::slider as slider_raw;
 
+pub struct SliderSpecBuilder {
+    pub min: Option<f32>,
+    pub max: Option<f32>,
+    pub page_step: Option<f32>,
+    pub step: Option<f32>,
+    pub orientation: Option<Orientation>,
+    pub thumb_size_ratio: Option<f32>,
+    pub style: Option<SliderStyle>,
+    pub rect: Option<Rect>,
+    pub clip_rect: Option<Rect>,
+    pub claim_scroll_at_ends: Option<bool>,
+}
+
+impl SliderSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            min: None,
+            max: None,
+            page_step: None,
+            step: None,
+            orientation: None,
+            thumb_size_ratio: None,
+            style: None,
+            rect: None,
+            clip_rect: None,
+            claim_scroll_at_ends: None,
+        }
+    }
+
+    pub fn min(mut self, min: f32) -> Self {
+        self.min = Some(min);
+        self
+    }
+    pub fn max(mut self, max: f32) -> Self {
+        self.max = Some(max);
+        self
+    }
+    pub fn page_step(mut self, page_step: f32) -> Self {
+        self.page_step = Some(page_step);
+        self
+    }
+    pub fn step(mut self, step: f32) -> Self {
+        self.step = Some(step);
+        self
+    }
+    pub fn orientation(mut self, orientation: Orientation) -> Self {
+        self.orientation = Some(orientation);
+        self
+    }
+    pub fn thumb_size_ratio(mut self, thumb_size_ratio: Option<f32>) -> Self {
+        self.thumb_size_ratio = thumb_size_ratio;
+        self
+    }
+    pub fn style(mut self, style: SliderStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
+        self
+    }
+    pub fn claim_scroll_at_ends(mut self, claim_scroll_at_ends: bool) -> Self {
+        self.claim_scroll_at_ends = Some(claim_scroll_at_ends);
+        self
+    }
+
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if let Some(style) = &self.style {
+            if style.scrollbar_mode {
+                self.style = Some(theme.scrollbar_style());
+            } else {
+                self.style = Some(theme.slider_style());
+            }
+        } else {
+            self.style = Some(theme.slider_style());
+        }
+        self
+    }
+
+    pub fn build(self) -> SliderSpec {
+        SliderSpec {
+            rect: self.rect.unwrap_or_default(),
+            min: self.min.unwrap_or(0.0),
+            max: self.max.unwrap_or(100.0),
+            page_step: self.page_step.unwrap_or(10.0),
+            step: self.step.unwrap_or(1.0),
+            orientation: self.orientation.unwrap_or(Orientation::Horizontal),
+            thumb_size_ratio: self.thumb_size_ratio,
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+            claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::slider_raw as slider;
 
     #[test]
     fn test_slider_page_up_down_keyboard() {

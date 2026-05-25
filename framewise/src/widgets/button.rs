@@ -308,17 +308,76 @@ impl ButtonResult {
     }
 }
 
+// ── Spec Builder ───────────────────────────────────────────────────────────────
+
+pub struct ButtonSpecBuilder {
+    pub text: String,
+    pub style: Option<ButtonStyle>,
+    pub clip_rect: Option<Rect>,
+    pub disabled: bool,
+}
+
+impl ButtonSpecBuilder {
+    pub fn new(text: String) -> Self {
+        Self {
+            text,
+            style: None,
+            clip_rect: None,
+            disabled: false,
+        }
+    }
+    pub fn style(mut self, style: ButtonStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+    pub fn with_rect(self, _rect: Rect) -> Self {
+        self
+    }
+    pub fn with_style(mut self, style: ButtonStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn with_clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
+        self
+    }
+    pub fn build(self) -> ButtonSpec {
+        ButtonSpec {
+            rect: Rect::ZERO,
+            text: self.text,
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+            disabled: self.disabled,
+        }
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level button widget function using WidgetContext.
 ///
-/// This function accepts a ButtonSpec and calls the low-level raw::button function.
+/// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
+/// and calls the low-level raw::button function.
 pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: ButtonState,
-    spec: ButtonSpec,
+    layout_params: S::Params,
+    builder: ButtonSpecBuilder,
     input: &Input,
 ) -> ButtonInfo {
+    let rect = ctx.layout(layout_params);
+    let style = builder.style.unwrap_or(ctx.button_style);
+    let clip_rect = builder.clip_rect.or(ctx.clip_rect);
+    let mut spec = builder
+        .with_style(style)
+        .with_clip_rect(clip_rect)
+        .build();
+    spec.rect = rect;
+
     let result = raw::button(state, spec, input, ctx.text_system, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -337,6 +396,7 @@ pub use raw::button as button_raw;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::button_raw as button;
 
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;

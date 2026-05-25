@@ -226,12 +226,23 @@ impl ChipResult {
 /// High-level chip widget function using WidgetContext.
 ///
 /// This function accepts a ChipSpec and calls the low-level raw::chip function.
-pub fn chip<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: ChipState,
-    spec: ChipSpec<'_, T>,
+    layout_params: S::Params,
+    builder: ChipSpecBuilder<'a, T>,
     input: &Input,
 ) -> ChipInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::chip(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -331,7 +342,7 @@ mod tests {
     use crate::types::Vec2;
 
     fn ch_ip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
-        chip(
+        chip_raw(
             ChipState::default(),
             spec,
             &Input::default(),
@@ -390,7 +401,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = chip(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new());
+        let res = chip_raw(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new());
 
         assert_eq!(
             res.draw,
@@ -430,7 +441,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = chip(state, spec, &Input::default(), &mut focus_sys);
+        let res = chip_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
@@ -481,7 +492,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = chip(state, spec, &input, &mut focus_sys);
+        let res = chip_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -501,7 +512,7 @@ mod tests {
         // Frame 1: Focus chip
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = chip(
+        let res = chip_raw(
             state,
             ChipSpec {
                 ts: &mut text_sys,
@@ -522,7 +533,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = chip(
+        let res = chip_raw(
             state,
             ChipSpec {
                 ts: &mut text_sys,
@@ -544,7 +555,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = chip(
+        let res = chip_raw(
             state,
             ChipSpec {
                 ts: &mut text_sys,

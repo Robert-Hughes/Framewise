@@ -95,10 +95,18 @@ impl KeycapResult {
 /// High-level keycap widget function using WidgetContext.
 ///
 /// This function accepts a KeycapSpec and calls the low-level raw::keycap function.
-pub fn keycap<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: KeycapSpec<'_, T>,
+    layout_params: S::Params,
+    builder: KeycapSpecBuilder<'a, T>,
 ) -> KeycapInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    let spec = builder.build();
     let result = raw::keycap(spec);
     ctx.append_cmds(result.draw.0);
     KeycapInfo { layout: result.layout }
@@ -211,7 +219,7 @@ mod tests {
             text_size: 14.0,
             font: FontId(0),
         };
-        let res = keycap(spec);
+        let res = keycap_raw(spec);
 
         assert_eq!(
             res.draw,

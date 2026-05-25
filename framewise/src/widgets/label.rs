@@ -74,15 +74,77 @@ impl LabelResult {
     }
 }
 
+// ── Spec Builder ───────────────────────────────────────────────────────────────
+
+pub struct LabelSpecBuilder {
+    pub text: String,
+    pub size: Option<f32>,
+    pub font: Option<FontId>,
+    pub text_color: Option<Color>,
+    pub rule: bool,
+}
+
+impl LabelSpecBuilder {
+    pub fn new(text: String) -> Self {
+        Self {
+            text,
+            size: None,
+            font: None,
+            text_color: None,
+            rule: false,
+        }
+    }
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = Some(size);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
+    pub fn text_color(mut self, color: Color) -> Self {
+        self.text_color = Some(color);
+        self
+    }
+    pub fn rule(mut self, rule: bool) -> Self {
+        self.rule = rule;
+        self
+    }
+    pub fn with_rect(self, _rect: Rect) -> Self {
+        self
+    }
+    pub fn build(self) -> LabelSpec {
+        LabelSpec {
+            rect: Rect::ZERO,
+            text: self.text,
+            size: self.size.unwrap_or(14.0),
+            font: self.font.unwrap_or_default(),
+            text_color: self.text_color.unwrap_or(Color::WHITE),
+            rule: self.rule,
+        }
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level label widget function using WidgetContext.
 ///
-/// This function accepts a LabelSpec and calls the low-level raw::label function.
+/// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
+/// and calls the low-level raw::label function.
 pub fn label<T: TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: LabelSpec,
+    layout_params: S::Params,
+    builder: LabelSpecBuilder,
 ) -> LabelInfo {
+    let rect = ctx.layout(layout_params);
+    let spec = LabelSpec {
+        rect,
+        text: builder.text,
+        size: builder.size.unwrap_or(ctx.text_size),
+        font: builder.font.unwrap_or(ctx.text_font),
+        text_color: builder.text_color.unwrap_or(ctx.text_color),
+        rule: builder.rule,
+    };
     let result = raw::label(spec, ctx.text_system);
     
     ctx.append_cmds(result.draw.0);
@@ -98,6 +160,7 @@ pub use raw::label as label_raw;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::label_raw as label;
     use crate::{test_utils::DummyTextSys, text::TextHandle};
 
     struct RecordingTextSys {

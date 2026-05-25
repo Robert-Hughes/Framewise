@@ -290,9 +290,18 @@ impl RadioResult {
 pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: RadioState,
-    spec: RadioSpec,
+    layout_params: S::Params,
+    builder: RadioSpecBuilder,
     input: &Input,
 ) -> RadioInfo {
+    let rect = ctx.layout(layout_params);
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    if builder.spec.clip_rect.is_none() {
+        builder.spec.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::radio(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -313,7 +322,7 @@ mod tests {
     use super::*;
 
     fn rad_io(spec: RadioSpec) -> RadioResult {
-        radio(
+        radio_raw(
             RadioState::default(),
             spec,
             &Input::default(),
@@ -400,7 +409,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = radio(state, spec, &Input::default(), &mut focus_sys);
+        let res = radio_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
@@ -476,7 +485,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = radio(state, spec, &input, &mut focus_sys);
+        let res = radio_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -503,7 +512,7 @@ mod tests {
         // Frame 1: Explicitly focus the radio
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = radio(state, spec(), &input, &mut focus_sys);
+        let res = radio_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -511,7 +520,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = radio(state, spec(), &input, &mut focus_sys);
+        let res = radio_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -520,7 +529,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = radio(state, spec(), &input, &mut focus_sys);
+        let res = radio_raw(state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

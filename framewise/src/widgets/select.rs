@@ -400,15 +400,23 @@ impl SelectResult {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level select widget function using WidgetContext.
-///
-/// This function accepts a SelectSpec and calls the low-level raw::select function.
-pub fn select<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn select<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: SelectState,
-    spec: SelectSpec<'_, T>,
+    layout_params: S::Params,
+    builder: SelectSpecBuilder<'a, T>,
     input: &Input,
 ) -> SelectInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::select(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -515,7 +523,7 @@ mod tests {
     use crate::types::Vec2;
 
     fn sel_ect<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> SelectResult {
-        select(
+        select_raw(
             SelectState::default(),
             spec,
             &Input::default(),
@@ -591,7 +599,7 @@ mod tests {
             focus_id: crate::focus::FocusId::new(),
         };
 
-        let res = select(
+        let res = select_raw(
             state,
             spec,
             &Input::default(),
@@ -686,7 +694,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = select(state, spec, &input, &mut focus_sys);
+        let res = select_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -714,7 +722,7 @@ mod tests {
         // Frame 1: Press Arrow Down while closed -> selected index changes to 1
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = select(
+        let res = select_raw(
             state,
             SelectSpec {
                 ts: &mut text_sys,
@@ -740,7 +748,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = select(
+        let res = select_raw(
             state,
             SelectSpec {
                 ts: &mut text_sys,
@@ -762,7 +770,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = select(
+        let res = select_raw(
             state,
             SelectSpec {
                 ts: &mut text_sys,
@@ -787,7 +795,7 @@ mod tests {
         // Frame 3: Press Arrow Down while open -> hovers index 2
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = select(
+        let res = select_raw(
             state,
             SelectSpec {
                 ts: &mut text_sys,
@@ -811,7 +819,7 @@ mod tests {
         // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
         input.key_pressed_enter = true;
         focus_sys.begin_frame();
-        let res = select(
+        let res = select_raw(
             state,
             SelectSpec {
                 ts: &mut text_sys,

@@ -200,25 +200,77 @@ impl WindowScope {
 
 /// High-level window begin function using WidgetContext.
 ///
-/// This function accepts a WindowSpec and calls the low-level raw::begin_window function.
-pub fn begin_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
-    spec: WindowSpec<'_, T>,
-) -> (WindowScope, Rect) {
+/// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
+/// and returns a child WidgetContext and the window scope.
+pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
+    parent: &'b mut WidgetContext<'_, T, S>,
+    layout_params: S::Params,
+    builder: WindowSpecBuilder<'b, T>,
+    inner_layout: L,
+) -> (WidgetContext<'b, T, L::State>, WindowScope) {
+    let bounds = parent.layout(layout_params);
+    let ts_ptr = parent.text_system as *mut T;
+    let fs_ptr = parent.focus_sys as *mut crate::focus::FocusSystem;
+
+    let mut resolved_builder = builder
+        .with_rect(bounds)
+        .with_theme(&parent.theme);
+    
+    resolved_builder.ts = Some(unsafe { &mut *ts_ptr });
+    
+    if resolved_builder.status_bar.is_none() {
+        resolved_builder.status_bar = Some(false);
+    }
+    if resolved_builder.status_text.is_none() {
+        resolved_builder.status_text = Some("");
+    }
+    if resolved_builder.buttons.is_none() {
+        resolved_builder.buttons = Some(&[]);
+    }
+    
+    let spec = resolved_builder.build();
     let (pre_cmds, scope, content) = raw::begin_window(spec);
-    ctx.append_cmds(pre_cmds);
-    (scope, content)
+    parent.append_cmds(pre_cmds);
+    
+    use crate::layout::Layout;
+    
+    let mut child = unsafe {
+        WidgetContext::new(
+            parent.theme.clone(),
+            &mut *ts_ptr,
+            &mut *fs_ptr,
+            inner_layout.begin(content),
+        )
+    };
+    
+    child.bg_color = parent.bg_color;
+    child.accent_color = parent.accent_color;
+    child.text_color = parent.text_color;
+    child.border_color = parent.border_color;
+    child.button_style = parent.button_style;
+    child.frame_style = parent.frame_style;
+    child.text_size = parent.text_size;
+    child.text_font = parent.text_font;
+    child.time = parent.time;
+    
+    let parent_clip = parent.clip_rect;
+    let new_clip = Some(parent_clip.map_or(content, |pc| pc.intersect(&content)));
+    child.clip_rect = new_clip;
+
+    (child, scope)
 }
 
 /// High-level window end function using WidgetContext.
 ///
-/// This function accepts a WindowScope and calls the low-level raw::end_window function.
+/// This function accepts finished child commands and completes the window on the parent context.
 pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+    parent: &mut WidgetContext<T, S>,
+    cmds: Vec<crate::draw::DrawCmd>,
     scope: WindowScope,
 ) {
+    parent.append_cmds(cmds);
     let post_cmds = raw::end_window(scope);
-    ctx.append_cmds(post_cmds);
+    parent.append_cmds(post_cmds);
 }
 
 // ── Re-export raw functions for direct use ───────────────────────────────────────────

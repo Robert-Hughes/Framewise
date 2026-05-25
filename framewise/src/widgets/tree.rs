@@ -164,10 +164,18 @@ impl TreeResult {
 /// High-level tree widget function using WidgetContext.
 ///
 /// This function accepts a TreeSpec and calls the low-level raw::tree function.
-pub fn tree<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: TreeSpec<'_, T>,
+    layout_params: S::Params,
+    builder: TreeSpecBuilder<'a, T>,
 ) {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    let spec = builder.build();
     let result = raw::tree(spec);
     ctx.append_cmds(result.draw.0);
 }

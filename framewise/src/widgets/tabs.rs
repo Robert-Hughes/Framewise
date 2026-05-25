@@ -272,12 +272,20 @@ impl TabsResult {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpec and calls the low-level raw::tabs function.
-pub fn tabs<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: TabsState,
-    spec: TabsSpec<'_, T>,
+    layout_params: S::Params,
+    builder: TabsSpecBuilder<'a, T>,
     input: &Input,
 ) -> TabsInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    let spec = builder.build();
     let result = raw::tabs(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -383,7 +391,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
 
     fn tab_s<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
-        tabs(
+        tabs_raw(
             TabsState::default(),
             spec,
             &Input::default(),
@@ -462,7 +470,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = tabs(state, spec, &Input::default(), &mut focus_sys);
+        let res = tabs_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -527,7 +535,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = tabs(state, spec, &input, &mut focus_sys);
+        let res = tabs_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -551,7 +559,7 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = tabs(
+        let res = tabs_raw(
             state,
             TabsSpec {
                 ts: &mut text_sys,
@@ -575,7 +583,7 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = tabs(
+        let res = tabs_raw(
             state,
             TabsSpec {
                 ts: &mut text_sys,

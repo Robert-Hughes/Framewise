@@ -7,11 +7,16 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Many widget's high-level functiopns aren't following the design set out here: C:\Users\xman2\.windsurf\plans\framewise-redesign-c59d34.md
   - They are not always performing layout!
+* Widget types don't seem to consistently use *Spec and *SpecBuilder, are inconsistent about theme application in high-level function etc.
+* SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback?
+* In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
+* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc
+* WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the high-level widget API from the widget context? Maybe we need a "outside-builder"-only spec struct?
+* Update DESIGN.md regarding *Spec (fully-specified for low-level API) and *SpecBuilder (partially specified for ergonomic use with high-level API)
 
 * Add "reset" button to spec page, to reset all state
 * Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused. Not sure how though, as we don't want to affect the styling (as that's exactly what we're trying to show!)
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
-* Widget types don't seem to consistently use *Spec and *SpecBuilder, are inconsistent about theme application in high-level function etc.
 
 ## Things Still to Figure Out
 
@@ -40,9 +45,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   this plays out in practice.
 
 * Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
-* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc
-* WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the builder? Maybe we need a "outside-builder"-only spec struct?
-
 * Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
 

@@ -85,15 +85,52 @@ impl FrameResult {
     }
 }
 
+// ── Spec Builder ───────────────────────────────────────────────────────────────
+
+pub struct FrameSpecBuilder {
+    pub style: Option<FrameStyle>,
+}
+
+impl FrameSpecBuilder {
+    pub fn new() -> Self {
+        Self { style: None }
+    }
+    pub fn style(mut self, style: FrameStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn with_rect(self, _rect: Rect) -> Self {
+        self
+    }
+    pub fn build(self) -> FrameSpec {
+        FrameSpec {
+            rect: Rect::ZERO,
+            style: self.style.unwrap_or(FrameStyle {
+                background: Color::TRANSPARENT,
+                border: Color::TRANSPARENT,
+                border_width: 0.0,
+                padding: 0.0,
+            }),
+        }
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level frame widget function using WidgetContext.
 ///
-/// This function accepts a FrameSpec and calls the low-level raw::frame function.
+/// This function accepts a FrameSpecBuilder and layout parameters, resolves layout and styles internally,
+/// and calls the low-level raw::frame function.
 pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: FrameSpec,
+    layout_params: S::Params,
+    builder: FrameSpecBuilder,
 ) -> FrameInfo {
+    let rect = ctx.layout(layout_params);
+    let spec = FrameSpec {
+        rect,
+        style: builder.style.unwrap_or(ctx.frame_style),
+    };
     let result = raw::frame(spec);
     
     ctx.append_cmds(result.draw.0);
@@ -122,7 +159,7 @@ mod tests {
             },
         };
 
-        let res = frame(spec);
+        let res = raw::frame(spec);
         let (draw, info) = res.into_parts();
 
         // Bounds should be exactly the requested rect

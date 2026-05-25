@@ -3,6 +3,7 @@ use crate::{
     input::Input,
     types::{Rect, Vec2},
     widget::WidgetContext,
+    layout::Layout,
 };
 
 pub mod raw {
@@ -404,17 +405,21 @@ impl ScrollAreaScope {
 /// High-level scroll area begin function using WidgetContext.
 ///
 /// This function accepts scroll parameters and calls the low-level raw::begin_scroll_area function.
-pub fn begin_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
-    bounds: Rect,
+/// High-level scroll area begin function using WidgetContext.
+///
+/// This function accepts scroll parameters, performs layout on the parent context,
+/// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
+pub fn begin_scroll_area<'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
+    parent: &'b mut WidgetContext<'_, T, S>,
+    layout_params: S::Params,
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
     v_vis: ScrollbarVisibility,
-    state: &mut ScrollState,
+    state: &'b mut ScrollState,
+    inner_layout: L,
     input: &Input,
-    clip_rect: Option<Rect>,
-    time: f64,
-) -> (ScrollAreaScope, Rect, Vec2) {
+) -> (WidgetContext<'b, T, crate::layout::OffsetState<L::State>>, ScrollAreaScope) {
+    let bounds = parent.layout(layout_params);
     let (pre_cmds, scope, content_bounds, offset) = raw::begin_scroll_area(
         bounds,
         content_size,
@@ -422,25 +427,58 @@ pub fn begin_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutSta
         v_vis,
         state,
         input,
-        ctx.focus_sys,
-        clip_rect,
-        time,
+        parent.focus_sys,
+        parent.clip_rect,
+        parent.time,
     );
     
-    ctx.append_cmds(pre_cmds);
+    parent.append_cmds(pre_cmds);
     
-    (scope, content_bounds, offset)
+    let offset_layout = crate::layout::OffsetLayout {
+        offset,
+        inner: inner_layout,
+    };
+    
+    let parent_clip = parent.clip_rect;
+    let new_clip = Some(parent_clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
+    
+    // Safety reborrow of parent resources to bypass compiler lock:
+    let ts_ptr = parent.text_system as *mut T;
+    let fs_ptr = parent.focus_sys as *mut crate::focus::FocusSystem;
+    
+    let mut child = unsafe {
+        WidgetContext::new(
+            parent.theme.clone(),
+            &mut *ts_ptr,
+            &mut *fs_ptr,
+            offset_layout.begin(content_bounds),
+        )
+    };
+    child.bg_color = parent.bg_color;
+    child.accent_color = parent.accent_color;
+    child.text_color = parent.text_color;
+    child.border_color = parent.border_color;
+    child.button_style = parent.button_style;
+    child.frame_style = parent.frame_style;
+    child.text_size = parent.text_size;
+    child.text_font = parent.text_font;
+    child.time = parent.time;
+    child.clip_rect = new_clip;
+    
+    (child, scope)
 }
 
 /// High-level scroll area end function using WidgetContext.
 ///
-/// This function accepts a ScrollAreaScope and calls the low-level raw::end_scroll_area function.
+/// This function accepts finished child commands and a ScrollAreaScope and completes the scroll area on the parent context.
 pub fn end_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+    parent: &mut WidgetContext<T, S>,
+    cmds: Vec<crate::draw::DrawCmd>,
     scope: ScrollAreaScope,
 ) {
-    let post_cmds = raw::end_scroll_area(scope, ctx.focus_sys);
-    ctx.append_cmds(post_cmds);
+    parent.append_cmds(cmds);
+    let post_cmds = raw::end_scroll_area(scope, parent.focus_sys);
+    parent.append_cmds(post_cmds);
 }
 
 // ── Re-export raw functions for direct use ───────────────────────────────────────────
@@ -467,6 +505,7 @@ mod test_helpers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::begin_scroll_area;
     use super::test_helpers::frames;
     use crate::test_utils::DummyTextSys;
     use crate::layout::ManualLayout;
@@ -583,7 +622,7 @@ mod tests {
                 &mut state, &input, &mut focus_sys, None, 0.0
             );
             
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -630,7 +669,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -666,7 +705,7 @@ focus_sys.take_focus(btn_state.focus_id);
             input.key_pressed_page_down = true;
 
             // Button rendered OUTSIDE the scroll area's begin/finish.
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
@@ -1042,7 +1081,7 @@ focus_sys.take_focus(btn_state.focus_id);
             );
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
-            let res = crate::widgets::button::button(
+            let res = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_visible_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
@@ -1058,7 +1097,7 @@ focus_sys.take_focus(btn_state.focus_id);
             // btn_clipped: OUTSIDE the clip rect (y=120..150, clip y=0..100).
             // Screen rect is in the gap between the scroll area and btn_start —
             // axial score from btn_start = 80, beating btn_visible's 180.
-            let res = crate::widgets::button::button(
+            let res = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_clipped_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
@@ -1074,7 +1113,7 @@ focus_sys.take_focus(btn_state.focus_id);
             scope.finish(&mut focus_sys);
 
             // btn_start: below the scroll area, no clip.
-            let res = crate::widgets::button::button(
+            let res = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_start_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
@@ -1138,7 +1177,7 @@ focus_sys.take_focus(btn_state.focus_id);
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
             // 30px overlap → must be included in spatial nav.
-            let res = crate::widgets::button::button(
+            let res = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_partial_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
@@ -1154,7 +1193,7 @@ focus_sys.take_focus(btn_state.focus_id);
             scope.finish(&mut focus_sys);
 
             // btn_start: below the scroll area.
-            let res = crate::widgets::button::button(
+            let res = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_start_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
@@ -1231,6 +1270,7 @@ focus_sys.take_focus(btn_state.focus_id);
 #[cfg(test)]
 mod nested_bubbling_tests {
     use crate::widgets::scroll_area::*;
+    use crate::widgets::scroll_area::raw::begin_scroll_area;
     use crate::types::*;
     use crate::input::Input;
     
@@ -1402,7 +1442,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1444,7 +1484,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1669,7 +1709,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1887,7 +1927,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -2119,7 +2159,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -2531,7 +2571,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button(
+            let info = crate::widgets::button::button_raw(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys

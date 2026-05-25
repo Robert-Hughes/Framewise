@@ -637,11 +637,20 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: TextEditState,
-    spec: TextEditSpec,
+    layout_params: S::Params,
+    builder: TextEditSpecBuilder,
     input: &Input,
-    time: f64,
 ) -> TextEditInfo {
-    let result = raw::text_edit(state, spec, input, time, ctx.text_system, ctx.focus_sys);
+    let rect = ctx.layout(layout_params);
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
+    let ts_ptr = ctx.text_system as *mut T;
+    let result = raw::text_edit(state, spec, input, ctx.time, unsafe { &mut *ts_ptr }, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
     
@@ -655,9 +664,67 @@ pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::text_edit as text_edit_raw;
 
+pub struct TextEditSpecBuilder {
+    pub rect: Option<Rect>,
+    pub style: Option<TextEditStyle>,
+    pub clip_rect: Option<Rect>,
+    pub error: Option<bool>,
+    pub disabled: Option<bool>,
+}
+
+impl TextEditSpecBuilder {
+    pub fn new() -> Self {
+        Self {
+            rect: None,
+            style: None,
+            clip_rect: None,
+            error: None,
+            disabled: None,
+        }
+    }
+
+    pub fn style(mut self, style: TextEditStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
+        self
+    }
+    pub fn error(mut self, error: bool) -> Self {
+        self.error = Some(error);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = Some(theme.text_edit_style());
+        self
+    }
+
+    pub fn build(self) -> TextEditSpec {
+        TextEditSpec {
+            rect: self.rect.unwrap_or_default(),
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+            error: self.error.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::text_edit_raw as text_edit;
 
     use crate::test_utils::DummyTextSys;
 

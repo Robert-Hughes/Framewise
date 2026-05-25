@@ -87,8 +87,14 @@ impl MeterResult {
 /// This function accepts a MeterSpec and calls the low-level raw::meter function.
 pub fn meter<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: MeterSpec,
+    layout_params: S::Params,
+    builder: MeterSpecBuilder,
 ) -> MeterInfo {
+    let rect = ctx.layout(layout_params);
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    let spec = builder.build();
     let result = raw::meter(spec);
     ctx.append_cmds(result.draw.0);
     MeterInfo { layout: result.layout }
@@ -137,6 +143,10 @@ impl MeterSpecBuilder {
         self
     }
 
+    pub fn with_theme(self, _theme: &crate::theme::Theme) -> Self {
+        self
+    }
+
     pub fn build(self) -> MeterSpec {
         let mut spec = MeterSpec::default();
         if let Some(r) = self.rect { spec.rect = r; }
@@ -159,7 +169,7 @@ mod tests {
             peak: None,
             bars: 10,
         };
-        let res = meter(spec);
+        let res = meter_raw(spec);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
@@ -183,7 +193,7 @@ mod tests {
             peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
             bars: 10,
         };
-        let res = meter(spec);
+        let res = meter_raw(spec);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);

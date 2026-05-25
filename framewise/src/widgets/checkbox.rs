@@ -319,9 +319,18 @@ impl CheckboxResult {
 pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: CheckboxState,
-    spec: CheckboxSpec,
+    layout_params: S::Params,
+    builder: CheckboxSpecBuilder,
     input: &Input,
 ) -> CheckboxInfo {
+    let rect = ctx.layout(layout_params);
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    if builder.spec.clip_rect.is_none() {
+        builder.spec.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::checkbox(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -342,7 +351,7 @@ mod tests {
     use super::*;
 
     fn check_box(spec: CheckboxSpec) -> CheckboxResult {
-        checkbox(
+        checkbox_raw(
             CheckboxState::default(),
             spec,
             &Input::default(),
@@ -467,7 +476,7 @@ mod tests {
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-        let res = checkbox(state, spec, &Input::default(), &mut focus_sys);
+        let res = checkbox_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
             res.draw,
@@ -537,7 +546,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = checkbox(state, spec, &input, &mut focus_sys);
+        let res = checkbox_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -564,7 +573,7 @@ mod tests {
         // Frame 1: Explicitly focus the checkbox
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = checkbox(state, spec(), &input, &mut focus_sys);
+        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -572,7 +581,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = checkbox(state, spec(), &input, &mut focus_sys);
+        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -581,7 +590,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = checkbox(state, spec(), &input, &mut focus_sys);
+        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

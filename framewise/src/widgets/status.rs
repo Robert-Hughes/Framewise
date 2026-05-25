@@ -112,10 +112,18 @@ impl StatusResult {
 /// High-level status widget function using WidgetContext.
 ///
 /// This function accepts a StatusSpec and calls the low-level raw::status function.
-pub fn status<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn status<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: StatusSpec<'_, T>,
+    layout_params: S::Params,
+    builder: StatusSpecBuilder<'a, T>,
 ) {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    let spec = builder.build();
     let result = raw::status(spec);
     ctx.append_cmds(result.draw.0);
 }
@@ -210,7 +218,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = status(spec);
+        let res = status_raw(spec);
 
         assert_eq!(
             res.draw,
@@ -240,7 +248,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = status(spec);
+        let res = status_raw(spec);
 
         assert_eq!(
             res.draw,

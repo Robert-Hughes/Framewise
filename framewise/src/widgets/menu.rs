@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -126,7 +126,10 @@ pub mod raw {
             }
         }
 
-        MenuResult { draw: cmds }
+        MenuResult {
+            draw: cmds,
+            layout: LayoutInfo::tight(outer),
+        }
     }
 }
 
@@ -178,11 +181,16 @@ pub struct MenuStyle {
 
 pub struct MenuResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+}
+
+pub struct MenuInfo {
+    pub layout: LayoutInfo,
 }
 
 impl MenuResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
+    pub fn into_parts(self) -> (DrawCommands, MenuInfo) {
+        (self.draw, MenuInfo { layout: self.layout })
     }
 }
 
@@ -191,12 +199,21 @@ impl MenuResult {
 /// High-level menu widget function using WidgetContext.
 ///
 /// This function accepts a MenuSpec and calls the low-level raw::menu function.
-pub fn menu<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: MenuSpec<'_, T>,
-) {
+    layout_params: S::Params,
+    builder: MenuSpecBuilder<'a, T>,
+) -> MenuInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    let spec = builder.build();
     let result = raw::menu(spec);
     ctx.append_cmds(result.draw.0);
+    MenuInfo { layout: result.layout }
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────

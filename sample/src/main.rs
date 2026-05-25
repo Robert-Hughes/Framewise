@@ -1,21 +1,9 @@
 mod renderer;
-mod spec_page;
+//mod spec_page;
 mod text;
 
 use framewise::{
-    input::Input,
-    layout::{Layout, LayoutState, OffsetLayout, OffsetState, RowLayout, ColumnLayout, ManualLayout},
-    theme::Theme,
-    types::{Color, Rect, Vec2},
-    widget::WidgetContext,
-    DrawCmd,
-    text::TextSystem,
-    widgets::button::{button, ButtonState, ButtonSpec, ButtonStyle, ButtonInfo},
-    widgets::label::{label, LabelSpec, LabelInfo},
-    widgets::frame::{frame, FrameSpec, FrameStyle, FrameInfo},
-    widgets::slider::{slider, SliderState, SliderSpec, Orientation as SliderOrientation, SliderStyle},
-    widgets::text_edit::{text_edit, TextEditState, TextEditSpec, TextEditInfo},
-    widgets::scroll_area::{begin_scroll_area, end_scroll_area, ScrollState, ScrollbarVisibility, ScrollAreaScope},
+    DrawCmd, input::Input, layout::{ColumnLayout, Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState, RowLayout}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::{ButtonInfo, ButtonSpec, ButtonState, ButtonStyle, button}, frame::{FrameInfo, FrameSpec, FrameStyle, frame}, label::{LabelInfo, LabelSpec, label}, scroll_area::{ScrollAreaScope, ScrollState, ScrollbarVisibility, begin_scroll_area, end_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpec, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditInfo, TextEditSpec, TextEditSpecBuilder, TextEditState, text_edit}}
 };
 
 fn child_ctx<'a, 'b, T: TextSystem, S: LayoutState, L: Layout>(
@@ -49,40 +37,22 @@ fn scroll_area_ctx<'a, 'b, T: TextSystem, S: LayoutState, L: Layout>(
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
     v_vis: ScrollbarVisibility,
-    state: &mut ScrollState,
+    state: &'b mut ScrollState,
     inner_layout: L,
     input: &Input,
 ) -> (WidgetContext<'b, T, OffsetState<L::State>>, ScrollAreaScope) {
-    let bounds = parent.layout(layout_params);
-    let (scope, content_bounds, offset) = begin_scroll_area(
+    let (widget_context, scope) = begin_scroll_area(
         parent,
-        bounds,
+        layout_params,
         content_size,
         h_vis,
         v_vis,
         state,
-        input,
-        parent.clip_rect,
-        parent.time,
+        inner_layout,
+        input
     );
-    
-    let mut child = WidgetContext::new(
-        parent.theme.clone(),
-        parent.text_system,
-        parent.focus_sys,
-        OffsetLayout { offset, inner: inner_layout }.begin(content_bounds),
-    );
-    child.bg_color = parent.bg_color;
-    child.accent_color = parent.accent_color;
-    child.text_color = parent.text_color;
-    child.border_color = parent.border_color;
-    child.button_style = parent.button_style;
-    child.frame_style = parent.frame_style;
-    child.text_size = parent.text_size;
-    child.text_font = parent.text_font;
-    child.time = parent.time;
-    child.clip_rect = Some(parent.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
-    (child, scope)
+
+    (widget_context, scope)
 }
 
 fn end_scroll_area_ctx<'a, T: TextSystem, S: LayoutState>(
@@ -90,8 +60,7 @@ fn end_scroll_area_ctx<'a, T: TextSystem, S: LayoutState>(
     cmds: Vec<DrawCmd>,
     scope: ScrollAreaScope,
 ) {
-    parent.append_cmds(cmds);
-    end_scroll_area(parent, scope);
+    end_scroll_area(parent, cmds, scope);
 }
 
 fn label_widget<T: TextSystem, S: LayoutState>(
@@ -99,16 +68,13 @@ fn label_widget<T: TextSystem, S: LayoutState>(
     layout_params: S::Params,
     text: &str,
 ) -> LabelInfo {
-    let rect = ctx.layout(layout_params);
-    let spec = LabelSpec {
-        rect,
-        text: text.to_string(),
-        size: ctx.text_size,
-        font: ctx.text_font,
-        text_color: ctx.text_color,
-        rule: false,
-    };
-    label(ctx, spec)
+    let spec_builder = LabelSpecBuilder::new(text.to_string())
+        .size(ctx.text_size)
+        .font(ctx.text_font)
+        .text_color(ctx.text_color)
+        .rule(false)
+    ;
+    label(ctx, layout_params, spec_builder)
 }
 
 fn button_widget<T: TextSystem, S: LayoutState>(
@@ -118,15 +84,11 @@ fn button_widget<T: TextSystem, S: LayoutState>(
     text: String,
     input: &Input,
 ) -> ButtonInfo {
-    let rect = ctx.layout(layout_params);
-    let spec = ButtonSpec {
-        rect,
-        text,
-        style: ctx.button_style,
-        clip_rect: ctx.clip_rect,
-        disabled: false,
-    };
-    button(ctx, state, spec, input)
+    let spec_builder = ButtonSpecBuilder::new(text)
+        .style(ctx.button_style)
+        .disabled(false)
+    ;
+    button(ctx, state, layout_params, spec_builder, input)
 }
 
 fn text_edit_widget<T: TextSystem, S: LayoutState>(
@@ -135,15 +97,12 @@ fn text_edit_widget<T: TextSystem, S: LayoutState>(
     layout_params: S::Params,
     input: &Input,
 ) -> TextEditInfo {
-    let rect = ctx.layout(layout_params);
-    let spec = TextEditSpec {
-        rect,
-        style: ctx.theme.text_edit_style(),
-        clip_rect: ctx.clip_rect,
-        error: false,
-        disabled: false,
-    };
-    text_edit(ctx, state, spec, input, ctx.time)
+    let spec_builder = TextEditSpecBuilder::new()
+        .style(ctx.theme.text_edit_style())
+        .clip_rect(ctx.clip_rect)
+        .error(false)
+        .disabled(false);
+    text_edit(ctx, state, layout_params, spec_builder, input)
 }
 
 fn slider_widget<T: TextSystem, S: LayoutState>(
@@ -157,20 +116,17 @@ fn slider_widget<T: TextSystem, S: LayoutState>(
     layout_params: S::Params,
     input: &Input,
 ) {
-    let rect = ctx.layout(layout_params);
-    let spec = SliderSpec {
-        orientation,
-        rect,
-        min,
-        max,
-        page_step: step,
-        step,
-        thumb_size_ratio: None,
-        style: SliderStyle::default(),
-        clip_rect: ctx.clip_rect,
-        claim_scroll_at_ends: true,
-    };
-    slider(ctx, state, value, spec, input);
+    let spec_builder = SliderSpecBuilder::new()
+        .orientation(orientation)
+        .min(min)
+        .max(max)
+        .page_step(step)
+        .step(step)
+        .thumb_size_ratio(None)
+        .style(SliderStyle::default())
+        .clip_rect(ctx.clip_rect)
+        .claim_scroll_at_ends(true);
+    slider(ctx, state, value, layout_params, spec_builder, input);
 }
 use renderer::Renderer;
 use text::SampleTextSystem;
@@ -259,7 +215,7 @@ struct App {
 
     // Page selection.
     active_page: AppPage,
-    spec_page_state: spec_page::SpecPageState,
+   // spec_page_state: spec_page::SpecPageState,
 
     // Nested 2D: outer[2D] > inner[2D]
     nested_2d_outer_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -324,7 +280,7 @@ impl App {
             input:           Input::new(),
             clipboard:       arboard::Clipboard::new().ok(),
             active_page:     AppPage::ScrollDemo,
-            spec_page_state: spec_page::SpecPageState::default(),
+          //  spec_page_state: spec_page::SpecPageState::default(),
             sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
             main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
             nested_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
@@ -360,17 +316,17 @@ impl App {
             .map(|g| (g.size.width as f32, g.size.height as f32))
             .unwrap_or((1600.0, 1200.0));
 
-        if self.active_page == AppPage::WidgetSpec {
-            self.focus_sys.begin_frame();
-            let cmds = spec_page::draw_spec_page(
-                text_system,
-                &mut self.focus_sys,
-                &mut self.spec_page_state,
-                &self.input,
-                self.start_time.elapsed().as_secs_f64(),
-                win_size.0,
-                win_size.1,
-            );
+         if self.active_page == AppPage::WidgetSpec {
+             self.focus_sys.begin_frame();
+             let cmds = vec![];/* spec_page::draw_spec_page(
+                 text_system,
+                 &mut self.focus_sys,
+                 &mut self.spec_page_state,
+                 &self.input,
+                 self.start_time.elapsed().as_secs_f64(),
+                 win_size.0,
+                 win_size.1,
+             ); */
             self.focus_sys.end_frame();
             return cmds;
         }
@@ -387,11 +343,8 @@ impl App {
         ctx.time = self.start_time.elapsed().as_secs_f64();
 
         // Background frame covering the whole window.
-        let root_frame_spec = FrameSpec {
-            rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
-            style: ctx.frame_style,
-        };
-        frame(&mut ctx, root_frame_spec);
+        frame(&mut ctx, Rect::new(0.0, 0.0, win_size.0, win_size.1),
+            FrameSpecBuilder::new());
 
         // Main container splitting into Sidebar (Left) and Content (Right)
         let root_cmds = {

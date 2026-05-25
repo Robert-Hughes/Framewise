@@ -285,12 +285,23 @@ impl DragNumberResult {
 /// High-level drag number widget function using WidgetContext.
 ///
 /// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
-pub fn drag_number<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: DragNumberState,
-    spec: DragNumberSpec<'_, T>,
+    layout_params: S::Params,
+    builder: DragNumberSpecBuilder<'a, T>,
     input: &Input,
 ) -> DragNumberInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::drag_number(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -411,7 +422,7 @@ mod tests {
     use crate::types::Vec2;
 
     fn drag_num<'a, T: crate::text::TextSystem>(spec: DragNumberSpec<'a, T>) -> DragNumberResult {
-        drag_number(
+        drag_number_raw(
             DragNumberState::default(),
             spec,
             &Input::default(),
@@ -494,7 +505,7 @@ mod tests {
         let style = spec.style;
         let mut input = Input::default();
         input.mouse_down = true;
-        let res = drag_number(state, spec, &input, &mut crate::focus::FocusSystem::new());
+        let res = drag_number_raw(state, spec, &input, &mut crate::focus::FocusSystem::new());
 
         assert_eq!(
             res.draw,
@@ -607,7 +618,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = drag_number(state, spec, &input, &mut focus_sys);
+        let res = drag_number_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -630,7 +641,7 @@ mod tests {
         // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = drag_number(
+        let res = drag_number_raw(
             state,
             DragNumberSpec {
                 ts: &mut text_sys,
@@ -656,7 +667,7 @@ mod tests {
         // Frame 2: Press Arrow Left -> value decreases back to 50.0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = drag_number(
+        let res = drag_number_raw(
             state,
             DragNumberSpec {
                 ts: &mut text_sys,

@@ -208,8 +208,14 @@ impl SpinnerResult {
 /// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
 pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: SpinnerSpec,
+    layout_params: S::Params,
+    builder: SpinnerSpecBuilder,
 ) {
+    let rect = ctx.layout(layout_params);
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    let spec = builder.build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw.0);
 }
@@ -230,7 +236,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = spinner(spec);
+        let res = spinner_raw(spec);
 
         assert_eq!(
             res.draw,
@@ -263,7 +269,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = spinner(spec);
+        let res = spinner_raw(spec);
 
         assert_eq!(
             res.draw,

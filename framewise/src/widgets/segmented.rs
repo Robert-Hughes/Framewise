@@ -280,12 +280,23 @@ impl SegmentedResult {
 /// High-level segmented widget function using WidgetContext.
 ///
 /// This function accepts a SegmentedSpec and calls the low-level raw::segmented function.
-pub fn segmented<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: SegmentedState,
-    spec: SegmentedSpec<'_, T>,
+    layout_params: S::Params,
+    builder: SegmentedSpecBuilder<'a, T>,
     input: &Input,
 ) -> SegmentedInfo {
+    let rect = ctx.layout(layout_params);
+    let ts_ptr = ctx.text_system as *mut T;
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_text_system(unsafe { &mut *ts_ptr });
+    if builder.clip_rect.is_none() {
+        builder.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::segmented(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -391,7 +402,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
 
     fn seg_mented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
-        segmented(
+        segmented_raw(
             SegmentedState::default(),
             spec,
             &Input::default(),
@@ -471,7 +482,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented(state, spec, &Input::default(), &mut focus_sys);
+        let res = segmented_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -537,7 +548,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = segmented(state, spec, &input, &mut focus_sys);
+        let res = segmented_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -561,7 +572,7 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = segmented(
+        let res = segmented_raw(
             state,
             SegmentedSpec {
                 ts: &mut text_sys,
@@ -585,7 +596,7 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = segmented(
+        let res = segmented_raw(
             state,
             SegmentedSpec {
                 ts: &mut text_sys,

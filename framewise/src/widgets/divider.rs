@@ -54,15 +54,54 @@ impl DividerResult {
     }
 }
 
+// ── Spec Builder ───────────────────────────────────────────────────────────────
+
+pub struct DividerSpecBuilder {
+    pub color: Option<Color>,
+    pub width: Option<f32>,
+}
+
+impl DividerSpecBuilder {
+    pub fn new() -> Self {
+        Self { color: None, width: None }
+    }
+    pub fn color(mut self, color: Color) -> Self {
+        self.color = Some(color);
+        self
+    }
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = Some(width);
+        self
+    }
+    pub fn with_rect(self, _rect: Rect) -> Self {
+        self
+    }
+    pub fn build(self) -> DividerSpec {
+        DividerSpec {
+            rect: Rect::ZERO,
+            color: self.color.unwrap_or(Color::WHITE),
+            width: self.width.unwrap_or(1.0),
+        }
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level divider widget function using WidgetContext.
 ///
-/// This function accepts a DividerSpec and calls the low-level raw::divider function.
+/// This function accepts a DividerSpecBuilder and layout parameters, resolves layout and styles internally,
+/// and calls the low-level raw::divider function.
 pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: DividerSpec,
+    layout_params: S::Params,
+    builder: DividerSpecBuilder,
 ) -> DividerInfo {
+    let rect = ctx.layout(layout_params);
+    let spec = DividerSpec {
+        rect,
+        color: builder.color.unwrap_or(ctx.border_color),
+        width: builder.width.unwrap_or(1.0),
+    };
     let result = raw::divider(spec);
     
     ctx.append_cmds(result.draw.0);
@@ -86,7 +125,7 @@ mod tests {
             color: Color::WHITE,
             width: 1.0,
         };
-        let res = divider(spec);
+        let res = raw::divider(spec);
 
         assert_eq!(
             res.draw,

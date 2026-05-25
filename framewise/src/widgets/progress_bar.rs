@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -55,7 +55,10 @@ pub mod raw {
             }
         }
 
-        ProgressBarResult { draw: cmds }
+        ProgressBarResult {
+            draw: cmds,
+            layout: LayoutInfo::tight(spec.rect),
+        }
     }
 }
 
@@ -147,11 +150,16 @@ impl ProgressBarSpecBuilder {
 
 pub struct ProgressBarResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+}
+
+pub struct ProgressBarInfo {
+    pub layout: LayoutInfo,
 }
 
 impl ProgressBarResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
+    pub fn into_parts(self) -> (DrawCommands, ProgressBarInfo) {
+        (self.draw, ProgressBarInfo { layout: self.layout })
     }
 }
 
@@ -162,10 +170,17 @@ impl ProgressBarResult {
 /// This function accepts a ProgressBarSpec and calls the low-level raw::progress_bar function.
 pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: ProgressBarSpec,
-) {
+    layout_params: S::Params,
+    builder: ProgressBarSpecBuilder,
+) -> ProgressBarInfo {
+    let rect = ctx.layout(layout_params);
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    let spec = builder.build();
     let result = raw::progress_bar(spec);
     ctx.append_cmds(result.draw.0);
+    ProgressBarInfo { layout: result.layout }
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
@@ -185,7 +200,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar(spec);
+        let res = progress_bar_raw(spec);
 
         assert_eq!(
             res.draw,
@@ -212,7 +227,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar(spec);
+        let res = progress_bar_raw(spec);
 
         assert_eq!(
             res.draw,
@@ -239,7 +254,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar(spec);
+        let res = progress_bar_raw(spec);
 
         assert_eq!(
             res.draw,

@@ -61,8 +61,14 @@ impl ColorSwatchResult {
 /// This function accepts a ColorSwatchSpec and calls the low-level raw::color_swatch function.
 pub fn color_swatch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
-    spec: ColorSwatchSpec,
+    layout_params: S::Params,
+    builder: ColorSwatchSpecBuilder,
 ) -> ColorSwatchInfo {
+    let rect = ctx.layout(layout_params);
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    let spec = builder.build();
     let result = raw::color_swatch(spec);
     ctx.append_cmds(result.draw.0);
     ColorSwatchInfo { layout: result.layout }
@@ -104,6 +110,10 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
+    pub fn with_theme(self, _theme: &crate::theme::Theme) -> Self {
+        self
+    }
+
     pub fn build(self) -> ColorSwatchSpec {
         let mut spec = ColorSwatchSpec::default();
         if let Some(r) = self.rect { spec.rect = r; }
@@ -120,7 +130,7 @@ mod tests {
     #[test]
     fn test_color_swatch_visual_normal() {
         let spec = ColorSwatchSpec::default();
-        let res = color_swatch(spec);
+        let res = color_swatch_raw(spec);
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
         let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);
         
@@ -149,7 +159,7 @@ mod tests {
             color: custom_color,
             border: custom_border,
         };
-        let res = color_swatch(spec);
+        let res = color_swatch_raw(spec);
 
         assert_eq!(
             res.draw,

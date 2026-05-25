@@ -297,9 +297,18 @@ impl SwitchResult {
 pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: SwitchState,
-    spec: SwitchSpec,
+    layout_params: S::Params,
+    builder: SwitchSpecBuilder,
     input: &Input,
 ) -> SwitchInfo {
+    let rect = ctx.layout(layout_params);
+    let mut builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);
+    if builder.spec.clip_rect.is_none() {
+        builder.spec.clip_rect = ctx.clip_rect;
+    }
+    let spec = builder.build();
     let result = raw::switch(state, spec, input, ctx.focus_sys);
     
     ctx.append_cmds(result.draw.0);
@@ -321,7 +330,7 @@ mod tests {
     use crate::types::Vec2;
 
     fn swi_tch(spec: SwitchSpec) -> SwitchResult {
-        switch(
+        switch_raw(
             SwitchState::default(),
             spec,
             &Input::default(),
@@ -407,7 +416,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = switch(state, spec, &Input::default(), &mut focus_sys);
+        let res = switch_raw(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
@@ -486,7 +495,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = switch(state, spec, &input, &mut focus_sys);
+        let res = switch_raw(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -513,7 +522,7 @@ mod tests {
         // Frame 1: Focus switch
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = switch(state, spec(), &input, &mut focus_sys);
+        let res = switch_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -521,7 +530,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = switch(state, spec(), &input, &mut focus_sys);
+        let res = switch_raw(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -530,7 +539,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = switch(state, spec(), &input, &mut focus_sys);
+        let res = switch_raw(state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert!(
