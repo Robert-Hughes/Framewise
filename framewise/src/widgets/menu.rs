@@ -214,9 +214,6 @@ pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     MenuInfo { layout: result.layout }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::menu as menu_raw;
-
 pub struct MenuSpecBuilder<'a> {
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,

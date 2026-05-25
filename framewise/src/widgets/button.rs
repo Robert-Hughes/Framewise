@@ -389,13 +389,9 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::button as button_raw;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::button_raw as button;
 
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;
@@ -420,10 +416,10 @@ mod tests {
     ) -> (ButtonState, ButtonState) {
         let mut ts = DummyTextSys;
         focus_sys.begin_frame();
-        let r1 = button(s1, btn_spec(0.0), input, &mut ts, focus_sys)
+        let r1 = raw::button(s1, btn_spec(0.0), input, &mut ts, focus_sys)
             .into_parts()
             .1;
-        let r2 = button(s2, btn_spec(40.0), input, &mut ts, focus_sys)
+        let r2 = raw::button(s2, btn_spec(40.0), input, &mut ts, focus_sys)
             .into_parts()
             .1;
         focus_sys.end_frame();
@@ -536,7 +532,7 @@ mod tests {
             mouse_clicked: false,
             ..Default::default()
         };
-        let res1 = button(
+        let res1 = raw::button(
             state1,
             btn1_spec(),
             &input,
@@ -551,7 +547,7 @@ mod tests {
         // Frame 2: Mouse dragged over Btn2
         input.mouse_pressed = false;
         input.mouse_pos = Vec2::new(50.0, 125.0);
-        let res1 = button(
+        let res1 = raw::button(
             state1,
             btn1_spec(),
             &input,
@@ -561,7 +557,7 @@ mod tests {
         .into_parts()
         .1;
         state1 = res1.state;
-        let res2 = button(
+        let res2 = raw::button(
             state2,
             btn2_spec(),
             &input,
@@ -584,7 +580,7 @@ mod tests {
         // Frame 3: Mouse released over Btn2
         input.mouse_down = false;
         input.mouse_clicked = true;
-        let res1 = button(
+        let res1 = raw::button(
             state1,
             btn1_spec(),
             &input,
@@ -594,7 +590,7 @@ mod tests {
         .into_parts()
         .1;
 
-        let res2 = button(
+        let res2 = raw::button(
             state2,
             btn2_spec(),
             &input,
@@ -636,7 +632,7 @@ mod tests {
             mouse_clicked: false,
             ..Default::default()
         };
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -646,7 +642,7 @@ mod tests {
         input.mouse_down = false;
         input.mouse_pressed = false;
         input.mouse_clicked = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
 
@@ -654,7 +650,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enter_clicks_button() {
+    fn test_enter_clicks_raw_button() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
@@ -669,7 +665,7 @@ mod tests {
 
         // Frame 1: Register and take focus explicitly
         let mut input = Input::default();
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -678,7 +674,7 @@ mod tests {
 
         // Frame 2: Press Enter
         input.key_pressed_enter = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         assert!(res.input.clicked, "Button should be clicked by Enter key");
@@ -703,7 +699,7 @@ mod tests {
             mouse_pos: Vec2::new(150.0, 150.0),
             ..Default::default()
         };
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -712,7 +708,7 @@ mod tests {
 
         // Frame 2: Mouse inside, not down
         input.mouse_pos = Vec2::new(50.0, 25.0);
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -722,7 +718,7 @@ mod tests {
         // Frame 3: Mouse down inside
         input.mouse_down = true;
         input.mouse_pressed = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -732,7 +728,7 @@ mod tests {
         // Frame 4: Drag outside
         input.mouse_pos = Vec2::new(150.0, 150.0);
         input.mouse_pressed = false;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         assert!(!res.input.hovered, "Should lose hover when dragged out");
@@ -758,7 +754,7 @@ mod tests {
 
         // Frame 1: Focus
         let mut input = Input::default();
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -768,7 +764,7 @@ mod tests {
         // Frame 2: Space down
         input.key_down_space = true;
         input.key_pressed_space = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -780,7 +776,7 @@ mod tests {
 
         // Frame 3: Space held
         input.key_pressed_space = false;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -790,7 +786,7 @@ mod tests {
         // Frame 4: Space released
         input.key_down_space = false;
         input.key_released_space = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         assert!(!res.input.pressed, "Button should not be pressed");
@@ -813,7 +809,7 @@ mod tests {
 
         // Frame 1: Focus
         let mut input = Input::default();
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -823,7 +819,7 @@ mod tests {
         // Frame 2: Space down
         input.key_down_space = true;
         input.key_pressed_space = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -834,7 +830,7 @@ mod tests {
         focus_sys.take_focus(FocusId::new()); // Give focus to something else
         focus_sys.end_frame();
 
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         state = res.state;
@@ -846,7 +842,7 @@ mod tests {
         // Frame 4: Release space
         input.key_down_space = false;
         input.key_released_space = true;
-        let res = button(state, spec(), &input, &mut text_system, &mut focus_sys)
+        let res = raw::button(state, spec(), &input, &mut text_system, &mut focus_sys)
             .into_parts()
             .1;
         assert!(!res.input.clicked, "Should not click because it lost focus");
@@ -869,7 +865,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
         focus_sys.end_frame();
 
         let ButtonStyle {
@@ -917,7 +913,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
         focus_sys.end_frame();
 
         let ButtonStyle {
@@ -968,7 +964,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
         focus_sys.end_frame();
 
         let ButtonStyle {
@@ -1016,7 +1012,7 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
 
         focus_sys.begin_frame();
-        let res = button(
+        let res = raw::button(
             state,
             spec,
             &Input::default(),
@@ -1076,7 +1072,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = button(
+        let res = raw::button(
             state,
             spec,
             &Input::default(),
@@ -1142,7 +1138,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = button(state, spec, &input, &mut text_sys, &mut focus_sys);
+        let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

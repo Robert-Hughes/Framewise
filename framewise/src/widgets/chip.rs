@@ -252,9 +252,6 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::chip as chip_raw;
-
 pub struct ChipSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -330,12 +327,13 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn ch_ip<'a>(spec: ChipSpec<'a>) -> ChipResult {
-        chip_raw(
+    fn chip_raw<'a>(spec: ChipSpec<'a>) -> ChipResult {
+        raw::chip(
             ChipState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys,
         )
     }
 
@@ -351,7 +349,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = ch_ip(spec);
+        let res = chip_raw(spec);
 
         assert_eq!(
             res.draw,
@@ -388,7 +386,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = chip_raw(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new());
+        let res = raw::chip(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new(), &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -427,7 +425,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = chip_raw(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::chip(state, spec, &Input::default(), &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
@@ -477,7 +475,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = chip_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::chip(state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -497,10 +495,9 @@ mod tests {
         // Frame 1: Focus chip
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = chip_raw(
+        let res = raw::chip(
             state,
             ChipSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
@@ -510,6 +507,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -518,10 +516,9 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = chip_raw(
+        let res = raw::chip(
             state,
             ChipSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
@@ -531,6 +528,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -540,10 +538,9 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = chip_raw(
+        let res = raw::chip(
             state,
             ChipSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
@@ -553,6 +550,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         focus_sys.end_frame();
 

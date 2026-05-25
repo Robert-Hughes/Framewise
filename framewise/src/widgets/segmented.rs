@@ -306,8 +306,6 @@ pub fn segmented<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::segmented as segmented_raw;
 
 pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
@@ -390,12 +388,13 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn seg_mented<'a>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
-        segmented_raw(
+    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> SegmentedResult {
+        raw::segmented(
             SegmentedState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys
         )
     }
 
@@ -404,7 +403,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
@@ -414,7 +412,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = seg_mented(spec);
+        let res = segmented_dummy(spec);
 
         assert_eq!(
             res.draw,
@@ -461,7 +459,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
@@ -471,7 +468,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented_raw(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::segmented(SegmentedState::default(), spec, &Input::default(), &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -526,7 +523,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
@@ -537,7 +533,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = segmented_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::segmented(state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -561,10 +557,9 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = segmented_raw(
+        let res = raw::segmented(
             state,
             SegmentedSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 font: FontId(1),
@@ -575,6 +570,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         state = res.state;
         focus_sys.end_frame();
@@ -585,10 +581,9 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = segmented_raw(
+        let res = raw::segmented(
             state,
             SegmentedSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 font: FontId(1),
@@ -599,6 +594,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         focus_sys.end_frame();
 

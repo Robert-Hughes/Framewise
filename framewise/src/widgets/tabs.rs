@@ -295,9 +295,6 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::tabs as tabs_raw;
-
 pub struct TabsSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
@@ -379,12 +376,13 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn tab_s<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
-        tabs_raw(
+    fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> TabsResult {
+        raw::tabs(
             TabsState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys
         )
     }
 
@@ -393,7 +391,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
@@ -403,7 +400,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = tab_s(spec);
+        let res = tabs_dummy(spec);
 
         assert_eq!(
             res.draw,
@@ -449,7 +446,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
@@ -459,7 +455,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = tabs_raw(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::tabs(state, spec, &Input::default(), &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -513,7 +509,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
@@ -524,7 +519,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = tabs_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::tabs(state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -548,11 +543,10 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = tabs_raw(
+        let res = raw::tabs(
             state,
             TabsSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                    rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
@@ -562,6 +556,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         state = res.state;
         focus_sys.end_frame();
@@ -572,11 +567,10 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = tabs_raw(
+        let res = raw::tabs(
             state,
             TabsSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                    rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
@@ -586,6 +580,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         focus_sys.end_frame();
 

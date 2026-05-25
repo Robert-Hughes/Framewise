@@ -659,9 +659,6 @@ pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::text_edit as text_edit_raw;
-
 pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
@@ -722,7 +719,6 @@ impl TextEditSpecBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::text_edit_raw as text_edit;
 
     use crate::test_utils::DummyTextSys;
 
@@ -950,7 +946,7 @@ mod tests {
 
         let mut input = Input::default();
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -962,7 +958,7 @@ mod tests {
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -978,7 +974,7 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -996,7 +992,7 @@ mod tests {
         );
 
         input.text_events.clear();
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1008,7 +1004,7 @@ mod tests {
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1050,7 +1046,7 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1078,7 +1074,7 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1092,7 +1088,7 @@ mod tests {
         focus_sys.begin_frame();
         input.mouse_pressed = false;
 
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1122,7 +1118,7 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1136,7 +1132,7 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1152,7 +1148,7 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = text_edit(
+        let res = raw::text_edit(
             std::mem::take(&mut state),
             spec(),
             &input,
@@ -1286,7 +1282,7 @@ mod tests {
         sp.error = true;
 
         let input = Input::default();
-        let res = text_edit(state, sp, &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, sp, &input, 0.0, &mut text_sys, &mut focus_sys);
 
         assert_eq!(
             res.draw,

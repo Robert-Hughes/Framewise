@@ -141,9 +141,6 @@ pub fn tooltip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx.append_cmds(result.draw.0);
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::tooltip as tooltip_raw;
-
 pub struct TooltipSpecBuilder<'a> {
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
@@ -222,7 +219,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = raw::tooltip(spec);
+        let res = raw::tooltip(spec, &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -256,7 +253,6 @@ mod tests {
     fn test_tooltip_visual_rust() {
         let mut text_sys = DummyTextSys;
         let spec = TooltipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
             font: FontId(0),
@@ -264,7 +260,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = raw::tooltip(spec);
+        let res = raw::tooltip(spec, &mut text_sys);
 
         assert_eq!(
             res.draw,

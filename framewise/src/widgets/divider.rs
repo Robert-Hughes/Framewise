@@ -103,16 +103,13 @@ pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         width: builder.width.unwrap_or(1.0),
     };
     let result = raw::divider(spec);
-    
+
     ctx.append_cmds(result.draw.0);
-    
+
     DividerInfo {
         layout: result.layout,
     }
 }
-
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::divider as divider_raw;
 
 #[cfg(test)]
 mod tests {

@@ -342,15 +342,12 @@ pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::checkbox as checkbox_raw;
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn check_box(spec: CheckboxSpec) -> CheckboxResult {
-        checkbox_raw(
+    fn checkbox_dummy(spec: CheckboxSpec) -> CheckboxResult {
+        raw::checkbox(
             CheckboxState::default(),
             spec,
             &Input::default(),
@@ -368,7 +365,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = check_box(spec);
+        let res = checkbox_dummy(spec);
         assert_eq!(
             res.draw,
             DrawCommands(vec![
@@ -395,7 +392,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = check_box(spec);
+        let res = checkbox_dummy(spec);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
         let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
@@ -438,7 +435,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = check_box(spec);
+        let res = checkbox_dummy(spec);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         assert_eq!(
             res.draw,
@@ -475,7 +472,7 @@ mod tests {
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-        let res = checkbox_raw(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::checkbox(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
             res.draw,
@@ -508,7 +505,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = check_box(spec);
+        let res = checkbox_dummy(spec);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
@@ -545,7 +542,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = checkbox_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::checkbox(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -572,7 +569,7 @@ mod tests {
         // Frame 1: Explicitly focus the checkbox
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -580,7 +577,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -589,7 +586,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = checkbox_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

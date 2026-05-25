@@ -146,21 +146,18 @@ pub fn label<T: TextSystem, S: crate::layout::LayoutState>(
         rule: builder.rule,
     };
     let result = raw::label(spec, ctx.text_system);
-    
+
     ctx.append_cmds(result.draw.0);
-    
+
     LabelInfo {
         layout: result.layout,
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::label as label_raw;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::label_raw as label;
     use crate::{test_utils::DummyTextSys, text::TextHandle};
 
     struct RecordingTextSys {
@@ -196,7 +193,7 @@ mod tests {
             text_color: Color::WHITE,
             rule: false,
         };
-        let res = label(spec, &mut sys);
+        let res = raw::label(spec, &mut sys);
 
         let (draw, info) = res.into_parts();
         assert_eq!(info.layout.bounds.w, 100.0);
@@ -222,7 +219,7 @@ mod tests {
             text_color: Color::WHITE,
             rule: true,
         };
-        let res = label(spec, &mut sys);
+        let res = raw::label(spec, &mut sys);
         let (draw, _) = res.into_parts();
         assert_eq!(
             draw,
@@ -255,7 +252,7 @@ mod tests {
             rule: false,
         };
 
-        let _ = label(spec, &mut sys);
+        let _ = raw::label(spec, &mut sys);
 
         assert_eq!(sys.font, Some(expected));
     }

@@ -312,9 +312,6 @@ pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::drag_number as drag_number_raw;
-
 pub struct DragNumberSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -411,12 +408,13 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn drag_num<'a, T: crate::text::TextSystem>(spec: DragNumberSpec<'a, T>) -> DragNumberResult {
-        drag_number_raw(
+    fn drag_num<'a>(spec: DragNumberSpec<'a>) -> DragNumberResult {
+        raw::drag_number(
             DragNumberState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys
         )
     }
 
@@ -424,7 +422,6 @@ mod tests {
     fn test_drag_number_visual_normal() {
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
-            ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
             font: FontId(1),
@@ -480,7 +477,6 @@ mod tests {
         state.is_dragging = true;
         state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
-            ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
             font: FontId(1),
@@ -495,7 +491,7 @@ mod tests {
         let style = spec.style;
         let mut input = Input::default();
         input.mouse_down = true;
-        let res = drag_number_raw(state, spec, &input, &mut crate::focus::FocusSystem::new());
+        let res = raw::drag_number(state, spec, &input, &mut crate::focus::FocusSystem::new(), &mut DummyTextSys);
 
         assert_eq!(
             res.draw,
@@ -540,7 +536,6 @@ mod tests {
     fn test_drag_number_visual_min_value() {
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
-            ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
             font: FontId(1),
@@ -553,7 +548,7 @@ mod tests {
         };
 
         let style = spec.style;
-        let res = drag_num(spec);
+        let res = raw::drag_number(DragNumberState::default(), spec, &Input::default(), &mut crate::focus::FocusSystem::new(), &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -595,7 +590,6 @@ mod tests {
 
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             label: "X",
             font: FontId(1),
@@ -608,7 +602,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = drag_number_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::drag_number(state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -631,10 +625,9 @@ mod tests {
         // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = drag_number_raw(
+        let res = raw::drag_number(
             state,
             DragNumberSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
                 font: FontId(1),
@@ -647,6 +640,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         state = res.state;
         focus_sys.end_frame();
@@ -657,10 +651,9 @@ mod tests {
         // Frame 2: Press Arrow Left -> value decreases back to 50.0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = drag_number_raw(
+        let res = raw::drag_number(
             state,
             DragNumberSpec {
-                ts: &mut text_sys,
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
                 font: FontId(1),
@@ -673,6 +666,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys
         );
         focus_sys.end_frame();
 

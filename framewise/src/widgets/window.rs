@@ -253,9 +253,6 @@ pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, S: crate::layout::La
 //     parent.append_cmds(post_cmds);
 // }
 
-// ── Re-export raw functions for direct use ───────────────────────────────────────────
-pub use raw::{begin_window as begin_window_raw, end_window as end_window_raw};
-
 pub struct WindowSpecBuilder<'a> {
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,

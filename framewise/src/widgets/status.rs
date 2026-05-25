@@ -126,9 +126,6 @@ pub fn status<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx.append_cmds(result.draw.0);
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::status as status_raw;
-
 pub struct StatusSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -207,7 +204,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = status_raw(spec);
+        let res = raw::status(spec, &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -229,7 +226,6 @@ mod tests {
     fn test_status_visual_warn() {
         let mut text_sys = DummyTextSys;
         let spec = StatusSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             label: "Warning",
             font: FontId(0),
@@ -237,7 +233,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = status_raw(spec);
+        let res = raw::status(spec, &mut text_sys);
 
         assert_eq!(
             res.draw,

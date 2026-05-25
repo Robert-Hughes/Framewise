@@ -178,9 +178,6 @@ pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx.append_cmds(result.draw.0);
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::tree as tree_raw;
-
 pub struct TreeSpecBuilder<'a> {
     pub rows: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,

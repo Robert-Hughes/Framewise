@@ -104,7 +104,7 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
-            let slider_cmds = crate::widgets::slider::slider_raw(
+            let slider_cmds = crate::widgets::slider::raw::slider(
                 &mut state.vert_slider_state,
                 &mut state.offset.y,
                 slider_spec,
@@ -132,7 +132,7 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
-            let slider_cmds = crate::widgets::slider::slider_raw(
+            let slider_cmds = crate::widgets::slider::raw::slider(
                 &mut state.horiz_slider_state,
                 &mut state.offset.x,
                 slider_spec,
@@ -462,9 +462,6 @@ pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::L
 //     parent.append_cmds(post_cmds);
 // }
 
-// ── Re-export raw functions for direct use ───────────────────────────────────────────
-pub use raw::{begin_scroll_area as begin_scroll_area_raw, end_scroll_area as end_scroll_area_raw};
-
 
 #[cfg(test)]
 mod test_helpers {
@@ -603,7 +600,7 @@ mod tests {
                 &mut state, &input, &mut focus_sys, None, 0.0
             );
 
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -650,7 +647,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -686,7 +683,7 @@ focus_sys.take_focus(btn_state.focus_id);
             input.key_pressed_page_down = true;
 
             // Button rendered OUTSIDE the scroll area's begin/finish.
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
@@ -1062,7 +1059,7 @@ focus_sys.take_focus(btn_state.focus_id);
             );
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
-            let res = crate::widgets::button::button_raw(
+            let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_visible_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
@@ -1078,7 +1075,7 @@ focus_sys.take_focus(btn_state.focus_id);
             // btn_clipped: OUTSIDE the clip rect (y=120..150, clip y=0..100).
             // Screen rect is in the gap between the scroll area and btn_start —
             // axial score from btn_start = 80, beating btn_visible's 180.
-            let res = crate::widgets::button::button_raw(
+            let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_clipped_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
@@ -1094,7 +1091,7 @@ focus_sys.take_focus(btn_state.focus_id);
             scope.finish(&mut focus_sys);
 
             // btn_start: below the scroll area, no clip.
-            let res = crate::widgets::button::button_raw(
+            let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_start_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
@@ -1158,7 +1155,7 @@ focus_sys.take_focus(btn_state.focus_id);
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
             // 30px overlap → must be included in spatial nav.
-            let res = crate::widgets::button::button_raw(
+            let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_partial_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
@@ -1174,7 +1171,7 @@ focus_sys.take_focus(btn_state.focus_id);
             scope.finish(&mut focus_sys);
 
             // btn_start: below the scroll area.
-            let res = crate::widgets::button::button_raw(
+            let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_start_state),
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
@@ -1423,7 +1420,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1465,7 +1462,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1690,7 +1687,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -1908,7 +1905,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -2140,7 +2137,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::None,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys
@@ -2552,7 +2549,7 @@ mod nested_bubbling_tests {
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut inner_state, &input, &mut focus_sys, None, 0.0
             );
-            let info = crate::widgets::button::button_raw(
+            let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
                 &input, &mut text_sys, &mut focus_sys

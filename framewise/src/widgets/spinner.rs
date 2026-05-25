@@ -220,9 +220,6 @@ pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx.append_cmds(result.draw.0);
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::spinner as spinner_raw;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,7 +233,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = spinner_raw(spec);
+        let res = raw::spinner(spec);
 
         assert_eq!(
             res.draw,
@@ -269,7 +266,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = spinner_raw(spec);
+        let res = raw::spinner(spec);
 
         assert_eq!(
             res.draw,

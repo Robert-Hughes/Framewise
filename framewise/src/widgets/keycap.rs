@@ -111,8 +111,6 @@ pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     KeycapInfo { layout: result.layout }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::keycap as keycap_raw;
 
 pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
@@ -201,7 +199,6 @@ mod tests {
         let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
         let spec = KeycapSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
             label: "K",
             bg: custom_bg,
@@ -210,7 +207,7 @@ mod tests {
             text_size: 14.0,
             font: FontId(0),
         };
-        let res = keycap_raw(spec);
+        let res = raw::keycap(spec, &mut text_sys);
 
         assert_eq!(
             res.draw,

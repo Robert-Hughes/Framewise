@@ -74,9 +74,6 @@ pub fn color_swatch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ColorSwatchInfo { layout: result.layout }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::color_swatch as color_swatch_raw;
-
 
 pub struct ColorSwatchSpecBuilder {
     pub rect: Option<Rect>,
@@ -97,7 +94,7 @@ impl ColorSwatchSpecBuilder {
         self.color = Some(color);
         self
     }
-    
+
     pub fn border(mut self, border: Color) -> Self {
         self.border = Some(border);
         self
@@ -130,10 +127,10 @@ mod tests {
     #[test]
     fn test_color_swatch_visual_normal() {
         let spec = ColorSwatchSpec::default();
-        let res = color_swatch_raw(spec);
+        let res = raw::color_swatch(spec);
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
         let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);
-        
+
         assert_eq!(
             res.draw,
             DrawCommands(vec![
@@ -159,7 +156,7 @@ mod tests {
             color: custom_color,
             border: custom_border,
         };
-        let res = color_swatch_raw(spec);
+        let res = raw::color_swatch(spec);
 
         assert_eq!(
             res.draw,

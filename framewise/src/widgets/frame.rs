@@ -132,16 +132,13 @@ pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
         style: builder.style.unwrap_or(ctx.frame_style),
     };
     let result = raw::frame(spec);
-    
+
     ctx.append_cmds(result.draw.0);
-    
+
     FrameInfo {
         layout: result.layout,
     }
 }
-
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::frame as frame_raw;
 
 #[cfg(test)]
 mod tests {

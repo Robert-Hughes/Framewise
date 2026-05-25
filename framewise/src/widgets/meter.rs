@@ -100,9 +100,6 @@ pub fn meter<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     MeterInfo { layout: result.layout }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::meter as meter_raw;
-
 
 pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
@@ -125,12 +122,12 @@ impl MeterSpecBuilder {
         self.value = Some(value);
         self
     }
-    
+
     pub fn peak(mut self, peak: Option<f32>) -> Self {
         self.peak = Some(peak);
         self
     }
-    
+
     pub fn bars(mut self, bars: usize) -> Self {
         self.bars = Some(bars);
         self
@@ -169,7 +166,7 @@ mod tests {
             peak: None,
             bars: 10,
         };
-        let res = meter_raw(spec);
+        let res = raw::meter(spec);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
@@ -193,7 +190,7 @@ mod tests {
             peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
             bars: 10,
         };
-        let res = meter_raw(spec);
+        let res = raw::meter(spec);
         let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
         let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
         let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);

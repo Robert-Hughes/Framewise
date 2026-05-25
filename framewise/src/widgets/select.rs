@@ -427,7 +427,6 @@ pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem>(
 }
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::select as select_raw;
 
 pub struct SelectSpecBuilder<'a> {
     pub value: Option<&'a str>,
@@ -511,21 +510,20 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn sel_ect<'a>(spec: SelectSpec<'a, T>) -> SelectResult {
-        select_raw(
+    fn select_dummy<'a>(spec: SelectSpec<'a>) -> SelectResult {
+        raw::select(
             SelectState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys
         )
     }
 
     #[test]
     fn test_select_visual_normal() {
-        let mut text_sys = DummyTextSys;
         let options = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
@@ -535,7 +533,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = sel_ect(spec);
+        let res = select_dummy(spec);
 
         assert_eq!(
             res.draw,
@@ -568,7 +566,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let options = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
@@ -588,11 +585,12 @@ mod tests {
             focus_id: crate::focus::FocusId::new(),
         };
 
-        let res = select_raw(
+        let res = raw::select(
             state,
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
+            &mut text_sys
         );
 
         let r = Rect::new(0.0, 0.0, 180.0, 28.0);
@@ -672,7 +670,6 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let options = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
@@ -683,7 +680,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = select_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::select(state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -711,11 +708,10 @@ mod tests {
         // Frame 1: Press Arrow Down while closed -> selected index changes to 1
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = select_raw(
+        let res = raw::select(
             state,
             SelectSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
                 font: FontId(0),
                 options: &options,
@@ -725,6 +721,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -737,11 +734,10 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = select_raw(
+        let res = raw::select(
             state,
             SelectSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -751,6 +747,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -759,11 +756,10 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = select_raw(
+        let res = raw::select(
             state,
             SelectSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -773,6 +769,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -784,11 +781,10 @@ mod tests {
         // Frame 3: Press Arrow Down while open -> hovers index 2
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = select_raw(
+        let res = raw::select(
             state,
             SelectSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -798,6 +794,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -808,11 +805,10 @@ mod tests {
         // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
         input.key_pressed_enter = true;
         focus_sys.begin_frame();
-        let res = select_raw(
+        let res = raw::select(
             state,
             SelectSpec {
-                ts: &mut text_sys,
-                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -822,6 +818,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
+            &mut text_sys,
         );
         focus_sys.end_frame();
 

@@ -1,5 +1,6 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
+use framewise::widgets::select::raw;
 use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
@@ -13,31 +14,31 @@ use framewise::{
     types::{Color, Rect, Vec2},
     widget::{WidgetContext, LayoutInfo},
     widgets::{
-        button::{button, button_raw, ButtonSpec, ButtonState, ButtonStyle, ButtonInfo},
-        checkbox::{checkbox, checkbox_raw, CheckboxState, CheckState, CheckboxSpec, CheckboxInfo, CheckboxSpecBuilder},
-        chip::{chip, chip_raw, ChipState, ChipSpec, ChipStyle, ChipInfo, ChipResult, ChipSpecBuilder},
-        color_swatch::{color_swatch, color_swatch_raw, ColorSwatchSpec, ColorSwatchInfo, ColorSwatchSpecBuilder},
-        drag_number::{drag_number, drag_number_raw, DragNumberState, DragNumberSpec, DragNumberInfo, DragNumberSpecBuilder},
+        button::{button, ButtonSpec, ButtonState, ButtonStyle, ButtonInfo},
+        checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec, CheckboxInfo, CheckboxSpecBuilder},
+        chip::{chip, ChipState, ChipSpec, ChipStyle, ChipInfo, ChipResult, ChipSpecBuilder},
+        color_swatch::{color_swatch, ColorSwatchSpec, ColorSwatchInfo, ColorSwatchSpecBuilder},
+        drag_number::{drag_number, DragNumberState, DragNumberSpec, DragNumberInfo, DragNumberSpecBuilder},
         divider::{divider, DividerSpec, DividerInfo, DividerResult},
-        frame::{frame, frame_raw, FrameSpec, FrameStyle, FrameInfo, FrameResult},
-        keycap::{keycap, keycap_raw, KeycapSpec, KeycapInfo, KeycapSpecBuilder},
-        label::{label, label_raw, LabelSpec, LabelInfo},
-        menu::{menu, menu_raw, MenuItem, MenuSpec, MenuSpecBuilder},
-        meter::{meter, meter_raw, MeterSpec, MeterInfo, MeterSpecBuilder},
-        progress_bar::{progress_bar, progress_bar_raw, ProgressBarSpec, ProgressBarStyle, ProgressBarSpecBuilder},
-        radio::{radio, radio_raw, RadioState, RadioSpec, RadioInfo, RadioSpecBuilder},
-        scroll_area::{begin_scroll_area, begin_scroll_area_raw, end_scroll_area_raw, ScrollState, ScrollbarVisibility, ScrollAreaScope},
-        segmented::{segmented, segmented_raw, SegmentedSpec, SegmentedStyle, SegmentedState, SegmentedInfo, SegmentedSpecBuilder},
-        select::{select, select_raw, SelectSpec, SelectState, SelectInfo, SelectSpecBuilder},
-        slider::{slider, slider_raw, SliderStyle, SliderState, SliderSpec, Orientation as SliderOrientation},
-        spinner::{spinner, spinner_raw, SpinnerSpec, SpinnerStyle, SpinnerSpecBuilder},
-        status::{status, status_raw, StatusVariant, StatusSpec, StatusSpecBuilder},
-        switch::{switch, switch_raw, SwitchState, SwitchSpec, SwitchInfo, SwitchSpecBuilder},
-        tabs::{tabs, tabs_raw, TabsSpec, TabsStyle, TabsState, TabsInfo, TabsSpecBuilder},
-        text_edit::{text_edit, text_edit_raw, TextEditState, TextEditSpec, TextEditInfo},
-        tooltip::{tooltip, tooltip_raw, TooltipVariant, TooltipSpec, TooltipSpecBuilder},
-        tree::{tree, tree_raw, TreeRow, TreeSpec, TreeSpecBuilder},
-        window::{begin_window, begin_window_raw, end_window_raw, WindowButton, WindowScope, WindowSpec, WindowSpecBuilder},
+        frame::{frame, FrameSpec, FrameStyle, FrameInfo, FrameResult},
+        keycap::{keycap, KeycapSpec, KeycapInfo, KeycapSpecBuilder},
+        label::{label, LabelSpec, LabelInfo},
+        menu::{menu, MenuItem, MenuSpec, MenuSpecBuilder},
+        meter::{meter, MeterSpec, MeterInfo, MeterSpecBuilder},
+        progress_bar::{progress_bar, ProgressBarSpec, ProgressBarStyle, ProgressBarSpecBuilder},
+        radio::{radio, RadioState, RadioSpec, RadioInfo, RadioSpecBuilder},
+        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility, ScrollAreaScope},
+        segmented::{segmented, SegmentedSpec, SegmentedStyle, SegmentedState, SegmentedInfo, SegmentedSpecBuilder},
+        select::{select, SelectSpec, SelectState, SelectInfo, SelectSpecBuilder},
+        slider::{slider, SliderStyle, SliderState, SliderSpec, Orientation as SliderOrientation},
+        spinner::{spinner, SpinnerSpec, SpinnerStyle, SpinnerSpecBuilder},
+        status::{status, StatusVariant, StatusSpec, StatusSpecBuilder},
+        switch::{switch, SwitchState, SwitchSpec, SwitchInfo, SwitchSpecBuilder},
+        tabs::{tabs, TabsSpec, TabsStyle, TabsState, TabsInfo, TabsSpecBuilder},
+        text_edit::{text_edit, TextEditState, TextEditSpec, TextEditInfo},
+        tooltip::{tooltip, TooltipVariant, TooltipSpec, TooltipSpecBuilder},
+        tree::{tree, TreeRow, TreeSpec, TreeSpecBuilder},
+        window::{begin_window, WindowButton, WindowScope, WindowSpec, WindowSpecBuilder},
     },
 };
 
@@ -68,7 +69,7 @@ fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.clip_rect,
     };
 
-    let result = checkbox_raw(
+    let result = framewise::widgets::checkbox::raw::checkbox(
         state,
         spec,
         &dummy_input,
@@ -106,7 +107,7 @@ fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.clip_rect,
     };
 
-    let result = radio_raw(
+    let result = framewise::widgets::radio::raw::radio(
         state,
         spec,
         &dummy_input,
@@ -144,7 +145,7 @@ fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.clip_rect,
     };
 
-    let result = switch_raw(
+    let result = framewise::widgets::switch::raw::switch(
         state,
         spec,
         &dummy_input,
@@ -188,7 +189,7 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
         clip_rect: b.clip_rect,
     };
 
-    let result = select_raw(
+    let result = framewise::widgets::select::raw::select(
         state,
         spec,
         &dummy_input,
@@ -230,7 +231,7 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
     };
 
     let mut dummy_focus_sys = FocusSystem::new();
-    let result = drag_number_raw(
+    let result = framewise::widgets::drag_number::raw::drag_number(
         state,
         spec,
         &dummy_input,
@@ -284,7 +285,7 @@ fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
         disabled: false,
     };
 
-    let result = button_raw(state, spec, &fake_input, b.text_system, &mut dummy_focus_sys);
+    let result = framewise::widgets::button::raw::button(state, spec, &fake_input, b.text_system, &mut dummy_focus_sys);
     {
         let this = &mut *b;
         let cmds = result.draw.0;
@@ -575,7 +576,7 @@ pub fn draw_spec_page(
     };
 
     // Background fill (outside clip so it covers the whole viewport).
-    let bg = frame_raw(FrameSpec {
+    let bg = framewise::widgets::frame::raw::frame(FrameSpec {
         rect: win_rect,
         style: FrameStyle {
             background: t.paper,
@@ -1844,7 +1845,7 @@ pub fn draw_spec_page(
                                 .disabled(false)
                                 .style(this.theme.select_style())
                                 .clip_rect(this.clip_rect);
-                        let result = select_raw(state, spec_builder.build(), this.input, this.focus_sys, this.text_system);
+                        let result = raw::select(state, spec_builder.build(), this.input, this.focus_sys, this.text_system);
                         this.append_cmds(result.draw.0);
                         SelectInfo {
                                 layout: result.layout,

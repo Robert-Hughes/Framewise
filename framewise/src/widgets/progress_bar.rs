@@ -183,8 +183,6 @@ pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ProgressBarInfo { layout: result.layout }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::progress_bar as progress_bar_raw;
 
 #[cfg(test)]
 mod tests {
@@ -200,7 +198,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar_raw(spec);
+        let res = raw::progress_bar(spec);
 
         assert_eq!(
             res.draw,
@@ -227,7 +225,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar_raw(spec);
+        let res = raw::progress_bar(spec);
 
         assert_eq!(
             res.draw,
@@ -254,7 +252,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = progress_bar_raw(spec);
+        let res = raw::progress_bar(spec);
 
         assert_eq!(
             res.draw,

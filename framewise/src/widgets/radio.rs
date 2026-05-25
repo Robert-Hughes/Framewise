@@ -313,15 +313,13 @@ pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     }
 }
 
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-pub use raw::radio as radio_raw;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn rad_io(spec: RadioSpec) -> RadioResult {
-        radio_raw(
+        raw::radio(
             RadioState::default(),
             spec,
             &Input::default(),
@@ -408,7 +406,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = radio_raw(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::radio(state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
@@ -484,7 +482,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = radio_raw(state, spec, &input, &mut focus_sys);
+        let res = raw::radio(state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -511,7 +509,7 @@ mod tests {
         // Frame 1: Explicitly focus the radio
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = radio_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::radio(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -519,7 +517,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = radio_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::radio(state, spec(), &input, &mut focus_sys);
         state = res.state;
         focus_sys.end_frame();
 
@@ -528,7 +526,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = radio_raw(state, spec(), &input, &mut focus_sys);
+        let res = raw::radio(state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
