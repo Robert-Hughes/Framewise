@@ -10,7 +10,7 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Vec2},
     widgets::{
-        button::{ButtonState, ButtonStyle},
+        button::{button, ButtonSpec, ButtonState, ButtonStyle},
         checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec},
         chip::{chip, ChipState, ChipSpec},
         color_swatch::color_swatch,
@@ -328,6 +328,50 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
     b.append_cmds(result.draw.0);
 }
 
+fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
+    b: &mut Builder<T, S>,
+    layout_params: S::Params,
+    text: &str,
+    style: ButtonStyle,
+    hover: bool,
+    pressed: bool,
+    focused: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = ButtonState::default();
+    let mut dummy_focus_sys = FocusSystem::new();
+
+    let fake_input = if pressed {
+        state.is_active = true;
+        Input {
+            mouse_pos: Vec2::new(rect.x + rect.w * 0.5, rect.y + rect.h * 0.5),
+            mouse_down: true,
+            ..Input::default()
+        }
+    } else if hover {
+        Input {
+            mouse_pos: Vec2::new(rect.x + rect.w * 0.5, rect.y + rect.h * 0.5),
+            ..Input::default()
+        }
+    } else {
+        if focused {
+            dummy_focus_sys.take_focus(state.focus_id);
+        }
+        Input::default()
+    };
+
+    let spec = ButtonSpec {
+        rect,
+        text: text.to_string(),
+        style,
+        clip_rect: None,
+        disabled: false,
+    };
+
+    let result = button(state, spec, &fake_input, b.text_system, &mut dummy_focus_sys);
+    b.append_cmds(result.draw.0);
+}
+
 // ── Page state ────────────────────────────────────────────────────────────────
 
 pub struct SpecPageState {
@@ -335,7 +379,8 @@ pub struct SpecPageState {
 
     // 01 Buttons
     pub btn_variants: Vec<ButtonState>, // [secondary, primary, accent, ghost]
-    pub btn_matrix: Vec<ButtonState>,   // 4 variants × 5 states = 20
+    pub btn_matrix: Vec<ButtonState>,   // 4 variants × 2 real states (default + disabled) = 8
+    pub cb_matrix: Vec<CheckboxState>,  // 2 rows × 3 interactive cols (off, on, mixed) = 6
     pub btn_sizes: Vec<ButtonState>,    // [sm, md, lg]
     pub btn_grp1: Vec<ButtonState>,     // [←, Frame 248, →]
     pub btn_grp2: Vec<ButtonState>,     // [Build, Run, Ship]
@@ -391,7 +436,15 @@ impl Default for SpecPageState {
         Self {
             page_scroll: ScrollState::default(),
             btn_variants: (0..4).map(|_| ButtonState::default()).collect(),
-            btn_matrix: (0..20).map(|_| ButtonState::default()).collect(),
+            btn_matrix: (0..8).map(|_| ButtonState::default()).collect(),
+            cb_matrix: vec![
+                CheckboxState { check: CheckState::Off, ..Default::default() },
+                CheckboxState { check: CheckState::On, ..Default::default() },
+                CheckboxState { check: CheckState::Indeterminate, ..Default::default() },
+                CheckboxState { check: CheckState::Off, ..Default::default() },
+                CheckboxState { check: CheckState::On, ..Default::default() },
+                CheckboxState { check: CheckState::Indeterminate, ..Default::default() },
+            ],
             btn_sizes: (0..3).map(|_| ButtonState::default()).collect(),
             btn_grp1: (0..3).map(|_| ButtonState::default()).collect(),
             btn_grp2: (0..3).map(|_| ButtonState::default()).collect(),
@@ -705,17 +758,25 @@ pub fn draw_spec_page(
                         false,
                     );
                     for ci in 0..5 {
-                        let idx = ri * 5 + ci;
-                        let disabled = ci == 4;
-                        let btn = b.button_styled(
-                            std::mem::take(&mut state.btn_matrix[idx]),
-                            Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md),
-                            "Action",
-                            row_styles[ri].clone(),
-                            disabled,
-                            input,
-                        );
-                        state.btn_matrix[idx] = btn.state;
+                        let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
+                        match ci {
+                            1 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), true, false, false),
+                            2 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), false, true, false),
+                            3 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), false, false, true),
+                            _ => {
+                                let disabled = ci == 4;
+                                let idx = ri * 2 + ci / 4; // ci=0 → idx 0 (default), ci=4 → idx 1 (disabled)
+                                let btn = b.button_styled(
+                                    std::mem::take(&mut state.btn_matrix[idx]),
+                                    rect,
+                                    "Action",
+                                    row_styles[ri].clone(),
+                                    disabled,
+                                    input,
+                                );
+                                state.btn_matrix[idx] = btn.state;
+                            }
+                        }
                     }
                     y += t.h_md + 4.0;
                 }
@@ -976,13 +1037,17 @@ pub fn draw_spec_page(
                     (CheckState::On, false, true),
                 ];
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-                    draw_checkbox_fake_state(
-                        &mut b,
-                        Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
-                        *cs,
-                        *focused,
-                        *disabled,
-                    );
+                    let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0);
+                    if ci < 3 {
+                        let info = b.checkbox(
+                            std::mem::take(&mut state.cb_matrix[ci]),
+                            rect,
+                            input,
+                        );
+                        state.cb_matrix[ci] = info.state;
+                    } else {
+                        draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
+                    }
                 }
                 y += 14.0 + 12.0;
 
@@ -996,13 +1061,22 @@ pub fn draw_spec_page(
                 );
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
-                    draw_checkbox_fake_state(
-                        &mut b,
-                        Rect::new(cx, y, 14.0, 14.0),
-                        *cs,
-                        *focused,
-                        *disabled,
-                    );
+                    if ci < 3 {
+                        let info = b.checkbox(
+                            std::mem::take(&mut state.cb_matrix[3 + ci]),
+                            Rect::new(cx, y, 14.0, 14.0),
+                            input,
+                        );
+                        state.cb_matrix[3 + ci] = info.state;
+                    } else {
+                        draw_checkbox_fake_state(
+                            &mut b,
+                            Rect::new(cx, y, 14.0, 14.0),
+                            *cs,
+                            *focused,
+                            *disabled,
+                        );
+                    }
 
                     let label_alpha = if *disabled { t.muted } else { t.ink };
                     b.label_styled(
