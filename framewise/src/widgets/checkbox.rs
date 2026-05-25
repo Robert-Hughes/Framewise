@@ -4,7 +4,6 @@ use crate::{
     widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,7 +17,6 @@ pub struct CheckboxSpec {
     /// Top-left of the 14×14 box.
     pub rect: Rect,
     pub state: CheckState,
-    pub focused: bool,
     pub disabled: bool,
     pub style: CheckboxStyle,
     pub clip_rect: Option<Rect>,
@@ -88,7 +86,6 @@ impl CheckboxSpecBuilder {
             spec: CheckboxSpec {
                 rect: Rect::ZERO,
                 state,
-                focused: false,
                 disabled: false,
                 style: CheckboxStyle {
                     size: 14.0,
@@ -106,11 +103,6 @@ impl CheckboxSpecBuilder {
                 clip_rect: None,
             },
         }
-    }
-
-    pub fn focused(mut self, focused: bool) -> Self {
-        self.spec.focused = focused;
-        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -252,7 +244,7 @@ pub fn checkbox(
 
     let r = Rect::new(spec.rect.x, spec.rect.y, s.size, s.size);
 
-    let visually_focused = focused || spec.focused;
+    let visually_focused = focused;
 
     // Focus ring (outset 2px).
     if visually_focused {
@@ -342,7 +334,6 @@ mod tests {
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -370,7 +361,6 @@ mod tests {
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::On,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -414,7 +404,6 @@ mod tests {
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Indeterminate,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -444,17 +433,21 @@ mod tests {
 
     #[test]
     fn test_checkbox_visual_focused() {
+        let state = CheckboxState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
-            focused: true,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = check_box(spec);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let res = checkbox(state, spec, &Input::default(), &mut focus_sys);
+        focus_sys.end_frame();
         assert_eq!(
             res.draw,
             DrawCommands(vec![
@@ -481,7 +474,6 @@ mod tests {
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
-            focused: false,
             disabled: true,
             style: Default::default(),
             clip_rect: None,
@@ -518,7 +510,6 @@ mod tests {
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -544,7 +535,6 @@ mod tests {
         let spec = || CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,

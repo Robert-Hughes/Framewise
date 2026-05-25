@@ -1,11 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
+    types::{Color, Rect},
+    widget::{WidgetSpec, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct ChipSpec<'a, T: crate::text::TextSystem> {
@@ -14,8 +13,6 @@ pub struct ChipSpec<'a, T: crate::text::TextSystem> {
     pub rect: Rect,
     pub label: &'a str,
     pub font: FontId,
-    pub active: bool,
-    pub focused: bool,
     pub disabled: bool,
     pub style: ChipStyle,
     pub clip_rect: Option<Rect>,
@@ -159,11 +156,6 @@ pub fn chip<'a, T: crate::text::TextSystem>(
         state.space_is_active = true;
     }
 
-    // Keep state.active in sync with spec.active if changed out of band
-    if state.active != spec.active {
-        state.active = spec.active;
-    }
-
     if is_clicked {
         state.active = !state.active;
     }
@@ -180,7 +172,7 @@ pub fn chip<'a, T: crate::text::TextSystem>(
     let w = spec.rect.w.max(32.0);
     let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
-    let visually_focused = focused || spec.focused;
+    let visually_focused = focused;
 
     // Focus ring.
     if visually_focused {
@@ -228,8 +220,6 @@ pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<ChipStyle>,
-    pub active: Option<bool>,
-    pub focused: Option<bool>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -242,8 +232,6 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
             label: None,
             font: None,
             style: None,
-            active: None,
-            focused: None,
             disabled: None,
             rect: None,
             ts: None,
@@ -261,14 +249,6 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
     pub fn style(mut self, style: ChipStyle) -> Self {
         self.style = Some(style);
-        self
-    }
-    pub fn active(mut self, active: bool) -> Self {
-        self.active = Some(active);
-        self
-    }
-    pub fn focused(mut self, focused: bool) -> Self {
-        self.focused = Some(focused);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -315,8 +295,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             label: self.label.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("ChipStyle is required"),
-            active: self.active.unwrap_or(false),
-            focused: self.focused.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self.clip_rect,
         }
@@ -331,6 +309,7 @@ impl<'a, T: crate::text::TextSystem> WidgetSpec for ChipSpec<'a, T> {
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+    use crate::types::Vec2;
 
     fn ch_ip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
         chip(
@@ -349,8 +328,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
-            active: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -382,19 +359,19 @@ mod tests {
     #[test]
     fn test_chip_visual_active() {
         let mut text_sys = DummyTextSys;
+        let mut state = ChipState::default();
+        state.active = true;
         let spec = ChipSpec {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
-            active: true,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let style = spec.style;
-        let res = ch_ip(spec);
+        let res = chip(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new());
 
         assert_eq!(
             res.draw,
@@ -419,20 +396,23 @@ mod tests {
 
     #[test]
     fn test_chip_visual_focused() {
+        let state = ChipState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
             ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
-            active: false,
-            focused: true,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let style = spec.style;
-        let res = ch_ip(spec);
+        let res = chip(state, spec, &Input::default(), &mut focus_sys);
+        focus_sys.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
         let expected_focus_rect = r.inset(-style.focus_offset);
@@ -476,8 +456,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
-            active: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -511,8 +489,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
-                active: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -534,8 +510,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
-                active: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -558,8 +532,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
                 font: FontId(0),
-                active: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,

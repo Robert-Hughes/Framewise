@@ -1,11 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
+    types::{Color, Rect},
+    widget::{WidgetSpec, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct SelectSpec<'a, T: crate::text::TextSystem> {
@@ -15,8 +14,6 @@ pub struct SelectSpec<'a, T: crate::text::TextSystem> {
     pub value: &'a str,
     pub font: FontId,
     pub options: &'a [&'a str],
-    pub open: bool,
-    pub focused: bool,
     pub disabled: bool,
     pub style: SelectStyle,
     pub clip_rect: Option<Rect>,
@@ -282,7 +279,7 @@ pub fn select<'a, T: crate::text::TextSystem>(
     let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-    let visually_focused = focused || spec.focused;
+    let visually_focused = focused;
 
     // Focus / open ring.
     if visually_focused || state.open {
@@ -401,10 +398,7 @@ pub struct SelectSpecBuilder<'a, T: crate::text::TextSystem> {
     pub font: Option<FontId>,
     pub style: Option<SelectStyle>,
     pub options: Option<&'a [&'a str]>,
-    pub open: Option<bool>,
-    pub focused: Option<bool>,
     pub disabled: Option<bool>,
-    pub hovered: Option<Option<usize>>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
@@ -417,10 +411,7 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
             font: None,
             style: None,
             options: None,
-            open: None,
-            focused: None,
             disabled: None,
-            hovered: None,
             rect: None,
             ts: None,
             clip_rect: None,
@@ -443,20 +434,8 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
         self.options = Some(options);
         self
     }
-    pub fn open(mut self, open: bool) -> Self {
-        self.open = Some(open);
-        self
-    }
-    pub fn focused(mut self, focused: bool) -> Self {
-        self.focused = Some(focused);
-        self
-    }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
-        self
-    }
-    pub fn hovered(mut self, hovered: Option<usize>) -> Self {
-        self.hovered = Some(hovered);
         self
     }
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
@@ -500,8 +479,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("SelectStyle is required"),
             options: self.options.unwrap_or(&[]),
-            open: self.open.unwrap_or(false),
-            focused: self.focused.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self.clip_rect,
         }
@@ -516,6 +493,7 @@ impl<'a, T: crate::text::TextSystem> WidgetSpec for SelectSpec<'a, T> {
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+    use crate::types::Vec2;
 
     fn sel_ect<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> SelectResult {
         select(
@@ -536,8 +514,6 @@ mod tests {
             value: "Option 1",
             font: FontId(0),
             options: &options,
-            open: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -581,16 +557,13 @@ mod tests {
             value: "Option 1",
             font: FontId(0),
             options: &options,
-            open: true,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let s = spec.style;
 
-        // Since sel_ect uses SelectState::default(), it starts with open = false.
-        // Let's test the select() function directly passing SelectState { open: true, ... }
+        // Pass SelectState { open: true, ... } to simulate open state
         let state = SelectState {
             selected_index: 0,
             open: true,
@@ -688,8 +661,6 @@ mod tests {
             value: "Option 1",
             font: FontId(0),
             options: &options,
-            open: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -732,8 +703,6 @@ mod tests {
                 value: "Option 1",
                 font: FontId(0),
                 options: &options,
-                open: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -760,8 +729,6 @@ mod tests {
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
-                open: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -784,8 +751,6 @@ mod tests {
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
-                open: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -811,8 +776,6 @@ mod tests {
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
-                open: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -837,8 +800,6 @@ mod tests {
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
-                open: false,
-                focused: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,

@@ -1,11 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
+    types::{Color, Rect},
+    widget::{WidgetSpec, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
@@ -17,7 +16,6 @@ pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
     pub value: f32,
     pub min: f32,
     pub max: f32,
-    pub active: bool,
     pub disabled: bool,
     pub style: DragNumberStyle,
     pub clip_rect: Option<Rect>,
@@ -200,7 +198,7 @@ pub fn drag_number<'a, T: crate::text::TextSystem>(
     let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-    let visually_active = focused || state.is_dragging || spec.active;
+    let visually_active = focused || state.is_dragging;
 
     // Focus / active ring.
     if visually_active && !spec.disabled {
@@ -284,7 +282,6 @@ pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
     pub value: Option<f32>,
     pub min: Option<f32>,
     pub max: Option<f32>,
-    pub active: Option<bool>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -300,7 +297,6 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
             value: None,
             min: None,
             max: None,
-            active: None,
             disabled: None,
             rect: None,
             ts: None,
@@ -330,10 +326,6 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     }
     pub fn max(mut self, max: f32) -> Self {
         self.max = Some(max);
-        self
-    }
-    pub fn active(mut self, active: bool) -> Self {
-        self.active = Some(active);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -383,7 +375,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             value: self.value.unwrap_or(0.0),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
-            active: self.active.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self.clip_rect,
         }
@@ -398,6 +389,7 @@ impl<'a, T: crate::text::TextSystem> WidgetSpec for DragNumberSpec<'a, T> {
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+    use crate::types::Vec2;
 
     fn drag_num<'a, T: crate::text::TextSystem>(spec: DragNumberSpec<'a, T>) -> DragNumberResult {
         drag_number(
@@ -419,7 +411,6 @@ mod tests {
             value: 50.0,
             min: 0.0,
             max: 100.0,
-            active: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -465,6 +456,9 @@ mod tests {
     #[test]
     fn test_drag_number_visual_active() {
         let mut text_sys = DummyTextSys;
+        let mut state = DragNumberState::default();
+        state.is_dragging = true;
+        state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
             ts: &mut text_sys,
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
@@ -473,14 +467,15 @@ mod tests {
             value: 50.0,
             min: 0.0,
             max: 100.0,
-            active: true,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
 
         let style = spec.style;
-        let res = drag_num(spec);
+        let mut input = Input::default();
+        input.mouse_down = true;
+        let res = drag_number(state, spec, &input, &mut crate::focus::FocusSystem::new());
 
         assert_eq!(
             res.draw,
@@ -532,7 +527,6 @@ mod tests {
             value: 0.0,
             min: 0.0,
             max: 100.0,
-            active: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -588,7 +582,6 @@ mod tests {
             value: 50.0,
             min: 0.0,
             max: 100.0,
-            active: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -628,7 +621,6 @@ mod tests {
                 value: 50.0,
                 min: 0.0,
                 max: 100.0,
-                active: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -655,7 +647,6 @@ mod tests {
                 value: 51.0,
                 min: 0.0,
                 max: 100.0,
-                active: false,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,

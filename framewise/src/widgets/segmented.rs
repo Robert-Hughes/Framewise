@@ -2,10 +2,9 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
+    widget::{WidgetSpec, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
@@ -15,7 +14,6 @@ pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
     pub items: &'a [&'a str],
     pub font: FontId,
     pub active_index: usize,
-    pub focused: Option<usize>,
     pub disabled: bool,
     pub style: SegmentedStyle,
     pub clip_rect: Option<Rect>,
@@ -228,7 +226,7 @@ pub fn segmented<'a, T: crate::text::TextSystem>(
         }
 
         // Focus ring (inset to stay within bounds).
-        let visually_focused = (focused && i == state.active_index) || spec.focused == Some(i);
+        let visually_focused = focused && i == state.active_index;
         if visually_focused && !spec.disabled {
             cmds.push(DrawCmd::StrokeRect {
                 rect: seg_rect.inset(s.focus_inset),
@@ -277,7 +275,6 @@ pub struct SegmentedSpecBuilder<'a, T: crate::text::TextSystem> {
     pub font: Option<FontId>,
     pub style: Option<SegmentedStyle>,
     pub active_index: Option<usize>,
-    pub focused: Option<Option<usize>>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
@@ -291,7 +288,6 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
             font: None,
             style: None,
             active_index: None,
-            focused: None,
             disabled: None,
             rect: None,
             ts: None,
@@ -313,10 +309,6 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
         self.active_index = Some(active_index);
-        self
-    }
-    pub fn focused(mut self, focused: Option<usize>) -> Self {
-        self.focused = Some(focused);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -364,7 +356,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("SegmentedStyle is required"),
             active_index: self.active_index.unwrap_or(0),
-            focused: self.focused.unwrap_or(None),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self.clip_rect,
         }
@@ -399,7 +390,6 @@ mod tests {
             items: &items,
             font: FontId(1),
             active_index: 0,
-            focused: None,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -445,6 +435,10 @@ mod tests {
 
     #[test]
     fn test_segmented_visual_focused() {
+        let state = SegmentedState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
@@ -453,13 +447,13 @@ mod tests {
             items: &items,
             font: FontId(1),
             active_index: 1,
-            focused: Some(1),
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let style = spec.style;
-        let res = seg_mented(spec);
+        let res = segmented(state, spec, &Input::default(), &mut focus_sys);
+        focus_sys.end_frame();
 
         assert_eq!(
             res.draw,
@@ -518,7 +512,6 @@ mod tests {
             items: &items,
             font: FontId(1),
             active_index: 0,
-            focused: None,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -557,7 +550,6 @@ mod tests {
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
-                focused: None,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,
@@ -582,7 +574,6 @@ mod tests {
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
-                focused: None,
                 disabled: false,
                 style: Default::default(),
                 clip_rect: None,

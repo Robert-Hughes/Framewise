@@ -4,14 +4,12 @@ use crate::{
     widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct RadioSpec {
     /// Top-left of the 14×14 bounding area.
     pub rect: Rect,
     pub selected: bool,
-    pub focused: bool,
     pub disabled: bool,
     pub style: RadioStyle,
     pub clip_rect: Option<Rect>,
@@ -80,7 +78,6 @@ impl RadioSpecBuilder {
             spec: RadioSpec {
                 rect: Rect::ZERO,
                 selected: false,
-                focused: false,
                 disabled: false,
                 style: RadioStyle {
                     radius: 7.0,
@@ -101,11 +98,6 @@ impl RadioSpecBuilder {
 
     pub fn selected(mut self, selected: bool) -> Self {
         self.spec.selected = selected;
-        self
-    }
-
-    pub fn focused(mut self, focused: bool) -> Self {
-        self.spec.focused = focused;
         self
     }
 
@@ -246,7 +238,7 @@ pub fn radio(
     let cy = spec.rect.y + s.radius;
     let center = Vec2::new(cx, cy);
 
-    let visually_focused = focused || spec.focused;
+    let visually_focused = focused;
 
     // Focus ring (outset 2px).
     if visually_focused {
@@ -313,7 +305,6 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -344,7 +335,6 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: true,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -377,16 +367,20 @@ mod tests {
 
     #[test]
     fn test_radio_visual_focused() {
+        let state = RadioState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
-            focused: true,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = rad_io(spec);
+        let res = radio(state, spec, &Input::default(), &mut focus_sys);
+        focus_sys.end_frame();
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -417,7 +411,6 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
-            focused: false,
             disabled: true,
             style: Default::default(),
             clip_rect: None,
@@ -456,7 +449,6 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -482,7 +474,6 @@ mod tests {
         let spec = || RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,

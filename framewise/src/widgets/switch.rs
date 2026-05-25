@@ -1,17 +1,15 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    types::{Color, Rect, Vec2},
+    types::{Color, Rect},
     widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
     input::Input,
-    focus::FocusId,
 };
 
 pub struct SwitchSpec {
     /// Top-left of the 30×16 bounding area.
     pub rect: Rect,
     pub on: bool,
-    pub focused: bool,
     pub disabled: bool,
     pub style: SwitchStyle,
     pub clip_rect: Option<Rect>,
@@ -85,7 +83,6 @@ impl SwitchSpecBuilder {
             spec: SwitchSpec {
                 rect: Rect::ZERO,
                 on: false,
-                focused: false,
                 disabled: false,
                 style: SwitchStyle {
                     size: (30.0, 16.0),
@@ -108,11 +105,6 @@ impl SwitchSpecBuilder {
 
     pub fn on(mut self, on: bool) -> Self {
         self.spec.on = on;
-        self
-    }
-
-    pub fn focused(mut self, focused: bool) -> Self {
-        self.spec.focused = focused;
         self
     }
 
@@ -252,7 +244,7 @@ pub fn switch(
 
     let r = Rect::new(spec.rect.x, spec.rect.y, s.size.0, s.size.1);
 
-    let visually_focused = focused || spec.focused;
+    let visually_focused = focused;
 
     // Focus ring.
     if visually_focused {
@@ -306,6 +298,7 @@ pub fn switch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Vec2;
 
     fn swi_tch(spec: SwitchSpec) -> SwitchResult {
         switch(
@@ -321,7 +314,6 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -354,7 +346,6 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: true,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -384,16 +375,20 @@ mod tests {
 
     #[test]
     fn test_switch_visual_focused() {
+        let state = SwitchState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
-            focused: true,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = swi_tch(spec);
+        let res = switch(state, spec, &Input::default(), &mut focus_sys);
+        focus_sys.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
             res.draw,
@@ -425,7 +420,6 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
-            focused: false,
             disabled: true,
             style: Default::default(),
             clip_rect: None,
@@ -466,7 +460,6 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
@@ -492,7 +485,6 @@ mod tests {
         let spec = || SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
-            focused: false,
             disabled: false,
             style: Default::default(),
             clip_rect: None,
