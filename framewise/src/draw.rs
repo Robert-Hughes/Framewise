@@ -9,10 +9,17 @@ use crate::types::{Color, Rect, Vec2};
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawCmd {
     /// Fill a rectangle with a solid colour.
-    FillRect { rect: Rect, color: Color },
+    FillRect {
+        rect: Rect,
+        color: Color,
+    },
 
     /// Draw the outline of a rectangle.
-    StrokeRect { rect: Rect, color: Color, width: f32 },
+    StrokeRect {
+        rect: Rect,
+        color: Color,
+        width: f32,
+    },
 
     /// Draw a straight line segment.
     ///
@@ -20,13 +27,27 @@ pub enum DrawCmd {
     /// stops immediately at `p0` and `p1` without projecting past them. For connected
     /// line segments to meet cleanly at corners, their endpoints should be manually
     /// extended or overlapped in the widget layout.
-    StrokeLine { p0: Vec2, p1: Vec2, color: Color, width: f32 },
+    StrokeLine {
+        p0: Vec2,
+        p1: Vec2,
+        color: Color,
+        width: f32,
+    },
 
     /// Fill a circle with a solid colour.
-    FillCircle { center: Vec2, radius: f32, color: Color },
+    FillCircle {
+        center: Vec2,
+        radius: f32,
+        color: Color,
+    },
 
     /// Draw the outline of a circle.
-    StrokeCircle { center: Vec2, radius: f32, color: Color, width: f32 },
+    StrokeCircle {
+        center: Vec2,
+        radius: f32,
+        color: Color,
+        width: f32,
+    },
 
     /// Draw a piece of prepared text.
     Text {

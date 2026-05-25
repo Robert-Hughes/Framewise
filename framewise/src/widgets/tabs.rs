@@ -1,9 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     text::FontId,
     types::{Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -56,16 +56,14 @@ pub mod raw {
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
-            if input.key_pressed_left
-                && state.active_index > 0 {
-                    state.active_index -= 1;
-                    is_clicked = true;
-                }
-            if input.key_pressed_right
-                && state.active_index + 1 < spec.items.len() {
-                    state.active_index += 1;
-                    is_clicked = true;
-                }
+            if input.key_pressed_left && state.active_index > 0 {
+                state.active_index -= 1;
+                is_clicked = true;
+            }
+            if input.key_pressed_right && state.active_index + 1 < spec.items.len() {
+                state.active_index += 1;
+                is_clicked = true;
+            }
         }
 
         // Mouse click segment detection
@@ -148,7 +146,9 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h)
+                    .contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
@@ -206,13 +206,11 @@ impl Default for TabsStyle {
     }
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct TabsState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
-
 
 pub struct TabsResult {
     pub draw: DrawCommands,
@@ -270,8 +268,7 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: TabsSpecBuilder<'a>,
 ) -> TabsInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_theme(&ctx.theme);
+    let builder = builder.with_theme(&ctx.theme);
     let mut spec = builder.build();
     spec.rect = rect;
     let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
@@ -359,7 +356,9 @@ impl<'a> TabsSpecBuilder<'a> {
         TabsSpec {
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TabsStyle is required"),
             active_index: self.active_index.unwrap_or(0),
             disabled: self.disabled.unwrap_or(false),
@@ -379,7 +378,7 @@ mod tests {
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
-            &mut DummyTextSys
+            &mut DummyTextSys,
         )
     }
 
@@ -451,7 +450,13 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = raw::tabs(state, spec, &Input::default(), &mut focus_sys, &mut text_sys);
+        let res = raw::tabs(
+            state,
+            spec,
+            &Input::default(),
+            &mut focus_sys,
+            &mut text_sys,
+        );
         focus_sys.end_frame();
 
         assert_eq!(
@@ -542,7 +547,7 @@ mod tests {
         let res = raw::tabs(
             state,
             TabsSpec {
-                    rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
@@ -552,7 +557,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
-            &mut text_sys
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -566,7 +571,7 @@ mod tests {
         let res = raw::tabs(
             state,
             TabsSpec {
-                    rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
                 active_index: 0,
@@ -576,7 +581,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
-            &mut text_sys
+            &mut text_sys,
         );
         focus_sys.end_frame();
 

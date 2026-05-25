@@ -69,7 +69,10 @@ impl Default for DividerSpecBuilder {
 
 impl DividerSpecBuilder {
     pub fn new() -> Self {
-        Self { color: None, width: None }
+        Self {
+            color: None,
+            width: None,
+        }
     }
     pub fn color(mut self, color: Color) -> Self {
         self.color = Some(color);

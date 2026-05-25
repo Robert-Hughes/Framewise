@@ -12,8 +12,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: crate::text::TextSystem>(spec: TreeSpec<'a>,
-        text_system: &mut T) -> TreeResult {
+    pub fn tree<'a, T: crate::text::TextSystem>(
+        spec: TreeSpec<'a>,
+        text_system: &mut T,
+    ) -> TreeResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -170,9 +172,7 @@ pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: TreeSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -233,7 +233,9 @@ impl<'a> TreeSpecBuilder<'a> {
         TreeSpec {
             rect: self.rect.unwrap_or_default(),
             rows: self.rows.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TreeStyle is required"),
         }
     }

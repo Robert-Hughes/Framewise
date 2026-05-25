@@ -111,12 +111,11 @@ pub mod raw {
         }
 
         // Drag update
-        if state.is_dragging
-            && usable_track > 0.0 {
-                let delta = mouse_coord - state.drag_start_mouse_coord;
-                let val_delta = (delta / usable_track) * range;
-                *value = (state.drag_start_val + val_delta).clamp(min, max);
-            }
+        if state.is_dragging && usable_track > 0.0 {
+            let delta = mouse_coord - state.drag_start_mouse_coord;
+            let val_delta = (delta / usable_track) * range;
+            *value = (state.drag_start_val + val_delta).clamp(min, max);
+        }
 
         // Track click release
         if state.is_track_clicking && !input.mouse_down {
@@ -124,19 +123,21 @@ pub mod raw {
         }
 
         // Track click → drag transition: mouse moved past threshold
-        if state.is_track_clicking && input.mouse_down
-            && (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
-                if usable_track > 0.0 {
-                    let track_start = if is_vert { track_rect.y } else { track_rect.x };
-                    let snapped =
-                        (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
-                    *value = (min + (snapped / usable_track) * range).clamp(min, max);
-                    state.drag_start_mouse_coord = mouse_coord;
-                    state.drag_start_val = *value;
-                }
-                state.is_dragging = true;
-                state.is_track_clicking = false;
+        if state.is_track_clicking
+            && input.mouse_down
+            && (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD
+        {
+            if usable_track > 0.0 {
+                let track_start = if is_vert { track_rect.y } else { track_rect.x };
+                let snapped =
+                    (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
+                *value = (min + (snapped / usable_track) * range).clamp(min, max);
+                state.drag_start_mouse_coord = mouse_coord;
+                state.drag_start_val = *value;
             }
+            state.is_dragging = true;
+            state.is_track_clicking = false;
+        }
 
         // Mouse wheel scrolling — suppressed during an active drag so that drag
         // motion is authoritative (otherwise wheel ticks would stack on top of
@@ -212,7 +213,10 @@ pub mod raw {
         }
 
         // Track click (mouse down on track, not on thumb)
-        if input.mouse_pressed && !thumb_rect.contains(input.mouse_pos) && track_rect.contains(input.mouse_pos) {
+        if input.mouse_pressed
+            && !thumb_rect.contains(input.mouse_pos)
+            && track_rect.contains(input.mouse_pos)
+        {
             focus_sys.take_focus(state.focus_id);
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
@@ -240,7 +244,8 @@ pub mod raw {
                 if mouse_coord < _thumb_start {
                     // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
                     let cursor_val = if usable_track > 0.0 {
-                        min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0)
+                        min + ((mouse_coord - track_start - thumb_len) / usable_track)
+                            .clamp(0.0, 1.0)
                             * range
                     } else {
                         min
@@ -334,7 +339,11 @@ pub mod raw {
             }
 
             // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
-            focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+            focus_sys.handle_traversal(
+                focused,
+                input,
+                crate::focus::FocusTraversalKeys::tab_only(),
+            );
         }
 
         // 3. Drawing
@@ -566,9 +575,7 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     builder: SliderSpecBuilder,
 ) {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
@@ -576,7 +583,6 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(cmds);
 }
-
 
 pub struct SliderSpecBuilder {
     pub min: Option<f32>,

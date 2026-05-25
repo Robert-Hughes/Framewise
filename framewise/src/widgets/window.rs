@@ -1,5 +1,9 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands}, focus::FocusSystem, text::FontId, types::{Color, Rect, Vec2}, widget::{LayoutInfo, WidgetContext, WidgetScope}
+    draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
+    text::FontId,
+    types::{Color, Rect, Vec2},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -9,9 +13,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn begin_window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a>,
-        text_system: &mut T) -> (Vec<DrawCmd>, WindowScope, Rect)
-    {
+    pub fn begin_window<'a, T: crate::text::TextSystem>(
+        spec: WindowSpec<'a>,
+        text_system: &mut T,
+    ) -> (Vec<DrawCmd>, WindowScope, Rect) {
         let mut draw = Vec::new();
         let s = spec.style;
 
@@ -200,7 +205,15 @@ impl WidgetScope for WindowScope {
 ///
 /// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
 /// and returns a child WidgetContext and the window scope.
-pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, LS: crate::layout::LayoutState, L: crate::layout::Layout, Scope: WidgetScope>(
+pub fn begin_window<
+    'a,
+    'b,
+    'c,
+    T: crate::text::TextSystem,
+    LS: crate::layout::LayoutState,
+    L: crate::layout::Layout,
+    Scope: WidgetScope,
+>(
     parent: &'b mut WidgetContext<'a, T, LS, Scope>,
     layout_params: LS::Params,
     builder: WindowSpecBuilder<'c>,
@@ -208,9 +221,7 @@ pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, LS: crate::layout::L
 ) -> WidgetContext<'b, T, L::State, WindowScope> {
     let bounds = parent.layout(layout_params);
 
-    let mut resolved_builder = builder
-        .with_rect(bounds)
-        .with_theme(&parent.theme);
+    let mut resolved_builder = builder.with_rect(bounds).with_theme(&parent.theme);
 
     if resolved_builder.status_bar.is_none() {
         resolved_builder.status_bar = Some(false);
@@ -226,7 +237,11 @@ pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, LS: crate::layout::L
     let (pre_cmds, scope, content) = raw::begin_window(spec, parent.text_system);
     parent.append_cmds(pre_cmds);
 
-    let new_clip = Some(parent.clip_rect.map_or(content, |pc| pc.intersect(&content)));
+    let new_clip = Some(
+        parent
+            .clip_rect
+            .map_or(content, |pc| pc.intersect(&content)),
+    );
 
     let mut child = parent.child_with_layout(inner_layout.begin(content), scope);
 
@@ -322,7 +337,9 @@ impl<'a> WindowSpecBuilder<'a> {
             rect: self.rect.unwrap_or_default(),
             title: self.title.unwrap(),
             buttons: self.buttons.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("WindowStyle is required"),
             status_bar: self.status_bar.unwrap(),
             status_text: self.status_text.unwrap(),

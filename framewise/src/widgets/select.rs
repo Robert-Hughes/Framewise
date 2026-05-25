@@ -1,9 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     text::FontId,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -173,7 +173,8 @@ pub mod raw {
         });
 
         // Selected value text.
-        let display_text = if !spec.options.is_empty() && state.selected_index < spec.options.len() {
+        let display_text = if !spec.options.is_empty() && state.selected_index < spec.options.len()
+        {
             spec.options[state.selected_index]
         } else {
             spec.value
@@ -256,7 +257,8 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -330,8 +332,7 @@ impl Default for SelectStyle {
     }
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SelectState {
     pub selected_index: usize,
     pub open: bool,
@@ -339,7 +340,6 @@ pub struct SelectState {
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }
-
 
 pub struct SelectResult {
     pub draw: DrawCommands,
@@ -397,9 +397,7 @@ pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem, Sco
     builder: SelectSpecBuilder<'a>,
 ) -> SelectInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
@@ -491,7 +489,9 @@ impl<'a> SelectSpecBuilder<'a> {
         SelectSpec {
             rect: self.rect.unwrap_or_default(),
             value: self.value.unwrap_or(""),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("SelectStyle is required"),
             options: self.options.unwrap_or(&[]),
             disabled: self.disabled.unwrap_or(false),
@@ -512,7 +512,7 @@ mod tests {
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
-            &mut DummyTextSys
+            &mut DummyTextSys,
         )
     }
 
@@ -586,7 +586,7 @@ mod tests {
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
-            &mut text_sys
+            &mut text_sys,
         );
 
         let r = Rect::new(0.0, 0.0, 180.0, 28.0);
@@ -707,7 +707,7 @@ mod tests {
         let res = raw::select(
             state,
             SelectSpec {
-                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
                 font: FontId(0),
                 options: &options,
@@ -733,7 +733,7 @@ mod tests {
         let res = raw::select(
             state,
             SelectSpec {
-                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -755,7 +755,7 @@ mod tests {
         let res = raw::select(
             state,
             SelectSpec {
-                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -780,7 +780,7 @@ mod tests {
         let res = raw::select(
             state,
             SelectSpec {
-                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,
@@ -804,7 +804,7 @@ mod tests {
         let res = raw::select(
             state,
             SelectSpec {
-                    rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+                rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
                 options: &options,

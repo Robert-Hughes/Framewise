@@ -3,12 +3,27 @@ mod spec_page;
 mod text;
 
 use framewise::{
-    input::Input, layout::Layout, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::button, frame::frame, label::label, scroll_area::{ScrollbarVisibility, ScrollAreaSpecBuilder, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditSpecBuilder, text_edit}}
+    input::Input,
+    layout::Layout,
+    theme::Theme,
+    types::{Color, Rect, Vec2},
+    widget::WidgetContext,
+    widgets::{
+        button::button,
+        frame::frame,
+        label::label,
+        scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollbarVisibility},
+        slider::{
+            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle,
+        },
+        text_edit::{text_edit, TextEditSpecBuilder},
+        ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder,
+    },
 };
 
 use renderer::Renderer;
-use text::SampleTextSystem;
 use std::sync::Arc;
+use text::SampleTextSystem;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -28,12 +43,12 @@ enum AppPage {
 // ── App state ─────────────────────────────────────────────────────────────────
 
 struct GpuState {
-    surface:   wgpu::Surface<'static>,
-    device:    wgpu::Device,
-    queue:     wgpu::Queue,
-    config:    wgpu::SurfaceConfiguration,
-    renderer:  Renderer,
-    size:      PhysicalSize<u32>,
+    surface: wgpu::Surface<'static>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    renderer: Renderer,
+    size: PhysicalSize<u32>,
 }
 
 impl GpuState {
@@ -41,8 +56,8 @@ impl GpuState {
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
-        self.size        = new_size;
-        self.config.width  = new_size.width;
+        self.size = new_size;
+        self.config.width = new_size.width;
         self.config.height = new_size.height;
         self.surface.configure(&self.device, &self.config);
     }
@@ -50,33 +65,32 @@ impl GpuState {
 
 #[derive(Default)]
 struct SampleButton {
-    state:  framewise::widgets::button::ButtonState,
+    state: framewise::widgets::button::ButtonState,
     clicks: u32,
 }
 
-
 struct App {
-    window:          Option<Arc<Window>>,
-    gpu:             Option<GpuState>,
-    text_system:     Option<SampleTextSystem>,
-    focus_sys:       framewise::focus::FocusSystem,
-    start_time:      std::time::Instant,
-    click_tracker:   framewise::input::ClickTracker,
+    window: Option<Arc<Window>>,
+    gpu: Option<GpuState>,
+    text_system: Option<SampleTextSystem>,
+    focus_sys: framewise::focus::FocusSystem,
+    start_time: std::time::Instant,
+    click_tracker: framewise::input::ClickTracker,
     text_edit_state: framewise::widgets::text_edit::TextEditState,
-    modifiers:       winit::keyboard::ModifiersState,
-    input:           Input,
-    clipboard:       Option<arboard::Clipboard>,
+    modifiers: winit::keyboard::ModifiersState,
+    input: Input,
+    clipboard: Option<arboard::Clipboard>,
 
     // Layout demo state
-    sidebar_scroll:  framewise::widgets::scroll_area::ScrollState,
-    main_scroll:     framewise::widgets::scroll_area::ScrollState,
+    sidebar_scroll: framewise::widgets::scroll_area::ScrollState,
+    main_scroll: framewise::widgets::scroll_area::ScrollState,
     nested_outer_scroll: framewise::widgets::scroll_area::ScrollState,
-    nested_rows:     [NestedRowState; 3],
-    sidebar_btns:    [SampleButton; 20],
-    main_btns:       [SampleButton; 30],
-    grid_btns:       [SampleButton; 16],
-    top_btn1:        SampleButton,
-    top_btn2:        SampleButton,
+    nested_rows: [NestedRowState; 3],
+    sidebar_btns: [SampleButton; 20],
+    main_btns: [SampleButton; 30],
+    grid_btns: [SampleButton; 16],
+    top_btn1: SampleButton,
+    top_btn2: SampleButton,
     standalone_slider_state: framewise::widgets::slider::SliderState,
     standalone_slider_val: f32,
     double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -140,27 +154,27 @@ impl Default for NestedRowState {
 impl App {
     fn new() -> Self {
         Self {
-            window:          None,
-            gpu:             None,
-            text_system:     Some(SampleTextSystem::new()),
-            focus_sys:       framewise::focus::FocusSystem::new(),
-            start_time:      std::time::Instant::now(),
-            click_tracker:   framewise::input::ClickTracker::new(),
+            window: None,
+            gpu: None,
+            text_system: Some(SampleTextSystem::new()),
+            focus_sys: framewise::focus::FocusSystem::new(),
+            start_time: std::time::Instant::now(),
+            click_tracker: framewise::input::ClickTracker::new(),
             text_edit_state: framewise::widgets::text_edit::TextEditState::new("Search..."),
-            modifiers:       winit::keyboard::ModifiersState::default(),
-            input:           Input::new(),
-            clipboard:       arboard::Clipboard::new().ok(),
-            active_page:     AppPage::ScrollDemo,
+            modifiers: winit::keyboard::ModifiersState::default(),
+            input: Input::new(),
+            clipboard: arboard::Clipboard::new().ok(),
+            active_page: AppPage::ScrollDemo,
             spec_page_state: spec_page::SpecPageState::default(),
-            sidebar_scroll:  framewise::widgets::scroll_area::ScrollState::default(),
-            main_scroll:     framewise::widgets::scroll_area::ScrollState::default(),
+            sidebar_scroll: framewise::widgets::scroll_area::ScrollState::default(),
+            main_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             nested_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
-            nested_rows:     std::array::from_fn(|_| NestedRowState::default()),
-            sidebar_btns:    std::array::from_fn(|_| SampleButton::default()),
-            main_btns:       std::array::from_fn(|_| SampleButton::default()),
-            grid_btns:       std::array::from_fn(|_| SampleButton::default()),
-            top_btn1:        SampleButton::default(),
-            top_btn2:        SampleButton::default(),
+            nested_rows: std::array::from_fn(|_| NestedRowState::default()),
+            sidebar_btns: std::array::from_fn(|_| SampleButton::default()),
+            main_btns: std::array::from_fn(|_| SampleButton::default()),
+            grid_btns: std::array::from_fn(|_| SampleButton::default()),
+            top_btn1: SampleButton::default(),
+            top_btn2: SampleButton::default(),
             standalone_slider_state: framewise::widgets::slider::SliderState::default(),
             standalone_slider_val: 50.0,
             double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
@@ -183,21 +197,23 @@ impl App {
     }
 
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
-        let win_size = self.gpu.as_ref()
+        let win_size = self
+            .gpu
+            .as_ref()
             .map(|g| (g.size.width as f32, g.size.height as f32))
             .unwrap_or((1600.0, 1200.0));
 
-         if self.active_page == AppPage::WidgetSpec {
-             self.focus_sys.begin_frame();
-             let cmds =  spec_page::draw_spec_page(
-                 text_system,
-                 &mut self.focus_sys,
-                 &mut self.spec_page_state,
-                 &self.input,
-                 self.start_time.elapsed().as_secs_f64(),
-                 win_size.0,
-                 win_size.1,
-             );
+        if self.active_page == AppPage::WidgetSpec {
+            self.focus_sys.begin_frame();
+            let cmds = spec_page::draw_spec_page(
+                text_system,
+                &mut self.focus_sys,
+                &mut self.spec_page_state,
+                &self.input,
+                self.start_time.elapsed().as_secs_f64(),
+                win_size.0,
+                win_size.1,
+            );
             self.focus_sys.end_frame();
             return cmds;
         }
@@ -213,8 +229,11 @@ impl App {
         ctx.time = self.start_time.elapsed().as_secs_f64();
 
         // Background frame covering the whole window.
-        frame(&mut ctx, Rect::new(0.0, 0.0, win_size.0, win_size.1),
-            FrameSpecBuilder::new());
+        frame(
+            &mut ctx,
+            Rect::new(0.0, 0.0, win_size.0, win_size.1),
+            FrameSpecBuilder::new(),
+        );
 
         // Main container splitting into Sidebar (Left) and Content (Right)
         let root_cmds = {
@@ -244,8 +263,7 @@ impl App {
                         .size(sidebar_col.theme.text_md)
                         .font(sidebar_col.theme.sans_font)
                         .text_color(sidebar_col.theme.ink)
-                        .rule(false)
-                    ;
+                        .rule(false);
                     label(&mut sidebar_col, layout_params, spec_builder)
                 };
 
@@ -263,20 +281,22 @@ impl App {
 
                 for i in 0..20 {
                     let shade = (i % 2) as f32 * 0.15;
-                    button_style.background = Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
+                    button_style.background =
+                        Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
                     let btn = {
                         let state = std::mem::take(&mut self.sidebar_btns[i].state);
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(button_style)
-                            .disabled(false)
-                        ;
+                            .disabled(false);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
                     self.sidebar_btns[i].state = btn.state;
-                    if clicked { self.sidebar_btns[i].clicks += 1; }
+                    if clicked {
+                        self.sidebar_btns[i].clicks += 1;
+                    }
                 }
                 let sidebar_cmds = sidebar_scroll.finish();
                 sidebar_col.append_cmds(sidebar_cmds);
@@ -327,8 +347,12 @@ impl App {
                     if let Some(action) = info.clipboard_action {
                         if let Some(cb) = &mut self.clipboard {
                             match action {
-                                framewise::widgets::text_edit::ClipboardAction::Copy(text) => drop(cb.set_text(text)),
-                                framewise::widgets::text_edit::ClipboardAction::Cut(text) => drop(cb.set_text(text)),
+                                framewise::widgets::text_edit::ClipboardAction::Copy(text) => {
+                                    drop(cb.set_text(text))
+                                }
+                                framewise::widgets::text_edit::ClipboardAction::Cut(text) => {
+                                    drop(cb.set_text(text))
+                                }
                             }
                         }
                     }
@@ -339,8 +363,7 @@ impl App {
                         let text = "Profile".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(button_style)
-                            .disabled(false)
-                        ;
+                            .disabled(false);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn1.state = btn1.state;
@@ -351,8 +374,7 @@ impl App {
                         let text = "Settings".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(button_style)
-                            .disabled(false)
-                        ;
+                            .disabled(false);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn2.state = btn2.state;
@@ -380,8 +402,7 @@ impl App {
                             .size(grid_col.theme.text_md)
                             .font(grid_col.theme.sans_font)
                             .text_color(grid_col.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut grid_col, layout_params, spec_builder)
                     };
 
@@ -396,15 +417,19 @@ impl App {
                             for col in 0..4 {
                                 let idx = row * 4 + col;
                                 let shade = ((row + col) % 2) as f32 * 0.15;
-                                button_style.background = Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
+                                button_style.background = Color::from_srgb_f32(
+                                    0.00 + shade,
+                                    0.60 + shade,
+                                    0.70 + shade,
+                                    1.0,
+                                );
                                 let btn = {
                                     let state = std::mem::take(&mut self.grid_btns[idx].state);
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder = ButtonSpecBuilder::new(text)
                                         .style(button_style)
-                                        .disabled(false)
-                                    ;
+                                        .disabled(false);
                                     button(&mut grid_row, state, layout_params, spec_builder)
                                 };
                                 self.grid_btns[idx].state = btn.state;
@@ -428,13 +453,13 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(150.0, 20.0);
-                        let text: &str = &format!("Slider Value: {:.1}", self.standalone_slider_val);
+                        let text: &str =
+                            &format!("Slider Value: {:.1}", self.standalone_slider_val);
                         let spec_builder = LabelSpecBuilder::new(text.to_string())
                             .size(slider_row.theme.text_md)
                             .font(slider_row.theme.sans_font)
                             .text_color(slider_row.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut slider_row, layout_params, spec_builder)
                     };
 
@@ -468,8 +493,7 @@ impl App {
                         .size(content_col.theme.text_md)
                         .font(content_col.theme.sans_font)
                         .text_color(content_col.theme.ink)
-                        .rule(false)
-                    ;
+                        .rule(false);
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let content_height = 30.0 * 50.0 + 30.0 * 10.0;
@@ -490,20 +514,22 @@ impl App {
 
                 for i in 0..30 {
                     let shade = (i % 2) as f32 * 0.15;
-                    button_style.background = Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
+                    button_style.background =
+                        Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
                     let btn = {
                         let state = std::mem::take(&mut self.main_btns[i].state);
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(button_style)
-                            .disabled(false)
-                        ;
+                            .disabled(false);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
                     self.main_btns[i].state = btn.state;
-                    if clicked { self.main_btns[i].clicks += 1; }
+                    if clicked {
+                        self.main_btns[i].clicks += 1;
+                    }
                 }
                 let main_cmds = main_scroll.finish();
                 content_col.append_cmds(main_cmds);
@@ -549,8 +575,10 @@ impl App {
                     };
                     let mut button_style = row_builder.theme.button_secondary_style();
                     button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
-                    button_style.hovered = Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
-                    button_style.pressed = Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
+                    button_style.hovered =
+                        Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
+                    button_style.pressed =
+                        Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
 
                     // Left button
                     let btn1 = {
@@ -559,13 +587,14 @@ impl App {
                         let text = format!("R{} A", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
                             .style(button_style)
-                            .disabled(false)
-                        ;
+                            .disabled(false);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.clicked();
                     row_state.btn1.state = btn1.state;
-                    if clicked1 { row_state.btn1.clicks += 1; }
+                    if clicked1 {
+                        row_state.btn1.clicks += 1;
+                    }
 
                     // 1. Vertical Inner scroll area
                     let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0;
@@ -578,24 +607,30 @@ impl App {
                             .content_size(Vec2::new(120.0, inner_content_height))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Auto),
-                        );
+                    );
 
                     for j in 0..6 {
                         let shade = (j % 2) as f32 * 0.15;
-                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        button_style.background = Color::from_srgb_f32(
+                            base_r + shade,
+                            base_g + shade,
+                            base_b + shade,
+                            1.0,
+                        );
                         let btn = {
                             let state = std::mem::take(&mut row_state.inner_btns[j].state);
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.inner_btns[j].state = btn.state;
-                        if clicked { row_state.inner_btns[j].clicks += 1; }
+                        if clicked {
+                            row_state.inner_btns[j].clicks += 1;
+                        }
                     }
                     let cmds = inner_scroll.finish();
                     row_builder.append_cmds(cmds);
@@ -612,25 +647,31 @@ impl App {
                             .content_size(Vec2::new(horiz_content_width, row_h))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                        );
+                    );
 
                     for j in 0..10 {
                         let shade = (j % 2) as f32 * 0.15;
                         let mut button_style = horiz_scroll.theme.button_secondary_style();
-                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        button_style.background = Color::from_srgb_f32(
+                            base_r + shade,
+                            base_g + shade,
+                            base_b + shade,
+                            1.0,
+                        );
                         let btn = {
                             let state = std::mem::take(&mut row_state.horiz_btns[j].state);
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.horiz_btns[j].state = btn.state;
-                        if clicked { row_state.horiz_btns[j].clicks += 1; }
+                        if clicked {
+                            row_state.horiz_btns[j].clicks += 1;
+                        }
                     }
                     let horiz_cmds = horiz_scroll.finish();
                     row_builder.append_cmds(horiz_cmds);
@@ -647,28 +688,34 @@ impl App {
                             .content_size(Vec2::new(both_width, both_height))
                             .h_vis(ScrollbarVisibility::Auto)
                             .v_vis(ScrollbarVisibility::Auto),
-                        );
+                    );
 
                     for j in 0..48 {
                         let x = (j % 8) as f32 * 88.0;
                         let y = (j / 8) as f32 * 53.0;
                         let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
                         let mut button_style = both_scroll.theme.button_secondary_style();
-                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        button_style.background = Color::from_srgb_f32(
+                            base_r + shade,
+                            base_g + shade,
+                            base_b + shade,
+                            1.0,
+                        );
 
                         let btn = {
                             let state = std::mem::take(&mut row_state.both_btns[j].state);
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         row_state.both_btns[j].state = btn.state;
-                        if clicked { row_state.both_btns[j].clicks += 1; }
+                        if clicked {
+                            row_state.both_btns[j].clicks += 1;
+                        }
                     }
                     let both_cmds = both_scroll.finish();
                     row_builder.append_cmds(both_cmds);
@@ -722,12 +769,12 @@ impl App {
                 // Double Horizontal Scroll Demo
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new("DOUBLE HORIZONTAL SCROLL DEMO".to_string())
-                        .size(content_col.theme.text_md)
-                        .font(content_col.theme.sans_font)
-                        .text_color(content_col.theme.ink)
-                        .rule(false)
-                    ;
+                    let spec_builder =
+                        LabelSpecBuilder::new("DOUBLE HORIZONTAL SCROLL DEMO".to_string())
+                            .size(content_col.theme.text_md)
+                            .font(content_col.theme.sans_font)
+                            .text_color(content_col.theme.ink)
+                            .rule(false);
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let mut d_outer_scroll = begin_scroll_area(
@@ -746,9 +793,7 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(100.0, 100.0);
                     let text = "Outer L".to_string();
-                    let spec_builder = ButtonSpecBuilder::new(text)
-                        .disabled(false)
-                    ;
+                    let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
@@ -769,9 +814,7 @@ impl App {
                         let state = std::mem::take(&mut self.double_horiz_btns[j].state);
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new(text)
-                            .disabled(false)
-                        ;
+                        let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
                         button(&mut d_inner_scroll, state, layout_params, spec_builder)
                     };
                     self.double_horiz_btns[j].state = btn.state;
@@ -784,9 +827,7 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(300.0, 100.0);
                     let text = "Outer R".to_string();
-                    let spec_builder = ButtonSpecBuilder::new(text)
-                        .disabled(false)
-                    ;
+                    let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
@@ -821,37 +862,40 @@ impl App {
                             .content_size(Vec2::new(840.0, 400.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::Always),
-                        );
+                    );
 
                     // Status label at top-left of outer content
                     {
                         let layout_params = Rect::new(0.0, 0.0, 400.0, 18.0);
-                        let text: &str = &format!("OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}", outer_ox, outer_oy, inner_ox, inner_oy);
+                        let text: &str = &format!(
+                            "OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}",
+                            outer_ox, outer_oy, inner_ox, inner_oy
+                        );
                         let spec_builder = LabelSpecBuilder::new(text.to_string())
                             .size(outer.theme.text_md)
                             .font(outer.theme.sans_font)
                             .text_color(outer.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut outer, layout_params, spec_builder)
                     };
 
                     // Some outer-only buttons scattered in the far corners to make outer scrollable
                     for (k, (bx, by, label)) in [
-                        (10.0,  30.0, "OA"),
+                        (10.0, 30.0, "OA"),
                         (700.0, 30.0, "OB"),
-                        (10.0,  340.0, "OC"),
+                        (10.0, 340.0, "OC"),
                         (700.0, 340.0, "OD"),
                         (400.0, 180.0, "OE"),
                         (550.0, 100.0, "OF"),
-                    ].iter().enumerate() {
+                    ]
+                    .iter()
+                    .enumerate()
+                    {
                         let btn = {
                             let state = std::mem::take(&mut self.nested_2d_outer_btns[k].state);
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label.to_string();
-                                let spec_builder = ButtonSpecBuilder::new(text)
-                                .disabled(false)
-                            ;
+                            let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
                             button(&mut outer, state, layout_params, spec_builder)
                         };
                         self.nested_2d_outer_btns[k].state = btn.state;
@@ -874,21 +918,29 @@ impl App {
                         let row = j / 4;
                         let shade = ((col + row) % 2) as f32 * 0.12;
                         let mut button_style = inner.theme.button_secondary_style();
-                        button_style.background = Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
-                        button_style.hovered    = Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
+                        button_style.background =
+                            Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
+                        button_style.hovered =
+                            Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.nested_2d_inner_btns[j].state);
-                            let layout_params = Rect::new(col as f32 * 120.0 + 5.0, row as f32 * 58.0 + 5.0, 110.0, 48.0);
+                            let layout_params = Rect::new(
+                                col as f32 * 120.0 + 5.0,
+                                row as f32 * 58.0 + 5.0,
+                                110.0,
+                                48.0,
+                            );
                             let text = format!("2D {:02}", j + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.nested_2d_inner_btns[j].state = btn.state;
-                        if clicked { self.nested_2d_inner_btns[j].clicks += 1; }
+                        if clicked {
+                            self.nested_2d_inner_btns[j].clicks += 1;
+                        }
                     }
                     let inner_cmds = inner.finish();
                     outer.append_cmds(inner_cmds);
@@ -925,7 +977,7 @@ impl App {
                             .content_size(Vec2::new(inner_w, 500.0))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
-                        );
+                    );
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
@@ -937,8 +989,7 @@ impl App {
                             .size(outer_scroll.theme.text_md)
                             .font(outer_scroll.theme.sans_font)
                             .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 
@@ -952,7 +1003,7 @@ impl App {
                             .content_size(Vec2::new(1400.0, 160.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                        );
+                    );
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
@@ -960,8 +1011,7 @@ impl App {
                             .size(middle_scroll.theme.text_md)
                             .font(middle_scroll.theme.sans_font)
                             .text_color(middle_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -976,26 +1026,29 @@ impl App {
                             .content_size(Vec2::new(200.0, inner_content_h))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
-                        );
+                    );
 
                     for j in 0..12 {
                         let shade = (j % 2) as f32 * 0.12;
                         let mut button_style = inner_scroll.theme.button_secondary_style();
-                        button_style.background = Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
-                        button_style.hovered = Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
+                        button_style.background =
+                            Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
+                        button_style.hovered =
+                            Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.triple_inner_btns[j].state);
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.triple_inner_btns[j].state = btn.state;
-                        if clicked { self.triple_inner_btns[j].clicks += 1; }
+                        if clicked {
+                            self.triple_inner_btns[j].clicks += 1;
+                        }
                     }
 
                     // Innermost horizontal scroll area — 4th nesting level
@@ -1009,24 +1062,27 @@ impl App {
                             .content_size(Vec2::new(innermost_content_w, 50.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                        );
+                    );
                     for k in 0..5 {
                         let mut button_style = innermost_scroll.theme.button_secondary_style();
-                        button_style.background = Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
-                        button_style.hovered    = Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
+                        button_style.background =
+                            Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
+                        button_style.hovered =
+                            Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.triple_innermost_btns[k].state);
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
-                                let spec_builder = ButtonSpecBuilder::new(text)
+                            let spec_builder = ButtonSpecBuilder::new(text)
                                 .style(button_style)
-                                .disabled(false)
-                            ;
+                                .disabled(false);
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
                         self.triple_innermost_btns[k].state = btn.state;
-                        if clicked { self.triple_innermost_btns[k].clicks += 1; }
+                        if clicked {
+                            self.triple_innermost_btns[k].clicks += 1;
+                        }
                     }
                     let innermost_cmds = innermost_scroll.finish();
                     inner_scroll.append_cmds(innermost_cmds);
@@ -1051,7 +1107,13 @@ impl App {
                             .style(SliderStyle::default())
                             .clip_rect(middle_scroll.clip_rect)
                             .claim_scroll_at_ends(true);
-                        slider(&mut middle_scroll, state, value, layout_params, spec_builder);
+                        slider(
+                            &mut middle_scroll,
+                            state,
+                            value,
+                            layout_params,
+                            spec_builder,
+                        );
                     };
 
                     {
@@ -1060,8 +1122,7 @@ impl App {
                             .size(middle_scroll.theme.text_md)
                             .font(middle_scroll.theme.sans_font)
                             .text_color(middle_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                            .rule(false);
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -1070,52 +1131,52 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder =
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
+                                .size(outer_scroll.theme.text_md)
+                                .font(outer_scroll.theme.sans_font)
+                                .text_color(outer_scroll.theme.ink)
+                                .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder =
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
+                                .size(outer_scroll.theme.text_md)
+                                .font(outer_scroll.theme.sans_font)
+                                .text_color(outer_scroll.theme.ink)
+                                .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder =
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
+                                .size(outer_scroll.theme.text_md)
+                                .font(outer_scroll.theme.sans_font)
+                                .text_color(outer_scroll.theme.ink)
+                                .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder =
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
+                                .size(outer_scroll.theme.text_md)
+                                .font(outer_scroll.theme.sans_font)
+                                .text_color(outer_scroll.theme.ink)
+                                .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder =
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
+                                .size(outer_scroll.theme.text_md)
+                                .font(outer_scroll.theme.sans_font)
+                                .text_color(outer_scroll.theme.ink)
+                                .rule(false);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 
@@ -1152,29 +1213,37 @@ impl ApplicationHandler for App {
         if let Ok(tree) = usvg::Tree::from_data(svg_data, &opt, &fontdb) {
             let size = tree.size().to_int_size();
             if let Some(mut pixmap) = resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
-                resvg::render(&tree, resvg::tiny_skia::Transform::default(), &mut pixmap.as_mut());
-                if let Ok(icon) = winit::window::Icon::from_rgba(pixmap.take(), size.width(), size.height()) {
+                resvg::render(
+                    &tree,
+                    resvg::tiny_skia::Transform::default(),
+                    &mut pixmap.as_mut(),
+                );
+                if let Ok(icon) =
+                    winit::window::Icon::from_rgba(pixmap.take(), size.width(), size.height())
+                {
                     attrs = attrs.with_window_icon(Some(icon));
                 }
             }
         }
 
         let window = Arc::new(
-            event_loop.create_window(attrs).expect("failed to create window"),
+            event_loop
+                .create_window(attrs)
+                .expect("failed to create window"),
         );
 
         // Initialise wgpu synchronously using pollster.
         let gpu = pollster::block_on(init_wgpu(Arc::clone(&window)));
 
         self.window = Some(window);
-        self.gpu    = Some(gpu);
+        self.gpu = Some(gpu);
     }
 
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
         _window_id: WindowId,
-        event:      WindowEvent,
+        event: WindowEvent,
     ) {
         match event {
             WindowEvent::CloseRequested => {
@@ -1188,10 +1257,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::CursorMoved { position, .. } => {
-                self.input.mouse_pos = Vec2::new(
-                    position.x as f32,
-                    position.y as f32,
-                );
+                self.input.mouse_pos = Vec2::new(position.x as f32, position.y as f32);
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
@@ -1214,7 +1280,7 @@ impl ApplicationHandler for App {
                 }
                 match state {
                     ElementState::Pressed => {
-                        self.input.mouse_down    = true;
+                        self.input.mouse_down = true;
                         self.input.mouse_pressed = true;
                         self.input.mouse_clicked = false;
 
@@ -1223,7 +1289,7 @@ impl ApplicationHandler for App {
                         self.input.mouse_click_count = count;
                     }
                     ElementState::Released => {
-                        self.input.mouse_down    = false;
+                        self.input.mouse_down = false;
                         self.input.mouse_clicked = true;
                     }
                 }
@@ -1237,10 +1303,12 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event, .. } => {
                 // F2 toggles between scroll-demo and widget-spec pages.
                 if event.state == ElementState::Pressed {
-                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) = event.physical_key {
+                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) =
+                        event.physical_key
+                    {
                         self.active_page = match self.active_page {
-                            AppPage::ScrollDemo  => AppPage::WidgetSpec,
-                            AppPage::WidgetSpec  => AppPage::ScrollDemo,
+                            AppPage::ScrollDemo => AppPage::WidgetSpec,
+                            AppPage::WidgetSpec => AppPage::ScrollDemo,
                         };
                     }
                 }
@@ -1314,16 +1382,42 @@ impl ApplicationHandler for App {
                 }
 
                 if event.state == ElementState::Pressed {
-                    use winit::keyboard::{Key, NamedKey};
                     use framewise::input::TextEvent;
+                    use winit::keyboard::{Key, NamedKey};
 
                     match &event.logical_key {
-                        Key::Named(NamedKey::Backspace) => self.input.text_events.push(TextEvent::Backspace { ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::Delete) => self.input.text_events.push(TextEvent::Delete { ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::ArrowLeft) => self.input.text_events.push(TextEvent::CaretLeft { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::ArrowRight)=> self.input.text_events.push(TextEvent::CaretRight { shift: self.modifiers.shift_key(), ctrl: self.modifiers.control_key() }),
-                        Key::Named(NamedKey::Home)      => self.input.text_events.push(TextEvent::CaretHome { shift: self.modifiers.shift_key() }),
-                        Key::Named(NamedKey::End)       => self.input.text_events.push(TextEvent::CaretEnd { shift: self.modifiers.shift_key() }),
+                        Key::Named(NamedKey::Backspace) => {
+                            self.input.text_events.push(TextEvent::Backspace {
+                                ctrl: self.modifiers.control_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::Delete) => {
+                            self.input.text_events.push(TextEvent::Delete {
+                                ctrl: self.modifiers.control_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::ArrowLeft) => {
+                            self.input.text_events.push(TextEvent::CaretLeft {
+                                shift: self.modifiers.shift_key(),
+                                ctrl: self.modifiers.control_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::ArrowRight) => {
+                            self.input.text_events.push(TextEvent::CaretRight {
+                                shift: self.modifiers.shift_key(),
+                                ctrl: self.modifiers.control_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::Home) => {
+                            self.input.text_events.push(TextEvent::CaretHome {
+                                shift: self.modifiers.shift_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::End) => {
+                            self.input.text_events.push(TextEvent::CaretEnd {
+                                shift: self.modifiers.shift_key(),
+                            })
+                        }
                         Key::Character(s) => {
                             if self.modifiers.control_key() {
                                 match s.as_str() {
@@ -1368,15 +1462,14 @@ impl ApplicationHandler for App {
                 if let Some(gpu) = &mut self.gpu {
                     match gpu.surface.get_current_texture() {
                         Ok(frame) => {
-                            let view = frame.texture.create_view(
-                                &wgpu::TextureViewDescriptor::default(),
+                            let view = frame
+                                .texture
+                                .create_view(&wgpu::TextureViewDescriptor::default());
+                            let mut encoder = gpu.device.create_command_encoder(
+                                &wgpu::CommandEncoderDescriptor {
+                                    label: Some("frame_encoder"),
+                                },
                             );
-                            let mut encoder =
-                                gpu.device.create_command_encoder(
-                                    &wgpu::CommandEncoderDescriptor {
-                                        label: Some("frame_encoder"),
-                                    },
-                                );
 
                             gpu.renderer.render(
                                 &gpu.device,
@@ -1428,8 +1521,8 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference:       wgpu::PowerPreference::default(),
-            compatible_surface:     Some(&surface),
+            power_preference: wgpu::PowerPreference::default(),
+            compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         })
         .await
@@ -1438,10 +1531,10 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
-                label:             Some("device"),
+                label: Some("device"),
                 required_features: wgpu::Features::empty(),
-                required_limits:   wgpu::Limits::default(),
-                memory_hints:      Default::default(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: Default::default(),
             },
             None, // pipeline cache path
         )
@@ -1449,7 +1542,7 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         .expect("failed to create device");
 
     let surface_caps = surface.get_capabilities(&adapter);
-    let surface_fmt  = surface_caps
+    let surface_fmt = surface_caps
         .formats
         .iter()
         .find(|f| f.is_srgb())
@@ -1457,12 +1550,12 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         .unwrap_or(surface_caps.formats[0]);
 
     let config = wgpu::SurfaceConfiguration {
-        usage:        wgpu::TextureUsages::RENDER_ATTACHMENT,
-        format:       surface_fmt,
-        width:        size.width,
-        height:       size.height,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format: surface_fmt,
+        width: size.width,
+        height: size.height,
         present_mode: surface_caps.present_modes[0],
-        alpha_mode:   surface_caps.alpha_modes[0],
+        alpha_mode: surface_caps.alpha_modes[0],
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
     };
@@ -1470,7 +1563,14 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
 
     let renderer = Renderer::new(&device, surface_fmt);
 
-    GpuState { surface, device, queue, config, renderer, size }
+    GpuState {
+        surface,
+        device,
+        queue,
+        config,
+        renderer,
+        size,
+    }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────

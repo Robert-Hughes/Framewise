@@ -1,8 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     types::{Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -106,7 +106,8 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -125,15 +126,13 @@ pub struct RadioSpec {
     pub clip_rect: Option<Rect>,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct RadioState {
     pub selected: bool,
     pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RadioStyle {
@@ -165,7 +164,6 @@ impl Default for RadioStyle {
         }
     }
 }
-
 
 pub struct RadioSpecBuilder {
     spec: RadioSpec,
@@ -291,9 +289,7 @@ pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
     builder: RadioSpecBuilder,
 ) -> RadioInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.spec.clip_rect.is_none() {
         builder.spec.clip_rect = ctx.clip_rect;
     }
@@ -309,7 +305,6 @@ pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
         focused: result.focused,
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -527,8 +522,7 @@ mod tests {
         focus_sys.end_frame();
 
         assert_eq!(
-            res.state.selected,
-            true,
+            res.state.selected, true,
             "Spacebar release must toggle radio state to selected"
         );
     }

@@ -14,13 +14,15 @@ pub mod raw {
     pub fn meter(spec: MeterSpec) -> MeterResult {
         let mut draw = DrawCommands::new();
 
-        let ink    = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
-        let rust   = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
-        let unlit  = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
+        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
+        let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
+        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
         let n = spec.bars.max(1);
         let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;
-        let peak_idx = spec.peak.map(|p| (p.clamp(0.0, 1.0) * (n - 1) as f32).round() as usize);
+        let peak_idx = spec
+            .peak
+            .map(|p| (p.clamp(0.0, 1.0) * (n - 1) as f32).round() as usize);
 
         for i in 0..n {
             let x = spec.rect.x + i as f32 * (BAR_W + BAR_GAP);
@@ -34,7 +36,10 @@ pub mod raw {
                 unlit
             };
 
-            draw.push(DrawCmd::FillRect { rect: bar_rect, color });
+            draw.push(DrawCmd::FillRect {
+                rect: bar_rect,
+                color,
+            });
         }
 
         MeterResult {
@@ -50,23 +55,28 @@ const BAR_H: f32 = 14.0;
 const BAR_GAP: f32 = 2.0;
 
 pub struct MeterSpec {
-    pub rect:  Rect,
+    pub rect: Rect,
     /// 0.0 – 1.0 fill level.
     pub value: f32,
     /// 0.0 – 1.0 peak marker position (draw a rust bar at this level; None to skip).
-    pub peak:  Option<f32>,
+    pub peak: Option<f32>,
     /// Number of bars to display.
-    pub bars:  usize,
+    pub bars: usize,
 }
 
 impl Default for MeterSpec {
     fn default() -> Self {
-        Self { rect: Rect::new(0.0, 0.0, 80.0, 14.0), value: 0.5, peak: None, bars: 10 }
+        Self {
+            rect: Rect::new(0.0, 0.0, 80.0, 14.0),
+            value: 0.5,
+            peak: None,
+            bars: 10,
+        }
     }
 }
 
 pub struct MeterResult {
-    pub draw:   DrawCommands,
+    pub draw: DrawCommands,
     pub layout: LayoutInfo,
 }
 
@@ -76,7 +86,12 @@ pub struct MeterInfo {
 
 impl MeterResult {
     pub fn into_parts(self) -> (DrawCommands, MeterInfo) {
-        (self.draw, MeterInfo { layout: self.layout })
+        (
+            self.draw,
+            MeterInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
@@ -91,15 +106,14 @@ pub fn meter<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
     builder: MeterSpecBuilder,
 ) -> MeterInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::meter(spec);
     ctx.append_cmds(result.draw.0);
-    MeterInfo { layout: result.layout }
+    MeterInfo {
+        layout: result.layout,
+    }
 }
-
 
 pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
@@ -152,10 +166,18 @@ impl MeterSpecBuilder {
 
     pub fn build(self) -> MeterSpec {
         let mut spec = MeterSpec::default();
-        if let Some(r) = self.rect { spec.rect = r; }
-        if let Some(v) = self.value { spec.value = v; }
-        if let Some(p) = self.peak { spec.peak = p; }
-        if let Some(b) = self.bars { spec.bars = b; }
+        if let Some(r) = self.rect {
+            spec.rect = r;
+        }
+        if let Some(v) = self.value {
+            spec.value = v;
+        }
+        if let Some(p) = self.peak {
+            spec.peak = p;
+        }
+        if let Some(b) = self.bars {
+            spec.bars = b;
+        }
         spec
     }
 }

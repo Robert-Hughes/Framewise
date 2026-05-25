@@ -1,7 +1,7 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::HashMap;
 use crate::input::Input;
 use crate::types::Rect;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Specifies which keys a widget makes available for focus traversal.
 ///
@@ -16,30 +16,48 @@ use crate::types::Rect;
 /// - `tab` → Tab moves next (linear order), Shift+Tab moves prev
 #[derive(Debug, Clone, Copy)]
 pub struct FocusTraversalKeys {
-    pub up:    bool,
-    pub down:  bool,
-    pub left:  bool,
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
     pub right: bool,
-    pub tab:   bool,
+    pub tab: bool,
 }
 
 impl FocusTraversalKeys {
     /// All keys trigger traversal. Use for widgets that do not consume any
     /// directional keys themselves (e.g. buttons, labels).
     pub fn all() -> Self {
-        Self { up: true, down: true, left: true, right: true, tab: true }
+        Self {
+            up: true,
+            down: true,
+            left: true,
+            right: true,
+            tab: true,
+        }
     }
 
     /// Only Tab (and Shift+Tab) triggers traversal. Use for widgets that
     /// consume all four arrow keys themselves (e.g. sliders, text edits).
     pub fn tab_only() -> Self {
-        Self { up: false, down: false, left: false, right: false, tab: true }
+        Self {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            tab: true,
+        }
     }
 
     /// No keys trigger traversal. Use for widgets that handle all relevant
     /// keys internally and never want to hand off focus via keyboard.
     pub fn none() -> Self {
-        Self { up: false, down: false, left: false, right: false, tab: false }
+        Self {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            tab: false,
+        }
     }
 }
 
@@ -246,10 +264,15 @@ impl FocusSystem {
             return;
         }
         // Arrow keys use spatial navigation.
-        if      keys.up    && input.key_pressed_up    { self.request_shift(FocusDirection::Up); }
-        else if keys.down  && input.key_pressed_down  { self.request_shift(FocusDirection::Down); }
-        else if keys.left  && input.key_pressed_left  { self.request_shift(FocusDirection::Left); }
-        else if keys.right && input.key_pressed_right { self.request_shift(FocusDirection::Right); }
+        if keys.up && input.key_pressed_up {
+            self.request_shift(FocusDirection::Up);
+        } else if keys.down && input.key_pressed_down {
+            self.request_shift(FocusDirection::Down);
+        } else if keys.left && input.key_pressed_left {
+            self.request_shift(FocusDirection::Left);
+        } else if keys.right && input.key_pressed_right {
+            self.request_shift(FocusDirection::Right);
+        }
     }
 
     // ── Hover-scroll claims (last-caller-wins) ────────────────────────────────
@@ -365,14 +388,14 @@ impl FocusSystem {
     /// Resolves any pending focus shifts using the order built this frame.
     pub fn end_frame(&mut self) {
         // Transfer hover scroll claims
-        self.active_scroll_up_id    = self.next_scroll_up_id.take();
-        self.active_scroll_down_id  = self.next_scroll_down_id.take();
-        self.active_scroll_left_id  = self.next_scroll_left_id.take();
+        self.active_scroll_up_id = self.next_scroll_up_id.take();
+        self.active_scroll_down_id = self.next_scroll_down_id.take();
+        self.active_scroll_left_id = self.next_scroll_left_id.take();
         self.active_scroll_right_id = self.next_scroll_right_id.take();
-        self.active_pgup_vert_id    = self.next_pgup_vert_id.take();
-        self.active_pgdn_vert_id    = self.next_pgdn_vert_id.take();
-        self.active_pgup_horiz_id   = self.next_pgup_horiz_id.take();
-        self.active_pgdn_horiz_id   = self.next_pgdn_horiz_id.take();
+        self.active_pgup_vert_id = self.next_pgup_vert_id.take();
+        self.active_pgdn_vert_id = self.next_pgdn_vert_id.take();
+        self.active_pgup_horiz_id = self.next_pgup_horiz_id.take();
+        self.active_pgdn_horiz_id = self.next_pgdn_horiz_id.take();
 
         if let Some(direction) = self.pending_shift.take() {
             if !self.current_frame_order.is_empty() {
@@ -447,12 +470,15 @@ fn resolve_shift(
         FocusDirection::Next | FocusDirection::Prev => {
             resolve_linear(current, direction, order, custom_order)
         }
-        FocusDirection::Up | FocusDirection::Down | FocusDirection::Left | FocusDirection::Right => {
+        FocusDirection::Up
+        | FocusDirection::Down
+        | FocusDirection::Left
+        | FocusDirection::Right => {
             // Try spatial first, fall back to linear if no target found.
             find_spatial_target(current, direction, rects, order).or_else(|| {
                 let fallback = match direction {
                     FocusDirection::Up | FocusDirection::Left => FocusDirection::Prev,
-                    _                                          => FocusDirection::Next,
+                    _ => FocusDirection::Next,
                 };
                 resolve_linear(current, fallback, order, custom_order)
             })
@@ -468,7 +494,7 @@ fn resolve_linear(
 ) -> Option<FocusId> {
     let idx = match order.iter().position(|&id| id == current) {
         Some(i) => i,
-        None    => return Some(order[0]), // focused item not drawn this frame
+        None => return Some(order[0]), // focused item not drawn this frame
     };
     match direction {
         FocusDirection::Next => {
@@ -508,17 +534,19 @@ fn find_spatial_target(
         if candidate_id == from_id {
             continue;
         }
-        let Some(cand) = rects.get(&candidate_id) else { continue };
+        let Some(cand) = rects.get(&candidate_id) else {
+            continue;
+        };
         let cand_cx = cand.center().x;
         let cand_cy = cand.center().y;
 
         // Candidate must be strictly past the source in the navigation direction.
         let in_direction = match direction {
-            FocusDirection::Up    => cand_cy < from_cy,
-            FocusDirection::Down  => cand_cy > from_cy,
-            FocusDirection::Left  => cand_cx < from_cx,
+            FocusDirection::Up => cand_cy < from_cy,
+            FocusDirection::Down => cand_cy > from_cy,
+            FocusDirection::Left => cand_cx < from_cx,
             FocusDirection::Right => cand_cx > from_cx,
-            _                     => false,
+            _ => false,
         };
         if !in_direction {
             continue;
@@ -533,7 +561,8 @@ fn find_spatial_target(
             }
             FocusDirection::Left | FocusDirection::Right => {
                 let axial = (cand_cx - from_cx).abs();
-                let gap = (from_rect.y.max(cand.y) - from_rect.bottom().min(cand.bottom())).max(0.0);
+                let gap =
+                    (from_rect.y.max(cand.y) - from_rect.bottom().min(cand.bottom())).max(0.0);
                 (axial, gap)
             }
             _ => continue,
@@ -580,7 +609,10 @@ mod tests {
         // Frame 2
         sys.begin_frame();
         assert!(!sys.register(id1, r(0.0, 0.0), None));
-        assert!(sys.register(id2, r(0.0, 50.0), None), "id2 should have focus");
+        assert!(
+            sys.register(id2, r(0.0, 50.0), None),
+            "id2 should have focus"
+        );
         assert!(!sys.register(id3, r(0.0, 100.0), None));
 
         sys.request_shift(FocusDirection::Next);
@@ -590,7 +622,10 @@ mod tests {
         sys.begin_frame();
         assert!(!sys.register(id1, r(0.0, 0.0), None));
         assert!(!sys.register(id2, r(0.0, 50.0), None));
-        assert!(sys.register(id3, r(0.0, 100.0), None), "id3 should have focus after Next from id2");
+        assert!(
+            sys.register(id3, r(0.0, 100.0), None),
+            "id3 should have focus after Next from id2"
+        );
 
         sys.request_shift(FocusDirection::Prev);
         sys.end_frame();
@@ -598,7 +633,10 @@ mod tests {
         // Frame 4
         sys.begin_frame();
         assert!(!sys.register(id1, r(0.0, 0.0), None));
-        assert!(sys.register(id2, r(0.0, 50.0), None), "id2 should have focus after Prev from id3");
+        assert!(
+            sys.register(id2, r(0.0, 50.0), None),
+            "id2 should have focus after Prev from id3"
+        );
     }
 
     #[test]
@@ -621,7 +659,10 @@ mod tests {
         sys.begin_frame();
         assert!(!sys.register(id1, r(0.0, 0.0), None));
         assert!(!sys.register(id2, r(0.0, 50.0), None));
-        assert!(sys.register(id3, r(0.0, 100.0), None), "Focus should jump to id3 via custom override");
+        assert!(
+            sys.register(id3, r(0.0, 100.0), None),
+            "Focus should jump to id3 via custom override"
+        );
     }
 
     // ── handle_traversal tests ─────────────────────────────────────────────────
@@ -702,7 +743,10 @@ mod tests {
         input.key_pressed_right = true;
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
-        assert!(has2, "Right with no spatial target falls back to linear Next");
+        assert!(
+            has2,
+            "Right with no spatial target falls back to linear Next"
+        );
     }
 
     #[test]
@@ -712,7 +756,10 @@ mod tests {
         input.key_pressed_up = true;
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
-        assert!(has2, "Up with no spatial target falls back to linear Prev (wraps)");
+        assert!(
+            has2,
+            "Up with no spatial target falls back to linear Prev (wraps)"
+        );
     }
 
     #[test]
@@ -721,7 +768,10 @@ mod tests {
         input.key_pressed_left = true;
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
-        assert!(has2, "Left with no spatial target falls back to linear Prev (wraps)");
+        assert!(
+            has2,
+            "Left with no spatial target falls back to linear Prev (wraps)"
+        );
     }
 
     #[test]
@@ -748,7 +798,10 @@ mod tests {
         input.key_pressed_tab = true;
         input.key_pressed_right = true;
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::none());
-        assert!(has1, "No keys should navigate with FocusTraversalKeys::none()");
+        assert!(
+            has1,
+            "No keys should navigate with FocusTraversalKeys::none()"
+        );
         assert!(!has2);
     }
 
@@ -825,7 +878,11 @@ mod tests {
         let id2 = FocusId::new();
         let id3 = FocusId::new();
         // Three widgets stacked: id1 top, id2 middle, id3 bottom.
-        let rects = [(id1, r(0.0, 0.0)), (id2, r(0.0, 50.0)), (id3, r(0.0, 100.0))];
+        let rects = [
+            (id1, r(0.0, 0.0)),
+            (id2, r(0.0, 50.0)),
+            (id3, r(0.0, 100.0)),
+        ];
 
         // From id1 Down → id2 (nearest), not id3.
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_down = true);
@@ -837,7 +894,11 @@ mod tests {
         let id1 = FocusId::new();
         let id2 = FocusId::new();
         let id3 = FocusId::new();
-        let rects = [(id1, r(0.0, 0.0)), (id2, r(0.0, 50.0)), (id3, r(0.0, 100.0))];
+        let rects = [
+            (id1, r(0.0, 0.0)),
+            (id2, r(0.0, 50.0)),
+            (id3, r(0.0, 100.0)),
+        ];
 
         // From id3 Up → id2, not id1.
         let got = spatial_focus_after_key(&rects, 2, |i| i.key_pressed_up = true);
@@ -850,10 +911,17 @@ mod tests {
         let id2 = FocusId::new();
         let id3 = FocusId::new();
         // Three widgets in a row.
-        let rects = [(id1, r(0.0, 0.0)), (id2, r(100.0, 0.0)), (id3, r(200.0, 0.0))];
+        let rects = [
+            (id1, r(0.0, 0.0)),
+            (id2, r(100.0, 0.0)),
+            (id3, r(200.0, 0.0)),
+        ];
 
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_right = true);
-        assert_eq!(got, id2, "Right from left should pick middle, not far right");
+        assert_eq!(
+            got, id2,
+            "Right from left should pick middle, not far right"
+        );
     }
 
     #[test]
@@ -861,7 +929,11 @@ mod tests {
         let id1 = FocusId::new();
         let id2 = FocusId::new();
         let id3 = FocusId::new();
-        let rects = [(id1, r(0.0, 0.0)), (id2, r(100.0, 0.0)), (id3, r(200.0, 0.0))];
+        let rects = [
+            (id1, r(0.0, 0.0)),
+            (id2, r(100.0, 0.0)),
+            (id3, r(200.0, 0.0)),
+        ];
 
         let got = spatial_focus_after_key(&rects, 2, |i| i.key_pressed_left = true);
         assert_eq!(got, id2, "Left from right should pick middle, not far left");
@@ -874,20 +946,52 @@ mod tests {
         let bl = FocusId::new(); // bottom-left
         let br = FocusId::new(); // bottom-right
         let rects = [
-            (tl, r(0.0,   0.0)),
+            (tl, r(0.0, 0.0)),
             (tr, r(100.0, 0.0)),
-            (bl, r(0.0,   50.0)),
+            (bl, r(0.0, 50.0)),
             (br, r(100.0, 50.0)),
         ];
 
-        assert_eq!(spatial_focus_after_key(&rects, 0, |i| i.key_pressed_right = true), tr, "tl→Right→tr");
-        assert_eq!(spatial_focus_after_key(&rects, 0, |i| i.key_pressed_down  = true), bl, "tl→Down→bl");
-        assert_eq!(spatial_focus_after_key(&rects, 3, |i| i.key_pressed_left  = true), bl, "br→Left→bl");
-        assert_eq!(spatial_focus_after_key(&rects, 3, |i| i.key_pressed_up    = true), tr, "br→Up→tr");
-        assert_eq!(spatial_focus_after_key(&rects, 1, |i| i.key_pressed_left  = true), tl, "tr→Left→tl");
-        assert_eq!(spatial_focus_after_key(&rects, 1, |i| i.key_pressed_down  = true), br, "tr→Down→br");
-        assert_eq!(spatial_focus_after_key(&rects, 2, |i| i.key_pressed_right = true), br, "bl→Right→br");
-        assert_eq!(spatial_focus_after_key(&rects, 2, |i| i.key_pressed_up    = true), tl, "bl→Up→tl");
+        assert_eq!(
+            spatial_focus_after_key(&rects, 0, |i| i.key_pressed_right = true),
+            tr,
+            "tl→Right→tr"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 0, |i| i.key_pressed_down = true),
+            bl,
+            "tl→Down→bl"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 3, |i| i.key_pressed_left = true),
+            bl,
+            "br→Left→bl"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 3, |i| i.key_pressed_up = true),
+            tr,
+            "br→Up→tr"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 1, |i| i.key_pressed_left = true),
+            tl,
+            "tr→Left→tl"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 1, |i| i.key_pressed_down = true),
+            br,
+            "tr→Down→br"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 2, |i| i.key_pressed_right = true),
+            br,
+            "bl→Right→br"
+        );
+        assert_eq!(
+            spatial_focus_after_key(&rects, 2, |i| i.key_pressed_up = true),
+            tl,
+            "bl→Up→tl"
+        );
     }
 
     #[test]
@@ -903,15 +1007,18 @@ mod tests {
         // id_far should win despite being further axially.
         let origin = FocusId::new();
         let id_close = FocusId::new();
-        let id_far   = FocusId::new();
+        let id_far = FocusId::new();
         let rects = [
-            (origin,   Rect::new(0.0,   0.0,  80.0, 30.0)),
+            (origin, Rect::new(0.0, 0.0, 80.0, 30.0)),
             (id_close, Rect::new(200.0, -30.0, 80.0, 30.0)),
-            (id_far,   Rect::new(0.0,  -60.0, 80.0, 30.0)),
+            (id_far, Rect::new(0.0, -60.0, 80.0, 30.0)),
         ];
 
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_up = true);
-        assert_eq!(got, id_far, "Aligned but further widget should beat misaligned closer one");
+        assert_eq!(
+            got, id_far,
+            "Aligned but further widget should beat misaligned closer one"
+        );
     }
 
     #[test]
@@ -923,7 +1030,10 @@ mod tests {
         let rects = [(id1, r(0.0, 0.0)), (id2, r(100.0, 0.0))];
 
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_up = true);
-        assert_eq!(got, id2, "No spatial target: Up falls back to linear Prev (wraps to id2)");
+        assert_eq!(
+            got, id2,
+            "No spatial target: Up falls back to linear Prev (wraps to id2)"
+        );
     }
 
     #[test]
@@ -942,7 +1052,10 @@ mod tests {
         sys.begin_frame();
         let still_focused = sys.register(id, r(0.0, 0.0), None);
         sys.end_frame();
-        assert!(still_focused, "Single widget should remain focused when no nav target exists");
+        assert!(
+            still_focused,
+            "Single widget should remain focused when no nav target exists"
+        );
     }
 
     #[test]
@@ -951,7 +1064,7 @@ mod tests {
         // with its rect → excluded from directional nav.
         // id_visible is below id_focus; id_clipped is between them but clipped.
         // Down from id_focus must skip id_clipped and pick id_visible.
-        let id_focus   = FocusId::new();
+        let id_focus = FocusId::new();
         let id_clipped = FocusId::new();
         let id_visible = FocusId::new();
         let clip = Rect::new(0.0, 0.0, 80.0, 40.0); // clip only covers y=0..40
@@ -970,18 +1083,21 @@ mod tests {
         sys.end_frame();
 
         sys.begin_frame();
-        sys.register(id_focus,   r(0.0, 0.0),   None);
-        sys.register(id_clipped, r(0.0, 50.0),  Some(clip));
+        sys.register(id_focus, r(0.0, 0.0), None);
+        sys.register(id_clipped, r(0.0, 50.0), Some(clip));
         let got_visible = sys.register(id_visible, r(0.0, 100.0), None);
         sys.end_frame();
 
-        assert!(got_visible, "Fully clipped widget excluded: Down must pick id_visible");
+        assert!(
+            got_visible,
+            "Fully clipped widget excluded: Down must pick id_visible"
+        );
     }
 
     #[test]
     fn test_partially_clipped_widget_included_in_spatial_nav() {
         // id_partial overlaps the clip rect by one pixel row → still navigable.
-        let id_focus   = FocusId::new();
+        let id_focus = FocusId::new();
         let id_partial = FocusId::new();
         let clip = Rect::new(0.0, 0.0, 80.0, 55.0); // clip covers y=0..55
 
@@ -1000,11 +1116,14 @@ mod tests {
         sys.end_frame();
 
         sys.begin_frame();
-        sys.register(id_focus,   r(0.0, 0.0),  None);
+        sys.register(id_focus, r(0.0, 0.0), None);
         let got_partial = sys.register(id_partial, rect_partial, Some(clip));
         sys.end_frame();
 
-        assert!(got_partial, "Partially clipped widget must remain reachable via directional nav");
+        assert!(
+            got_partial,
+            "Partially clipped widget must remain reachable via directional nav"
+        );
     }
 
     #[test]
@@ -1018,12 +1137,15 @@ mod tests {
         let rects = [
             (id1, r(200.0, 0.0)),
             (id2, r(100.0, 0.0)),
-            (id3, r(0.0,   0.0)),
+            (id3, r(0.0, 0.0)),
         ];
 
         // Tab from id1 should go to id2 (next in registration order), not id3 (spatially left).
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_tab = true);
-        assert_eq!(got, id2, "Tab follows registration order, not spatial position");
+        assert_eq!(
+            got, id2,
+            "Tab follows registration order, not spatial position"
+        );
     }
 
     #[test]

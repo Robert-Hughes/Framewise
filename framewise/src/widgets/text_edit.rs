@@ -41,7 +41,8 @@ pub mod raw {
             let inset = spec.style.border_width + spec.style.padding;
             let content_rect = spec.rect.inset(inset);
             if !state.value.is_empty() {
-                let layout = text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
+                let layout =
+                    text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
                 let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
                 draw.push(DrawCmd::Text {
                     rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
@@ -69,11 +70,10 @@ pub mod raw {
             .is_none_or(|clip| clip.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
 
-        if just_focused
-            && !(contains && input.mouse_pressed) {
-                state.selection_byte = Some(0);
-                state.caret_byte = state.value.len();
-            }
+        if just_focused && !(contains && input.mouse_pressed) {
+            state.selection_byte = Some(0);
+            state.caret_byte = state.value.len();
+        }
 
         // Process keyboard events if focused
         if focused {
@@ -143,7 +143,8 @@ pub mod raw {
                         }
 
                         if *ctrl {
-                            state.caret_byte = find_word_boundary(&state.value, state.caret_byte, true);
+                            state.caret_byte =
+                                find_word_boundary(&state.value, state.caret_byte, true);
                         } else if state.caret_byte < state.value.len() {
                             let mut next = state.caret_byte + 1;
                             while next < state.value.len() && !state.value.is_char_boundary(next) {
@@ -177,8 +178,9 @@ pub mod raw {
                             let start = state.caret_byte.min(sel);
                             let end = state.caret_byte.max(sel);
                             if start < end {
-                                clipboard_action =
-                                    Some(ClipboardAction::Copy(state.value[start..end].to_string()));
+                                clipboard_action = Some(ClipboardAction::Copy(
+                                    state.value[start..end].to_string(),
+                                ));
                             }
                         }
                     }
@@ -633,21 +635,30 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 /// High-level text edit widget function using WidgetContext.
 ///
 /// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
-pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: crate::widget::WidgetScope>(
+pub fn text_edit<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    Scope: crate::widget::WidgetScope,
+>(
     ctx: &mut WidgetContext<T, S, Scope>,
     state: TextEditState,
     layout_params: S::Params,
     builder: TextEditSpecBuilder,
 ) -> TextEditInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::text_edit(state, spec, ctx.input, ctx.time, ctx.text_system, ctx.focus_sys);
+    let result = raw::text_edit(
+        state,
+        spec,
+        ctx.input,
+        ctx.time,
+        ctx.text_system,
+        ctx.focus_sys,
+    );
 
     ctx.append_cmds(result.draw.0);
 
@@ -1314,4 +1325,3 @@ mod tests {
         );
     }
 }
-

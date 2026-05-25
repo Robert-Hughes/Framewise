@@ -1,9 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     text::FontId,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -49,7 +49,11 @@ pub mod raw {
         // Mouse drag interaction
         if !spec.disabled {
             let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-            let hovered_value_area = is_visible && input.mouse_pos.x >= value_x && input.mouse_pos.x <= spec.rect.x + spec.rect.w && input.mouse_pos.y >= spec.rect.y && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
+            let hovered_value_area = is_visible
+                && input.mouse_pos.x >= value_x
+                && input.mouse_pos.x <= spec.rect.x + spec.rect.w
+                && input.mouse_pos.y >= spec.rect.y
+                && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
 
             if input.mouse_pressed && hovered_value_area {
                 state.is_dragging = true;
@@ -153,7 +157,8 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: state.is_dragging,
                 clicked: clicked && !state.is_dragging,
             },
@@ -285,16 +290,19 @@ impl DragNumberResult {
 /// High-level drag number widget function using WidgetContext.
 ///
 /// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
-pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+pub fn drag_number<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    Scope: WidgetScope,
+>(
     ctx: &mut WidgetContext<T, S, Scope>,
     state: DragNumberState,
     layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,
 ) -> DragNumberInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
@@ -396,7 +404,9 @@ impl<'a> DragNumberSpecBuilder<'a> {
         DragNumberSpec {
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("DragNumberStyle is required"),
             value: self.value.unwrap_or(0.0),
             min: self.min.unwrap_or(0.0),
@@ -419,7 +429,7 @@ mod tests {
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
-            &mut DummyTextSys
+            &mut DummyTextSys,
         )
     }
 
@@ -494,7 +504,13 @@ mod tests {
         let style = spec.style;
         let mut input = Input::default();
         input.mouse_down = true;
-        let res = raw::drag_number(state, spec, &input, &mut crate::focus::FocusSystem::new(), &mut DummyTextSys);
+        let res = raw::drag_number(
+            state,
+            spec,
+            &input,
+            &mut crate::focus::FocusSystem::new(),
+            &mut DummyTextSys,
+        );
 
         assert_eq!(
             res.draw,
@@ -551,7 +567,13 @@ mod tests {
         };
 
         let style = spec.style;
-        let res = raw::drag_number(DragNumberState::default(), spec, &Input::default(), &mut crate::focus::FocusSystem::new(), &mut text_sys);
+        let res = raw::drag_number(
+            DragNumberState::default(),
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+            &mut text_sys,
+        );
 
         assert_eq!(
             res.draw,
@@ -643,7 +665,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
-            &mut text_sys
+            &mut text_sys,
         );
         state = res.state;
         focus_sys.end_frame();
@@ -669,7 +691,7 @@ mod tests {
             },
             &input,
             &mut focus_sys,
-            &mut text_sys
+            &mut text_sys,
         );
         focus_sys.end_frame();
 

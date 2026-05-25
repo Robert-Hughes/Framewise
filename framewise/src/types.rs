@@ -22,8 +22,7 @@ impl Vec2 {
 // ── Rect ─────────────────────────────────────────────────────────────────────
 
 /// An axis-aligned rectangle, stored as origin + size.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rect {
     pub x: f32,
     pub y: f32,
@@ -32,7 +31,12 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub const ZERO: Rect = Rect { x: 0.0, y: 0.0, w: 0.0, h: 0.0 };
+    pub const ZERO: Rect = Rect {
+        x: 0.0,
+        y: 0.0,
+        w: 0.0,
+        h: 0.0,
+    };
 
     pub const fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
         Self { x, y, w, h }
@@ -40,22 +44,34 @@ impl Rect {
 
     /// Construct from left / top / right / bottom edges.
     pub fn from_ltrb(l: f32, t: f32, r: f32, b: f32) -> Self {
-        Self { x: l, y: t, w: r - l, h: b - t }
+        Self {
+            x: l,
+            y: t,
+            w: r - l,
+            h: b - t,
+        }
     }
 
-    pub fn right(&self) -> f32 { self.x + self.w }
-    pub fn bottom(&self) -> f32 { self.y + self.h }
+    pub fn right(&self) -> f32 {
+        self.x + self.w
+    }
+    pub fn bottom(&self) -> f32 {
+        self.y + self.h
+    }
 
-    pub fn top_left(&self)     -> Vec2 { Vec2::new(self.x, self.y) }
-    pub fn bottom_right(&self) -> Vec2 { Vec2::new(self.right(), self.bottom()) }
-    pub fn center(&self)       -> Vec2 { Vec2::new(self.x + self.w * 0.5, self.y + self.h * 0.5) }
+    pub fn top_left(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
+    }
+    pub fn bottom_right(&self) -> Vec2 {
+        Vec2::new(self.right(), self.bottom())
+    }
+    pub fn center(&self) -> Vec2 {
+        Vec2::new(self.x + self.w * 0.5, self.y + self.h * 0.5)
+    }
 
     /// Returns true if `pos` falls inside this rect (inclusive of edges).
     pub fn contains(&self, pos: Vec2) -> bool {
-        pos.x >= self.x
-            && pos.x <= self.right()
-            && pos.y >= self.y
-            && pos.y <= self.bottom()
+        pos.x >= self.x && pos.x <= self.right() && pos.y >= self.y && pos.y <= self.bottom()
     }
 
     /// Shrink the rect by `amount` on all sides.
@@ -129,8 +145,8 @@ impl Color {
         Self { r, g, b, a: 1.0 }
     }
 
-    pub const BLACK:       Color = Color::linear_rgb(0.0, 0.0, 0.0);
-    pub const WHITE:       Color = Color::linear_rgb(1.0, 1.0, 1.0);
+    pub const BLACK: Color = Color::linear_rgb(0.0, 0.0, 0.0);
+    pub const WHITE: Color = Color::linear_rgb(1.0, 1.0, 1.0);
     pub const TRANSPARENT: Color = Color::linear_rgba(0.0, 0.0, 0.0, 0.0);
 
     /// Construct from sRGB `u8` components (0–255).
@@ -163,8 +179,8 @@ impl Color {
     pub fn from_srgb_hex(hex: u32) -> Self {
         Self::from_srgb_u8(
             ((hex >> 16) & 0xFF) as u8,
-            ((hex >> 8)  & 0xFF) as u8,
-             (hex        & 0xFF) as u8,
+            ((hex >> 8) & 0xFF) as u8,
+            (hex & 0xFF) as u8,
             255,
         )
     }

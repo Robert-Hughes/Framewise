@@ -107,18 +107,18 @@ impl Input {
 
     /// Reset per-frame state (called at the end of the frame).
     pub fn clear_frame_state(&mut self) {
-        self.mouse_pressed      = false;
-        self.mouse_clicked      = false;
-        self.key_pressed_enter  = false;
-        self.key_pressed_up     = false;
-        self.key_pressed_down   = false;
-        self.key_pressed_left   = false;
-        self.key_pressed_right  = false;
-        self.key_pressed_space  = false;
+        self.mouse_pressed = false;
+        self.mouse_clicked = false;
+        self.key_pressed_enter = false;
+        self.key_pressed_up = false;
+        self.key_pressed_down = false;
+        self.key_pressed_left = false;
+        self.key_pressed_right = false;
+        self.key_pressed_space = false;
         self.key_released_space = false;
         self.text_events.clear();
-        self.scroll_delta       = Vec2::new(0.0, 0.0);
-        self.mouse_click_count  = 0;
+        self.scroll_delta = Vec2::new(0.0, 0.0);
+        self.mouse_click_count = 0;
         self.key_pressed_page_up = false;
         self.key_pressed_page_down = false;
         self.key_pressed_home = false;
@@ -188,21 +188,24 @@ mod tests {
     fn test_click_tracker_distance() {
         let mut tracker = ClickTracker::new();
         let start = std::time::Instant::now();
-        
+
         // First click
         let count = tracker.register_click(Vec2::new(10.0, 10.0), start);
         assert_eq!(count, 1);
-        
+
         // Second click, far away (should reset to 1)
-        let count = tracker.register_click(Vec2::new(100.0, 100.0), start + Duration::from_millis(100));
+        let count =
+            tracker.register_click(Vec2::new(100.0, 100.0), start + Duration::from_millis(100));
         assert_eq!(count, 1, "Click was far away, should not be a double click");
-        
+
         // Third click, close by and quick (should be a double click)
-        let count = tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(150));
+        let count =
+            tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(150));
         assert_eq!(count, 2, "Click was close, should be a double click");
-        
+
         // Fourth click, close by but too late (should reset to 1)
-        let count = tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(500));
+        let count =
+            tracker.register_click(Vec2::new(101.0, 102.0), start + Duration::from_millis(500));
         assert_eq!(count, 1, "Click was too late, should reset");
     }
 }

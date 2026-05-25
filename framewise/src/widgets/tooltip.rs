@@ -12,8 +12,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a>,
-    text_system: &mut T) -> TooltipResult {
+    pub fn tooltip<'a, T: crate::text::TextSystem>(
+        spec: TooltipSpec<'a>,
+        text_system: &mut T,
+    ) -> TooltipResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -127,15 +129,18 @@ impl TooltipResult {
 /// High-level tooltip widget function using WidgetContext.
 ///
 /// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
-pub fn tooltip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+pub fn tooltip<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    Scope: WidgetScope,
+>(
     ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -202,7 +207,9 @@ impl<'a> TooltipSpecBuilder<'a> {
         TooltipSpec {
             rect: self.rect.unwrap_or_default(),
             text: self.text.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TooltipStyle is required"),
             variant: self.variant.unwrap(),
         }
@@ -296,5 +303,3 @@ mod tests {
         );
     }
 }
-
-

@@ -1,5 +1,10 @@
 use crate::{
-    draw::DrawCmd, focus::FocusSystem, input::Input, layout::Layout, types::{Rect, Vec2}, widget::{WidgetContext, WidgetScope}
+    draw::DrawCmd,
+    focus::FocusSystem,
+    input::Input,
+    layout::Layout,
+    types::{Rect, Vec2},
+    widget::{WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -20,8 +25,13 @@ pub mod raw {
 
         focus_sys.push_keyboard_scroll_scope(state.id);
 
-        let is_visible = spec.clip_rect.is_none_or(|clip| clip.contains(input.mouse_pos));
-        let max_scroll = Vec2::new((spec.content_size.x - spec.rect.w).max(0.0), (spec.content_size.y - spec.rect.h).max(0.0));
+        let is_visible = spec
+            .clip_rect
+            .is_none_or(|clip| clip.contains(input.mouse_pos));
+        let max_scroll = Vec2::new(
+            (spec.content_size.x - spec.rect.w).max(0.0),
+            (spec.content_size.y - spec.rect.h).max(0.0),
+        );
 
         let needs_h = match spec.h_vis {
             ScrollbarVisibility::Always => true,
@@ -35,39 +45,63 @@ pub mod raw {
         };
 
         let scrollbar_w = 12.0;
-        let content_w = if needs_v { (spec.rect.w - scrollbar_w).max(0.0) } else { spec.rect.w };
-        let content_h = if needs_h { (spec.rect.h - scrollbar_w).max(0.0) } else { spec.rect.h };
+        let content_w = if needs_v {
+            (spec.rect.w - scrollbar_w).max(0.0)
+        } else {
+            spec.rect.w
+        };
+        let content_h = if needs_h {
+            (spec.rect.h - scrollbar_w).max(0.0)
+        } else {
+            spec.rect.h
+        };
         let content_bounds = Rect::new(spec.rect.x, spec.rect.y, content_w, content_h);
 
         let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll);
 
         if content_bounds.contains(input.mouse_pos) && is_visible {
-            let at_top    = state.offset.y <= 0.0;
+            let at_top = state.offset.y <= 0.0;
             let at_bottom = state.offset.y >= max_scroll.y;
-            let at_left   = state.offset.x <= 0.0;
-            let at_right  = state.offset.x >= max_scroll.x;
+            let at_left = state.offset.x <= 0.0;
+            let at_right = state.offset.x >= max_scroll.x;
 
             // Same-axis: conditional on having room. Cross-axis: unconditional, to
             // block a parent of the other orientation from stealing the wheel.
             match mode {
                 ScrollMode::None => {}
                 ScrollMode::Vert => {
-                    if !at_top    { focus_sys.claim_scroll_up(state.id); }
-                    if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+                    if !at_top {
+                        focus_sys.claim_scroll_up(state.id);
+                    }
+                    if !at_bottom {
+                        focus_sys.claim_scroll_down(state.id);
+                    }
                     focus_sys.claim_scroll_left(state.id);
                     focus_sys.claim_scroll_right(state.id);
                 }
                 ScrollMode::Horiz => {
-                    if !at_left  { focus_sys.claim_scroll_left(state.id); }
-                    if !at_right { focus_sys.claim_scroll_right(state.id); }
+                    if !at_left {
+                        focus_sys.claim_scroll_left(state.id);
+                    }
+                    if !at_right {
+                        focus_sys.claim_scroll_right(state.id);
+                    }
                     focus_sys.claim_scroll_up(state.id);
                     focus_sys.claim_scroll_down(state.id);
                 }
                 ScrollMode::Both => {
-                    if !at_top    { focus_sys.claim_scroll_up(state.id); }
-                    if !at_bottom { focus_sys.claim_scroll_down(state.id); }
-                    if !at_left   { focus_sys.claim_scroll_left(state.id); }
-                    if !at_right  { focus_sys.claim_scroll_right(state.id); }
+                    if !at_top {
+                        focus_sys.claim_scroll_up(state.id);
+                    }
+                    if !at_bottom {
+                        focus_sys.claim_scroll_down(state.id);
+                    }
+                    if !at_left {
+                        focus_sys.claim_scroll_left(state.id);
+                    }
+                    if !at_right {
+                        focus_sys.claim_scroll_right(state.id);
+                    }
                 }
             }
 
@@ -80,8 +114,17 @@ pub mod raw {
         state.offset.y = state.offset.y.clamp(0.0, max_scroll.y);
 
         if needs_v {
-            let view_ratio = if spec.content_size.y > 0.0 { (content_bounds.h / spec.content_size.y).min(1.0) } else { 1.0 };
-            let track_rect = Rect::new(content_bounds.right(), spec.rect.y, scrollbar_w, content_bounds.h);
+            let view_ratio = if spec.content_size.y > 0.0 {
+                (content_bounds.h / spec.content_size.y).min(1.0)
+            } else {
+                1.0
+            };
+            let track_rect = Rect::new(
+                content_bounds.right(),
+                spec.rect.y,
+                scrollbar_w,
+                content_bounds.h,
+            );
 
             let slider_spec = crate::widgets::slider::SliderSpec {
                 orientation: crate::widgets::slider::Orientation::Vertical,
@@ -108,8 +151,17 @@ pub mod raw {
         }
 
         if needs_h {
-            let view_ratio = if spec.content_size.x > 0.0 { (content_bounds.w / spec.content_size.x).min(1.0) } else { 1.0 };
-            let track_rect = Rect::new(spec.rect.x, content_bounds.bottom(), content_bounds.w, scrollbar_w);
+            let view_ratio = if spec.content_size.x > 0.0 {
+                (content_bounds.w / spec.content_size.x).min(1.0)
+            } else {
+                1.0
+            };
+            let track_rect = Rect::new(
+                spec.rect.x,
+                content_bounds.bottom(),
+                content_bounds.w,
+                scrollbar_w,
+            );
 
             let slider_spec = crate::widgets::slider::SliderSpec {
                 orientation: crate::widgets::slider::Orientation::Horizontal,
@@ -135,7 +187,9 @@ pub mod raw {
             pre_cmds.extend(slider_cmds);
         }
 
-        pre_cmds.push(DrawCmd::PushClip { rect: content_bounds });
+        pre_cmds.push(DrawCmd::PushClip {
+            rect: content_bounds,
+        });
 
         // at_* is snapshotted AFTER this frame's scroll actions are applied so that
         // reaching the limit on a press releases the corresponding claim next frame,
@@ -159,7 +213,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn end_scroll_area(scope: ScrollAreaScope, focus_sys: &mut crate::focus::FocusSystem) -> Vec<DrawCmd> {
+    pub fn end_scroll_area(
+        scope: ScrollAreaScope,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> Vec<DrawCmd> {
         scope.finish(focus_sys)
     }
 
@@ -183,14 +240,15 @@ pub mod raw {
                 state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
             }
         };
-        let scroll_horiz = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
-            if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
-                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-            }
-            if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
-                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-            }
-        };
+        let scroll_horiz =
+            |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
+                if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
+                    state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+                }
+                if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
+                    state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+                }
+            };
 
         match mode {
             ScrollMode::None => {}
@@ -230,7 +288,11 @@ pub mod raw {
         if !input.key_pressed_page_up && !input.key_pressed_page_down {
             return;
         }
-        let sign: f32 = if input.key_pressed_page_down { 1.0 } else { -1.0 };
+        let sign: f32 = if input.key_pressed_page_down {
+            1.0
+        } else {
+            -1.0
+        };
         let (is_pgup_vert, is_pgdn_vert) = (
             focus_sys.is_active_pgup_vert(state.id),
             focus_sys.is_active_pgdn_vert(state.id),
@@ -239,20 +301,36 @@ pub mod raw {
             focus_sys.is_active_pgup_horiz(state.id),
             focus_sys.is_active_pgdn_horiz(state.id),
         );
-        let active_vert  = if sign > 0.0 { is_pgdn_vert }  else { is_pgup_vert };
-        let active_horiz = if sign > 0.0 { is_pgdn_horiz } else { is_pgup_horiz };
+        let active_vert = if sign > 0.0 {
+            is_pgdn_vert
+        } else {
+            is_pgup_vert
+        };
+        let active_horiz = if sign > 0.0 {
+            is_pgdn_horiz
+        } else {
+            is_pgup_horiz
+        };
 
         match mode {
             ScrollMode::None => {}
             ScrollMode::Vert => {
-                if active_vert { state.offset.y += sign * content_bounds.h; }
+                if active_vert {
+                    state.offset.y += sign * content_bounds.h;
+                }
             }
             ScrollMode::Horiz => {
-                if active_horiz { state.offset.x += sign * content_bounds.w; }
+                if active_horiz {
+                    state.offset.x += sign * content_bounds.w;
+                }
             }
             ScrollMode::Both => {
-                if active_vert  { state.offset.y += sign * content_bounds.h; }
-                if active_horiz { state.offset.x += sign * content_bounds.w; }
+                if active_vert {
+                    state.offset.y += sign * content_bounds.h;
+                }
+                if active_horiz {
+                    state.offset.x += sign * content_bounds.w;
+                }
             }
         }
     }
@@ -387,9 +465,9 @@ impl ScrollMode {
         let live_h = needs_h && max_scroll.x > 0.0;
         match (live_v, live_h) {
             (false, false) => ScrollMode::None,
-            (true, false)  => ScrollMode::Vert,
-            (false, true)  => ScrollMode::Horiz,
-            (true, true)   => ScrollMode::Both,
+            (true, false) => ScrollMode::Vert,
+            (false, true) => ScrollMode::Horiz,
+            (true, true) => ScrollMode::Both,
         }
     }
 }
@@ -420,16 +498,17 @@ impl WidgetScope for ScrollAreaScope {
 }
 
 impl ScrollAreaScope {
-    pub fn finish(
-        mut self,
-        focus_sys: &mut crate::focus::FocusSystem,
-    ) -> Vec<DrawCmd> {
+    pub fn finish(mut self, focus_sys: &mut crate::focus::FocusSystem) -> Vec<DrawCmd> {
         self.is_finished = true;
         let mut post_cmds = Vec::new();
         post_cmds.push(DrawCmd::PopClip);
 
         let popped = focus_sys.pop_keyboard_scroll_scope();
-        debug_assert_eq!(popped, Some(self.id), "ScrollAreaScope finished out of order!");
+        debug_assert_eq!(
+            popped,
+            Some(self.id),
+            "ScrollAreaScope finished out of order!"
+        );
 
         if focus_sys.focused_scroll_path().contains(&self.id) {
             // Same-axis claims are conditional on having room to scroll, so a
@@ -440,22 +519,38 @@ impl ScrollAreaScope {
             match self.mode {
                 ScrollMode::None => {}
                 ScrollMode::Vert => {
-                    if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
-                    if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
+                    if !self.at_top {
+                        focus_sys.claim_pgup_vert(self.id);
+                    }
+                    if !self.at_bottom {
+                        focus_sys.claim_pgdn_vert(self.id);
+                    }
                     focus_sys.claim_pgup_horiz(self.id);
                     focus_sys.claim_pgdn_horiz(self.id);
                 }
                 ScrollMode::Horiz => {
-                    if !self.at_left  { focus_sys.claim_pgup_horiz(self.id); }
-                    if !self.at_right { focus_sys.claim_pgdn_horiz(self.id); }
+                    if !self.at_left {
+                        focus_sys.claim_pgup_horiz(self.id);
+                    }
+                    if !self.at_right {
+                        focus_sys.claim_pgdn_horiz(self.id);
+                    }
                     focus_sys.claim_pgup_vert(self.id);
                     focus_sys.claim_pgdn_vert(self.id);
                 }
                 ScrollMode::Both => {
-                    if !self.at_top    { focus_sys.claim_pgup_vert(self.id); }
-                    if !self.at_bottom { focus_sys.claim_pgdn_vert(self.id); }
-                    if !self.at_left   { focus_sys.claim_pgup_horiz(self.id); }
-                    if !self.at_right  { focus_sys.claim_pgdn_horiz(self.id); }
+                    if !self.at_top {
+                        focus_sys.claim_pgup_vert(self.id);
+                    }
+                    if !self.at_bottom {
+                        focus_sys.claim_pgdn_vert(self.id);
+                    }
+                    if !self.at_left {
+                        focus_sys.claim_pgup_horiz(self.id);
+                    }
+                    if !self.at_right {
+                        focus_sys.claim_pgdn_horiz(self.id);
+                    }
                 }
             }
         }
@@ -472,7 +567,14 @@ impl ScrollAreaScope {
 ///
 /// This function accepts a ScrollAreaSpecBuilder, performs layout on the parent context,
 /// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
-pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout, Scope: WidgetScope>(
+pub fn begin_scroll_area<
+    'a,
+    'b,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    L: crate::layout::Layout,
+    Scope: WidgetScope,
+>(
     parent: &'b mut WidgetContext<'a, T, S, Scope>,
     layout_params: S::Params,
     state: &'b mut ScrollState,
@@ -480,19 +582,13 @@ pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::L
     builder: ScrollAreaSpecBuilder,
 ) -> WidgetContext<'b, T, crate::layout::OffsetState<L::State>, ScrollAreaScope> {
     let bounds = parent.layout(layout_params);
-    let mut builder = builder
-        .with_rect(bounds);
+    let mut builder = builder.with_rect(bounds);
     if builder.clip_rect.is_none() {
         builder.clip_rect = parent.clip_rect;
     }
     let spec = builder.build();
-    let (pre_cmds, scope, content_bounds, offset) = raw::begin_scroll_area(
-        spec,
-        state,
-        parent.input,
-        parent.focus_sys,
-        parent.time,
-    );
+    let (pre_cmds, scope, content_bounds, offset) =
+        raw::begin_scroll_area(spec, state, parent.input, parent.focus_sys, parent.time);
 
     parent.append_cmds(pre_cmds);
 
@@ -524,16 +620,17 @@ pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::L
 //     parent.append_cmds(post_cmds);
 // }
 
-
 #[cfg(test)]
 mod test_helpers {
     use crate::focus::FocusSystem;
 
-
-
     /// Run `n` frames against `focus_sys`, wrapping each in begin/end_frame.
     /// `body` receives the frame index and the FocusSystem.
-    pub fn frames(focus_sys: &mut FocusSystem, n: usize, mut body: impl FnMut(usize, &mut FocusSystem)) {
+    pub fn frames(
+        focus_sys: &mut FocusSystem,
+        n: usize,
+        mut body: impl FnMut(usize, &mut FocusSystem),
+    ) {
         for frame in 0..n {
             focus_sys.begin_frame();
             body(frame, focus_sys);
@@ -544,11 +641,11 @@ mod test_helpers {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::begin_scroll_area;
     use super::test_helpers::frames;
-    use crate::test_utils::DummyTextSys;
+    use super::*;
     use crate::layout::ManualLayout;
+    use crate::test_utils::DummyTextSys;
 
     // Helper to keep test calls the same
     fn scroll_area(
@@ -559,7 +656,11 @@ mod tests {
         focus_sys: &mut crate::focus::FocusSystem,
         clip_rect: Option<Rect>,
         time: f64,
-    ) -> (Vec<DrawCmd>, Rect, crate::layout::OffsetLayout<crate::layout::ManualLayout>) {
+    ) -> (
+        Vec<DrawCmd>,
+        Rect,
+        crate::layout::OffsetLayout<crate::layout::ManualLayout>,
+    ) {
         let spec = ScrollAreaSpec {
             rect: bounds,
             content_size,
@@ -567,16 +668,14 @@ mod tests {
             v_vis: ScrollbarVisibility::Auto,
             clip_rect,
         };
-        let (mut pre_cmds, scope, cb, scroll_offset) = raw::begin_scroll_area(
-            spec,
-            state,
-            input,
-            focus_sys,
-            time
-        );
+        let (mut pre_cmds, scope, cb, scroll_offset) =
+            raw::begin_scroll_area(spec, state, input, focus_sys, time);
         let post_cmds = scope.finish(focus_sys);
         pre_cmds.extend(post_cmds);
-        let layout = crate::layout::OffsetLayout { offset: scroll_offset, inner: ManualLayout };
+        let layout = crate::layout::OffsetLayout {
+            offset: scroll_offset,
+            inner: ManualLayout,
+        };
         (pre_cmds, cb, layout)
     }
 
@@ -588,7 +687,13 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
 
         let (_, content_bounds, layout) = scroll_area(
-            bounds, Vec2::new(200.0, 400.0), &mut state, &input, &mut focus_sys, None, 0.0
+            bounds,
+            Vec2::new(200.0, 400.0),
+            &mut state,
+            &input,
+            &mut focus_sys,
+            None,
+            0.0,
         );
 
         assert_eq!(content_bounds.w, 188.0);
@@ -619,13 +724,8 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
             };
-            let (_, outer_scope, cb, _) = begin_scroll_area(
-                outer_spec,
-                outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, cb, _) =
+                begin_scroll_area(outer_spec, outer_state, &input, &mut focus_sys, 0.0);
 
             let inner_spec = ScrollAreaSpec {
                 rect: inner_bounds,
@@ -634,13 +734,8 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: Some(cb),
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -656,18 +751,24 @@ mod tests {
         let mut inner_state = ScrollState::default();
 
         nested_scroll_two_frames(
-            &mut outer_state, &mut inner_state,
-            600.0, 400.0,
-            outer_bounds, inner_bounds,
+            &mut outer_state,
+            &mut inner_state,
+            600.0,
+            400.0,
+            outer_bounds,
+            inner_bounds,
             -1.0,
             Vec2::new(50.0, 50.0),
         );
 
-        assert!(inner_state.offset.y > 0.0, "Inner scroll should process input first");
+        assert!(
+            inner_state.offset.y > 0.0,
+            "Inner scroll should process input first"
+        );
         assert_eq!(outer_state.offset.y, 0.0, "Outer scroll should remain at 0");
     }
 
-        #[test]
+    #[test]
     fn test_pgup_pgdn_horiz_uses_vert_wheel() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
@@ -690,13 +791,8 @@ mod tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, scope, _, _) =
+                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
 
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
@@ -709,7 +805,7 @@ mod tests {
                 },
                 &input,
                 &mut text_sys,
-                &mut focus_sys
+                &mut focus_sys,
             );
             btn_state = info.state;
 
@@ -734,7 +830,7 @@ mod tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
         let mut text_sys = DummyTextSys;
-focus_sys.take_focus(btn_state.focus_id);
+        focus_sys.take_focus(btn_state.focus_id);
 
         // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
         // content_bounds = (0,0,188,188). PgDn step must be 188, not bounds.h=200.
@@ -747,13 +843,8 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, scope, _, _) =
+                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::ButtonSpec {
@@ -763,13 +854,18 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: None,
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(state.offset.y, 188.0, "PgDn must advance one content-viewport, not full bounds");
+        assert_eq!(
+            state.offset.y, 188.0,
+            "PgDn must advance one content-viewport, not full bounds"
+        );
     }
 
     /// Focused widget lives OUTSIDE any scroll scope. PgDn must not scroll the
@@ -799,7 +895,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: None,
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
 
@@ -810,17 +908,15 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, scope, _, _) =
+                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
             scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(state.offset.y, 0.0, "Focus outside scope must not drive pgdn into the area");
+        assert_eq!(
+            state.offset.y, 0.0,
+            "Focus outside scope must not drive pgdn into the area"
+        );
     }
 
     /// Combined input: an active slider drag plus a wheel tick in the same frame.
@@ -846,13 +942,7 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         assert!(state.vert_slider_state.is_dragging, "Drag must be active");
@@ -870,20 +960,19 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         // drag: usable_track = 200 - (200 * 200/1000).max(20) = 200-40=160. delta=45 → val_delta=(45/160)*800≈225.
         let expected = (45.0 / 160.0) * 800.0;
         let actual = state.offset.y;
         let diff = (actual - expected).abs();
-        assert!(diff < 1.0, "offset {} ≈ drag-projected {} (drag dominates wheel)", actual, expected);
+        assert!(
+            diff < 1.0,
+            "offset {} ≈ drag-projected {} (drag dominates wheel)",
+            actual,
+            expected
+        );
     }
 
     /// Auto-visibility with content that fits: no scrollbar drawn, no claims,
@@ -907,13 +996,8 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0);
             // Inner Auto+fits — no scrollbar, no claim.
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
@@ -922,19 +1006,17 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner.offset.y, 0.0);
-        assert!(outer.offset.y > 0.0, "Outer should scroll through fit-content Auto child");
+        assert!(
+            outer.offset.y > 0.0,
+            "Outer should scroll through fit-content Auto child"
+        );
     }
 
     /// Always-visible scrollbars over content that fits: scrollbars drawn but
@@ -958,13 +1040,8 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0);
             // Inner Always+fits: scrollbars drawn, no scroll possible.
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
@@ -973,19 +1050,17 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner.offset.y, 0.0);
-        assert!(outer.offset.y > 0.0, "Outer should scroll past inner's no-op scrollbars");
+        assert!(
+            outer.offset.y > 0.0,
+            "Outer should scroll past inner's no-op scrollbars"
+        );
     }
 
     /// Mouse entirely outside the scroll area's bounds: no claim, no scroll.
@@ -1006,13 +1081,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
             scope.finish(fs);
         });
         assert_eq!(state.offset.y, 0.0, "Wheel outside bounds must not scroll");
@@ -1038,13 +1107,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope_a, _, _) = begin_scroll_area(
-                spec_a,
-                &mut a,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope_a, _, _) = begin_scroll_area(spec_a, &mut a, &input, fs, 0.0);
             scope_a.finish(fs);
 
             let spec_b = ScrollAreaSpec {
@@ -1054,13 +1117,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope_b, _, _) = begin_scroll_area(
-                spec_b,
-                &mut b,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope_b, _, _) = begin_scroll_area(spec_b, &mut b, &input, fs, 0.0);
             scope_b.finish(fs);
         });
         assert!(a.offset.y > 0.0, "Hovered sibling A should scroll");
@@ -1078,7 +1135,11 @@ focus_sys.take_focus(btn_state.focus_id);
         frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0);
-            input.scroll_delta = if frame == 1 { Vec2::new(-1.0, -1.0) } else { Vec2::ZERO };
+            input.scroll_delta = if frame == 1 {
+                Vec2::new(-1.0, -1.0)
+            } else {
+                Vec2::ZERO
+            };
             let spec = ScrollAreaSpec {
                 rect: bounds,
                 content_size: Vec2::new(1000.0, 1000.0),
@@ -1086,18 +1147,15 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
             scope.finish(fs);
         });
         assert!(state.offset.x > 0.0, "dx should advance horizontal");
         assert!(state.offset.y > 0.0, "dy should advance vertical");
-        assert_eq!(state.offset.x, state.offset.y, "equal-magnitude deltas → equal offsets");
+        assert_eq!(
+            state.offset.x, state.offset.y,
+            "equal-magnitude deltas → equal offsets"
+        );
     }
 
     /// When content shrinks, an existing offset past the new max must clamp.
@@ -1117,16 +1175,13 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
-        assert_eq!(state.offset.y, 50.0, "Offset must clamp to new max_scroll.y");
+        assert_eq!(
+            state.offset.y, 50.0,
+            "Offset must clamp to new max_scroll.y"
+        );
     }
 
     /// Non-zero bounds.x/y must shift content_bounds, mouse hit-test, and the
@@ -1151,20 +1206,18 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, cb, _) = begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, scope, cb, _) =
+                begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
             // content_bounds origin must follow bounds origin.
             assert_eq!(cb.x, 100.0);
             assert_eq!(cb.y, 200.0);
             scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert!(state.offset.y > 0.0, "Wheel inside offset content_bounds should scroll");
+        assert!(
+            state.offset.y > 0.0,
+            "Wheel inside offset content_bounds should scroll"
+        );
 
         // Mouse just outside the offset bounds must NOT scroll.
         let mut state2 = ScrollState::default();
@@ -1181,17 +1234,15 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state2,
-                &input,
-                &mut focus_sys2,
-                0.0,
-            );
+            let (_, scope, _, _) =
+                raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2, 0.0);
             scope.finish(&mut focus_sys2);
             focus_sys2.end_frame();
         }
-        assert_eq!(state2.offset.y, 0.0, "Mouse left of bounds.x must not claim the wheel");
+        assert_eq!(
+            state2.offset.y, 0.0,
+            "Mouse left of bounds.x must not claim the wheel"
+        );
     }
 
     /// The corner where both scrollbars meet is an intentional dead zone:
@@ -1215,17 +1266,17 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
             scope.finish(fs);
         });
-        assert_eq!(state.offset.y, 0.0, "Wheel in scrollbar corner dead zone must not scroll");
-        assert_eq!(state.offset.x, 0.0, "Wheel in scrollbar corner dead zone must not scroll horizontally");
+        assert_eq!(
+            state.offset.y, 0.0,
+            "Wheel in scrollbar corner dead zone must not scroll"
+        );
+        assert_eq!(
+            state.offset.x, 0.0,
+            "Wheel in scrollbar corner dead zone must not scroll horizontally"
+        );
     }
 
     /// clip_rect masks hover-driven scroll: mouse inside content_bounds but outside
@@ -1251,13 +1302,7 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: Some(clip),
             };
-            let (_, scope, _, _) = raw::begin_scroll_area(
-                spec,
-                &mut state,
-                &input,
-                fs,
-                0.0,
-            );
+            let (_, scope, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
             scope.finish(fs);
         });
         assert_eq!(state.offset.y, 0.0, "Wheel outside clip must not scroll");
@@ -1310,13 +1355,8 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, content_bounds, _) = begin_scroll_area(
-                scroll_spec,
-                &mut scroll_state,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, scope, content_bounds, _) =
+                begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
             let res = crate::widgets::button::raw::button(
@@ -1328,7 +1368,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_visible_state = res.state;
 
@@ -1344,7 +1386,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_clipped_state = res.state;
 
@@ -1360,7 +1404,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: None,
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_start_state = res.state;
 
@@ -1414,13 +1460,8 @@ focus_sys.take_focus(btn_state.focus_id);
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, scope, content_bounds, _) = begin_scroll_area(
-                scroll_spec,
-                &mut scroll_state,
-                &input,
-                &mut focus_sys,
-                0.0,
-            );
+            let (_, scope, content_bounds, _) =
+                begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
             // 30px overlap → must be included in spatial nav.
@@ -1433,7 +1474,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_partial_state = res.state;
 
@@ -1449,7 +1492,9 @@ focus_sys.take_focus(btn_state.focus_id);
                     clip_rect: None,
                     disabled: false,
                 },
-                &input, &mut text_sys, &mut focus_sys,
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_start_state = res.state;
 
@@ -1479,13 +1524,8 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &Input::new(),
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) =
+            begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -1502,13 +1542,7 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -1537,13 +1571,7 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(state.vert_slider_state.focus_id);
@@ -1559,16 +1587,13 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
-        assert_eq!(state.offset.y, 800.0, "End on focused slider jumps to max_scroll");
+        assert_eq!(
+            state.offset.y, 800.0,
+            "End on focused slider jumps to max_scroll"
+        );
 
         // Home → offset jumps to 0.
         let mut input = Input::new();
@@ -1581,28 +1606,19 @@ focus_sys.take_focus(btn_state.focus_id);
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, scope, _, _) = begin_scroll_area(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_sys,
-            0.0,
-        );
+        let (_, scope, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
         scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(state.offset.y, 0.0, "Home on focused slider jumps to 0");
     }
 }
 
-
-
-
 #[cfg(test)]
 mod nested_bubbling_tests {
-    use crate::widgets::scroll_area::*;
-    use crate::widgets::scroll_area::raw::begin_scroll_area;
-    use crate::types::*;
     use crate::input::Input;
+    use crate::types::*;
+    use crate::widgets::scroll_area::raw::begin_scroll_area;
+    use crate::widgets::scroll_area::*;
 
     use crate::focus::*;
 
@@ -1629,13 +1645,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -1643,13 +1654,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -1681,13 +1687,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -1695,13 +1696,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -1733,13 +1729,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -1747,13 +1738,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -1785,13 +1771,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -1799,13 +1780,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -1841,13 +1817,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0), // max scroll = 100
@@ -1855,17 +1826,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
@@ -1901,13 +1875,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(300.0, 200.0),
@@ -1915,17 +1884,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
@@ -1953,13 +1925,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -1979,13 +1946,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -1993,13 +1955,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -2024,13 +1981,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -2050,13 +2002,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(300.0, 200.0),
@@ -2064,13 +2011,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -2116,13 +2058,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -2130,19 +2067,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top, cannot scroll further");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert content");
+        assert_eq!(
+            inner_state.offset.y, 0.0,
+            "Inner vert already at top, cannot scroll further"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll from vertical wheel on inner vert content"
+        );
     }
 
     // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track, inner at top (at_min)
@@ -2178,13 +2116,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -2192,19 +2125,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top, cannot scroll further");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll from vertical wheel on inner vert scrollbar");
+        assert_eq!(
+            inner_state.offset.y, 0.0,
+            "Inner vert already at top, cannot scroll further"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll from vertical wheel on inner vert scrollbar"
+        );
     }
 
     // 11. Keyboard / Outer Horiz → Inner Vert / Content focus, inner at bottom
@@ -2225,7 +2159,7 @@ mod nested_bubbling_tests {
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
                 inner_state.offset.y = 100.0; // at bottom (content=300, view=200 → max=100)
-                outer_state.offset.x = 0.0;   // outer has room right
+                outer_state.offset.x = 0.0; // outer has room right
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
@@ -2234,13 +2168,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -2248,17 +2177,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
@@ -2266,7 +2198,10 @@ mod nested_bubbling_tests {
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 100.0, "Inner vert already at bottom");
-        assert_eq!(outer_state.offset.x, 0.0, "Outer horiz must NOT receive pgdn (cross-axis isolation)");
+        assert_eq!(
+            outer_state.offset.x, 0.0,
+            "Outer horiz must NOT receive pgdn (cross-axis isolation)"
+        );
     }
 
     // 12. Keyboard / Outer Horiz → Inner Vert / Slider focus, slider at max
@@ -2287,13 +2222,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -2313,13 +2243,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -2327,19 +2252,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.y, 100.0, "Inner slider at max, should not change");
-        assert_eq!(outer_state.offset.x, 0.0, "Outer horiz must NOT receive pgdn (cross-axis isolation)");
+        assert_eq!(
+            inner_state.offset.y, 100.0,
+            "Inner slider at max, should not change"
+        );
+        assert_eq!(
+            outer_state.offset.x, 0.0,
+            "Outer horiz must NOT receive pgdn (cross-axis isolation)"
+        );
     }
 
     // ── Triple nested: outer VERTICAL → middle HORIZONTAL → inner VERTICAL ───────────────
@@ -2382,9 +2308,9 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside all three content areas
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at top — skips scroll_up claim
-                middle_state.offset.x = 50.0;  // must NOT scroll
-                outer_state.offset.y = 50.0;   // must NOT scroll
+                inner_state.offset.y = 0.0; // at top — skips scroll_up claim
+                middle_state.offset.x = 50.0; // must NOT scroll
+                outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2393,13 +2319,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2407,13 +2328,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2421,21 +2337,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
-        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.x, 50.0,
+            "Middle horiz must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.y, 50.0,
+            "Outer vert must NOT scroll (middle fully blocks)"
+        );
     }
 
     // 14. Mouse Wheel / Triple Nested / Inner slider, inner slider at top (at_min)
@@ -2459,9 +2376,9 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(195.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at_min — slider skips scroll_up claim
-                middle_state.offset.x = 50.0;  // must NOT scroll
-                outer_state.offset.y = 50.0;   // must NOT scroll
+                inner_state.offset.y = 0.0; // at_min — slider skips scroll_up claim
+                middle_state.offset.x = 50.0; // must NOT scroll
+                outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2470,13 +2387,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2484,13 +2396,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2498,21 +2405,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
-        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.x, 50.0,
+            "Middle horiz must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.y, 50.0,
+            "Outer vert must NOT scroll (middle fully blocks)"
+        );
     }
 
     // 15. Keyboard / Triple Nested / Content focus, inner at bottom
@@ -2535,9 +2443,9 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 312.0;  // at bottom (content=600, view=288 → max=312)
-                middle_state.offset.x = 50.0;  // must NOT scroll right
-                outer_state.offset.y = 50.0;   // must NOT scroll down
+                inner_state.offset.y = 312.0; // at bottom (content=600, view=288 → max=312)
+                middle_state.offset.x = 50.0; // must NOT scroll right
+                outer_state.offset.y = 50.0; // must NOT scroll down
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2546,13 +2454,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2560,13 +2463,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2574,17 +2472,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
@@ -2593,8 +2494,14 @@ mod nested_bubbling_tests {
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 312.0, "Inner vert already at bottom");
-        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll right (cross-axis)");
-        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll down (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.x, 50.0,
+            "Middle horiz must NOT scroll right (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.y, 50.0,
+            "Outer vert must NOT scroll down (middle fully blocks)"
+        );
     }
 
     // 16. Keyboard / Triple Nested / Slider focus, inner slider at max
@@ -2620,13 +2527,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -2636,9 +2538,9 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 312.0;  // at max
-                middle_state.offset.x = 50.0;  // must NOT scroll
-                outer_state.offset.y = 50.0;   // must NOT scroll
+                inner_state.offset.y = 312.0; // at max
+                middle_state.offset.x = 50.0; // must NOT scroll
+                outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2647,13 +2549,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2661,13 +2558,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2675,21 +2567,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 312.0, "Inner slider already at max");
-        assert_eq!(middle_state.offset.x, 50.0, "Middle horiz must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.y, 50.0, "Outer vert must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.x, 50.0,
+            "Middle horiz must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.y, 50.0,
+            "Outer vert must NOT scroll (middle fully blocks)"
+        );
     }
 
     // ── Reversed triple nested: outer HORIZONTAL → middle VERTICAL → inner HORIZONTAL ────
@@ -2733,9 +2626,9 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.x = 0.0;    // at left — skips scroll_left claim
-                middle_state.offset.y = 50.0;  // must NOT scroll
-                outer_state.offset.x = 50.0;   // must NOT scroll
+                inner_state.offset.x = 0.0; // at left — skips scroll_left claim
+                middle_state.offset.y = 50.0; // must NOT scroll
+                outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2744,13 +2637,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2758,13 +2646,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2772,21 +2655,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
-        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.y, 50.0,
+            "Middle vert must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll (middle fully blocks)"
+        );
     }
 
     // 18. Mouse Wheel / Reversed Triple / Inner slider, inner slider at left (at_min)
@@ -2809,9 +2693,9 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 195.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.x = 0.0;    // at_min — slider skips scroll_left claim
-                middle_state.offset.y = 50.0;  // must NOT scroll
-                outer_state.offset.x = 50.0;   // must NOT scroll
+                inner_state.offset.x = 0.0; // at_min — slider skips scroll_left claim
+                middle_state.offset.y = 50.0; // must NOT scroll
+                outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2820,13 +2704,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2834,13 +2713,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2848,21 +2722,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
-        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.y, 50.0,
+            "Middle vert must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll (middle fully blocks)"
+        );
     }
 
     // 19. Keyboard / Reversed Triple / Content focus, inner at right (at_max)
@@ -2884,9 +2759,9 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.x = 412.0;  // at right (content=800, view=388 → max=412)
-                middle_state.offset.y = 50.0;  // must NOT scroll down
-                outer_state.offset.x = 50.0;   // must NOT scroll right
+                inner_state.offset.x = 412.0; // at right (content=800, view=388 → max=412)
+                middle_state.offset.y = 50.0; // must NOT scroll down
+                outer_state.offset.x = 50.0; // must NOT scroll right
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2895,13 +2770,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2909,13 +2779,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2923,17 +2788,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
@@ -2942,8 +2810,14 @@ mod nested_bubbling_tests {
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 412.0, "Inner horiz already at right");
-        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll down (cross-axis)");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll right (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.y, 50.0,
+            "Middle vert must NOT scroll down (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll right (middle fully blocks)"
+        );
     }
 
     // 20. Keyboard / Reversed Triple / Slider focus, inner slider at right (at_max)
@@ -2967,13 +2841,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
 
@@ -2983,9 +2852,9 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.x = 412.0;  // at max
-                middle_state.offset.y = 50.0;  // must NOT scroll
-                outer_state.offset.x = 50.0;   // must NOT scroll
+                inner_state.offset.x = 412.0; // at max
+                middle_state.offset.y = 50.0; // must NOT scroll
+                outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
@@ -2994,13 +2863,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -3008,13 +2872,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_scope, _, _) = begin_scroll_area(
-                middle_spec,
-                &mut middle_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, middle_scope, _, _) =
+                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -3022,21 +2881,22 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             middle_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 412.0, "Inner slider already at max");
-        assert_eq!(middle_state.offset.y, 50.0, "Middle vert must NOT scroll (cross-axis)");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer horiz must NOT scroll (middle fully blocks)");
+        assert_eq!(
+            middle_state.offset.y, 50.0,
+            "Middle vert must NOT scroll (cross-axis)"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer horiz must NOT scroll (middle fully blocks)"
+        );
     }
 
     // ── Nested 2D: outer[H+V] > inner[H+V] ───────────────────────────────────────────────────
@@ -3070,8 +2930,8 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at top — inner skips scroll_up claim
-                outer_state.offset.y = 100.0;  // outer has room to scroll up
+                inner_state.offset.y = 0.0; // at top — inner skips scroll_up claim
+                outer_state.offset.y = 100.0; // outer has room to scroll up
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3080,13 +2940,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3094,19 +2949,17 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner already at top");
-        assert!(outer_state.offset.y < 100.0, "Outer should scroll up (same-axis bubble)");
+        assert!(
+            outer_state.offset.y < 100.0,
+            "Outer should scroll up (same-axis bubble)"
+        );
     }
 
     // 22. Mouse Wheel / Nested 2D / Horizontal same-axis bubbles when inner at left
@@ -3128,8 +2981,8 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta.x = if frame == 1 { 1.0 } else { 0.0 }; // scroll left (positive x = left)
             if frame == 0 {
-                inner_state.offset.x = 0.0;    // at left — inner skips scroll_left claim
-                outer_state.offset.x = 100.0;  // outer has room
+                inner_state.offset.x = 0.0; // at left — inner skips scroll_left claim
+                outer_state.offset.x = 100.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3138,13 +2991,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3152,20 +3000,18 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner already at left");
-        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (same-axis bubble). \
-            Regression: if !needs_h guard missing from needs_v block in begin_scroll_area.");
+        assert!(
+            outer_state.offset.x < 100.0,
+            "Outer should scroll left (same-axis bubble). \
+            Regression: if !needs_h guard missing from needs_v block in begin_scroll_area."
+        );
     }
 
     // ── Nested 2D propagation suite ───────────────────────────────────────────────────────────
@@ -3196,8 +3042,8 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(194.0, 50.0); // on inner vert slider track
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at top — vert slider skips scroll_up
-                outer_state.offset.y = 100.0;  // outer has room
+                inner_state.offset.y = 0.0; // at top — vert slider skips scroll_up
+                outer_state.offset.y = 100.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3206,13 +3052,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3220,13 +3061,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -3251,8 +3087,8 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 144.0); // on inner horiz slider track
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 }; // vertical wheel; horiz slider remaps
             if frame == 0 {
-                inner_state.offset.x = 0.0;    // at left — horiz slider skips scroll_left
-                outer_state.offset.x = 100.0;  // outer has room to scroll left
+                inner_state.offset.x = 0.0; // at left — horiz slider skips scroll_left
+                outer_state.offset.x = 100.0; // outer has room to scroll left
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3261,13 +3097,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3275,19 +3106,20 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.x, 0.0, "Inner horiz at left, should not change");
-        assert!(outer_state.offset.x < 100.0, "Outer should scroll left (horizontal bubble).");
+        assert_eq!(
+            inner_state.offset.x, 0.0,
+            "Inner horiz at left, should not change"
+        );
+        assert!(
+            outer_state.offset.x < 100.0,
+            "Outer should scroll left (horizontal bubble)."
+        );
     }
 
     // 26. Mouse Wheel / Nested 2D / Inner content at top → outer scrolls up
@@ -3305,7 +3137,7 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside inner content_bounds
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at top
+                inner_state.offset.y = 0.0; // at top
                 outer_state.offset.y = 100.0;
             }
             let outer_spec = ScrollAreaSpec {
@@ -3315,13 +3147,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3329,13 +3156,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
@@ -3364,13 +3186,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(inner_state.vert_slider_state.focus_id);
@@ -3379,8 +3196,8 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 150.0;  // at bottom (max_scroll.y = 300-150 = 150)
-                outer_state.offset.y = 50.0;   // outer has room
+                inner_state.offset.y = 150.0; // at bottom (max_scroll.y = 300-150 = 150)
+                outer_state.offset.y = 50.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3389,13 +3206,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3403,18 +3215,16 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.y, 150.0, "Inner at bottom, slider should not move");
+        assert_eq!(
+            inner_state.offset.y, 150.0,
+            "Inner at bottom, slider should not move"
+        );
         assert!(outer_state.offset.y > 50.0, "Outer should scroll down");
     }
 
@@ -3438,13 +3248,8 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_scope, _, _) = begin_scroll_area(
-            inner_spec,
-            &mut inner_state,
-            &input,
-            &mut focus_sys,
-            0.0
-        );
+        let (_, inner_scope, _, _) =
+            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
         inner_scope.finish(&mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(inner_state.horiz_slider_state.focus_id);
@@ -3453,8 +3258,8 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.x = 200.0;  // at right (max_scroll.x = 400-200 = 200)
-                outer_state.offset.x = 50.0;   // outer has room to scroll right
+                inner_state.offset.x = 200.0; // at right (max_scroll.x = 400-200 = 200)
+                outer_state.offset.x = 50.0; // outer has room to scroll right
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3463,13 +3268,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3477,18 +3277,16 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.x, 200.0, "Inner horiz at right, slider should not move");
+        assert_eq!(
+            inner_state.offset.x, 200.0,
+            "Inner horiz at right, slider should not move"
+        );
         assert!(outer_state.offset.x > 50.0, "Outer should scroll right.");
     }
 
@@ -3509,7 +3307,7 @@ mod nested_bubbling_tests {
             focus_sys.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 150.0;  // at bottom (max_scroll.y = 300-150 = 150)
+                inner_state.offset.y = 150.0; // at bottom (max_scroll.y = 300-150 = 150)
                 outer_state.offset.y = 50.0;
             }
             let outer_spec = ScrollAreaSpec {
@@ -3519,13 +3317,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3533,24 +3326,30 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec { rect: Rect::new(0.0, 0.0, 10.0, 10.0), text: "".into(), style: Default::default(), clip_rect: None, disabled: false },
-                &input, &mut text_sys, &mut focus_sys
+                crate::widgets::button::ButtonSpec {
+                    rect: Rect::new(0.0, 0.0, 10.0, 10.0),
+                    text: "".into(),
+                    style: Default::default(),
+                    clip_rect: None,
+                    disabled: false,
+                },
+                &input,
+                &mut text_sys,
+                &mut focus_sys,
             );
             btn_state = info.state;
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert_eq!(inner_state.offset.y, 150.0, "Inner at bottom, should not change");
+        assert_eq!(
+            inner_state.offset.y, 150.0,
+            "Inner at bottom, should not change"
+        );
         assert!(outer_state.offset.y > 50.0, "Outer should scroll down");
     }
 
@@ -3569,9 +3368,9 @@ mod nested_bubbling_tests {
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             if frame == 0 {
-                inner_state.offset.y = 0.0;    // at top — bubbles to outer vertically
+                inner_state.offset.y = 0.0; // at top — bubbles to outer vertically
                 outer_state.offset.y = 100.0;
-                outer_state.offset.x = 50.0;   // must NOT change
+                outer_state.offset.x = 50.0; // must NOT change
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
@@ -3580,13 +3379,8 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_scope, _, _) = begin_scroll_area(
-                outer_spec,
-                &mut outer_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, outer_scope, _, _) =
+                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3594,18 +3388,19 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_scope, _, _) = begin_scroll_area(
-                inner_spec,
-                &mut inner_state,
-                &input,
-                &mut focus_sys,
-                0.0
-            );
+            let (_, inner_scope, _, _) =
+                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             inner_scope.finish(&mut focus_sys);
             outer_scope.finish(&mut focus_sys);
             focus_sys.end_frame();
         }
-        assert!(outer_state.offset.y < 100.0, "Outer should scroll up (vertical bubble)");
-        assert_eq!(outer_state.offset.x, 50.0, "Outer must NOT scroll horizontally (cross-axis isolation)");
+        assert!(
+            outer_state.offset.y < 100.0,
+            "Outer should scroll up (vertical bubble)"
+        );
+        assert_eq!(
+            outer_state.offset.x, 50.0,
+            "Outer must NOT scroll horizontally (cross-axis isolation)"
+        );
     }
 }

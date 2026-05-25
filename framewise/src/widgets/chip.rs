@@ -1,9 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     text::FontId,
     types::{Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -82,7 +82,10 @@ pub mod raw {
         } else {
             s.background
         };
-        cmds.push(DrawCmd::FillRect { rect: r, color: tint(bg) });
+        cmds.push(DrawCmd::FillRect {
+            rect: r,
+            color: tint(bg),
+        });
         cmds.push(DrawCmd::StrokeRect {
             rect: r,
             color: tint(s.border),
@@ -101,7 +104,8 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -121,15 +125,13 @@ pub struct ChipSpec<'a> {
     pub clip_rect: Option<Rect>,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ChipState {
     pub active: bool,
     pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChipStyle {
@@ -224,9 +226,7 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: ChipSpecBuilder<'a>,
 ) -> ChipInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
@@ -310,7 +310,9 @@ impl<'a> ChipSpecBuilder<'a> {
         ChipSpec {
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("ChipStyle is required"),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self.clip_rect,
@@ -382,7 +384,13 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = raw::chip(state, spec, &Input::default(), &mut crate::focus::FocusSystem::new(), &mut text_sys);
+        let res = raw::chip(
+            state,
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+            &mut text_sys,
+        );
 
         assert_eq!(
             res.draw,
@@ -421,7 +429,13 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = raw::chip(state, spec, &Input::default(), &mut focus_sys, &mut text_sys);
+        let res = raw::chip(
+            state,
+            spec,
+            &Input::default(),
+            &mut focus_sys,
+            &mut text_sys,
+        );
         focus_sys.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
@@ -550,9 +564,6 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert!(
-            res.state.active,
-            "Spacebar release must toggle chip state"
-        );
+        assert!(res.state.active, "Spacebar release must toggle chip state");
     }
 }

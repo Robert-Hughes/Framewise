@@ -238,13 +238,7 @@ mod tests {
         let _ = sys.prepare("A", 12.0, FontId(0));
         let _ = sys.prepare("A", 12.0, FontId(1));
 
-        assert!(sys
-            .glyph_cache
-            .keys()
-            .any(|key| key.font_id == 0));
-        assert!(sys
-            .glyph_cache
-            .keys()
-            .any(|key| key.font_id == 1));
+        assert!(sys.glyph_cache.keys().any(|key| key.font_id == 0));
+        assert!(sys.glyph_cache.keys().any(|key| key.font_id == 1));
     }
 }

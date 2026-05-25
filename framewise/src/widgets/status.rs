@@ -12,8 +12,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a>,
-        text_system: &mut T) -> StatusResult {
+    pub fn status<'a, T: crate::text::TextSystem>(
+        spec: StatusSpec<'a>,
+        text_system: &mut T,
+    ) -> StatusResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -118,9 +120,7 @@ pub fn status<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Sco
     builder: StatusSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -187,7 +187,9 @@ impl<'a> StatusSpecBuilder<'a> {
         StatusSpec {
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
             style: self.style.expect("StatusStyle is required"),
             variant: self.variant.unwrap(),
         }
@@ -257,5 +259,3 @@ mod tests {
         );
     }
 }
-
-

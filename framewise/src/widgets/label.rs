@@ -154,7 +154,6 @@ pub fn label<T: TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

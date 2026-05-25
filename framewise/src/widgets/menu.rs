@@ -12,8 +12,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a>,
-    text_system: &mut T) -> MenuResult {
+    pub fn menu<'a, T: crate::text::TextSystem>(
+        spec: MenuSpec<'a>,
+        text_system: &mut T,
+    ) -> MenuResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -190,7 +192,12 @@ pub struct MenuInfo {
 
 impl MenuResult {
     pub fn into_parts(self) -> (DrawCommands, MenuInfo) {
-        (self.draw, MenuInfo { layout: self.layout })
+        (
+            self.draw,
+            MenuInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
@@ -205,13 +212,13 @@ pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: MenuSpecBuilder<'a>,
 ) -> MenuInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::menu(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
-    MenuInfo { layout: result.layout }
+    MenuInfo {
+        layout: result.layout,
+    }
 }
 
 pub struct MenuSpecBuilder<'a> {
@@ -278,8 +285,12 @@ impl<'a> MenuSpecBuilder<'a> {
         MenuSpec {
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
-            label_font: self.label_font.expect("label_font must be specified or resolved from a theme"),
-            meta_font: self.meta_font.expect("meta_font must be specified or resolved from a theme"),
+            label_font: self
+                .label_font
+                .expect("label_font must be specified or resolved from a theme"),
+            meta_font: self
+                .meta_font
+                .expect("meta_font must be specified or resolved from a theme"),
             style: self.style.expect("MenuStyle is required"),
         }
     }

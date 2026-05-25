@@ -1,10 +1,10 @@
-use crate::Input;
 use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
 use crate::layout::LayoutState;
 use crate::text::TextSystem;
 use crate::theme::Theme;
 use crate::types::Rect;
+use crate::Input;
 
 // ── Common result fragments ───────────────────────────────────────────────────
 
@@ -44,7 +44,6 @@ pub struct InputInfo {
     /// True on the single frame the primary button was released over the widget.
     pub clicked: bool,
 }
-
 
 pub trait WidgetScope {
     /// Finish the scope, returning any draw commands that need to be emitted after the caller's own commands.
@@ -105,8 +104,10 @@ impl<'a, T: TextSystem, LS: LayoutState> WidgetContext<'a, T, LS, ()> {
 
 impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T, LS, Scope> {
     pub fn child_with_layout<'c, LS2: LayoutState, Scope2: WidgetScope>(
-            &'c mut self, inner_layout_state: LS2, inner_scope: Scope2
-        ) -> WidgetContext<'c, T, LS2, Scope2> {
+        &'c mut self,
+        inner_layout_state: LS2,
+        inner_scope: Scope2,
+    ) -> WidgetContext<'c, T, LS2, Scope2> {
         WidgetContext {
             theme: self.theme,
             time: self.time,
@@ -118,7 +119,7 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
             cmds: vec![],
             scope: inner_scope, // The original scope is not copied - correct as the original context will still own it.
         }
-   }
+    }
 
     /// Append draw commands to the context's accumulated list.
     pub fn append_cmds(&mut self, mut cmds: Vec<DrawCmd>) {
@@ -132,9 +133,6 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
         cmds.append(&mut post_cmds);
         cmds
     }
-
-
-
 
     /// Resolve layout using the context's layout state.
     pub fn layout(&mut self, params: LS::Params) -> Rect {

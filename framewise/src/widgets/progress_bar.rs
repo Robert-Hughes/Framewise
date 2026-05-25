@@ -94,7 +94,6 @@ impl Default for ProgressBarStyle {
     }
 }
 
-
 pub struct ProgressBarSpecBuilder {
     spec: ProgressBarSpec,
 }
@@ -159,7 +158,12 @@ pub struct ProgressBarInfo {
 
 impl ProgressBarResult {
     pub fn into_parts(self) -> (DrawCommands, ProgressBarInfo) {
-        (self.draw, ProgressBarInfo { layout: self.layout })
+        (
+            self.draw,
+            ProgressBarInfo {
+                layout: self.layout,
+            },
+        )
     }
 }
 
@@ -168,21 +172,24 @@ impl ProgressBarResult {
 /// High-level progress bar widget function using WidgetContext.
 ///
 /// This function accepts a ProgressBarSpec and calls the low-level raw::progress_bar function.
-pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+pub fn progress_bar<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    Scope: WidgetScope,
+>(
     ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: ProgressBarSpecBuilder,
 ) -> ProgressBarInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::progress_bar(spec);
     ctx.append_cmds(result.draw.0);
-    ProgressBarInfo { layout: result.layout }
+    ProgressBarInfo {
+        layout: result.layout,
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -268,6 +275,4 @@ mod tests {
             ])
         );
     }
-
 }
-

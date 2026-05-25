@@ -36,7 +36,8 @@ pub mod raw {
                     width: spec.style.border_width,
                 });
             }
-            let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
+            let text_layout =
+                text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
             let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
             let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
@@ -242,8 +243,7 @@ pub struct ButtonSpec {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ButtonState {
     /// True if the mouse was pressed while hovering this button, until the mouse is released.
     pub is_active: bool,
@@ -252,7 +252,6 @@ pub struct ButtonState {
     /// Globally unique ID for tracking keyboard focus.
     pub focus_id: crate::focus::FocusId,
 }
-
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
@@ -363,10 +362,7 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     let rect = ctx.layout(layout_params);
     let style = builder.style.unwrap_or(ctx.theme.button_secondary_style());
     let clip_rect = builder.clip_rect.or(ctx.clip_rect);
-    let mut spec = builder
-        .with_style(style)
-        .with_clip_rect(clip_rect)
-        .build();
+    let mut spec = builder.with_style(style).with_clip_rect(clip_rect).build();
     spec.rect = rect;
 
     let result = raw::button(state, spec, ctx.input, ctx.text_system, ctx.focus_sys);
@@ -1184,4 +1180,3 @@ mod tests {
         );
     }
 }
-

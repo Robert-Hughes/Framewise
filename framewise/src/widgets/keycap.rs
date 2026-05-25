@@ -12,8 +12,10 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a>,
-     text_system: &mut T) -> KeycapResult {
+    pub fn keycap<'a, T: crate::text::TextSystem>(
+        spec: KeycapSpec<'a>,
+        text_system: &mut T,
+    ) -> KeycapResult {
         let mut draw = DrawCommands::new();
 
         // Background + border
@@ -101,15 +103,14 @@ pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Sco
     builder: KeycapSpecBuilder<'a>,
 ) -> KeycapInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::keycap(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
-    KeycapInfo { layout: result.layout }
+    KeycapInfo {
+        layout: result.layout,
+    }
 }
-
 
 pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
@@ -187,7 +188,9 @@ impl<'a> KeycapSpecBuilder<'a> {
             border: self.border.unwrap(),
             text_color: self.text_color.unwrap(),
             text_size: self.text_size.unwrap(),
-            font: self.font.expect("font must be specified or resolved from a theme"),
+            font: self
+                .font
+                .expect("font must be specified or resolved from a theme"),
         }
     }
 }
@@ -239,4 +242,3 @@ mod tests {
         );
     }
 }
-

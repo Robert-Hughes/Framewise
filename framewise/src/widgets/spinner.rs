@@ -135,7 +135,6 @@ impl Default for SpinnerStyle {
     }
 }
 
-
 pub struct SpinnerSpecBuilder {
     spec: SpinnerSpec,
 }
@@ -218,9 +217,7 @@ pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope:
     builder: SpinnerSpecBuilder,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw.0);
@@ -245,19 +242,64 @@ mod tests {
             res.draw,
             DrawCommands(vec![
                 // Top-left
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 5.0), p1: Vec2::new(0.0, 0.0), color: style.color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 0.0), p1: Vec2::new(5.0, 0.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 5.0),
+                    p1: Vec2::new(0.0, 0.0),
+                    color: style.color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 0.0),
+                    p1: Vec2::new(5.0, 0.0),
+                    color: style.color,
+                    width: style.width
+                },
                 // Top-right
-                DrawCmd::StrokeLine { p0: Vec2::new(11.0, 0.0), p1: Vec2::new(16.0, 0.0), color: style.color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 0.0), p1: Vec2::new(16.0, 5.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(11.0, 0.0),
+                    p1: Vec2::new(16.0, 0.0),
+                    color: style.color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(16.0, 0.0),
+                    p1: Vec2::new(16.0, 5.0),
+                    color: style.color,
+                    width: style.width
+                },
                 // Bottom-right
-                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 11.0), p1: Vec2::new(16.0, 16.0), color: style.color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(16.0, 16.0), p1: Vec2::new(11.0, 16.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(16.0, 11.0),
+                    p1: Vec2::new(16.0, 16.0),
+                    color: style.color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(16.0, 16.0),
+                    p1: Vec2::new(11.0, 16.0),
+                    color: style.color,
+                    width: style.width
+                },
                 // Bottom-left
-                DrawCmd::StrokeLine { p0: Vec2::new(5.0, 16.0), p1: Vec2::new(0.0, 16.0), color: style.color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 16.0), p1: Vec2::new(0.0, 11.0), color: style.color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(5.0, 16.0),
+                    p1: Vec2::new(0.0, 16.0),
+                    color: style.color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 16.0),
+                    p1: Vec2::new(0.0, 11.0),
+                    color: style.color,
+                    width: style.width
+                },
                 // Highlight
-                DrawCmd::StrokeLine { p0: Vec2::new(1.6, 0.0), p1: Vec2::new(8.0, 0.0), color: style.highlight, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(1.6, 0.0),
+                    p1: Vec2::new(8.0, 0.0),
+                    color: style.highlight,
+                    width: style.width
+                },
             ])
         );
     }
@@ -278,22 +320,65 @@ mod tests {
             res.draw,
             DrawCommands(vec![
                 // Top-left
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 7.0), p1: Vec2::new(0.0, 0.0), color: custom_color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 0.0), p1: Vec2::new(7.0, 0.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 7.0),
+                    p1: Vec2::new(0.0, 0.0),
+                    color: custom_color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 0.0),
+                    p1: Vec2::new(7.0, 0.0),
+                    color: custom_color,
+                    width: style.width
+                },
                 // Top-right
-                DrawCmd::StrokeLine { p0: Vec2::new(17.0, 0.0), p1: Vec2::new(24.0, 0.0), color: custom_color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 0.0), p1: Vec2::new(24.0, 7.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(17.0, 0.0),
+                    p1: Vec2::new(24.0, 0.0),
+                    color: custom_color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(24.0, 0.0),
+                    p1: Vec2::new(24.0, 7.0),
+                    color: custom_color,
+                    width: style.width
+                },
                 // Bottom-right
-                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 17.0), p1: Vec2::new(24.0, 24.0), color: custom_color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(24.0, 24.0), p1: Vec2::new(17.0, 24.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(24.0, 17.0),
+                    p1: Vec2::new(24.0, 24.0),
+                    color: custom_color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(24.0, 24.0),
+                    p1: Vec2::new(17.0, 24.0),
+                    color: custom_color,
+                    width: style.width
+                },
                 // Bottom-left
-                DrawCmd::StrokeLine { p0: Vec2::new(7.0, 24.0), p1: Vec2::new(0.0, 24.0), color: custom_color, width: style.width },
-                DrawCmd::StrokeLine { p0: Vec2::new(0.0, 24.0), p1: Vec2::new(0.0, 17.0), color: custom_color, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(7.0, 24.0),
+                    p1: Vec2::new(0.0, 24.0),
+                    color: custom_color,
+                    width: style.width
+                },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(0.0, 24.0),
+                    p1: Vec2::new(0.0, 17.0),
+                    color: custom_color,
+                    width: style.width
+                },
                 // Highlight
-                DrawCmd::StrokeLine { p0: Vec2::new(2.4, 0.0), p1: Vec2::new(12.0, 0.0), color: style.highlight, width: style.width },
+                DrawCmd::StrokeLine {
+                    p0: Vec2::new(2.4, 0.0),
+                    p1: Vec2::new(12.0, 0.0),
+                    color: style.highlight,
+                    width: style.width
+                },
             ])
         );
     }
 }
-
-

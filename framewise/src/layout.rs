@@ -78,7 +78,12 @@ impl LayoutState for ColumnState {
     type Params = Vec2;
 
     fn layout(&mut self, layout_params: Vec2) -> Rect {
-        let r = Rect::new(self.bounds.x, self.current_y, layout_params.x, layout_params.y);
+        let r = Rect::new(
+            self.bounds.x,
+            self.current_y,
+            layout_params.x,
+            layout_params.y,
+        );
         self.current_y += layout_params.y + self.spacing;
         r
     }
@@ -113,7 +118,12 @@ impl LayoutState for RowState {
     type Params = Vec2;
 
     fn layout(&mut self, layout_params: Vec2) -> Rect {
-        let r = Rect::new(self.current_x, self.bounds.y, layout_params.x, layout_params.y);
+        let r = Rect::new(
+            self.current_x,
+            self.bounds.y,
+            layout_params.x,
+            layout_params.y,
+        );
         self.current_x += layout_params.x + self.spacing;
         r
     }

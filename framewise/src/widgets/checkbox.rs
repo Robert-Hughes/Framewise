@@ -1,8 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    input::Input,
     types::{Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
-    input::Input,
 };
 
 pub mod raw {
@@ -131,7 +131,8 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos)
+                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -323,9 +324,7 @@ pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: CheckboxSpecBuilder,
 ) -> CheckboxInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);
+    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
     if builder.spec.clip_rect.is_none() {
         builder.spec.clip_rect = ctx.clip_rect;
     }
