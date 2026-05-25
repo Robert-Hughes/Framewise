@@ -5,8 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Many widget's high-level functiopns aren't following the design set out here: C:\Users\xman2\.windsurf\plans\framewise-redesign-c59d34.md
+  - They are not always performing layout!
+
 * Add "reset" button to spec page, to reset all state
-* Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused.
+* Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused. Not sure how though, as we don't want to affect the styling (as that's exactly what we're trying to show!)
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 * Widget types don't seem to consistently use *Spec and *SpecBuilder, are inconsistent about theme application in high-level function etc.
 

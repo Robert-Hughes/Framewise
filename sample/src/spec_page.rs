@@ -2,50 +2,663 @@ use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
-    builder::{Builder, BuilderCtx},
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
-    layout::{Layout, LayoutState, ManualLayout},
+    layout::{Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState},
     theme::Theme,
     types::{Color, Rect, Vec2},
+    widget::{WidgetContext, LayoutInfo},
     widgets::{
-        button::{button, ButtonSpec, ButtonState, ButtonStyle},
-        checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec},
-        chip::{ChipState},
-        color_swatch::color_swatch,
-        drag_number::{drag_number, DragNumberState, DragNumberSpec},
-        frame::FrameSpec,
-        frame::{frame, FrameStyle},
-        keycap::keycap,
-        menu::{menu, MenuItem},
-        meter::meter,
-        progress_bar::progress_bar,
-        radio::{radio, RadioState, RadioSpec},
-        scroll_area::{ScrollState, ScrollbarVisibility},
-        segmented::{SegmentedState},
-        select::{select, SelectSpec, SelectState},
-        slider::{Orientation as SliderOrientation, SliderState},
-        spinner::spinner,
-        status::{status, StatusVariant},
-        switch::{switch, SwitchState, SwitchSpec},
-        tabs::{TabsState},
-        text_edit::TextEditState,
-        tooltip::{tooltip, TooltipVariant},
-        tree::{tree, TreeRow},
-        window::WindowButton,
-        ProgressBarSpecBuilder, SpinnerSpecBuilder,
+        button::{button, button_raw, ButtonSpec, ButtonState, ButtonStyle, ButtonInfo},
+        checkbox::{checkbox, checkbox_raw, CheckboxState, CheckState, CheckboxSpec, CheckboxInfo, CheckboxSpecBuilder},
+        chip::{chip, chip_raw, ChipState, ChipSpec, ChipStyle, ChipInfo, ChipResult, ChipSpecBuilder},
+        color_swatch::{color_swatch, color_swatch_raw, ColorSwatchSpec, ColorSwatchInfo, ColorSwatchSpecBuilder},
+        drag_number::{drag_number, drag_number_raw, DragNumberState, DragNumberSpec, DragNumberInfo, DragNumberSpecBuilder},
+        divider::{divider, DividerSpec, DividerInfo, DividerResult},
+        frame::{frame, frame_raw, FrameSpec, FrameStyle, FrameInfo, FrameResult},
+        keycap::{keycap, keycap_raw, KeycapSpec, KeycapInfo, KeycapSpecBuilder},
+        label::{label, label_raw, LabelSpec, LabelInfo},
+        menu::{menu, menu_raw, MenuItem, MenuSpec, MenuSpecBuilder},
+        meter::{meter, meter_raw, MeterSpec, MeterInfo, MeterSpecBuilder},
+        progress_bar::{progress_bar, progress_bar_raw, ProgressBarSpec, ProgressBarStyle, ProgressBarSpecBuilder},
+        radio::{radio, radio_raw, RadioState, RadioSpec, RadioInfo, RadioSpecBuilder},
+        scroll_area::{begin_scroll_area, begin_scroll_area_raw, end_scroll_area, end_scroll_area_raw, ScrollState, ScrollbarVisibility, ScrollAreaScope},
+        segmented::{segmented, segmented_raw, SegmentedSpec, SegmentedStyle, SegmentedState, SegmentedInfo, SegmentedSpecBuilder},
+        select::{select, select_raw, SelectSpec, SelectState, SelectInfo, SelectSpecBuilder},
+        slider::{slider, slider_raw, SliderStyle, SliderState, SliderSpec, Orientation as SliderOrientation},
+        spinner::{spinner, spinner_raw, SpinnerSpec, SpinnerStyle, SpinnerSpecBuilder},
+        status::{status, status_raw, StatusVariant, StatusSpec, StatusSpecBuilder},
+        switch::{switch, switch_raw, SwitchState, SwitchSpec, SwitchInfo, SwitchSpecBuilder},
+        tabs::{tabs, tabs_raw, TabsSpec, TabsStyle, TabsState, TabsInfo, TabsSpecBuilder},
+        text_edit::{text_edit, text_edit_raw, TextEditState, TextEditSpec, TextEditInfo},
+        tooltip::{tooltip, tooltip_raw, TooltipVariant, TooltipSpec, TooltipSpecBuilder},
+        tree::{tree, tree_raw, TreeRow, TreeSpec, TreeSpecBuilder},
+        window::{begin_window, begin_window_raw, end_window, end_window_raw, WindowButton, WindowScope, WindowSpec, WindowSpecBuilder},
     },
 };
 
+use std::ops::{Deref, DerefMut};
+
+// ── BuilderCtx Compatibility ──────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct BuilderCtx {
+    pub theme: Theme,
+    pub bg_color: Color,
+    pub accent_color: Color,
+    pub text_color: Color,
+    pub border_color: Color,
+    pub button_style: ButtonStyle,
+    pub frame_style: FrameStyle,
+    pub text_size: f32,
+    pub text_font: framewise::text::FontId,
+    pub time: f64,
+    pub clip_rect: Option<Rect>,
+}
+
+impl Default for BuilderCtx {
+    fn default() -> Self {
+        let theme = Theme::default();
+        let frame_style = theme.frame_style();
+        Self {
+            theme,
+            bg_color: Color::WHITE,
+            accent_color: Color::BLACK,
+            text_color: Color::BLACK,
+            border_color: Color::BLACK,
+            button_style: ButtonStyle::default(),
+            frame_style,
+            text_size: 14.0,
+            text_font: framewise::text::FontId::default(),
+            time: 0.0,
+            clip_rect: None,
+        }
+    }
+}
+
+// ── WidgetRenderCompat Compatibility Trait ──────────────────────────────────────
+
+pub trait WidgetRenderCompat<'a, T: TextSystem> {
+    type Info;
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info);
+}
+
+// 1. ColorSwatch
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::ColorSwatchSpecBuilder {
+    type Info = framewise::widgets::ColorSwatchInfo;
+    fn render(self, rect: Rect, _theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).build();
+        let result = color_swatch_raw(spec);
+        (result.draw.0, ColorSwatchInfo { layout: result.layout })
+    }
+}
+
+// 2. Menu
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::MenuSpecBuilder<'a, T> {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let result = menu_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 3. ProgressBar
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::ProgressBarSpecBuilder {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).build();
+        let result = progress_bar_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 4. Meter
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::MeterSpecBuilder {
+    type Info = framewise::widgets::MeterInfo;
+    fn render(self, rect: Rect, _theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).build();
+        let result = meter_raw(spec);
+        (result.draw.0, MeterInfo { layout: result.layout })
+    }
+}
+
+// 5. Spinner
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SpinnerSpecBuilder {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).build();
+        let result = spinner_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 6. Status
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::StatusSpecBuilder<'a, T> {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let result = status_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 7. Tree
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::TreeSpecBuilder<'a, T> {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let result = tree_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 8. Tooltip
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::TooltipSpecBuilder<'a, T> {
+    type Info = ();
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let result = tooltip_raw(spec);
+        (result.draw.0, ())
+    }
+}
+
+// 9. Keycap
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::KeycapSpecBuilder<'a, T> {
+    type Info = framewise::widgets::KeycapInfo;
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let result = keycap_raw(spec);
+        (result.draw.0, KeycapInfo { layout: result.layout })
+    }
+}
+
+// 10. Select
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SelectSpecBuilder<'a, T> {
+    type Info = framewise::widgets::SelectInfo;
+    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
+        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let state = SelectState::default();
+        let input = Input::default();
+        let mut dummy_focus_sys = FocusSystem::new();
+        let result = select_raw(state, spec, &input, &mut dummy_focus_sys);
+        (result.draw.0, SelectInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        })
+    }
+}
+
+// ── Builder Compatibility ─────────────────────────────────────────────────────
+
+pub struct Builder<'a, T: TextSystem, S: LayoutState> {
+    pub ctx: WidgetContext<'a, T, S>,
+    pub scroll_scope: Option<ScrollAreaScope>,
+    pub window_scope: Option<WindowScope>,
+}
+
+impl<'a, T: TextSystem, S: LayoutState> Deref for Builder<'a, T, S> {
+    type Target = WidgetContext<'a, T, S>;
+    fn deref(&self) -> &Self::Target {
+        &self.ctx
+    }
+}
+
+impl<'a, T: TextSystem, S: LayoutState> DerefMut for Builder<'a, T, S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ctx
+    }
+}
+
+impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
+    pub fn new(
+        ctx: BuilderCtx,
+        text_system: &'a mut T,
+        focus_sys: &'a mut FocusSystem,
+        layout_state: S,
+    ) -> Self {
+        let mut w_ctx = WidgetContext::new(ctx.theme, text_system, focus_sys, layout_state);
+        w_ctx.bg_color = ctx.bg_color;
+        w_ctx.accent_color = ctx.accent_color;
+        w_ctx.text_color = ctx.text_color;
+        w_ctx.border_color = ctx.border_color;
+        w_ctx.button_style = ctx.button_style;
+        w_ctx.frame_style = ctx.frame_style;
+        w_ctx.text_size = ctx.text_size;
+        w_ctx.text_font = ctx.text_font;
+        w_ctx.time = ctx.time;
+        w_ctx.clip_rect = ctx.clip_rect;
+        Self { ctx: w_ctx, scroll_scope: None, window_scope: None }
+    }
+
+    pub fn append_cmds(&mut self, cmds: Vec<DrawCmd>) {
+        self.ctx.append_cmds(cmds);
+    }
+
+    pub fn finish(mut self) -> Vec<DrawCmd> {
+        if let Some(scope) = self.scroll_scope.take() {
+            let post_cmds = end_scroll_area_raw(scope, self.ctx.focus_sys);
+            self.ctx.append_cmds(post_cmds);
+        }
+        if let Some(scope) = self.window_scope.take() {
+            let post_cmds = end_window_raw(scope);
+            self.ctx.append_cmds(post_cmds);
+        }
+        self.ctx.finish()
+    }
+
+    pub fn child_with_layout<L: Layout>(
+        &mut self,
+        parent_layout_params: S::Params,
+        layout_config: L,
+    ) -> Builder<'_, T, L::State> {
+        let bounds = self.ctx.layout(parent_layout_params);
+        let mut w_ctx = WidgetContext::new(
+            self.ctx.theme.clone(),
+            self.ctx.text_system,
+            self.ctx.focus_sys,
+            layout_config.begin(bounds),
+        );
+        w_ctx.bg_color = self.ctx.bg_color;
+        w_ctx.accent_color = self.ctx.accent_color;
+        w_ctx.text_color = self.ctx.text_color;
+        w_ctx.border_color = self.ctx.border_color;
+        w_ctx.button_style = self.ctx.button_style;
+        w_ctx.frame_style = self.ctx.frame_style;
+        w_ctx.text_size = self.ctx.text_size;
+        w_ctx.text_font = self.ctx.text_font;
+        w_ctx.time = self.ctx.time;
+        w_ctx.clip_rect = self.ctx.clip_rect;
+        Builder { ctx: w_ctx, scroll_scope: None, window_scope: None }
+    }
+
+    pub fn scroll_area<L: Layout>(
+        &mut self,
+        layout_params: S::Params,
+        content_size: Vec2,
+        h_vis: ScrollbarVisibility,
+        v_vis: ScrollbarVisibility,
+        state: &'a mut ScrollState,
+        inner_layout: L,
+        input: &Input,
+    ) -> Builder<'_, T, OffsetState<L::State>> {
+        let bounds = self.ctx.layout(layout_params);
+        let clip_rect = self.ctx.clip_rect;
+        let time = self.ctx.time;
+        let (scope, content_bounds, offset) = begin_scroll_area(
+            &mut self.ctx,
+            bounds,
+            content_size,
+            h_vis,
+            v_vis,
+            state,
+            input,
+            clip_rect,
+            time,
+        );
+        
+        let mut w_ctx = WidgetContext::new(
+            self.ctx.theme.clone(),
+            self.ctx.text_system,
+            self.ctx.focus_sys,
+            OffsetLayout { offset, inner: inner_layout }.begin(content_bounds),
+        );
+        w_ctx.bg_color = self.ctx.bg_color;
+        w_ctx.accent_color = self.ctx.accent_color;
+        w_ctx.text_color = self.ctx.text_color;
+        w_ctx.border_color = self.ctx.border_color;
+        w_ctx.button_style = self.ctx.button_style;
+        w_ctx.frame_style = self.ctx.frame_style;
+        w_ctx.text_size = self.ctx.text_size;
+        w_ctx.text_font = self.ctx.text_font;
+        w_ctx.time = self.ctx.time;
+        w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
+        Builder { ctx: w_ctx, scroll_scope: Some(scope), window_scope: None }
+    }
+
+    pub fn window<L: Layout>(
+        &mut self,
+        layout_params: S::Params,
+        widget_spec_builder: WindowSpecBuilder<'_, T>,
+        inner_layout: L,
+    ) -> Builder<'_, T, L::State> {
+        let rect = self.ctx.layout(layout_params);
+        let widget_spec = widget_spec_builder
+            .with_rect(rect)
+            .with_theme(&self.ctx.theme)
+            .with_text_system(self.ctx.text_system)
+            .build();
+        
+        let (pre_cmds, scope, content_bounds) = begin_window_raw(widget_spec);
+        self.ctx.append_cmds(pre_cmds);
+        
+        let mut w_ctx = WidgetContext::new(
+            self.ctx.theme.clone(),
+            self.ctx.text_system,
+            self.ctx.focus_sys,
+            inner_layout.begin(content_bounds),
+        );
+        w_ctx.bg_color = self.ctx.bg_color;
+        w_ctx.accent_color = self.ctx.accent_color;
+        w_ctx.text_color = self.ctx.text_color;
+        w_ctx.border_color = self.ctx.border_color;
+        w_ctx.button_style = self.ctx.button_style;
+        w_ctx.frame_style = self.ctx.frame_style;
+        w_ctx.text_size = self.ctx.text_size;
+        w_ctx.text_font = self.ctx.text_font;
+        w_ctx.time = self.ctx.time;
+        w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
+        
+        Builder { ctx: w_ctx, scroll_scope: None, window_scope: Some(scope) }
+    }
+
+    pub fn label(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = LabelSpec {
+            rect,
+            text: text.to_string(),
+            size: self.ctx.text_size,
+            font: self.ctx.text_font,
+            text_color: self.ctx.text_color,
+            rule: false,
+        };
+        label(&mut self.ctx, spec)
+    }
+
+    pub fn label_styled(&mut self, rect: Rect, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
+        let spec = LabelSpec {
+            rect,
+            text: text.to_string(),
+            size,
+            font: self.ctx.text_font,
+            text_color: color,
+            rule,
+        };
+        label(&mut self.ctx, spec)
+    }
+
+    pub fn label_styled_font(&mut self, rect: Rect, text: &str, size: f32, color: Color, rule: bool, font: framewise::text::FontId) -> LabelInfo {
+        let spec = LabelSpec {
+            rect,
+            text: text.to_string(),
+            size,
+            font,
+            text_color: color,
+            rule,
+        };
+        label(&mut self.ctx, spec)
+    }
+
+    pub fn divider(&mut self, rect: Rect) -> DividerInfo {
+        let spec = DividerSpec {
+            rect,
+            color: self.ctx.theme.line,
+            width: 1.0,
+        };
+        divider(&mut self.ctx, spec)
+    }
+
+    pub fn button(&mut self, state: ButtonState, layout_params: S::Params, text: String, input: &Input) -> ButtonInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = ButtonSpec {
+            rect,
+            text,
+            style: self.ctx.button_style,
+            clip_rect: self.ctx.clip_rect,
+            disabled: false,
+        };
+        button(&mut self.ctx, state, spec, input)
+    }
+
+    pub fn button_styled(&mut self, state: ButtonState, layout_params: S::Params, text: &str, style: ButtonStyle, disabled: bool, input: &Input) -> ButtonInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = ButtonSpec {
+            rect,
+            text: text.to_string(),
+            style,
+            clip_rect: self.ctx.clip_rect,
+            disabled,
+        };
+        button(&mut self.ctx, state, spec, input)
+    }
+
+    pub fn checkbox(&mut self, state: CheckboxState, layout_params: S::Params, input: &Input) -> CheckboxInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = CheckboxSpec {
+            rect,
+            state: state.check,
+            disabled: false,
+            style: self.ctx.theme.checkbox_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        checkbox(&mut self.ctx, state, spec, input)
+    }
+
+    pub fn radio(&mut self, state: RadioState, layout_params: S::Params, input: &Input) -> RadioInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = RadioSpec {
+            rect,
+            selected: state.selected,
+            disabled: false,
+            style: self.ctx.theme.radio_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        radio(&mut self.ctx, state, spec, input)
+    }
+
+    pub fn switch(&mut self, state: SwitchState, layout_params: S::Params, input: &Input) -> SwitchInfo {
+        self.switch_styled(state, layout_params, false, input)
+    }
+
+    pub fn switch_styled(&mut self, state: SwitchState, layout_params: S::Params, disabled: bool, input: &Input) -> SwitchInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = SwitchSpec {
+            rect,
+            on: state.on,
+            disabled,
+            style: self.ctx.theme.switch_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        switch(&mut self.ctx, state, spec, input)
+    }
+
+    pub fn select(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, input: &Input) -> SelectInfo {
+        self.select_styled(state, options, layout_params, false, input)
+    }
+
+    pub fn select_styled(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, disabled: bool, input: &Input) -> SelectInfo {
+        let rect = self.ctx.layout(layout_params);
+        let value = if state.selected_index < options.len() {
+            options[state.selected_index]
+        } else {
+            ""
+        };
+        let spec = SelectSpec {
+            ts: self.ctx.text_system,
+            rect,
+            value,
+            font: self.ctx.text_font,
+            options,
+            disabled,
+            style: self.ctx.theme.select_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = select_raw(state, spec, input, self.ctx.focus_sys);
+        self.ctx.append_cmds(result.draw.0);
+        SelectInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        }
+    }
+
+    pub fn segmented(&mut self, state: SegmentedState, items: &[&str], layout_params: S::Params, input: &Input) -> SegmentedInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = SegmentedSpec {
+            ts: self.ctx.text_system,
+            rect,
+            items,
+            font: self.ctx.text_font,
+            active_index: state.active_index,
+            disabled: false,
+            style: self.ctx.theme.segmented_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = segmented_raw(state, spec, input, self.ctx.focus_sys);
+        self.ctx.append_cmds(result.draw.0);
+        SegmentedInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        }
+    }
+
+    pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params, input: &Input) -> TextEditInfo {
+        self.text_edit_ext(state, layout_params, false, false, input)
+    }
+
+    pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = TextEditSpec {
+            rect,
+            style: self.ctx.theme.text_edit_style(),
+            clip_rect: self.ctx.clip_rect,
+            error,
+            disabled,
+        };
+        let time = self.ctx.time;
+        text_edit(&mut self.ctx, state, spec, input, time)
+    }
+
+    pub fn drag_number(&mut self, state: DragNumberState, label: &str, min: f32, max: f32, layout_params: S::Params, input: &Input) -> DragNumberInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = DragNumberSpec {
+            ts: self.ctx.text_system,
+            rect,
+            label,
+            font: self.ctx.text_font,
+            value: state.value,
+            min,
+            max,
+            disabled: false,
+            style: self.ctx.theme.drag_number_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = drag_number_raw(state, spec, input, self.ctx.focus_sys);
+        self.ctx.append_cmds(result.draw.0);
+        DragNumberInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        }
+    }
+
+    pub fn chip(&mut self, state: ChipState, label: &str, layout_params: S::Params, input: &Input) -> ChipInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = ChipSpec {
+            ts: self.ctx.text_system,
+            rect,
+            label,
+            font: self.ctx.text_font,
+            disabled: false,
+            style: self.ctx.theme.chip_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = chip_raw(state, spec, input, self.ctx.focus_sys);
+        self.ctx.append_cmds(result.draw.0);
+        ChipInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        }
+    }
+
+    pub fn tabs(&mut self, state: TabsState, items: &[&str], layout_params: S::Params, input: &Input) -> TabsInfo {
+        let rect = self.ctx.layout(layout_params);
+        let spec = TabsSpec {
+            ts: self.ctx.text_system,
+            rect,
+            items,
+            font: self.ctx.text_font,
+            active_index: state.active_index,
+            disabled: false,
+            style: self.ctx.theme.tabs_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = tabs_raw(state, spec, input, self.ctx.focus_sys);
+        self.ctx.append_cmds(result.draw.0);
+        TabsInfo {
+            layout: result.layout,
+            input: result.input,
+            state: result.state,
+            focused: result.focused,
+        }
+    }
+
+    pub fn slider(
+        &mut self,
+        state: &mut SliderState,
+        value: &mut f32,
+        min: f32,
+        max: f32,
+        step: f32,
+        orientation: SliderOrientation,
+        layout_params: S::Params,
+        input: &Input,
+    ) {
+        let rect = self.ctx.layout(layout_params);
+        let spec = SliderSpec {
+            rect,
+            min,
+            max,
+            page_step: step,
+            step,
+            orientation,
+            thumb_size_ratio: None,
+            style: self.ctx.theme.slider_style(),
+            clip_rect: self.ctx.clip_rect,
+            claim_scroll_at_ends: true,
+        };
+        slider(&mut self.ctx, state, value, spec, input);
+    }
+
+    pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
+        let rect = self.ctx.layout(layout_params);
+        let cmds = draw_fn(rect);
+        self.ctx.append_cmds(cmds);
+    }
+
+    pub fn add<'b, WR, WSB>(&'b mut self, layout_params: S::Params, _widget_func: WR, widget_spec_builder: WSB) -> WSB::Info
+    where
+        WSB: WidgetRenderCompat<'a, T>,
+    {
+        let rect = self.ctx.layout(layout_params);
+        let (cmds, info) = unsafe {
+            let ts_ptr = self.ctx.text_system as *mut T;
+            widget_spec_builder.render(rect, &self.ctx.theme, &mut *ts_ptr)
+        };
+        self.ctx.append_cmds(cmds);
+        info
+    }
+}
+
+// ── Fake State Helpers ────────────────────────────────────────────────────────
+
 fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut Builder<T, S>,
+    b: &mut Builder<'_, T, S>,
     layout_params: S::Params,
     state_val: CheckState,
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
+    let rect = b.ctx.layout(layout_params);
     let mut state = CheckboxState::default();
     state.check = state_val;
 
@@ -63,7 +676,7 @@ fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.ctx.clip_rect,
     };
 
-    let result = checkbox(
+    let result = checkbox_raw(
         state,
         spec,
         &dummy_input,
@@ -73,13 +686,13 @@ fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
 }
 
 fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut Builder<T, S>,
+    b: &mut Builder<'_, T, S>,
     layout_params: S::Params,
     selected: bool,
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
+    let rect = b.ctx.layout(layout_params);
     let mut state = RadioState::default();
     state.selected = selected;
 
@@ -97,7 +710,7 @@ fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.ctx.clip_rect,
     };
 
-    let result = radio(
+    let result = radio_raw(
         state,
         spec,
         &dummy_input,
@@ -107,13 +720,13 @@ fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
 }
 
 fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut Builder<T, S>,
+    b: &mut Builder<'_, T, S>,
     layout_params: S::Params,
     on: bool,
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
+    let rect = b.ctx.layout(layout_params);
     let mut state = SwitchState::default();
     state.on = on;
 
@@ -131,7 +744,7 @@ fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
         clip_rect: b.ctx.clip_rect,
     };
 
-    let result = switch(
+    let result = switch_raw(
         state,
         spec,
         &dummy_input,
@@ -150,8 +763,8 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
     hovered_row: Option<usize>,
     is_disabled: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
-    let mut state = framewise::widgets::select::SelectState::default();
+    let rect = b.ctx.layout(layout_params);
+    let mut state = SelectState::default();
     state.open = is_open;
     state.hovered = hovered_row;
 
@@ -162,7 +775,7 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
 
     let dummy_input = Input::default();
     let spec = SelectSpec {
-        ts: b.text_system,
+        ts: b.ctx.text_system,
         rect,
         value,
         font: b.ctx.theme.sans_font,
@@ -172,7 +785,7 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
         clip_rect: b.ctx.clip_rect,
     };
 
-    let result = select(
+    let result = select_raw(
         state,
         spec,
         &dummy_input,
@@ -190,14 +803,14 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
     max: f32,
     is_active: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
-    let mut state = framewise::widgets::drag_number::DragNumberState::default();
+    let rect = b.ctx.layout(layout_params);
+    let mut state = DragNumberState::default();
     state.value = val;
     state.is_dragging = is_active;
 
     let dummy_input = Input::default();
     let spec = DragNumberSpec {
-        ts: b.text_system,
+        ts: b.ctx.text_system,
         rect,
         label,
         font: b.ctx.theme.sans_font,
@@ -209,17 +822,18 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
         clip_rect: b.ctx.clip_rect,
     };
 
-    let result = drag_number(
+    let mut dummy_focus_sys = FocusSystem::new();
+    let result = drag_number_raw(
         state,
         spec,
         &dummy_input,
-        b.focus_sys,
+        &mut dummy_focus_sys,
     );
     b.append_cmds(result.draw.0);
 }
 
 fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut Builder<T, S>,
+    b: &mut Builder<'_, T, S>,
     layout_params: S::Params,
     text: &str,
     style: ButtonStyle,
@@ -227,7 +841,7 @@ fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
     pressed: bool,
     focused: bool,
 ) {
-    let rect = b.layout_state.layout(layout_params);
+    let rect = b.ctx.layout(layout_params);
     let mut state = ButtonState::default();
     let mut dummy_focus_sys = FocusSystem::new();
 
@@ -258,7 +872,7 @@ fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
         disabled: false,
     };
 
-    let result = button(state, spec, &fake_input, b.text_system, &mut dummy_focus_sys);
+    let result = button_raw(state, spec, &fake_input, b.ctx.text_system, &mut dummy_focus_sys);
     b.append_cmds(result.draw.0);
 }
 
@@ -522,7 +1136,7 @@ pub fn draw_spec_page(
     let mut b = Builder::new(ctx, ts, focus_sys, ManualLayout.begin(win_rect));
 
     // Background fill (outside clip so it covers the whole viewport).
-    let bg = frame(FrameSpec {
+    let bg = frame_raw(FrameSpec {
         rect: win_rect,
         style: FrameStyle {
             background: t.paper,
@@ -1406,7 +2020,7 @@ pub fn draw_spec_page(
                 for (color, hex) in swatches {
                     b.add(
                         Rect::new(bx, y, 18.0, t.h_md),
-                        color_swatch,
+                        color_swatch::<SampleTextSystem, framewise::layout::ManualState>,
                         framewise::widgets::ColorSwatchSpecBuilder::new()
                             .color(*color)
                             .border(t.line),
@@ -1503,7 +2117,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "dropdown menu (open)");
             y += 20.0;
             {
-                let items1 = [
+                static ITEMS1: &[MenuItem<'static>] = &[
                     MenuItem::Group("FRAME"),
                     MenuItem::Item {
                         label: "New panel",
@@ -1547,11 +2161,11 @@ pub fn draw_spec_page(
                 ];
                 b.add(
                     Rect::new(lx, y, 240.0, 0.0),
-                    menu,
-                    framewise::widgets::MenuSpecBuilder::new().items(&items1),
+                    menu::<SampleTextSystem, framewise::layout::ManualState>,
+                    framewise::widgets::MenuSpecBuilder::new().items(ITEMS1),
                 );
 
-                let items2 = [
+                static ITEMS2: &[MenuItem<'static>] = &[
                     MenuItem::Group("THEME"),
                     MenuItem::Item {
                         label: "framewise · default",
@@ -1580,11 +2194,11 @@ pub fn draw_spec_page(
                 ];
                 b.add(
                     Rect::new(lx + 264.0, y, 200.0, 0.0),
-                    menu,
-                    framewise::widgets::MenuSpecBuilder::new().items(&items2),
+                    menu::<SampleTextSystem, framewise::layout::ManualState>,
+                    framewise::widgets::MenuSpecBuilder::new().items(ITEMS2),
                 );
 
-                let menu1_h: f32 = items1
+                let menu1_h: f32 = ITEMS1
                     .iter()
                     .map(|i| match i {
                         MenuItem::Item { .. } => 26.0,
@@ -1839,7 +2453,7 @@ pub fn draw_spec_page(
                 for (val, active, label) in bar_items {
                     b.add(
                         Rect::new(lx, y + 8.0, bar_w, 3.0),
-                        progress_bar,
+                        progress_bar::<SampleTextSystem, framewise::layout::ManualState>,
                         ProgressBarSpecBuilder::new(*val)
                             .phase((time as f32) * 0.5)
                             .active(*active),
@@ -1886,7 +2500,7 @@ pub fn draw_spec_page(
                     } else {
                         b.add(
                             Rect::new(bx, y, 100.0, 12.0),
-                            meter,
+                            meter::<SampleTextSystem, framewise::layout::ManualState>,
                             framewise::widgets::MeterSpecBuilder::new()
                                 .value(*val)
                                 .peak(*peak)
@@ -1903,7 +2517,7 @@ pub fn draw_spec_page(
             {
                 b.add(
                     Rect::new(lx, y, 16.0, 16.0),
-                    spinner,
+                    spinner::<SampleTextSystem, framewise::layout::ManualState>,
                     SpinnerSpecBuilder::new(),
                 );
                 b.label_styled(
@@ -1916,7 +2530,7 @@ pub fn draw_spec_page(
 
                 b.add(
                     Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
-                    spinner,
+                    spinner::<SampleTextSystem, framewise::layout::ManualState>,
                     SpinnerSpecBuilder::new().large(true),
                 );
                 b.label_styled(
@@ -1938,7 +2552,7 @@ pub fn draw_spec_page(
                 for (label, variant) in status_items {
                     b.add(
                         Rect::new(sx, y + 1.0, 120.0, 12.0),
-                        status,
+                        status::<SampleTextSystem, framewise::layout::ManualState>,
                         framewise::widgets::StatusSpecBuilder::new()
                             .label(label)
                             .variant(*variant),
@@ -1952,7 +2566,7 @@ pub fn draw_spec_page(
             sec_y(&mut b, &t, lx, y, content_w, "09", "Tree & list");
             y += 46.0;
             {
-                let widget_tree = [
+                static WIDGET_TREE: &[TreeRow<'static>] = &[
                     TreeRow {
                         indent: 0,
                         caret: Some(true),
@@ -2026,11 +2640,11 @@ pub fn draw_spec_page(
                 ];
                 b.add(
                     Rect::new(lx, y, 320.0, 0.0),
-                    tree,
-                    framewise::widgets::TreeSpecBuilder::new().rows(&widget_tree),
+                    tree::<SampleTextSystem, framewise::layout::ManualState>,
+                    framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE),
                 );
 
-                let file_list = [
+                static FILE_LIST: &[TreeRow<'static>] = &[
                     TreeRow {
                         indent: 0,
                         caret: None,
@@ -2083,11 +2697,11 @@ pub fn draw_spec_page(
                 ];
                 b.add(
                     Rect::new(lx + 360.0, y, 240.0, 0.0),
-                    tree,
-                    framewise::widgets::TreeSpecBuilder::new().rows(&file_list),
+                    tree::<SampleTextSystem, framewise::layout::ManualState>,
+                    framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST),
                 );
 
-                y += widget_tree.len().max(file_list.len()) as f32 * 20.0 + 12.0;
+                y += WIDGET_TREE.len().max(FILE_LIST.len()) as f32 * 20.0 + 12.0;
             }
             y += SEC_GAP;
 
@@ -2100,19 +2714,19 @@ pub fn draw_spec_page(
             {
                 b.add(
                     Rect::new(lx, y, 0.0, 0.0),
-                    tooltip,
+                    tooltip::<SampleTextSystem, framewise::layout::ManualState>,
                     framewise::widgets::TooltipSpecBuilder::new()
                         .text("Drag to scrub — hold ⌥ for fine.")
                         .variant(TooltipVariant::Dark),
                 );
                 y += 28.0 + 8.0;
 
-                b.add(Rect::new(lx, y, 0.0, 0.0), tooltip, framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
+                b.add(Rect::new(lx, y, 0.0, 0.0), tooltip::<SampleTextSystem, framewise::layout::ManualState>, framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
                 y += 28.0 + 8.0;
 
                 b.add(
                     Rect::new(lx, y, 0.0, 0.0),
-                    tooltip,
+                    tooltip::<SampleTextSystem, framewise::layout::ManualState>,
                     framewise::widgets::TooltipSpecBuilder::new()
                         .text("⚠ shader recompiled this frame (12 ms)")
                         .variant(TooltipVariant::Rust),
@@ -2136,7 +2750,7 @@ pub fn draw_spec_page(
                         let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
                         b.add(
                             Rect::new(kx, y, kw, 22.0),
-                            keycap,
+                            keycap::<SampleTextSystem, framewise::layout::ManualState>,
                             framewise::widgets::KeycapSpecBuilder::new()
                                 .label(key)
                                 .bg(t.paper_elev)
@@ -2543,7 +3157,7 @@ pub fn draw_spec_page(
                 );
                 win.add(
                     Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
-                    color_swatch,
+                    color_swatch::<SampleTextSystem, framewise::layout::ManualState>,
                     framewise::widgets::ColorSwatchSpecBuilder::new()
                         .color(t.rust)
                         .border(t.line),
@@ -2738,7 +3352,7 @@ pub fn draw_spec_page(
                 ];
                 qa_win.add(
                     Rect::new(0.0, -8.0, qa_cr_w, 0.0),
-                    menu,
+                    menu::<SampleTextSystem, framewise::layout::ManualState>,
                     framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
                 );
                 let cmds = qa_win.finish();
