@@ -2,7 +2,10 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
+    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
+    input::Input,
+    focus::FocusId,
 };
 
 pub struct TabsSpec<'a, T: crate::text::TextSystem> {
@@ -13,7 +16,9 @@ pub struct TabsSpec<'a, T: crate::text::TextSystem> {
     pub font: FontId,
     pub active_index: usize,
     pub focused: Option<usize>,
+    pub disabled: bool,
     pub style: TabsStyle,
+    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,6 +35,7 @@ pub struct TabsStyle {
     pub border_width: f32,
     pub focus_width: f32,
     pub focus_offset: f32,
+    pub disabled_alpha: f32,
 }
 
 impl Default for TabsStyle {
@@ -47,23 +53,78 @@ impl Default for TabsStyle {
             border_width: 1.0,
             focus_width: 2.0,
             focus_offset: 2.0,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TabsState {
+    pub active_index: usize,
+    pub focus_id: crate::focus::FocusId,
+}
+
+impl Default for TabsState {
+    fn default() -> Self {
+        Self {
+            active_index: 0,
+            focus_id: crate::focus::FocusId::new(),
         }
     }
 }
 
 pub struct TabsResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: TabsState,
+    pub focused: bool,
 }
 
-impl WidgetResult for TabsResult {
-    type Info = ();
+pub struct TabsInfo {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: TabsState,
+    pub focused: bool,
+}
 
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
-        (self.draw, ())
+impl TabsInfo {
+    pub fn clicked(&self) -> bool {
+        self.input.clicked
+    }
+    pub fn hovered(&self) -> bool {
+        self.input.hovered
+    }
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+    pub fn active_index(&self) -> usize {
+        self.state.active_index
     }
 }
 
-pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
+impl WidgetResult for TabsResult {
+    type Info = TabsInfo;
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (
+            self.draw,
+            TabsInfo {
+                layout: self.layout,
+                input: self.input,
+                state: self.state,
+                focused: self.focused,
+            },
+        )
+    }
+}
+
+pub fn tabs<'a, T: crate::text::TextSystem>(
+    mut state: TabsState,
+    spec: TabsSpec<'a, T>,
+    input: &Input,
+    focus_sys: &mut crate::focus::FocusSystem,
+) -> TabsResult {
     let mut cmds = DrawCommands::new();
     let s = spec.style;
 
@@ -71,30 +132,92 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
     let pad_x = s.pad_x;
     let underbar_h = s.underbar_height;
 
+    // Sum width of tabs
+    let mut total_w = 0.0;
+    for label in spec.items.iter() {
+        let layout = spec.ts.prepare(label, s.text_size, spec.font);
+        total_w += layout.size.x + pad_x * 2.0;
+    }
+
+    let (focused, clicked) = if spec.disabled {
+        (false, false)
+    } else {
+        crate::focus::handle_widget_focus(
+            state.focus_id,
+            Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
+            spec.clip_rect,
+            input,
+            focus_sys,
+            crate::focus::FocusTraversalKeys::all(),
+            spec.disabled,
+        )
+    };
+
+    if state.active_index != spec.active_index {
+        state.active_index = spec.active_index;
+    }
+
+    let mut is_clicked = clicked;
+
+    // Left/Right keyboard navigation
+    if focused && !spec.disabled && !spec.items.is_empty() {
+        if input.key_pressed_left {
+            if state.active_index > 0 {
+                state.active_index -= 1;
+                is_clicked = true;
+            }
+        }
+        if input.key_pressed_right {
+            if state.active_index + 1 < spec.items.len() {
+                state.active_index += 1;
+                is_clicked = true;
+            }
+        }
+    }
+
+    // Mouse click segment detection
+    if clicked && !spec.disabled && !spec.items.is_empty() {
+        let mut x = spec.rect.x;
+        for (i, label) in spec.items.iter().enumerate() {
+            let layout = spec.ts.prepare(label, s.text_size, spec.font);
+            let tab_w = layout.size.x + pad_x * 2.0;
+            let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
+            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            if tab_rect.contains(input.mouse_pos) && is_visible {
+                state.active_index = i;
+                break;
+            }
+            x += tab_w;
+        }
+    }
+
+    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
     // Bottom border across the full width.
     let border_y = spec.rect.y + tab_h;
     cmds.push(DrawCmd::StrokeLine {
         p0: Vec2::new(spec.rect.x, border_y),
         p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
-        color: s.border,
+        color: tint(s.border),
         width: s.border_width,
     });
 
     let mut x = spec.rect.x;
 
     for (i, label) in spec.items.iter().enumerate() {
-        let is_active = i == spec.active_index;
-        let is_focused = spec.focused == Some(i);
+        let is_active = i == state.active_index;
 
         let layout = spec.ts.prepare(label, s.text_size, spec.font);
         let tab_w = layout.size.x + pad_x * 2.0;
         let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
         // Focus ring.
-        if is_focused {
+        let visually_focused = (focused && i == state.active_index) || spec.focused == Some(i);
+        if visually_focused && !spec.disabled {
             cmds.push(DrawCmd::StrokeRect {
                 rect: tab_rect.inset(-s.focus_offset),
-                color: s.focus,
+                color: tint(s.focus),
                 width: s.focus_width,
             });
         }
@@ -103,7 +226,7 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
-            color: text_color,
+            color: tint(text_color),
             handle: layout.handle,
         });
 
@@ -111,24 +234,34 @@ pub fn tabs<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult
         if is_active {
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
-                color: s.accent,
+                color: tint(s.accent),
             });
             // Left uptick (3px wide, 9px tall)
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
-                color: s.accent,
+                color: tint(s.accent),
             });
             // Right uptick (3px wide, 9px tall)
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
-                color: s.accent,
+                color: tint(s.accent),
             });
         }
 
         x += tab_w;
     }
 
-    TabsResult { draw: cmds }
+    TabsResult {
+        draw: cmds,
+        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+        input: InputInfo {
+            hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+            pressed: clicked && input.mouse_down,
+            clicked: is_clicked,
+        },
+        state,
+        focused,
+    }
 }
 
 pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
@@ -137,8 +270,10 @@ pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
     pub style: Option<TabsStyle>,
     pub active_index: Option<usize>,
     pub focused: Option<Option<usize>>,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
+    pub clip_rect: Option<Rect>,
 }
 
 impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
@@ -149,8 +284,10 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
             style: None,
             active_index: None,
             focused: None,
+            disabled: None,
             rect: None,
             ts: None,
+            clip_rect: None,
         }
     }
 
@@ -172,6 +309,14 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     }
     pub fn focused(mut self, focused: Option<usize>) -> Self {
         self.focused = Some(focused);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
         self
     }
 }
@@ -210,16 +355,31 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             items: self.items.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("TabsStyle is required"),
-            active_index: self.active_index.unwrap(),
-            focused: self.focused.unwrap(),
+            active_index: self.active_index.unwrap_or(0),
+            focused: self.focused.unwrap_or(None),
+            disabled: self.disabled.unwrap_or(false),
+            clip_rect: self.clip_rect,
         }
     }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpec for TabsSpec<'a, T> {
+    type Builder = TabsSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+
+    fn tab_s<'a, T: crate::text::TextSystem>(spec: TabsSpec<'a, T>) -> TabsResult {
+        tabs(
+            TabsState::default(),
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+        )
+    }
 
     #[test]
     fn test_tabs_visual_normal() {
@@ -232,10 +392,12 @@ mod tests {
             font: FontId(1),
             active_index: 0,
             focused: None,
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = tabs(spec);
+        let res = tab_s(spec);
 
         assert_eq!(
             res.draw,
@@ -283,10 +445,12 @@ mod tests {
             font: FontId(1),
             active_index: 1,
             focused: Some(1),
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = tabs(spec);
+        let res = tab_s(spec);
 
         assert_eq!(
             res.draw,
@@ -327,6 +491,97 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_tabs_click_takes_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = TabsState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(20.0, 10.0);
+        input.mouse_pressed = true;
+
+        let mut text_sys = DummyTextSys;
+        let items = ["Tab1", "Tab2"];
+        let spec = TabsSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+            items: &items,
+            font: FontId(1),
+            active_index: 0,
+            focused: None,
+            disabled: false,
+            style: Default::default(),
+            clip_rect: None,
+        };
+
+        focus_sys.begin_frame();
+        let res = tabs(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking tabs must request focus"
+        );
+    }
+
+    #[test]
+    fn test_tabs_keyboard_navigation() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut state = TabsState::default();
+        let mut input = Input::default();
+        let mut text_sys = DummyTextSys;
+        let items = ["Tab1", "Tab2"];
+
+        // Focus the widget
+        focus_sys.take_focus(state.focus_id);
+
+        // Frame 1: Press Arrow Right -> changes active index to 1
+        input.key_pressed_right = true;
+        focus_sys.begin_frame();
+        let res = tabs(
+            state,
+            TabsSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                items: &items,
+                font: FontId(1),
+                active_index: 0,
+                focused: None,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        state = res.state;
+        focus_sys.end_frame();
+        input.key_pressed_right = false;
+
+        assert_eq!(state.active_index, 1);
+
+        // Frame 2: Press Arrow Left -> changes active index back to 0
+        input.key_pressed_left = true;
+        focus_sys.begin_frame();
+        let res = tabs(
+            state,
+            TabsSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+                items: &items,
+                font: FontId(1),
+                active_index: 0,
+                focused: None,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        focus_sys.end_frame();
+
+        assert_eq!(res.state.active_index, 0);
+    }
 }
-
-

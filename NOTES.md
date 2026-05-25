@@ -43,6 +43,17 @@ Is useful when using builder cos the rect is calculated by the layout, so then m
 //TODO: should the spec traits actually be part of the builder API, as that's the only thing that actually requires a consistent shape.
 Also having themes here might be inconsistent as they're supposed to be a high level concept!
 
+* The most elegant, industry-standard pattern for custom widgets in immediate-mode architectures is "Builder Referencing": defining custom widgets as standalone functions that take &mut Builder directly:
+rust
+
+
+pub fn my_custom_widget(
+    ui: &mut Builder<'_, impl TextSystem, impl LayoutState>,
+    state: &mut MyWidgetState,
+    layout_params: impl LayoutParams,
+    input: &Input,
+) -> MyWidgetInfo { ... }
+
 
 * Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
 

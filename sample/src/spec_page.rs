@@ -1,5 +1,6 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
+use framewise::widget::WidgetSpecBuilder;
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
     builder::{Builder, BuilderCtx},
@@ -11,33 +12,320 @@ use framewise::{
     types::{Color, Rect, Vec2},
     widgets::{
         button::{ButtonState, ButtonStyle},
-        checkbox::{checkbox, CheckState},
-        chip::chip,
+        checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec},
+        chip::{chip, ChipState, ChipSpec},
         color_swatch::color_swatch,
-        drag_number::drag_number,
+        drag_number::{drag_number, DragNumberState, DragNumberSpec},
         frame::FrameSpec,
         frame::{frame, FrameStyle},
         keycap::keycap,
         menu::{menu, MenuItem},
         meter::meter,
         progress_bar::progress_bar,
-        radio::radio,
+        radio::{radio, RadioState, RadioSpec},
         scroll_area::{ScrollState, ScrollbarVisibility},
-        segmented::segmented,
-        select::select,
+        segmented::{segmented, SegmentedState, SegmentedSpec},
+        select::{select, SelectState, SelectSpec},
         slider::{Orientation as SliderOrientation, SliderState},
         spinner::spinner,
         status::{status, StatusVariant},
-        switch::switch,
-        tabs::tabs,
+        switch::{switch, SwitchState, SwitchSpec},
+        tabs::{tabs, TabsState, TabsSpec},
         text_edit::TextEditState,
         tooltip::{tooltip, TooltipVariant},
         tree::{tree, TreeRow},
         window::WindowButton,
-        CheckboxSpecBuilder, ProgressBarSpecBuilder, RadioSpecBuilder, SpinnerSpecBuilder,
-        SwitchSpecBuilder,
+        ProgressBarSpecBuilder, SpinnerSpecBuilder,
     },
 };
+
+fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
+    b: &mut Builder<T, S>,
+    layout_params: S::Params,
+    state_val: CheckState,
+    is_focused: bool,
+    is_disabled: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = CheckboxState::default();
+    state.check = state_val;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = CheckboxSpec {
+        rect,
+        state: state_val,
+        disabled: is_disabled,
+        style: b.ctx.theme.checkbox_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = checkbox(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
+    b: &mut Builder<T, S>,
+    layout_params: S::Params,
+    selected: bool,
+    is_focused: bool,
+    is_disabled: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = RadioState::default();
+    state.selected = selected;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = RadioSpec {
+        rect,
+        selected,
+        disabled: is_disabled,
+        style: b.ctx.theme.radio_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = radio(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
+    b: &mut Builder<T, S>,
+    layout_params: S::Params,
+    on: bool,
+    is_focused: bool,
+    is_disabled: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = SwitchState::default();
+    state.on = on;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = SwitchSpec {
+        rect,
+        on,
+        disabled: is_disabled,
+        style: b.ctx.theme.switch_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = switch(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_chip_fake_state<'a, T: TextSystem, S: LayoutState>(
+    b: &mut Builder<'a, T, S>,
+    layout_params: S::Params,
+    label: &str,
+    is_active: bool,
+    is_focused: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = ChipState::default();
+    state.active = is_active;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = ChipSpec {
+        ts: b.text_system,
+        rect,
+        label: label.to_string(),
+        disabled: false,
+        style: b.ctx.theme.chip_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = chip(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
+    b: &mut Builder<'a, T, S>,
+    layout_params: S::Params,
+    value: &'s str,
+    options: &'s [&'s str],
+    is_open: bool,
+    is_focused: bool,
+    hovered_row: Option<usize>,
+    is_disabled: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = framewise::widgets::select::SelectState::default();
+    state.open = is_open;
+    state.hovered = hovered_row;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = SelectSpec {
+        ts: b.text_system,
+        rect,
+        value,
+        font: b.ctx.theme.sans_font,
+        options,
+        disabled: is_disabled,
+        style: b.ctx.theme.select_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = select(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_segmented_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
+    b: &mut Builder<'a, T, S>,
+    layout_params: S::Params,
+    items: &'s [&'s str],
+    active_index: usize,
+    is_focused: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = SegmentedState::default();
+    state.active_index = active_index;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = SegmentedSpec {
+        ts: b.text_system,
+        rect,
+        items,
+        font: b.ctx.theme.sans_font,
+        active_index,
+        disabled: false,
+        style: b.ctx.theme.segmented_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = segmented(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_tabs_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
+    b: &mut Builder<'a, T, S>,
+    layout_params: S::Params,
+    items: &'s [&'s str],
+    active_index: usize,
+    is_focused: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = TabsState::default();
+    state.active_index = active_index;
+
+    let mut dummy_focus_sys = FocusSystem::new();
+    if is_focused {
+        dummy_focus_sys.take_focus(state.focus_id);
+    }
+
+    let dummy_input = Input::default();
+    let spec = TabsSpec {
+        ts: b.text_system,
+        rect,
+        items,
+        font: b.ctx.theme.sans_font,
+        active_index,
+        disabled: false,
+        style: b.ctx.theme.tabs_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = tabs(
+        state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
+
+fn draw_drag_number_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
+    b: &mut Builder<'a, T, S>,
+    layout_params: S::Params,
+    label: &'s str,
+    val: f32,
+    min: f32,
+    max: f32,
+    is_active: bool,
+) {
+    let rect = b.layout_state.layout(layout_params);
+    let mut state = framewise::widgets::drag_number::DragNumberState::default();
+    state.value = val;
+    state.is_dragging = is_active;
+
+    let dummy_input = Input::default();
+    let spec = DragNumberSpec {
+        ts: b.text_system,
+        rect,
+        label,
+        value: val,
+        min,
+        max,
+        disabled: false,
+        style: b.ctx.theme.drag_number_style(),
+        clip_rect: b.ctx.clip_rect,
+    };
+
+    let result = drag_number(
+        state,
+        spec,
+        &dummy_input,
+        b.focus_sys,
+    );
+    b.append_cmds(result.draw.0);
+}
 
 // ── Page state ────────────────────────────────────────────────────────────────
 
@@ -78,6 +366,11 @@ pub struct SpecPageState {
     pub iu_fps_val: f32,
     pub iu_btns: Vec<ButtonState>, // [Reset, Cancel, Apply]
     pub iu_log_scroll: ScrollState,
+    pub iu_vsync: SwitchState,
+    pub iu_msaa: SegmentedState,
+    pub iu_vp_w: DragNumberState,
+    pub iu_vp_h: DragNumberState,
+    pub iu_options: Vec<CheckboxState>,
 }
 
 impl Default for SpecPageState {
@@ -123,6 +416,15 @@ impl Default for SpecPageState {
             iu_fps_val: 60.0,
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
             iu_log_scroll: ScrollState::default(),
+            iu_vsync: SwitchState { on: true, ..Default::default() },
+            iu_msaa: SegmentedState { active_index: 2, ..Default::default() },
+            iu_vp_w: DragNumberState { value: 1920.0, ..Default::default() },
+            iu_vp_h: DragNumberState { value: 1080.0, ..Default::default() },
+            iu_options: vec![
+                CheckboxState { check: CheckState::On, ..Default::default() },
+                CheckboxState { check: CheckState::Off, ..Default::default() },
+                CheckboxState { check: CheckState::Indeterminate, ..Default::default() },
+            ],
         }
     }
 }
@@ -673,12 +975,13 @@ pub fn draw_spec_page(
                     (CheckState::On, false, true),
                 ];
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-                    b.add(
+                    draw_checkbox(
+                        &mut b,
                         Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0),
-                        checkbox,
                         CheckboxSpecBuilder::new(*cs)
                             .focused(*focused)
                             .disabled(*disabled),
+                        input,
                     );
                 }
                 y += 14.0 + 12.0;
@@ -693,12 +996,13 @@ pub fn draw_spec_page(
                 );
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
-                    b.add(
+                    draw_checkbox(
+                        &mut b,
                         Rect::new(cx, y, 14.0, 14.0),
-                        checkbox,
                         CheckboxSpecBuilder::new(*cs)
                             .focused(*focused)
                             .disabled(*disabled),
+                        input,
                     );
 
                     let label_alpha = if *disabled { t.muted } else { t.ink };
@@ -731,13 +1035,14 @@ pub fn draw_spec_page(
                 ];
                 for (i, (selected, focused, disabled, label)) in radio_items.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    b.add(
+                    draw_radio(
+                        &mut b,
                         Rect::new(lx, ry, 14.0, 14.0),
-                        radio,
                         RadioSpecBuilder::new()
                             .selected(*selected)
                             .focused(*focused)
                             .disabled(*disabled),
+                        input,
                     );
                     b.label_styled(
                         Rect::new(lx + 18.0, ry, 140.0, 14.0),
@@ -750,13 +1055,14 @@ pub fn draw_spec_page(
                 let sw_x = lx + 220.0;
                 for (i, (on, focused, disabled, label)) in switch_items.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    b.add(
+                    draw_switch(
+                        &mut b,
                         Rect::new(sw_x, ry, 30.0, 16.0),
-                        switch,
                         SwitchSpecBuilder::new()
                             .on(*on)
                             .focused(*focused)
                             .disabled(*disabled),
+                        input,
                     );
                     let label_color = if *disabled { t.muted } else { t.ink };
                     b.label_styled(
@@ -950,15 +1256,16 @@ pub fn draw_spec_page(
                 ];
                 let mut bx = lx;
                 for (label, val, min, max, active) in drag_items {
-                    b.add(
+                    draw_drag_number(
+                        &mut b,
                         Rect::new(bx, y, 100.0, t.h_md),
-                        drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
                             .label(label)
                             .value(*val)
                             .min(*min)
                             .max(*max)
                             .active(*active),
+                        input,
                     );
                     bx += 100.0 + 8.0;
                 }
@@ -1099,46 +1406,50 @@ pub fn draw_spec_page(
             {
                 // Select widgets
                 let opts = ["Layout: row", "Layout: column", "Layout: grid"];
-                b.add(
+                draw_select(
+                    &mut b,
                     Rect::new(lx, y, 160.0, t.h_md),
-                    select,
                     framewise::widgets::SelectSpecBuilder::new()
                         .value("Layout row")
                         .options(&opts)
                         .open(false)
                         .focused(false)
                         .hovered(None),
+                    input,
                 );
-                b.add(
+                draw_select(
+                    &mut b,
                     Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
-                    select,
                     framewise::widgets::SelectSpecBuilder::new()
                         .value("Layout row")
                         .options(&opts)
                         .open(true)
                         .focused(true)
                         .hovered(Some(0)),
+                    input,
                 );
 
                 // Segmented controls
                 let seg_x = lx + 200.0;
                 let segs1 = ["row", "column", "grid", "flex"];
-                b.add(
+                draw_segmented(
+                    &mut b,
                     Rect::new(seg_x, y, 0.0, t.h_md),
-                    segmented,
                     framewise::widgets::SegmentedSpecBuilder::new()
                         .items(&segs1)
                         .active_index(0)
                         .focused(None),
+                    input,
                 );
                 let segs2 = ["start", "center", "end"];
-                b.add(
+                draw_segmented(
+                    &mut b,
                     Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
-                    segmented,
                     framewise::widgets::SegmentedSpecBuilder::new()
                         .items(&segs2)
                         .active_index(1)
                         .focused(None),
+                    input,
                 );
 
                 // Chips
@@ -1153,13 +1464,14 @@ pub fn draw_spec_page(
                 for (label, active) in chip_data {
                     let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
-                    b.add(
+                    draw_chip(
+                        &mut b,
                         Rect::new(chip_x, chip_y, chip_w, 22.0),
-                        chip,
                         framewise::widgets::ChipSpecBuilder::new()
                             .label(label)
                             .active(*active)
                             .focused(false),
+                        input,
                     );
                     chip_x += chip_w + 6.0;
                 }
@@ -1167,13 +1479,14 @@ pub fn draw_spec_page(
                     .text_system
                     .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
-                b.add(
+                draw_chip(
+                    &mut b,
                     Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
-                    chip,
                     framewise::widgets::ChipSpecBuilder::new()
                         .label("+ add backend")
                         .active(false)
                         .focused(false),
+                    input,
                 );
             }
             let select_open_h = 3.0 * 26.0 + 8.0;
@@ -1472,24 +1785,26 @@ pub fn draw_spec_page(
             y += 46.0;
             {
                 let tabs1 = ["Inspector", "Layout", "Timing", "Logs", "Replay"];
-                b.add(
+                draw_tabs(
+                    &mut b,
                     Rect::new(lx, y, content_w.min(640.0), 36.0),
-                    tabs,
                     framewise::widgets::TabsSpecBuilder::new()
                         .items(&tabs1)
                         .active_index(0)
                         .focused(None),
+                    input,
                 );
                 y += 36.0 + 20.0;
 
                 let tabs2 = ["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-                b.add(
+                draw_tabs(
+                    &mut b,
                     Rect::new(lx, y, content_w.min(480.0), 36.0),
-                    tabs,
                     framewise::widgets::TabsSpecBuilder::new()
                         .items(&tabs2)
                         .active_index(1)
                         .focused(None),
+                    input,
                 );
                 y += 36.0;
             }
@@ -1867,15 +2182,16 @@ pub fn draw_spec_page(
                 let mut drx = 0.0;
                 let cr_w = win_rect.w - 32.0;
                 for (label, val, min, max) in drag_items {
-                    win.add(
+                    draw_drag_number(
+                        &mut win,
                         Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
-                        drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
                             .label(label)
                             .value(*val)
                             .min(*min)
                             .max(*max)
                             .active(false),
+                        input,
                     );
                     drx += (cr_w / 2.0) + 4.0;
                 }
@@ -1884,15 +2200,16 @@ pub fn draw_spec_page(
                 let drag_items2: &[(&str, f32, f32, f32)] =
                     &[("W", 576.0, 0.0, 800.0), ("H", 400.0, 0.0, 600.0)];
                 for (label, val, min, max) in drag_items2 {
-                    win.add(
+                    draw_drag_number(
+                        &mut win,
                         Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
-                        drag_number,
                         framewise::widgets::DragNumberSpecBuilder::new()
                             .label(label)
                             .value(*val)
                             .min(*min)
                             .max(*max)
                             .active(false),
+                        input,
                     );
                     drx += (cr_w / 2.0) + 4.0;
                 }
@@ -1904,10 +2221,11 @@ pub fn draw_spec_page(
                     (CheckState::Off, "debug overlay"),
                 ];
                 for (cs, label) in check_items {
-                    win.add(
+                    draw_checkbox(
+                        &mut win,
                         Rect::new(0.0, iy, 14.0, 14.0),
-                        checkbox,
                         CheckboxSpecBuilder::new(*cs),
+                        input,
                     );
 
                     win.label_styled(
@@ -2105,13 +2423,14 @@ pub fn draw_spec_page(
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                win.add(
+                draw_tabs(
+                    &mut win,
                     Rect::new(0.0, 0.0, cr_w, 28.0),
-                    tabs,
                     framewise::widgets::TabsSpecBuilder::new()
                         .items(&tabs_items)
                         .active_index(0)
                         .focused(None),
+                    input,
                 );
 
                 // Form rows
@@ -2132,13 +2451,14 @@ pub fn draw_spec_page(
                     false,
                 );
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                win.add(
+                draw_segmented(
+                    &mut win,
                     Rect::new(widget_x, fy, 0.0, row_h),
-                    segmented,
                     framewise::widgets::SegmentedSpecBuilder::new()
                         .items(&backends)
                         .active_index(1)
                         .focused(None),
+                    input,
                 );
                 fy += row_h + row_gap;
 
@@ -2177,14 +2497,12 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                win.add(
+                let switch_res = win.switch(
+                    std::mem::take(&mut state.iu_vsync),
                     Rect::new(widget_x, fy + 6.0, 30.0, 16.0),
-                    switch,
-                    SwitchSpecBuilder::new()
-                        .on(true)
-                        .focused(false)
-                        .disabled(false),
+                    input,
                 );
+                state.iu_vsync = switch_res.state;
                 win.label_styled(
                     Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0),
                     "match display",
@@ -2203,14 +2521,13 @@ pub fn draw_spec_page(
                     false,
                 );
                 let msaa_opts = ["off", "2×", "4×", "8×"];
-                win.add(
+                let seg_res = win.segmented(
+                    std::mem::take(&mut state.iu_msaa),
+                    &msaa_opts,
                     Rect::new(widget_x, fy, 0.0, row_h),
-                    segmented,
-                    framewise::widgets::SegmentedSpecBuilder::new()
-                        .items(&msaa_opts)
-                        .active_index(2)
-                        .focused(None),
+                    input,
                 );
+                state.iu_msaa = seg_res.state;
                 fy += row_h + row_gap;
 
                 // viewport (drag numbers)
@@ -2221,21 +2538,25 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                let vp_items: &[(&str, f32)] = &[("W", 1920.0), ("H", 1080.0)];
-                let mut vpx = widget_x;
-                for (label, val) in vp_items {
-                    win.add(
-                        Rect::new(vpx, fy, (widget_w / 2.0) - 4.0, row_h),
-                        drag_number,
-                        framewise::widgets::DragNumberSpecBuilder::new()
-                            .label(label)
-                            .value(*val)
-                            .min(0.0)
-                            .max(7680.0)
-                            .active(false),
-                    );
-                    vpx += (widget_w / 2.0) + 4.0;
-                }
+                let w_res = win.drag_number(
+                    std::mem::take(&mut state.iu_vp_w),
+                    "W",
+                    0.0,
+                    7680.0,
+                    Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h),
+                    input,
+                );
+                state.iu_vp_w = w_res.state;
+
+                let h_res = win.drag_number(
+                    std::mem::take(&mut state.iu_vp_h),
+                    "H",
+                    0.0,
+                    7680.0,
+                    Rect::new(widget_x + (widget_w / 2.0) + 4.0, fy, (widget_w / 2.0) - 4.0, row_h),
+                    input,
+                );
+                state.iu_vp_h = h_res.state;
                 fy += row_h + row_gap;
 
                 // accent (color swatch + button)
@@ -2270,18 +2591,15 @@ pub fn draw_spec_page(
                     t.muted,
                     false,
                 );
-                let opt_items: &[(CheckState, &str)] = &[
-                    (CheckState::On, "show layout grid"),
-                    (CheckState::Off, "log every frame"),
-                    (CheckState::Indeterminate, "tessellate (per-mesh)"),
-                ];
-                for (i, (cs, label)) in opt_items.iter().enumerate() {
+                let opt_labels = ["show layout grid", "log every frame", "tessellate (per-mesh)"];
+                for (i, label) in opt_labels.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    win.add(
+                    let cb_res = win.checkbox(
+                        std::mem::take(&mut state.iu_options[i]),
                         Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0),
-                        checkbox,
-                        CheckboxSpecBuilder::new(*cs),
+                        input,
                     );
+                    state.iu_options[i] = cb_res.state;
 
                     win.label_styled(
                         Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0),

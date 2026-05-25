@@ -2,7 +2,10 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
+    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
+    input::Input,
+    focus::FocusId,
 };
 
 pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
@@ -13,7 +16,9 @@ pub struct SegmentedSpec<'a, T: crate::text::TextSystem> {
     pub font: FontId,
     pub active_index: usize,
     pub focused: Option<usize>,
+    pub disabled: bool,
     pub style: SegmentedStyle,
+    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,6 +35,7 @@ pub struct SegmentedStyle {
     pub border_width: f32,
     pub focus_width: f32,
     pub focus_inset: f32,
+    pub disabled_alpha: f32,
 }
 
 impl Default for SegmentedStyle {
@@ -47,28 +53,89 @@ impl Default for SegmentedStyle {
             border_width: 1.0,
             focus_width: 2.0,
             focus_inset: 2.0,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SegmentedState {
+    pub active_index: usize,
+    pub focus_id: crate::focus::FocusId,
+}
+
+impl Default for SegmentedState {
+    fn default() -> Self {
+        Self {
+            active_index: 0,
+            focus_id: crate::focus::FocusId::new(),
         }
     }
 }
 
 pub struct SegmentedResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: SegmentedState,
+    pub focused: bool,
 }
 
-impl WidgetResult for SegmentedResult {
-    type Info = ();
+pub struct SegmentedInfo {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: SegmentedState,
+    pub focused: bool,
+}
 
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
-        (self.draw, ())
+impl SegmentedInfo {
+    pub fn clicked(&self) -> bool {
+        self.input.clicked
+    }
+    pub fn hovered(&self) -> bool {
+        self.input.hovered
+    }
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+    pub fn active_index(&self) -> usize {
+        self.state.active_index
     }
 }
 
-pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
+impl WidgetResult for SegmentedResult {
+    type Info = SegmentedInfo;
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (
+            self.draw,
+            SegmentedInfo {
+                layout: self.layout,
+                input: self.input,
+                state: self.state,
+                focused: self.focused,
+            },
+        )
+    }
+}
+
+pub fn segmented<'a, T: crate::text::TextSystem>(
+    mut state: SegmentedState,
+    spec: SegmentedSpec<'a, T>,
+    input: &Input,
+    focus_sys: &mut crate::focus::FocusSystem,
+) -> SegmentedResult {
     let mut cmds = DrawCommands::new();
     let s = spec.style;
 
     if spec.items.is_empty() {
-        return SegmentedResult { draw: cmds };
+        return SegmentedResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect),
+            input: InputInfo { hovered: false, pressed: false, clicked: false },
+            state,
+            focused: false,
+        };
     }
 
     let h = s.height;
@@ -85,33 +152,87 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
 
     let outer = Rect::new(spec.rect.x, spec.rect.y, total_w, h);
 
+    let (focused, clicked) = if spec.disabled {
+        (false, false)
+    } else {
+        crate::focus::handle_widget_focus(
+            state.focus_id,
+            outer,
+            spec.clip_rect,
+            input,
+            focus_sys,
+            crate::focus::FocusTraversalKeys::all(),
+            spec.disabled,
+        )
+    };
+
+    if state.active_index != spec.active_index {
+        state.active_index = spec.active_index;
+    }
+
+    let mut is_clicked = clicked;
+
+    // Left/Right keyboard navigation
+    if focused && !spec.disabled && !spec.items.is_empty() {
+        if input.key_pressed_left {
+            if state.active_index > 0 {
+                state.active_index -= 1;
+                is_clicked = true;
+            }
+        }
+        if input.key_pressed_right {
+            if state.active_index + 1 < spec.items.len() {
+                state.active_index += 1;
+                is_clicked = true;
+            }
+        }
+    }
+
+    // Mouse click segment detection
+    if clicked && !spec.disabled && !spec.items.is_empty() {
+        let mut x = spec.rect.x;
+        for (i, &w) in widths.iter().enumerate() {
+            let seg_rect = Rect::new(x, spec.rect.y, w, h);
+            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            if seg_rect.contains(input.mouse_pos) && is_visible {
+                state.active_index = i;
+                break;
+            }
+            x += w;
+        }
+    }
+
+    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
     cmds.push(DrawCmd::FillRect {
         rect: outer,
-        color: s.background,
+        color: tint(s.background),
     });
     cmds.push(DrawCmd::StrokeRect {
         rect: outer,
-        color: s.border,
+        color: tint(s.border),
         width: s.border_width,
     });
 
     let mut x = spec.rect.x;
     for (i, (layout, &w)) in layouts.iter().zip(widths.iter()).enumerate() {
-        let is_active = i == spec.active_index;
+        let is_active = i == state.active_index;
         let seg_rect = Rect::new(x, spec.rect.y, w, h);
 
         if is_active {
             cmds.push(DrawCmd::FillRect {
                 rect: seg_rect,
-                color: s.active_bg,
+                color: tint(s.active_bg),
             });
         }
 
         // Focus ring (inset to stay within bounds).
-        if spec.focused == Some(i) {
+        let visually_focused = (focused && i == state.active_index) || spec.focused == Some(i);
+        if visually_focused && !spec.disabled {
             cmds.push(DrawCmd::StrokeRect {
                 rect: seg_rect.inset(s.focus_inset),
-                color: s.focus,
+                color: tint(s.focus),
                 width: s.focus_width,
             });
         }
@@ -122,7 +243,7 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
             cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(div_x, spec.rect.y),
                 p1: Vec2::new(div_x, spec.rect.y + h),
-                color: s.border,
+                color: tint(s.border),
                 width: s.border_width,
             });
         }
@@ -131,14 +252,24 @@ pub fn segmented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> 
         let ty = spec.rect.y + (h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
-            color: text_color,
+            color: tint(text_color),
             handle: layout.handle,
         });
 
         x += w;
     }
 
-    SegmentedResult { draw: cmds }
+    SegmentedResult {
+        draw: cmds,
+        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+        input: InputInfo {
+            hovered: outer.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+            pressed: clicked && input.mouse_down,
+            clicked: is_clicked,
+        },
+        state,
+        focused,
+    }
 }
 
 pub struct SegmentedSpecBuilder<'a, T: crate::text::TextSystem> {
@@ -147,8 +278,10 @@ pub struct SegmentedSpecBuilder<'a, T: crate::text::TextSystem> {
     pub style: Option<SegmentedStyle>,
     pub active_index: Option<usize>,
     pub focused: Option<Option<usize>>,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
+    pub clip_rect: Option<Rect>,
 }
 
 impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
@@ -159,8 +292,10 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
             style: None,
             active_index: None,
             focused: None,
+            disabled: None,
             rect: None,
             ts: None,
+            clip_rect: None,
         }
     }
 
@@ -182,6 +317,14 @@ impl<'a, T: crate::text::TextSystem> SegmentedSpecBuilder<'a, T> {
     }
     pub fn focused(mut self, focused: Option<usize>) -> Self {
         self.focused = Some(focused);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
         self
     }
 }
@@ -220,16 +363,31 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             items: self.items.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("SegmentedStyle is required"),
-            active_index: self.active_index.unwrap(),
-            focused: self.focused.unwrap(),
+            active_index: self.active_index.unwrap_or(0),
+            focused: self.focused.unwrap_or(None),
+            disabled: self.disabled.unwrap_or(false),
+            clip_rect: self.clip_rect,
         }
     }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpec for SegmentedSpec<'a, T> {
+    type Builder = SegmentedSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+
+    fn seg_mented<'a, T: crate::text::TextSystem>(spec: SegmentedSpec<'a, T>) -> SegmentedResult {
+        segmented(
+            SegmentedState::default(),
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+        )
+    }
 
     #[test]
     fn test_segmented_visual_normal() {
@@ -242,10 +400,12 @@ mod tests {
             font: FontId(1),
             active_index: 0,
             focused: None,
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented(spec);
+        let res = seg_mented(spec);
 
         assert_eq!(
             res.draw,
@@ -294,10 +454,12 @@ mod tests {
             font: FontId(1),
             active_index: 1,
             focused: Some(1),
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented(spec);
+        let res = seg_mented(spec);
 
         assert_eq!(
             res.draw,
@@ -340,5 +502,96 @@ mod tests {
         );
     }
 
-}
+    #[test]
+    fn test_segmented_click_takes_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = SegmentedState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(20.0, 10.0);
+        input.mouse_pressed = true;
 
+        let mut text_sys = DummyTextSys;
+        let items = ["A", "B"];
+        let spec = SegmentedSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 200.0, 28.0),
+            items: &items,
+            font: FontId(1),
+            active_index: 0,
+            focused: None,
+            disabled: false,
+            style: Default::default(),
+            clip_rect: None,
+        };
+
+        focus_sys.begin_frame();
+        let res = segmented(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking segmented must request focus"
+        );
+    }
+
+    #[test]
+    fn test_segmented_keyboard_navigation() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut state = SegmentedState::default();
+        let mut input = Input::default();
+        let mut text_sys = DummyTextSys;
+        let items = ["A", "B"];
+
+        // Focus the widget
+        focus_sys.take_focus(state.focus_id);
+
+        // Frame 1: Press Arrow Right -> changes active index to 1
+        input.key_pressed_right = true;
+        focus_sys.begin_frame();
+        let res = segmented(
+            state,
+            SegmentedSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 200.0, 28.0),
+                items: &items,
+                font: FontId(1),
+                active_index: 0,
+                focused: None,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        state = res.state;
+        focus_sys.end_frame();
+        input.key_pressed_right = false;
+
+        assert_eq!(state.active_index, 1);
+
+        // Frame 2: Press Arrow Left -> changes active index back to 0
+        input.key_pressed_left = true;
+        focus_sys.begin_frame();
+        let res = segmented(
+            state,
+            SegmentedSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 200.0, 28.0),
+                items: &items,
+                font: FontId(1),
+                active_index: 0,
+                focused: None,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        focus_sys.end_frame();
+
+        assert_eq!(res.state.active_index, 0);
+    }
+}

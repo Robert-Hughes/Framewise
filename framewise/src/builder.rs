@@ -7,6 +7,14 @@ use crate::{
     widget::{WidgetResult, WidgetSpecBuilder},
     widgets::{
         button::{button, ButtonInfo, ButtonSpec, ButtonStyle},
+        checkbox::{checkbox, CheckboxInfo, CheckboxSpec, CheckboxState, CheckState},
+        radio::{radio, RadioInfo, RadioSpec, RadioState},
+        switch::{switch, SwitchInfo, SwitchSpec, SwitchState},
+        chip::{chip, ChipInfo, ChipSpec, ChipState},
+        select::{select, SelectInfo, SelectSpec, SelectState},
+        segmented::{segmented, SegmentedInfo, SegmentedSpec, SegmentedState},
+        tabs::{tabs, TabsInfo, TabsSpec, TabsState},
+        drag_number::{drag_number, DragNumberInfo, DragNumberSpec, DragNumberState},
         divider::DividerInfo,
         frame::{frame, FrameInfo, FrameSpec, FrameStyle},
         label::{label, LabelInfo, LabelSpec},
@@ -435,6 +443,275 @@ impl<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState> Builder<'a, 
             self.text_system,
             self.focus_sys,
         );
+        self.emit(result)
+    }
+
+    pub fn checkbox(
+        &mut self,
+        state: CheckboxState,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> CheckboxInfo {
+        self.checkbox_styled(state, layout_params, false, input)
+    }
+
+    pub fn checkbox_styled(
+        &mut self,
+        state: CheckboxState,
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> CheckboxInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = CheckboxSpec {
+            rect,
+            state: state.check,
+            focused: false,
+            disabled,
+            style: self.ctx.theme.checkbox_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = checkbox(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn radio(
+        &mut self,
+        state: RadioState,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> RadioInfo {
+        self.radio_styled(state, layout_params, false, input)
+    }
+
+    pub fn radio_styled(
+        &mut self,
+        state: RadioState,
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> RadioInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = RadioSpec {
+            rect,
+            selected: state.selected,
+            focused: false,
+            disabled,
+            style: self.ctx.theme.radio_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = radio(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn switch(
+        &mut self,
+        state: SwitchState,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> SwitchInfo {
+        self.switch_styled(state, layout_params, false, input)
+    }
+
+    pub fn switch_styled(
+        &mut self,
+        state: SwitchState,
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> SwitchInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = SwitchSpec {
+            rect,
+            on: state.on,
+            focused: false,
+            disabled,
+            style: self.ctx.theme.switch_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = switch(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn chip(
+        &mut self,
+        state: ChipState,
+        label: &str,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> ChipInfo {
+        self.chip_styled(state, label, layout_params, false, input)
+    }
+
+    pub fn chip_styled(
+        &mut self,
+        state: ChipState,
+        label: &str,
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> ChipInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = ChipSpec {
+            ts: self.text_system,
+            rect,
+            label,
+            font: self.ctx.text_font,
+            active: state.active,
+            focused: false,
+            disabled,
+            style: self.ctx.theme.chip_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = chip(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn select(
+        &mut self,
+        state: SelectState,
+        options: &'a [&'a str],
+        layout_params: S::Params,
+        input: &Input,
+    ) -> SelectInfo {
+        self.select_styled(state, options, layout_params, false, input)
+    }
+
+    pub fn select_styled(
+        &mut self,
+        state: SelectState,
+        options: &'a [&'a str],
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> SelectInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let value = if state.selected_index < options.len() {
+            options[state.selected_index]
+        } else {
+            ""
+        };
+        let spec = SelectSpec {
+            ts: self.text_system,
+            rect,
+            value,
+            font: self.ctx.text_font,
+            options,
+            open: state.open,
+            focused: false,
+            disabled,
+            style: self.ctx.theme.select_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = select(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn segmented(
+        &mut self,
+        state: SegmentedState,
+        items: &'a [&'a str],
+        layout_params: S::Params,
+        input: &Input,
+    ) -> SegmentedInfo {
+        self.segmented_styled(state, items, layout_params, false, input)
+    }
+
+    pub fn segmented_styled(
+        &mut self,
+        state: SegmentedState,
+        items: &'a [&'a str],
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> SegmentedInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = SegmentedSpec {
+            ts: self.text_system,
+            rect,
+            items,
+            font: self.ctx.text_font,
+            active_index: state.active_index,
+            focused: None,
+            disabled,
+            style: self.ctx.theme.segmented_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = segmented(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn tabs(
+        &mut self,
+        state: TabsState,
+        items: &'a [&'a str],
+        layout_params: S::Params,
+        input: &Input,
+    ) -> TabsInfo {
+        self.tabs_styled(state, items, layout_params, false, input)
+    }
+
+    pub fn tabs_styled(
+        &mut self,
+        state: TabsState,
+        items: &'a [&'a str],
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> TabsInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = TabsSpec {
+            ts: self.text_system,
+            rect,
+            items,
+            font: self.ctx.text_font,
+            active_index: state.active_index,
+            focused: None,
+            disabled,
+            style: self.ctx.theme.tabs_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = tabs(state, spec, input, self.focus_sys);
+        self.emit(result)
+    }
+
+    pub fn drag_number(
+        &mut self,
+        state: DragNumberState,
+        label: &str,
+        min: f32,
+        max: f32,
+        layout_params: S::Params,
+        input: &Input,
+    ) -> DragNumberInfo {
+        self.drag_number_styled(state, label, min, max, layout_params, false, input)
+    }
+
+    pub fn drag_number_styled(
+        &mut self,
+        state: DragNumberState,
+        label: &str,
+        min: f32,
+        max: f32,
+        layout_params: S::Params,
+        disabled: bool,
+        input: &Input,
+    ) -> DragNumberInfo {
+        let rect = self.layout_state.layout(layout_params);
+        let spec = DragNumberSpec {
+            ts: self.text_system,
+            rect,
+            label,
+            font: self.ctx.text_font,
+            value: state.value,
+            min,
+            max,
+            active: false,
+            disabled,
+            style: self.ctx.theme.drag_number_style(),
+            clip_rect: self.ctx.clip_rect,
+        };
+        let result = drag_number(state, spec, input, self.focus_sys);
         self.emit(result)
     }
 

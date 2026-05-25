@@ -400,6 +400,40 @@ impl FocusSystem {
     }
 }
 
+/// A standardized helper to handle basic click-to-focus and traversal logic for simple widgets.
+/// Returns a tuple of `(is_focused, was_clicked)`.
+pub fn handle_widget_focus(
+    focus_id: FocusId,
+    rect: Rect,
+    clip_rect: Option<Rect>,
+    input: &Input,
+    focus_sys: &mut FocusSystem,
+    keys: FocusTraversalKeys,
+    disabled: bool,
+) -> (bool, bool) {
+    if disabled {
+        return (false, false);
+    }
+
+    // 1. Register with the central FocusSystem
+    let focused = focus_sys.register(focus_id, rect, clip_rect);
+
+    // 2. Perform clip-safe hover/press hit testing
+    let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+    let hovered = rect.contains(input.mouse_pos) && is_visible;
+    let clicked = hovered && input.mouse_pressed;
+
+    // 3. Take focus on mouse press
+    if clicked {
+        focus_sys.take_focus(focus_id);
+    }
+
+    // 4. Handle keyboard focus shifts
+    focus_sys.handle_traversal(focused, input, keys);
+
+    (focused, clicked)
+}
+
 // ── Focus resolution helpers ──────────────────────────────────────────────────
 
 fn resolve_shift(
@@ -519,7 +553,7 @@ fn find_spatial_target(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Rect;
+    use crate::types::{Rect, Vec2};
 
     fn r(x: f32, y: f32) -> Rect {
         Rect::new(x, y, 80.0, 30.0)
@@ -990,5 +1024,98 @@ mod tests {
         // Tab from id1 should go to id2 (next in registration order), not id3 (spatially left).
         let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_tab = true);
         assert_eq!(got, id2, "Tab follows registration order, not spatial position");
+    }
+
+    #[test]
+    fn test_handle_widget_focus_disabled() {
+        let id = FocusId::new();
+        let mut sys = FocusSystem::new();
+        let mut input = crate::input::Input::default();
+        input.mouse_pos = Vec2::new(10.0, 10.0);
+        input.mouse_pressed = true;
+
+        sys.begin_frame();
+        let (focused, clicked) = handle_widget_focus(
+            id,
+            Rect::new(0.0, 0.0, 20.0, 20.0),
+            None,
+            &input,
+            &mut sys,
+            FocusTraversalKeys::all(),
+            true, // disabled
+        );
+        sys.end_frame();
+
+        assert!(!focused);
+        assert!(!clicked);
+        assert_eq!(sys.current_focus(), None);
+    }
+
+    #[test]
+    fn test_handle_widget_focus_clicked_takes_focus() {
+        let id = FocusId::new();
+        let mut sys = FocusSystem::new();
+        let mut input = crate::input::Input::default();
+        input.mouse_pos = Vec2::new(10.0, 10.0);
+
+        // Hovered but not pressed
+        sys.begin_frame();
+        let (focused1, clicked1) = handle_widget_focus(
+            id,
+            Rect::new(0.0, 0.0, 20.0, 20.0),
+            None,
+            &input,
+            &mut sys,
+            FocusTraversalKeys::all(),
+            false,
+        );
+        sys.end_frame();
+        assert!(!focused1);
+        assert!(!clicked1);
+        assert_eq!(sys.current_focus(), None);
+
+        // Hovered and pressed
+        input.mouse_pressed = true;
+        sys.begin_frame();
+        let (focused2, clicked2) = handle_widget_focus(
+            id,
+            Rect::new(0.0, 0.0, 20.0, 20.0),
+            None,
+            &input,
+            &mut sys,
+            FocusTraversalKeys::all(),
+            false,
+        );
+        sys.end_frame();
+        assert!(!focused2); // not registered focused in the frame it *takes* focus
+        assert!(clicked2);
+        assert_eq!(sys.current_focus(), Some(id));
+    }
+
+    #[test]
+    fn test_handle_widget_focus_handles_traversal() {
+        let id = FocusId::new();
+        let mut sys = FocusSystem::new();
+        sys.take_focus(id);
+
+        let mut input = crate::input::Input::default();
+        input.key_pressed_tab = true;
+
+        sys.begin_frame();
+        let (focused, clicked) = handle_widget_focus(
+            id,
+            Rect::new(0.0, 0.0, 20.0, 20.0),
+            None,
+            &input,
+            &mut sys,
+            FocusTraversalKeys::all(),
+            false,
+        );
+
+        assert!(focused);
+        assert!(!clicked);
+        assert_eq!(sys.pending_shift, Some(FocusDirection::Next));
+
+        sys.end_frame();
     }
 }

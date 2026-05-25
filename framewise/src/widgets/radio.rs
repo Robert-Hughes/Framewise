@@ -1,8 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder},
+    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
+    input::Input,
+    focus::FocusId,
 };
 
 pub struct RadioSpec {
@@ -12,6 +14,26 @@ pub struct RadioSpec {
     pub focused: bool,
     pub disabled: bool,
     pub style: RadioStyle,
+    pub clip_rect: Option<Rect>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RadioState {
+    pub selected: bool,
+    pub is_active: bool,
+    pub space_is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+impl Default for RadioState {
+    fn default() -> Self {
+        Self {
+            selected: false,
+            is_active: false,
+            space_is_active: false,
+            focus_id: crate::focus::FocusId::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,6 +94,7 @@ impl RadioSpecBuilder {
                     focus_offset: 2.0,
                     disabled_alpha: 0.35,
                 },
+                clip_rect: None,
             },
         }
     }
@@ -93,6 +116,11 @@ impl RadioSpecBuilder {
 
     pub fn style(mut self, style: RadioStyle) -> Self {
         self.spec.style = style;
+        self
+    }
+
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.spec.clip_rect = clip_rect;
         self
     }
 }
@@ -120,16 +148,95 @@ impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for RadioSpecBuild
 
 pub struct RadioResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: RadioState,
+    pub focused: bool,
 }
-impl WidgetResult for RadioResult {
-    type Info = ();
 
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
-        (self.draw, ())
+pub struct RadioInfo {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: RadioState,
+    pub focused: bool,
+}
+
+impl RadioInfo {
+    pub fn clicked(&self) -> bool {
+        self.input.clicked
+    }
+    pub fn hovered(&self) -> bool {
+        self.input.hovered
+    }
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+    pub fn selected(&self) -> bool {
+        self.state.selected
     }
 }
 
-pub fn radio(spec: RadioSpec) -> RadioResult {
+impl WidgetResult for RadioResult {
+    type Info = RadioInfo;
+
+    fn into_parts(self) -> (DrawCommands, RadioInfo) {
+        (
+            self.draw,
+            RadioInfo {
+                layout: self.layout,
+                input: self.input,
+                state: self.state,
+                focused: self.focused,
+            },
+        )
+    }
+}
+
+pub fn radio(
+    mut state: RadioState,
+    spec: RadioSpec,
+    input: &Input,
+    focus_sys: &mut crate::focus::FocusSystem,
+) -> RadioResult {
+    let (focused, clicked) = if spec.disabled {
+        (false, false)
+    } else {
+        crate::focus::handle_widget_focus(
+            state.focus_id,
+            spec.rect,
+            spec.clip_rect,
+            input,
+            focus_sys,
+            crate::focus::FocusTraversalKeys::all(),
+            spec.disabled,
+        )
+    };
+
+    let mut is_clicked = clicked;
+    if focused && input.key_pressed_enter {
+        is_clicked = true;
+    }
+    if state.space_is_active && input.key_released_space {
+        is_clicked = true;
+    }
+
+    // Update space activation state for keyboard space press
+    if !focused || !input.key_down_space {
+        state.space_is_active = false;
+    }
+    if focused && input.key_pressed_space {
+        state.space_is_active = true;
+    }
+
+    // Keep state.selected in sync with spec.selected
+    if state.selected != spec.selected {
+        state.selected = spec.selected;
+    }
+
+    if is_clicked {
+        state.selected = true;
+    }
+
     let mut cmds = DrawCommands::new();
     let s = spec.style;
     let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
@@ -139,8 +246,10 @@ pub fn radio(spec: RadioSpec) -> RadioResult {
     let cy = spec.rect.y + s.radius;
     let center = Vec2::new(cx, cy);
 
+    let visually_focused = focused || spec.focused;
+
     // Focus ring (outset 2px).
-    if spec.focused {
+    if visually_focused {
         cmds.push(DrawCmd::StrokeCircle {
             center,
             radius: s.radius + s.focus_offset,
@@ -165,7 +274,7 @@ pub fn radio(spec: RadioSpec) -> RadioResult {
     });
 
     // Inner dot when selected.
-    if spec.selected {
+    if state.selected {
         cmds.push(DrawCmd::FillCircle {
             center,
             radius: s.dot_radius,
@@ -173,12 +282,31 @@ pub fn radio(spec: RadioSpec) -> RadioResult {
         });
     }
 
-    RadioResult { draw: cmds }
+    RadioResult {
+        draw: cmds,
+        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+        input: InputInfo {
+            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+            pressed: (clicked && input.mouse_down) || state.space_is_active,
+            clicked: is_clicked,
+        },
+        state,
+        focused,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rad_io(spec: RadioSpec) -> RadioResult {
+        radio(
+            RadioState::default(),
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+        )
+    }
 
     #[test]
     fn test_radio_visual_unselected() {
@@ -188,9 +316,10 @@ mod tests {
             focused: false,
             disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let s = spec.style;
-        let res = radio(spec);
+        let res = rad_io(spec);
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -218,9 +347,10 @@ mod tests {
             focused: false,
             disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let s = spec.style;
-        let res = radio(spec);
+        let res = rad_io(spec);
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -253,9 +383,10 @@ mod tests {
             focused: true,
             disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let s = spec.style;
-        let res = radio(spec);
+        let res = rad_io(spec);
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -289,9 +420,10 @@ mod tests {
             focused: false,
             disabled: true,
             style: Default::default(),
+            clip_rect: None,
         };
         let s = spec.style;
-        let res = radio(spec);
+        let res = rad_io(spec);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let center = Vec2::new(17.0, 17.0);
@@ -310,6 +442,79 @@ mod tests {
                     width: s.border_width,
                 },
             ])
+        );
+    }
+
+    #[test]
+    fn test_radio_click_takes_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = RadioState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(15.0, 15.0);
+        input.mouse_pressed = true;
+
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            focused: false,
+            disabled: false,
+            style: Default::default(),
+            clip_rect: None,
+        };
+
+        focus_sys.begin_frame();
+        let res = radio(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking radio must request focus"
+        );
+    }
+
+    #[test]
+    fn test_radio_keyboard_toggle() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut state = RadioState::default();
+        let mut input = Input::default();
+
+        let spec = || RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            focused: false,
+            disabled: false,
+            style: Default::default(),
+            clip_rect: None,
+        };
+
+        // Frame 1: Explicitly focus the radio
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
+        let res = radio(state, spec(), &input, &mut focus_sys);
+        state = res.state;
+        focus_sys.end_frame();
+
+        // Frame 2: Press Space key while focused
+        input.key_down_space = true;
+        input.key_pressed_space = true;
+        focus_sys.begin_frame();
+        let res = radio(state, spec(), &input, &mut focus_sys);
+        state = res.state;
+        focus_sys.end_frame();
+
+        // Frame 3: Release Space key
+        input.key_down_space = false;
+        input.key_pressed_space = false;
+        input.key_released_space = true;
+        focus_sys.begin_frame();
+        let res = radio(state, spec(), &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            res.state.selected,
+            true,
+            "Spacebar release must toggle radio state to selected"
         );
     }
 }

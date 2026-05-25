@@ -1,8 +1,11 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
-    types::{Color, Rect},
+    types::{Color, Rect, Vec2},
+    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
     WidgetResult,
+    input::Input,
+    focus::FocusId,
 };
 
 pub struct ChipSpec<'a, T: crate::text::TextSystem> {
@@ -13,7 +16,28 @@ pub struct ChipSpec<'a, T: crate::text::TextSystem> {
     pub font: FontId,
     pub active: bool,
     pub focused: bool,
+    pub disabled: bool,
     pub style: ChipStyle,
+    pub clip_rect: Option<Rect>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChipState {
+    pub active: bool,
+    pub is_active: bool,
+    pub space_is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+impl Default for ChipState {
+    fn default() -> Self {
+        Self {
+            active: false,
+            is_active: false,
+            space_is_active: false,
+            focus_id: crate::focus::FocusId::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,6 +54,7 @@ pub struct ChipStyle {
     pub border_width: f32,
     pub focus_width: f32,
     pub focus_offset: f32,
+    pub disabled_alpha: f32,
 }
 
 impl Default for ChipStyle {
@@ -47,25 +72,106 @@ impl Default for ChipStyle {
             border_width: 1.0,
             focus_width: 2.0,
             focus_offset: 2.0,
+            disabled_alpha: 0.35,
         }
     }
 }
 
 pub struct ChipResult {
     pub draw: DrawCommands,
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: ChipState,
+    pub focused: bool,
 }
 
-impl WidgetResult for ChipResult {
-    type Info = ();
+pub struct ChipInfo {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub state: ChipState,
+    pub focused: bool,
+}
 
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
-        (self.draw, ())
+impl ChipInfo {
+    pub fn clicked(&self) -> bool {
+        self.input.clicked
+    }
+    pub fn hovered(&self) -> bool {
+        self.input.hovered
+    }
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+    pub fn active(&self) -> bool {
+        self.state.active
     }
 }
 
-pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
+impl WidgetResult for ChipResult {
+    type Info = ChipInfo;
+
+    fn into_parts(self) -> (DrawCommands, Self::Info) {
+        (
+            self.draw,
+            ChipInfo {
+                layout: self.layout,
+                input: self.input,
+                state: self.state,
+                focused: self.focused,
+            },
+        )
+    }
+}
+
+pub fn chip<'a, T: crate::text::TextSystem>(
+    mut state: ChipState,
+    spec: ChipSpec<'a, T>,
+    input: &Input,
+    focus_sys: &mut crate::focus::FocusSystem,
+) -> ChipResult {
+    let (focused, clicked) = if spec.disabled {
+        (false, false)
+    } else {
+        crate::focus::handle_widget_focus(
+            state.focus_id,
+            spec.rect,
+            spec.clip_rect,
+            input,
+            focus_sys,
+            crate::focus::FocusTraversalKeys::all(),
+            spec.disabled,
+        )
+    };
+
+    let mut is_clicked = clicked;
+    if focused && input.key_pressed_enter {
+        is_clicked = true;
+    }
+    if state.space_is_active && input.key_released_space {
+        is_clicked = true;
+    }
+
+    // Update space activation state for keyboard space press
+    if !focused || !input.key_down_space {
+        state.space_is_active = false;
+    }
+    if focused && input.key_pressed_space {
+        state.space_is_active = true;
+    }
+
+    // Keep state.active in sync with spec.active if changed out of band
+    if state.active != spec.active {
+        state.active = spec.active;
+    }
+
+    if is_clicked {
+        state.active = !state.active;
+    }
+
     let mut cmds = DrawCommands::new();
     let s = spec.style;
+    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
     let h = s.height;
     let pad_x = s.pad_x;
@@ -74,36 +180,48 @@ pub fn chip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult
     let w = spec.rect.w.max(32.0);
     let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
+    let visually_focused = focused || spec.focused;
+
     // Focus ring.
-    if spec.focused {
+    if visually_focused {
         cmds.push(DrawCmd::StrokeRect {
             rect: r.inset(-s.focus_offset),
-            color: s.focus,
+            color: tint(s.focus),
             width: s.focus_width,
         });
     }
 
-    let bg = if spec.active {
+    let bg = if state.active {
         s.active_bg
     } else {
         s.background
     };
-    cmds.push(DrawCmd::FillRect { rect: r, color: bg });
+    cmds.push(DrawCmd::FillRect { rect: r, color: tint(bg) });
     cmds.push(DrawCmd::StrokeRect {
         rect: r,
-        color: s.border,
+        color: tint(s.border),
         width: s.border_width,
     });
 
-    let text_color = if spec.active { s.active_text } else { s.text };
+    let text_color = if state.active { s.active_text } else { s.text };
     let ty = r.y + (h - layout.size.y) * 0.5;
     cmds.push(DrawCmd::Text {
         rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
-        color: text_color,
+        color: tint(text_color),
         handle: layout.handle,
     });
 
-    ChipResult { draw: cmds }
+    ChipResult {
+        draw: cmds,
+        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+        input: InputInfo {
+            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+            pressed: (clicked && input.mouse_down) || state.space_is_active,
+            clicked: is_clicked,
+        },
+        state,
+        focused,
+    }
 }
 
 pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
@@ -112,8 +230,10 @@ pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub style: Option<ChipStyle>,
     pub active: Option<bool>,
     pub focused: Option<bool>,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub ts: Option<&'a mut T>,
+    pub clip_rect: Option<Rect>,
 }
 
 impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
@@ -124,8 +244,10 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
             style: None,
             active: None,
             focused: None,
+            disabled: None,
             rect: None,
             ts: None,
+            clip_rect: None,
         }
     }
 
@@ -147,6 +269,14 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
     pub fn focused(mut self, focused: bool) -> Self {
         self.focused = Some(focused);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
+        self.clip_rect = clip_rect;
         self
     }
 }
@@ -185,16 +315,31 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             label: self.label.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
             style: self.style.expect("ChipStyle is required"),
-            active: self.active.unwrap(),
-            focused: self.focused.unwrap(),
+            active: self.active.unwrap_or(false),
+            focused: self.focused.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
+            clip_rect: self.clip_rect,
         }
     }
+}
+
+impl<'a, T: crate::text::TextSystem> WidgetSpec for ChipSpec<'a, T> {
+    type Builder = ChipSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
+
+    fn ch_ip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
+        chip(
+            ChipState::default(),
+            spec,
+            &Input::default(),
+            &mut crate::focus::FocusSystem::new(),
+        )
+    }
 
     #[test]
     fn test_chip_visual_normal() {
@@ -206,10 +351,12 @@ mod tests {
             font: FontId(0),
             active: false,
             focused: false,
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = chip(spec);
+        let res = ch_ip(spec);
 
         assert_eq!(
             res.draw,
@@ -242,10 +389,12 @@ mod tests {
             font: FontId(0),
             active: true,
             focused: false,
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = chip(spec);
+        let res = ch_ip(spec);
 
         assert_eq!(
             res.draw,
@@ -278,10 +427,12 @@ mod tests {
             font: FontId(0),
             active: false,
             focused: true,
+            disabled: false,
             style: Default::default(),
+            clip_rect: None,
         };
         let style = spec.style;
-        let res = chip(spec);
+        let res = ch_ip(spec);
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
         let expected_focus_rect = r.inset(-style.focus_offset);
@@ -310,6 +461,117 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_chip_click_takes_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = ChipState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(10.0, 10.0);
+        input.mouse_pressed = true;
+
+        let mut text_sys = DummyTextSys;
+        let spec = ChipSpec {
+            ts: &mut text_sys,
+            rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+            label: "Tag",
+            font: FontId(0),
+            active: false,
+            focused: false,
+            disabled: false,
+            style: Default::default(),
+            clip_rect: None,
+        };
+
+        focus_sys.begin_frame();
+        let res = chip(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking chip must request focus"
+        );
+    }
+
+    #[test]
+    fn test_chip_keyboard_toggle() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut state = ChipState::default();
+        let mut input = Input::default();
+        let mut text_sys = DummyTextSys;
+
+        // Frame 1: Focus chip
+        focus_sys.take_focus(state.focus_id);
+        focus_sys.begin_frame();
+        let res = chip(
+            state,
+            ChipSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                label: "Tag",
+                font: FontId(0),
+                active: false,
+                focused: false,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        state = res.state;
+        focus_sys.end_frame();
+
+        // Frame 2: Press Space
+        input.key_down_space = true;
+        input.key_pressed_space = true;
+        focus_sys.begin_frame();
+        let res = chip(
+            state,
+            ChipSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                label: "Tag",
+                font: FontId(0),
+                active: false,
+                focused: false,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        state = res.state;
+        focus_sys.end_frame();
+
+        // Frame 3: Release Space
+        input.key_down_space = false;
+        input.key_pressed_space = false;
+        input.key_released_space = true;
+        focus_sys.begin_frame();
+        let res = chip(
+            state,
+            ChipSpec {
+                ts: &mut text_sys,
+                rect: Rect::new(0.0, 0.0, 50.0, 22.0),
+                label: "Tag",
+                font: FontId(0),
+                active: false,
+                focused: false,
+                disabled: false,
+                style: Default::default(),
+                clip_rect: None,
+            },
+            &input,
+            &mut focus_sys,
+        );
+        focus_sys.end_frame();
+
+        assert!(
+            res.state.active,
+            "Spacebar release must toggle chip state"
+        );
+    }
 }
-
-

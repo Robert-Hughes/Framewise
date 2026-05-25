@@ -288,6 +288,7 @@ impl Theme {
             border_width: self.border,
             focus_width: self.focus_width,
             focus_offset: self.focus_offset,
+            disabled_alpha: 0.35,
         }
     }
 
@@ -305,6 +306,7 @@ impl Theme {
             border_width: self.border,
             focus_width: self.focus_width,
             focus_inset: 2.0,
+            disabled_alpha: 0.35,
         }
     }
 
@@ -322,6 +324,7 @@ impl Theme {
             border_width: self.border,
             focus_width: self.focus_width,
             focus_offset: self.focus_offset,
+            disabled_alpha: 0.35,
         }
     }
 
@@ -347,6 +350,7 @@ impl Theme {
             border_width: self.border,
             focus_width: self.focus_width,
             focus_offset: 1.0,
+            disabled_alpha: 0.35,
         }
     }
 
@@ -417,6 +421,7 @@ impl Theme {
             border_width: self.border,
             focus_width: self.focus_width,
             focus_offset: 1.0,
+            disabled_alpha: 0.35,
         }
     }
 
