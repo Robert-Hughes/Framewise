@@ -217,11 +217,12 @@ pub mod raw {
         if input.mouse_pressed && !thumb_rect.contains(input.mouse_pos) && track_rect.contains(input.mouse_pos) {
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
-            if usable_track > 0.0 {
-                let track_start = if is_vert { track_rect.y } else { track_rect.x };
-                let snapped =
-                    (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
-                *value = (min + (snapped / usable_track) * range).clamp(min, max);
+            state.next_repeat_time = _time + 0.5;
+            // Page up/down towards mouse
+            if mouse_coord < _thumb_start {
+                *value = (*value - spec.page_step).clamp(min, max);
+            } else if mouse_coord > _thumb_end {
+                *value = (*value + spec.page_step).clamp(min, max);
             }
         }
 
@@ -232,8 +233,76 @@ pub mod raw {
             state.drag_start_val = *value;
         }
 
+        // Track click repeat logic (time-based paging)
+        if state.is_track_clicking && _time >= state.next_repeat_time {
+            if track_rect.contains(input.mouse_pos) {
+                let track_start = if is_vert { track_rect.y } else { track_rect.x };
+                if mouse_coord < _thumb_start {
+                    // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
+                    let cursor_val = if usable_track > 0.0 {
+                        min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0)
+                            * range
+                    } else {
+                        min
+                    };
+                    *value = (*value - spec.page_step).max(cursor_val).clamp(min, max);
+                    state.next_repeat_time = _time + 0.05;
+                } else if mouse_coord > _thumb_end {
+                    // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
+                    let cursor_val = if usable_track > 0.0 {
+                        min + ((mouse_coord - track_start) / usable_track).clamp(0.0, 1.0) * range
+                    } else {
+                        max
+                    };
+                    *value = (*value + spec.page_step).min(cursor_val).clamp(min, max);
+                    state.next_repeat_time = _time + 0.05;
+                }
+                // else: cursor is now inside the thumb; paging stops but keep
+                // is_track_clicking=true so the drag-transition check can still fire.
+            } else {
+                state.is_track_clicking = false;
+            }
+        }
+
         // Keyboard handling
         if focused {
+            let at_min = *value <= min;
+            let at_max = *value >= max;
+
+            if spec.claim_scroll_at_ends {
+                if is_vert {
+                    focus_sys.claim_pgup_vert(state.focus_id);
+                    focus_sys.claim_pgdn_vert(state.focus_id);
+                    focus_sys.claim_pgup_horiz(state.focus_id);
+                    focus_sys.claim_pgdn_horiz(state.focus_id);
+                } else {
+                    focus_sys.claim_pgup_horiz(state.focus_id);
+                    focus_sys.claim_pgdn_horiz(state.focus_id);
+                    focus_sys.claim_pgup_vert(state.focus_id);
+                    focus_sys.claim_pgdn_vert(state.focus_id);
+                }
+            } else {
+                if is_vert {
+                    if !at_min {
+                        focus_sys.claim_pgup_vert(state.focus_id);
+                    }
+                    if !at_max {
+                        focus_sys.claim_pgdn_vert(state.focus_id);
+                    }
+                    focus_sys.claim_pgup_horiz(state.focus_id);
+                    focus_sys.claim_pgdn_horiz(state.focus_id);
+                } else {
+                    if !at_min {
+                        focus_sys.claim_pgup_horiz(state.focus_id);
+                    }
+                    if !at_max {
+                        focus_sys.claim_pgdn_horiz(state.focus_id);
+                    }
+                    focus_sys.claim_pgup_vert(state.focus_id);
+                    focus_sys.claim_pgdn_vert(state.focus_id);
+                }
+            }
+
             let is_active_pgup = if is_vert {
                 focus_sys.is_active_pgup_vert(state.focus_id)
             } else {
