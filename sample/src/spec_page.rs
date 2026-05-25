@@ -27,7 +27,7 @@ use framewise::{
         meter::meter,
         progress_bar::{progress_bar, ProgressBarSpecBuilder},
         radio::{radio, RadioState, RadioSpec, RadioSpecBuilder},
-        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
+        scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility},
         segmented::{segmented, SegmentedState, SegmentedSpecBuilder},
         select::{select, SelectSpec, SelectState, SelectSpecBuilder},
         slider::{slider, SliderState, Orientation as SliderOrientation},
@@ -596,16 +596,15 @@ pub fn draw_spec_page(
         let mut page = {
             let this = &mut b;
             let content_size = Vec2::new(content_w, CONTENT_HEIGHT);
-            let h_vis = ScrollbarVisibility::None;
-            let v_vis = ScrollbarVisibility::Auto;
             begin_scroll_area(
                     this,
                     win_rect,
-                    content_size,
-                    h_vis,
-                    v_vis,
                     &mut state.page_scroll,
                     ManualLayout,
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(content_size)
+                        .h_vis(ScrollbarVisibility::None)
+                        .v_vis(ScrollbarVisibility::Auto),
                 )
         };
         {
@@ -2046,16 +2045,15 @@ pub fn draw_spec_page(
                 {
                     let mut sa = {
                         let this = &mut *b;
-                        let h_vis = ScrollbarVisibility::None;
-                        let v_vis = ScrollbarVisibility::Always;
                         begin_scroll_area(
                                 this,
                                 b1,
-                                b1_content,
-                                h_vis,
-                                v_vis,
                                 &mut state.scroll_vert,
                                 ManualLayout,
+                                ScrollAreaSpecBuilder::new()
+                                    .content_size(b1_content)
+                                    .h_vis(ScrollbarVisibility::None)
+                                    .v_vis(ScrollbarVisibility::Always),
                             )
                     };
                     let code_lines = [
@@ -2124,16 +2122,15 @@ pub fn draw_spec_page(
                 {
                     let mut sa = {
                         let this = &mut *b;
-                        let h_vis = ScrollbarVisibility::None;
-                        let v_vis = ScrollbarVisibility::Always;
                         begin_scroll_area(
                                 this,
                                 b2,
-                                b2_content,
-                                h_vis,
-                                v_vis,
                                 &mut state.scroll_horiz,
                                 ManualLayout,
+                                ScrollAreaSpecBuilder::new()
+                                    .content_size(b2_content)
+                                    .h_vis(ScrollbarVisibility::None)
+                                    .v_vis(ScrollbarVisibility::Always),
                             )
                     };
                     for i in 0..15 {
@@ -2189,16 +2186,15 @@ pub fn draw_spec_page(
                 {
                     let mut sa = {
                         let this = &mut *b;
-                        let h_vis = ScrollbarVisibility::Always;
-                        let v_vis = ScrollbarVisibility::None;
                         begin_scroll_area(
                                 this,
                                 b3,
-                                b3_content,
-                                h_vis,
-                                v_vis,
                                 &mut state.scroll_both,
                                 ManualLayout,
+                                ScrollAreaSpecBuilder::new()
+                                    .content_size(b3_content)
+                                    .h_vis(ScrollbarVisibility::Always)
+                                    .v_vis(ScrollbarVisibility::None),
                             )
                     };
                     {
@@ -2251,16 +2247,15 @@ pub fn draw_spec_page(
                 {
                     let mut sa = {
                         let this = &mut *b;
-                        let h_vis = ScrollbarVisibility::Always;
-                        let v_vis = ScrollbarVisibility::Always;
                         begin_scroll_area(
                                 this,
                                 b4,
-                                b4_content,
-                                h_vis,
-                                v_vis,
                                 &mut state.scroll_both_axes,
                                 ManualLayout,
+                                ScrollAreaSpecBuilder::new()
+                                    .content_size(b4_content)
+                                    .h_vis(ScrollbarVisibility::Always)
+                                    .v_vis(ScrollbarVisibility::Always),
                             )
                     };
                     {
@@ -3413,17 +3408,16 @@ pub fn draw_spec_page(
                     let mut log_page = {
                         let this = &mut fl_win;
                         let content_size = Vec2::new(fl_scroll_rect.w, log_content_h);
-                        let h_vis = ScrollbarVisibility::None;
-                        let v_vis = ScrollbarVisibility::Auto;
                         let inner_layout = framewise::layout::ManualLayout;
                         begin_scroll_area(
                                 this,
                                 fl_scroll_rect,
-                                content_size,
-                                h_vis,
-                                v_vis,
                                 &mut state.iu_log_scroll,
                                 inner_layout,
+                                ScrollAreaSpecBuilder::new()
+                                    .content_size(content_size)
+                                    .h_vis(ScrollbarVisibility::None)
+                                    .v_vis(ScrollbarVisibility::Auto),
                             )
                     };
                     let loy = 4.0;

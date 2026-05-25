@@ -3,7 +3,7 @@ mod spec_page;
 mod text;
 
 use framewise::{
-    input::Input, layout::Layout, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::button, frame::frame, label::label, scroll_area::{ScrollbarVisibility, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditSpecBuilder, text_edit}}
+    input::Input, layout::Layout, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::button, frame::frame, label::label, scroll_area::{ScrollbarVisibility, ScrollAreaSpecBuilder, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditSpecBuilder, text_edit}}
 };
 
 use renderer::Renderer;
@@ -261,11 +261,12 @@ impl App {
                 let mut sidebar_scroll = begin_scroll_area(
                     &mut sidebar_col,
                     Vec2::new(200.0, win_size.1 - 60.0),
-                    Vec2::new(200.0, content_height),
-                    ScrollbarVisibility::Auto,
-                    ScrollbarVisibility::Auto,
                     &mut self.sidebar_scroll,
                     framewise::layout::ColumnLayout { spacing: 8.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(200.0, content_height))
+                        .h_vis(ScrollbarVisibility::Auto)
+                        .v_vis(ScrollbarVisibility::Auto),
                 );
 
                 for i in 0..20 {
@@ -297,11 +298,12 @@ impl App {
                 let mut content_col = begin_scroll_area(
                     &mut main_row,
                     Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
-                    Vec2::new(win_size.0 - 240.0, 2000.0),
-                    ScrollbarVisibility::None,
-                    ScrollbarVisibility::Always,
                     &mut self.right_panel_scroll,
                     framewise::layout::ColumnLayout { spacing: 15.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(win_size.0 - 240.0, 2000.0))
+                        .h_vis(ScrollbarVisibility::None)
+                        .v_vis(ScrollbarVisibility::Always),
                 );
                 let inner_w = win_size.0 - 240.0 - 15.0;
 
@@ -480,11 +482,12 @@ impl App {
                 let mut main_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 250.0),
-                    Vec2::new(inner_w, content_height),
-                    ScrollbarVisibility::Auto,
-                    ScrollbarVisibility::Auto,
                     &mut self.main_scroll,
                     framewise::layout::ColumnLayout { spacing: 10.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(inner_w, content_height))
+                        .h_vis(ScrollbarVisibility::Auto)
+                        .v_vis(ScrollbarVisibility::Auto),
                 );
                 main_scroll.button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
                 main_scroll.button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
@@ -527,11 +530,12 @@ impl App {
                 let mut outer_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 300.0),
-                    Vec2::new(800.0, outer_content_height),
-                    ScrollbarVisibility::Auto,
-                    ScrollbarVisibility::Auto,
                     &mut self.nested_outer_scroll,
                     framewise::layout::ColumnLayout { spacing: 10.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(800.0, outer_content_height))
+                        .h_vis(ScrollbarVisibility::Auto)
+                        .v_vis(ScrollbarVisibility::Auto),
                 );
 
                 for i in 0..3 {
@@ -572,11 +576,12 @@ impl App {
                     let mut inner_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(120.0, row_h),
-                        Vec2::new(120.0, inner_content_height),
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Auto,
                         &mut row_state.inner_scroll,
                         framewise::layout::ColumnLayout { spacing: 8.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(120.0, inner_content_height))
+                            .h_vis(ScrollbarVisibility::None)
+                            .v_vis(ScrollbarVisibility::Auto),
                         );
 
                     for j in 0..6 {
@@ -605,11 +610,12 @@ impl App {
                     let mut horiz_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(180.0, row_h),
-                        Vec2::new(horiz_content_width, row_h),
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::None,
                         &mut row_state.horiz_scroll,
                         framewise::layout::RowLayout { spacing: 8.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(horiz_content_width, row_h))
+                            .h_vis(ScrollbarVisibility::Always)
+                            .v_vis(ScrollbarVisibility::None),
                         );
 
                     for j in 0..10 {
@@ -638,11 +644,12 @@ impl App {
                     let mut both_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(200.0, row_h),
-                        Vec2::new(both_width, both_height),
-                        ScrollbarVisibility::Auto,
-                        ScrollbarVisibility::Auto,
                         &mut row_state.both_scroll,
                         framewise::layout::ManualLayout,
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(both_width, both_height))
+                            .h_vis(ScrollbarVisibility::Auto)
+                            .v_vis(ScrollbarVisibility::Auto),
                         );
 
                     for j in 0..48 {
@@ -728,11 +735,12 @@ impl App {
                 let mut d_outer_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 150.0),
-                    Vec2::new(2000.0, 150.0),
-                    ScrollbarVisibility::Always,
-                    ScrollbarVisibility::None,
                     &mut self.double_horiz_outer_scroll,
                     framewise::layout::RowLayout { spacing: 20.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(2000.0, 150.0))
+                        .h_vis(ScrollbarVisibility::Always)
+                        .v_vis(ScrollbarVisibility::None),
                 );
 
                 // Left spacer/button
@@ -751,11 +759,12 @@ impl App {
                 let mut d_inner_scroll = begin_scroll_area(
                     &mut d_outer_scroll,
                     Vec2::new(600.0, 120.0),
-                    Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0),
-                    ScrollbarVisibility::Always,
-                    ScrollbarVisibility::None,
                     &mut self.double_horiz_inner_scroll,
                     framewise::layout::RowLayout { spacing: 8.0 },
+                    ScrollAreaSpecBuilder::new()
+                        .content_size(Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0))
+                        .h_vis(ScrollbarVisibility::Always)
+                        .v_vis(ScrollbarVisibility::None),
                 );
 
                 for j in 0..20 {
@@ -811,11 +820,12 @@ impl App {
                     let mut outer = begin_scroll_area(
                         &mut content_col,
                         Vec2::new(inner_w.min(440.0), 200.0),
-                        Vec2::new(840.0, 400.0),
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::Always,
                         &mut self.nested_2d_outer_scroll,
                         framewise::layout::ManualLayout,
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(840.0, 400.0))
+                            .h_vis(ScrollbarVisibility::Always)
+                            .v_vis(ScrollbarVisibility::Always),
                         );
 
                     // Status label at top-left of outer content
@@ -857,12 +867,13 @@ impl App {
                     let mut inner = begin_scroll_area(
                         &mut outer,
                         Rect::new(80.0, 50.0, 250.0, 150.0),
-                        Vec2::new(500.0, 300.0),
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::Always,
                         &mut self.nested_2d_inner_scroll,
                         framewise::layout::ManualLayout,
-                        );
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(500.0, 300.0))
+                            .h_vis(ScrollbarVisibility::Always)
+                            .v_vis(ScrollbarVisibility::Always),
+                    );
 
                     for j in 0..20 {
                         let col = j % 4;
@@ -913,11 +924,12 @@ impl App {
                     let mut outer_scroll = begin_scroll_area(
                         &mut content_col,
                         Vec2::new(inner_w, 220.0),
-                        Vec2::new(inner_w, 500.0),
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Always,
                         &mut self.triple_outer_scroll,
                         framewise::layout::ColumnLayout { spacing: 10.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(inner_w, 500.0))
+                            .h_vis(ScrollbarVisibility::None)
+                            .v_vis(ScrollbarVisibility::Always),
                         );
 
                     {
@@ -939,11 +951,12 @@ impl App {
                     let mut middle_scroll = begin_scroll_area(
                         &mut outer_scroll,
                         Vec2::new(inner_w - 15.0, 160.0),
-                        Vec2::new(1400.0, 160.0),
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::None,
                         &mut self.triple_middle_scroll,
                         framewise::layout::RowLayout { spacing: 10.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(1400.0, 160.0))
+                            .h_vis(ScrollbarVisibility::Always)
+                            .v_vis(ScrollbarVisibility::None),
                         );
 
                     {
@@ -962,11 +975,12 @@ impl App {
                     let mut inner_scroll = begin_scroll_area(
                         &mut middle_scroll,
                         Vec2::new(200.0, 130.0),
-                        Vec2::new(200.0, inner_content_h),
-                        ScrollbarVisibility::None,
-                        ScrollbarVisibility::Always,
                         &mut self.triple_inner_scroll,
                         framewise::layout::ColumnLayout { spacing: 6.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(200.0, inner_content_h))
+                            .h_vis(ScrollbarVisibility::None)
+                            .v_vis(ScrollbarVisibility::Always),
                         );
 
                     for j in 0..12 {
@@ -993,11 +1007,12 @@ impl App {
                     let mut innermost_scroll = begin_scroll_area(
                         &mut inner_scroll,
                         Vec2::new(165.0, 50.0),
-                        Vec2::new(innermost_content_w, 50.0),
-                        ScrollbarVisibility::Always,
-                        ScrollbarVisibility::None,
                         &mut self.triple_innermost_scroll,
                         framewise::layout::RowLayout { spacing: 6.0 },
+                        ScrollAreaSpecBuilder::new()
+                            .content_size(Vec2::new(innermost_content_w, 50.0))
+                            .h_vis(ScrollbarVisibility::Always)
+                            .v_vis(ScrollbarVisibility::None),
                         );
                     for k in 0..5 {
                         innermost_scroll.button_style.background = Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);

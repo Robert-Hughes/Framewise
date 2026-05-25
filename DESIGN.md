@@ -109,6 +109,44 @@ These freestanding functions automatically:
 4. Accumulate the returned draw commands inside the `WidgetContext`'s internal buffer.
 5. Return the high-level semantic info to the caller.
 
+### Spec and SpecBuilder Pattern
+
+Every widget type follows a consistent two-struct pattern for configuration:
+
+- **`*Spec`**: A fully resolved specification struct used by low-level raw widget functions. All fields are concrete values (colors, fonts, rectangles, etc.) with no optional or unresolved state. The low-level function receives this spec and produces draw commands and interaction info.
+
+- **`*SpecBuilder`**: A builder struct used by high-level widget functions to construct the `*Spec`. The builder holds optional fields and provides ergonomic setter methods. The high-level function uses the builder to:
+  1. Apply defaults from the `WidgetContext` (via `with_theme()` and `with_rect()`)
+  2. Allow the app to override specific parameters (via setter methods like `.text()`, `.style()`, etc.)
+  3. Call `.build()` to produce the fully resolved `*Spec` for the low-level function
+
+This pattern cleanly separates concerns:
+- **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.
+- **High-level functions** are ergonomic and integrated — they resolve defaults from the context, handle layout, and bridge to the low-level layer.
+
+Example:
+```rust
+// Low-level: fully resolved, no defaults
+pub fn button(spec: ButtonSpec, input: &Input) -> ButtonResult;
+
+// High-level: uses builder to resolve defaults
+pub fn button<T, S>(
+    ctx: &mut WidgetContext<T, S>,
+    state: ButtonState,
+    layout_params: S::Params,
+    builder: ButtonSpecBuilder,
+) -> ButtonInfo {
+    let rect = ctx.layout(layout_params);
+    let builder = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme);  // Apply theme defaults
+    let spec = builder.build();   // Produce fully resolved spec
+    let result = raw::button(state, spec, ctx.input, ctx.focus_sys);
+    ctx.append_cmds(result.draw.0);
+    // ...
+}
+```
+
 ### Theme and Font Boundaries
 
 `Theme` is part of the high-level API. The `WidgetContext` uses it to resolve ergonomic defaults such as colours, spacing, and semantic font choices, but low-level widget functions must not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is passed to the widget function.

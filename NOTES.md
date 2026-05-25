@@ -5,14 +5,18 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Try to add tests for the WidgetContext nesting and scopes, to make sure things are finished in the right order, we don't miss scopes etc.
 * DESIGN.md doesn't mention the current implementation's automatic scope finishing in WidgetContext::finish() vs the design document's explicit end_* function pattern. Need to figure out what we want to do here.
-* ⚠️ Has scroll_scope and window_scope fields with TODO comment: "this isn't good - not extensible!" - the design document didn't specify this approach
-* Widget types don't seem to consistently use *Spec and *SpecBuilder, are inconsistent about theme application in high-level function etc.
-* SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback?
+* SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback? Make this explicit in DESIGN.md and check the code. Add tests for fallback?
 * In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
-* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc
+* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc.
+* Should WidgetContext have things like button style, bg_color etc. on it? Should this be in the theme?
+* Check Widget types are consistent about theme application in high-level function etc., make sure DESIGN.md is clear on this
+* Some widgets embed styling directly into their *Spec struct instead of having a separate *Style struct (e.g., ColorSwatch, Divider, Keycap, Label, Meter). This is a minor variation but still consistent with the overall *Spec and *SpecBuilder pattern. If acceptable, not in DESIGN.md.
 * WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the high-level widget API from the widget context? Maybe we need a "outside-builder"-only spec struct?
-* Update DESIGN.md regarding *Spec (fully-specified for low-level API) and *SpecBuilder (partially specified for ergonomic use with high-level API)
+* Add note to DESIGN.md that Spec and SpecBuilders shouldn't include 'systems' like input, focus etc. Just basic parameters. It should ideally be a 'value-type' with no external references.
+
+* FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
 
 * Add "reset" button to spec page, to reset all state
 * Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused. Not sure how though, as we don't want to affect the styling (as that's exactly what we're trying to show!)
@@ -43,6 +47,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - **Text cache miss attribution** — if a widget was "unlucky" and was the one that had the
   glyph atlas cache miss, that might be awkward to figure out in profiling. Will see how
   this plays out in practice.
+
+  * CHeck how ergonomic the high-level APIs are, by going through the sample app UI code to see how it looks. Can it be improved?
 
 * Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
 * Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.

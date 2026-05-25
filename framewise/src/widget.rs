@@ -5,7 +5,6 @@ use crate::layout::LayoutState;
 use crate::text::{FontId, TextSystem};
 use crate::theme::Theme;
 use crate::types::{Color, Rect};
-use crate::widgets::{ScrollAreaScope, WindowScope};
 use crate::widgets::{button::ButtonStyle, frame::FrameStyle};
 
 // ── Common result fragments ───────────────────────────────────────────────────
