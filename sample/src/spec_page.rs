@@ -254,27 +254,10 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         self.ctx.finish()
     }
 
-
-
-
-
     pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
         let rect = self.ctx.layout(layout_params);
         let cmds = draw_fn(rect);
         self.ctx.append_cmds(cmds);
-    }
-
-    pub fn add<'b, WR, WSB>(&'b mut self, layout_params: S::Params, _widget_func: WR, widget_spec_builder: WSB) -> WSB::Info
-    where
-        WSB: WidgetRenderCompat<'a, T>,
-    {
-        let rect = self.ctx.layout(layout_params);
-        let (cmds, info) = unsafe {
-            let ts_ptr = self.ctx.text_system as *mut T;
-            widget_spec_builder.render(rect, &self.ctx.theme, &mut *ts_ptr)
-        };
-        self.ctx.append_cmds(cmds);
-        info
     }
 }
 
@@ -1966,13 +1949,9 @@ pub fn draw_spec_page(
                 let swatches: &[(Color, &str)] = &[(t.ink, "#15130f"), (t.rust, "#c25a2c")];
                 let mut bx = sw_x;
                 for (color, hex) in swatches {
-                    b.add(
-                        Rect::new(bx, y, 18.0, t.h_md),
-                        color_swatch::<SampleTextSystem, framewise::layout::ManualState>,
-                        framewise::widgets::ColorSwatchSpecBuilder::new()
+                    color_swatch(&mut b.ctx, Rect::new(bx, y, 18.0, t.h_md), framewise::widgets::ColorSwatchSpecBuilder::new()
                             .color(*color)
-                            .border(t.line),
-                    );
+                            .border(t.line));
                     {
                         let this = &mut *b;
                         let layout_params = Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0);
@@ -2161,9 +2140,7 @@ pub fn draw_spec_page(
                         disabled: true,
                     },
                 ];
-                b.add(
-                    Rect::new(lx, y, 240.0, 0.0),
-                    menu::<SampleTextSystem, framewise::layout::ManualState>,
+                menu(&mut b.ctx, Rect::new(lx, y, 240.0, 0.0),
                     framewise::widgets::MenuSpecBuilder::new().items(ITEMS1),
                 );
 
@@ -2194,9 +2171,7 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                b.add(
-                    Rect::new(lx + 264.0, y, 200.0, 0.0),
-                    menu::<SampleTextSystem, framewise::layout::ManualState>,
+                menu(&mut b.ctx, Rect::new(lx + 264.0, y, 200.0, 0.0),
                     framewise::widgets::MenuSpecBuilder::new().items(ITEMS2),
                 );
 
@@ -2537,13 +2512,8 @@ pub fn draw_spec_page(
                 ];
                 let bar_w = 240.0_f32;
                 for (val, active, bar_label) in bar_items {
-                    b.add(
-                        Rect::new(lx, y + 8.0, bar_w, 3.0),
-                        progress_bar::<SampleTextSystem, framewise::layout::ManualState>,
-                        ProgressBarSpecBuilder::new(*val)
-                            .phase((time as f32) * 0.5)
-                            .active(*active),
-                    );
+                    progress_bar(&mut b.ctx, Rect::new(lx, y + 8.0, bar_w, 3.0),
+                        ProgressBarSpecBuilder::new(*val).phase((time as f32) * 0.5).active(*active));
                     {
                         let this = &mut *b;
                         let layout_params = Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0);
@@ -2599,14 +2569,7 @@ pub fn draw_spec_page(
                         };
                         bx += 70.0;
                     } else {
-                        b.add(
-                            Rect::new(bx, y, 100.0, 12.0),
-                            meter::<SampleTextSystem, framewise::layout::ManualState>,
-                            framewise::widgets::MeterSpecBuilder::new()
-                                .value(*val)
-                                .peak(*peak)
-                                .bars(10),
-                        );
+                        meter(&mut b.ctx, Rect::new(bx, y, 100.0, 12.0), framewise::widgets::MeterSpecBuilder::new().value(*val).peak(*peak).bars(10));
                         bx += 108.0;
                     }
                 }
@@ -2616,11 +2579,7 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "spinners  ·  status");
             y += 20.0;
             {
-                b.add(
-                    Rect::new(lx, y, 16.0, 16.0),
-                    spinner::<SampleTextSystem, framewise::layout::ManualState>,
-                    SpinnerSpecBuilder::new(),
-                );
+                spinner(&mut b.ctx, Rect::new(lx, y, 16.0, 16.0), SpinnerSpecBuilder::new());
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0);
@@ -2634,11 +2593,7 @@ pub fn draw_spec_page(
                     label(&mut this.ctx, layout_params, spec_builder)
                 };
 
-                b.add(
-                    Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
-                    spinner::<SampleTextSystem, framewise::layout::ManualState>,
-                    SpinnerSpecBuilder::new().large(true),
-                );
+                spinner(&mut b.ctx, Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0), SpinnerSpecBuilder::new().large(true));
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0);
@@ -2661,13 +2616,7 @@ pub fn draw_spec_page(
                 ];
                 let mut sx = lx + 180.0;
                 for (label, variant) in status_items {
-                    b.add(
-                        Rect::new(sx, y + 1.0, 120.0, 12.0),
-                        status::<SampleTextSystem, framewise::layout::ManualState>,
-                        framewise::widgets::StatusSpecBuilder::new()
-                            .label(label)
-                            .variant(*variant),
-                    );
+                    status(&mut b.ctx, Rect::new(sx, y + 1.0, 120.0, 12.0), framewise::widgets::StatusSpecBuilder::new().label(label).variant(*variant));
                     sx += 110.0;
                 }
             }
@@ -2749,11 +2698,7 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                b.add(
-                    Rect::new(lx, y, 320.0, 0.0),
-                    tree::<SampleTextSystem, framewise::layout::ManualState>,
-                    framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE),
-                );
+                tree(&mut b.ctx, Rect::new(lx, y, 320.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE));
 
                 static FILE_LIST: &[TreeRow<'static>] = &[
                     TreeRow {
@@ -2806,11 +2751,7 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                b.add(
-                    Rect::new(lx + 360.0, y, 240.0, 0.0),
-                    tree::<SampleTextSystem, framewise::layout::ManualState>,
-                    framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST),
-                );
+                tree(&mut b.ctx, Rect::new(lx + 360.0, y, 240.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST));
 
                 y += WIDGET_TREE.len().max(FILE_LIST.len()) as f32 * 20.0 + 12.0;
             }
@@ -2823,25 +2764,17 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "tooltips");
             y += 20.0;
             {
-                b.add(
-                    Rect::new(lx, y, 0.0, 0.0),
-                    tooltip::<SampleTextSystem, framewise::layout::ManualState>,
+                tooltip(&mut b.ctx, Rect::new(lx, y, 0.0, 0.0),
                     framewise::widgets::TooltipSpecBuilder::new()
                         .text("Drag to scrub — hold ⌥ for fine.")
                         .variant(TooltipVariant::Dark),
                 );
                 y += 28.0 + 8.0;
 
-                b.add(Rect::new(lx, y, 0.0, 0.0), tooltip::<SampleTextSystem, framewise::layout::ManualState>, framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
+                tooltip(&mut b.ctx, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
                 y += 28.0 + 8.0;
 
-                b.add(
-                    Rect::new(lx, y, 0.0, 0.0),
-                    tooltip::<SampleTextSystem, framewise::layout::ManualState>,
-                    framewise::widgets::TooltipSpecBuilder::new()
-                        .text("⚠ shader recompiled this frame (12 ms)")
-                        .variant(TooltipVariant::Rust),
-                );
+                tooltip(&mut b.ctx, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("⚠ shader recompiled this frame (12 ms)").variant(TooltipVariant::Rust));
                 y += 28.0;
             }
             y += GROUP_GAP;
@@ -2859,9 +2792,7 @@ pub fn draw_spec_page(
                     let mut kx = lx;
                     for key in *keys {
                         let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
-                        b.add(
-                            Rect::new(kx, y, kw, 22.0),
-                            keycap::<SampleTextSystem, framewise::layout::ManualState>,
+                        keycap(&mut b.ctx, Rect::new(kx, y, kw, 22.0),
                             framewise::widgets::KeycapSpecBuilder::new()
                                 .label(key)
                                 .bg(t.paper_elev)
@@ -3447,9 +3378,8 @@ pub fn draw_spec_page(
                             .rule(false);
                     label(&mut this.ctx, layout_params, spec_builder)
                 };
-                win.add(
+                color_swatch(&mut win.ctx,
                     Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
-                    color_swatch::<SampleTextSystem, framewise::layout::ManualState>,
                     framewise::widgets::ColorSwatchSpecBuilder::new()
                         .color(t.rust)
                         .border(t.line),
@@ -3691,11 +3621,7 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                qa_win.add(
-                    Rect::new(0.0, -8.0, qa_cr_w, 0.0),
-                    menu::<SampleTextSystem, framewise::layout::ManualState>,
-                    framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
-                );
+                menu(&mut qa_win.ctx, Rect::new(0.0, -8.0, qa_cr_w, 0.0), framewise::widgets::MenuSpecBuilder::new().items(&qa_items));
                 let cmds = qa_win.finish();
                 b.append_cmds(cmds);
 
