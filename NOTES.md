@@ -7,6 +7,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Add "reset" button to spec page, to reset all state
 * Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused.
+* Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 ## Things Still to Figure Out
 
