@@ -612,6 +612,7 @@ pub fn draw_spec_page(
     };
 
     // Scroll area provides clip + scroll offset for all page content.
+    let mut should_reset = false;
     let page_cmds = {
         let mut page = {
             let this = &mut b;
@@ -788,6 +789,9 @@ pub fn draw_spec_page(
                                 .disabled(false);
                         button(this, state, layout_params, spec_builder)
                     };
+                    if btn.clicked() && i == 2 {
+                        should_reset = true;
+                    }
                     state.btn_variants[i] = btn.state;
                     bx += w + COL_GAP;
                 }
@@ -3617,6 +3621,9 @@ pub fn draw_spec_page(
         } // end content block (drops `b` alias, releases borrow on `page`)
         page.finish()
     }; // end page_cmds block
+    if should_reset {
+        *state = SpecPageState::default();
+    }
     {
         let this = &mut b;
         this.append_cmds(page_cmds);
