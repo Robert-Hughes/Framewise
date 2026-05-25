@@ -140,9 +140,9 @@ pub fn label<T: TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
     let spec = LabelSpec {
         rect,
         text: builder.text,
-        size: builder.size.unwrap_or(ctx.text_size),
-        font: builder.font.unwrap_or(ctx.text_font),
-        text_color: builder.text_color.unwrap_or(ctx.text_color),
+        size: builder.size.unwrap_or(ctx.theme.text_md),
+        font: builder.font.unwrap_or(ctx.theme.sans_font),
+        text_color: builder.text_color.unwrap_or(ctx.theme.ink),
         rule: builder.rule,
     };
     let result = raw::label(spec, ctx.text_system);

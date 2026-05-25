@@ -217,8 +217,6 @@ impl App {
             &self.input,
             framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_size.0, win_size.1)),
         );
-        ctx.text_color = Color::WHITE;
-        ctx.bg_color = Color::from_srgb_f32(0.05, 0.15, 0.30, 1.0);
         ctx.time = self.start_time.elapsed().as_secs_f64();
 
         // Background frame covering the whole window.
@@ -242,16 +240,17 @@ impl App {
                     let bounds = main_row.layout(layout_params);
                     main_row.child_with_layout(layout.begin(bounds), ())
                 };
-                sidebar_col.button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
-                sidebar_col.button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
-                sidebar_col.button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
+                let mut button_style = sidebar_col.theme.button_secondary_style();
+                button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
+                button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
+                button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
 
                 {
                     let layout_params = Vec2::new(200.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new("NAVIGATION".to_string())
-                        .size(sidebar_col.text_size)
-                        .font(sidebar_col.text_font)
-                        .text_color(sidebar_col.text_color)
+                        .size(sidebar_col.theme.text_md)
+                        .font(sidebar_col.theme.sans_font)
+                        .text_color(sidebar_col.theme.ink)
                         .rule(false)
                     ;
                     label(&mut sidebar_col, layout_params, spec_builder)
@@ -271,13 +270,13 @@ impl App {
 
                 for i in 0..20 {
                     let shade = (i % 2) as f32 * 0.15;
-                    sidebar_scroll.button_style.background = Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
+                    button_style.background = Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
                     let btn = {
                         let state = std::mem::take(&mut self.sidebar_btns[i].state);
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(sidebar_scroll.button_style)
+                            .style(button_style)
                             .disabled(false)
                         ;
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
@@ -315,9 +314,10 @@ impl App {
                         let bounds = content_col.layout(layout_params);
                         content_col.child_with_layout(layout.begin(bounds), ())
                     };
-                    header_row.button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
-                    header_row.button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
-                    header_row.button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
+                    let mut button_style = header_row.theme.button_secondary_style();
+                    button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
+                    button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
+                    button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
 
                     let info = {
                         let state = std::mem::take(&mut self.text_edit_state);
@@ -345,7 +345,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(header_row.button_style)
+                            .style(button_style)
                             .disabled(false)
                         ;
                         button(&mut header_row, state, layout_params, spec_builder)
@@ -357,7 +357,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(header_row.button_style)
+                            .style(button_style)
                             .disabled(false)
                         ;
                         button(&mut header_row, state, layout_params, spec_builder)
@@ -376,16 +376,17 @@ impl App {
                         let bounds = content_col.layout(layout_params);
                         content_col.child_with_layout(layout.begin(bounds), ())
                     };
-                    grid_col.button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
-                    grid_col.button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
-                    grid_col.button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
+                    let mut button_style = grid_col.theme.button_secondary_style();
+                    button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
+                    button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
+                    button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
 
                     {
                         let layout_params = Vec2::new(400.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("DASHBOARD GRID".to_string())
-                            .size(grid_col.text_size)
-                            .font(grid_col.text_font)
-                            .text_color(grid_col.text_color)
+                            .size(grid_col.theme.text_md)
+                            .font(grid_col.theme.sans_font)
+                            .text_color(grid_col.theme.ink)
                             .rule(false)
                         ;
                         label(&mut grid_col, layout_params, spec_builder)
@@ -402,13 +403,13 @@ impl App {
                             for col in 0..4 {
                                 let idx = row * 4 + col;
                                 let shade = ((row + col) % 2) as f32 * 0.15;
-                                grid_row.button_style.background = Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
+                                button_style.background = Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
                                 let btn = {
                                     let state = std::mem::take(&mut self.grid_btns[idx].state);
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder = ButtonSpecBuilder::new(text)
-                                        .style(grid_row.button_style)
+                                        .style(button_style)
                                         .disabled(false)
                                     ;
                                     button(&mut grid_row, state, layout_params, spec_builder)
@@ -436,9 +437,9 @@ impl App {
                         let layout_params = Vec2::new(150.0, 20.0);
                         let text: &str = &format!("Slider Value: {:.1}", self.standalone_slider_val);
                         let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(slider_row.text_size)
-                            .font(slider_row.text_font)
-                            .text_color(slider_row.text_color)
+                            .size(slider_row.theme.text_md)
+                            .font(slider_row.theme.sans_font)
+                            .text_color(slider_row.theme.ink)
                             .rule(false)
                         ;
                         label(&mut slider_row, layout_params, spec_builder)
@@ -471,9 +472,9 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new("MAIN FEED".to_string())
-                        .size(content_col.text_size)
-                        .font(content_col.text_font)
-                        .text_color(content_col.text_color)
+                        .size(content_col.theme.text_md)
+                        .font(content_col.theme.sans_font)
+                        .text_color(content_col.theme.ink)
                         .rule(false)
                     ;
                     label(&mut content_col, layout_params, spec_builder)
@@ -489,19 +490,20 @@ impl App {
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
                 );
-                main_scroll.button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
-                main_scroll.button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
-                main_scroll.button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
+                let mut button_style = main_scroll.theme.button_secondary_style();
+                button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
+                button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
+                button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
 
                 for i in 0..30 {
                     let shade = (i % 2) as f32 * 0.15;
-                    main_scroll.button_style.background = Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
+                    button_style.background = Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
                     let btn = {
                         let state = std::mem::take(&mut self.main_btns[i].state);
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(main_scroll.button_style)
+                            .style(button_style)
                             .disabled(false)
                         ;
                         button(&mut main_scroll, state, layout_params, spec_builder)
@@ -517,9 +519,9 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks".to_string())
-                        .size(content_col.text_size)
-                        .font(content_col.text_font)
-                        .text_color(content_col.text_color)
+                        .size(content_col.theme.text_md)
+                        .font(content_col.theme.sans_font)
+                        .text_color(content_col.theme.ink)
                         .rule(false)
                     ;
                     label(&mut content_col, layout_params, spec_builder)
@@ -552,9 +554,10 @@ impl App {
                         1 => (0.90, 0.20, 0.60), // Hot pink
                         _ => (0.10, 0.50, 0.90), // Vivid blue
                     };
-                    row_builder.button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
-                    row_builder.button_style.hovered = Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
-                    row_builder.button_style.pressed = Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
+                    let mut button_style = row_builder.theme.button_secondary_style();
+                    button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
+                    button_style.hovered = Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
+                    button_style.pressed = Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
 
                     // Left button
                     let btn1 = {
@@ -562,7 +565,7 @@ impl App {
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(row_builder.button_style)
+                            .style(button_style)
                             .disabled(false)
                         ;
                         button(&mut row_builder, state, layout_params, spec_builder)
@@ -586,13 +589,13 @@ impl App {
 
                     for j in 0..6 {
                         let shade = (j % 2) as f32 * 0.15;
-                        inner_scroll.button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut row_state.inner_btns[j].state);
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(inner_scroll.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut inner_scroll, state, layout_params, spec_builder)
@@ -620,13 +623,14 @@ impl App {
 
                     for j in 0..10 {
                         let shade = (j % 2) as f32 * 0.15;
-                        horiz_scroll.button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        let mut button_style = horiz_scroll.theme.button_secondary_style();
+                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut row_state.horiz_btns[j].state);
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(horiz_scroll.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
@@ -656,14 +660,15 @@ impl App {
                         let x = (j % 8) as f32 * 88.0;
                         let y = (j / 8) as f32 * 53.0;
                         let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
-                        both_scroll.button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                        let mut button_style = both_scroll.theme.button_secondary_style();
+                        button_style.background = Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
 
                         let btn = {
                             let state = std::mem::take(&mut row_state.both_btns[j].state);
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(both_scroll.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut both_scroll, state, layout_params, spec_builder)
@@ -725,9 +730,9 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new("DOUBLE HORIZONTAL SCROLL DEMO".to_string())
-                        .size(content_col.text_size)
-                        .font(content_col.text_font)
-                        .text_color(content_col.text_color)
+                        .size(content_col.theme.text_md)
+                        .font(content_col.theme.sans_font)
+                        .text_color(content_col.theme.ink)
                         .rule(false)
                     ;
                     label(&mut content_col, layout_params, spec_builder)
@@ -749,7 +754,6 @@ impl App {
                     let layout_params = Vec2::new(100.0, 100.0);
                     let text = "Outer L".to_string();
                     let spec_builder = ButtonSpecBuilder::new(text)
-                        .style(d_outer_scroll.button_style)
                         .disabled(false)
                     ;
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
@@ -773,7 +777,6 @@ impl App {
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(d_inner_scroll.button_style)
                             .disabled(false)
                         ;
                         button(&mut d_inner_scroll, state, layout_params, spec_builder)
@@ -789,7 +792,6 @@ impl App {
                     let layout_params = Vec2::new(300.0, 100.0);
                     let text = "Outer R".to_string();
                     let spec_builder = ButtonSpecBuilder::new(text)
-                        .style(d_outer_scroll.button_style)
                         .disabled(false)
                     ;
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
@@ -808,9 +810,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
                         let spec_builder = LabelSpecBuilder::new("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently".to_string())
-                            .size(content_col.text_size)
-                            .font(content_col.text_font)
-                            .text_color(content_col.text_color)
+                            .size(content_col.theme.text_md)
+                            .font(content_col.theme.sans_font)
+                            .text_color(content_col.theme.ink)
                             .rule(false)
                         ;
                         label(&mut content_col, layout_params, spec_builder)
@@ -833,9 +835,9 @@ impl App {
                         let layout_params = Rect::new(0.0, 0.0, 400.0, 18.0);
                         let text: &str = &format!("OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}", outer_ox, outer_oy, inner_ox, inner_oy);
                         let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(outer.text_size)
-                            .font(outer.text_font)
-                            .text_color(outer.text_color)
+                            .size(outer.theme.text_md)
+                            .font(outer.theme.sans_font)
+                            .text_color(outer.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer, layout_params, spec_builder)
@@ -855,7 +857,6 @@ impl App {
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label.to_string();
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(outer.button_style)
                                 .disabled(false)
                             ;
                             button(&mut outer, state, layout_params, spec_builder)
@@ -879,14 +880,15 @@ impl App {
                         let col = j % 4;
                         let row = j / 4;
                         let shade = ((col + row) % 2) as f32 * 0.12;
-                        inner.button_style.background = Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
-                        inner.button_style.hovered    = Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
+                        let mut button_style = inner.theme.button_secondary_style();
+                        button_style.background = Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
+                        button_style.hovered    = Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.nested_2d_inner_btns[j].state);
                             let layout_params = Rect::new(col as f32 * 120.0 + 5.0, row as f32 * 58.0 + 5.0, 110.0, 48.0);
                             let text = format!("2D {:02}", j + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(inner.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut inner, state, layout_params, spec_builder)
@@ -912,9 +914,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
                         let spec_builder = LabelSpecBuilder::new("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation".to_string())
-                            .size(content_col.text_size)
-                            .font(content_col.text_font)
-                            .text_color(content_col.text_color)
+                            .size(content_col.theme.text_md)
+                            .font(content_col.theme.sans_font)
+                            .text_color(content_col.theme.ink)
                             .rule(false)
                         ;
                         label(&mut content_col, layout_params, spec_builder)
@@ -939,9 +941,9 @@ impl App {
                                             outer_y, middle_x, inner_y, innermost_x,
                                         );
                         let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)
@@ -962,9 +964,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string())
-                            .size(middle_scroll.text_size)
-                            .font(middle_scroll.text_font)
-                            .text_color(middle_scroll.text_color)
+                            .size(middle_scroll.theme.text_md)
+                            .font(middle_scroll.theme.sans_font)
+                            .text_color(middle_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut middle_scroll, layout_params, spec_builder)
@@ -985,14 +987,15 @@ impl App {
 
                     for j in 0..12 {
                         let shade = (j % 2) as f32 * 0.12;
-                        inner_scroll.button_style.background = Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
-                        inner_scroll.button_style.hovered = Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
+                        let mut button_style = inner_scroll.theme.button_secondary_style();
+                        button_style.background = Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
+                        button_style.hovered = Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.triple_inner_btns[j].state);
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(inner_scroll.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut inner_scroll, state, layout_params, spec_builder)
@@ -1015,14 +1018,15 @@ impl App {
                             .v_vis(ScrollbarVisibility::None),
                         );
                     for k in 0..5 {
-                        innermost_scroll.button_style.background = Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
-                        innermost_scroll.button_style.hovered    = Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
+                        let mut button_style = innermost_scroll.theme.button_secondary_style();
+                        button_style.background = Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
+                        button_style.hovered    = Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
                         let btn = {
                             let state = std::mem::take(&mut self.triple_innermost_btns[k].state);
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
                                 let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(innermost_scroll.button_style)
+                                .style(button_style)
                                 .disabled(false)
                             ;
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
@@ -1060,9 +1064,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string())
-                            .size(middle_scroll.text_size)
-                            .font(middle_scroll.text_font)
-                            .text_color(middle_scroll.text_color)
+                            .size(middle_scroll.theme.text_md)
+                            .font(middle_scroll.theme.sans_font)
+                            .text_color(middle_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut middle_scroll, layout_params, spec_builder)
@@ -1074,9 +1078,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)
@@ -1084,9 +1088,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)
@@ -1094,9 +1098,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)
@@ -1104,9 +1108,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)
@@ -1114,9 +1118,9 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder = LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                            .size(outer_scroll.text_size)
-                            .font(outer_scroll.text_font)
-                            .text_color(outer_scroll.text_color)
+                            .size(outer_scroll.theme.text_md)
+                            .font(outer_scroll.theme.sans_font)
+                            .text_color(outer_scroll.theme.ink)
                             .rule(false)
                         ;
                         label(&mut outer_scroll, layout_params, spec_builder)

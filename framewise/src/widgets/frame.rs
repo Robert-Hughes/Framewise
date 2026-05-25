@@ -129,7 +129,7 @@ pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
     let rect = ctx.layout(layout_params);
     let spec = FrameSpec {
         rect,
-        style: builder.style.unwrap_or(ctx.frame_style),
+        style: builder.style.unwrap_or(ctx.theme.frame_style()),
     };
     let result = raw::frame(spec);
 

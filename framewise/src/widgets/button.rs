@@ -369,7 +369,7 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     builder: ButtonSpecBuilder,
 ) -> ButtonInfo {
     let rect = ctx.layout(layout_params);
-    let style = builder.style.unwrap_or(ctx.button_style);
+    let style = builder.style.unwrap_or(ctx.theme.button_secondary_style());
     let clip_rect = builder.clip_rect.or(ctx.clip_rect);
     let mut spec = builder
         .with_style(style)

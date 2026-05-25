@@ -67,14 +67,6 @@ impl WidgetScope for () {
 pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
-    pub bg_color: Color,
-    pub accent_color: Color,
-    pub text_color: Color,
-    pub border_color: Color,
-    pub button_style: ButtonStyle,
-    pub frame_style: FrameStyle,
-    pub text_size: f32,
-    pub text_font: FontId,
     pub time: f64,
     pub clip_rect: Option<Rect>,
 
@@ -99,14 +91,6 @@ impl<'a, T: TextSystem, LS: LayoutState> WidgetContext<'a, T, LS, ()> {
         layout_state: LS,
     ) -> Self {
         Self {
-            bg_color: Color::from_srgb_f32(0.10, 0.10, 0.13, 1.0),
-            accent_color: Color::from_srgb_f32(0.30, 0.55, 0.95, 1.0),
-            text_color: Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
-            border_color: Color::from_srgb_f32(0.30, 0.30, 0.38, 1.0),
-            button_style: theme.button_secondary_style(),
-            frame_style: theme.frame_style(),
-            text_size: 14.0,
-            text_font: theme.sans_font,
             time: 0.0,
             clip_rect: None,
             theme,
@@ -126,14 +110,6 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
         ) -> WidgetContext<'c, T, LS2, Scope2> {
         WidgetContext {
             theme: self.theme.clone(),
-            bg_color: self.bg_color.clone(),
-            accent_color: self.accent_color.clone(),
-            text_color: self.text_color.clone(),
-            border_color: self.border_color.clone(),
-            button_style: self.button_style.clone(),
-            frame_style: self.frame_style.clone(),
-            text_size: self.text_size.clone(),
-            text_font: self.text_font.clone(),
             time: self.time.clone(),
             clip_rect: self.clip_rect.clone(),
             text_system: self.text_system,

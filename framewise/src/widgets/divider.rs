@@ -99,7 +99,7 @@ pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope:
     let rect = ctx.layout(layout_params);
     let spec = DividerSpec {
         rect,
-        color: builder.color.unwrap_or(ctx.border_color),
+        color: builder.color.unwrap_or(ctx.theme.line),
         width: builder.width.unwrap_or(1.0),
     };
     let result = raw::divider(spec);
