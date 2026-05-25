@@ -15,9 +15,10 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn select<'a, T: crate::text::TextSystem>(
         mut state: SelectState,
-        spec: SelectSpec<'a, T>,
+        spec: SelectSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
+        text_sys: &mut T,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -178,7 +179,7 @@ pub mod raw {
             spec.value
         };
 
-        let val_layout = spec.ts.prepare(display_text, s.text_size, spec.font);
+        let val_layout = text_sys.prepare(display_text, s.text_size, spec.font);
         let vty = r.y + (s.height - val_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
@@ -188,7 +189,7 @@ pub mod raw {
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_layout = spec.ts.prepare("v", s.chevron_size, spec.font);
+        let chev_layout = text_sys.prepare("v", s.chevron_size, spec.font);
         let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -236,7 +237,7 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_layout = spec.ts.prepare(opt, s.text_size, spec.font);
+                let opt_layout = text_sys.prepare(opt, s.text_size, spec.font);
                 let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
                     rect: Rect::new(
@@ -265,8 +266,7 @@ pub mod raw {
     }
 }
 
-pub struct SelectSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct SelectSpec<'a> {
     /// Bounding rect for the closed box (height h_md = 28).
     pub rect: Rect,
     pub value: &'a str,
@@ -400,27 +400,25 @@ impl SelectResult {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem>(
     ctx: &mut WidgetContext<T, S>,
     state: SelectState,
     layout_params: S::Params,
-    builder: SelectSpecBuilder<'a, T>,
+    builder: SelectSpecBuilder<'a>,
     input: &Input,
 ) -> SelectInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let mut builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::select(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::select(state, spec, input, ctx.focus_sys, ctx.text_system);
+
     ctx.append_cmds(result.draw.0);
-    
+
     SelectInfo {
         layout: result.layout,
         input: result.input,
@@ -432,18 +430,17 @@ pub fn select<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::select as select_raw;
 
-pub struct SelectSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct SelectSpecBuilder<'a> {
     pub value: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<SelectStyle>,
     pub options: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
 }
 
-impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
+impl<'a> SelectSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             value: None,
@@ -452,7 +449,6 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
             options: None,
             disabled: None,
             rect: None,
-            ts: None,
             clip_rect: None,
         }
     }
@@ -483,7 +479,7 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
+impl<'a> SelectSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -497,14 +493,8 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> SelectSpec<'a, T> {
+    pub fn build(self) -> SelectSpec<'a> {
         SelectSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             value: self.value.unwrap_or(""),
             font: self.font.expect("font must be specified or resolved from a theme"),
@@ -522,7 +512,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn sel_ect<'a, T: crate::text::TextSystem>(spec: SelectSpec<'a, T>) -> SelectResult {
+    fn sel_ect<'a>(spec: SelectSpec<'a, T>) -> SelectResult {
         select_raw(
             SelectState::default(),
             spec,

@@ -15,9 +15,10 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn chip<'a, T: crate::text::TextSystem>(
         mut state: ChipState,
-        spec: ChipSpec<'a, T>,
+        spec: ChipSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
+        text_sys: &mut T,
     ) -> ChipResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -61,7 +62,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
+        let layout = text_sys.prepare(spec.label, s.text_size, spec.font);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -110,8 +111,7 @@ pub mod raw {
     }
 }
 
-pub struct ChipSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct ChipSpec<'a> {
     /// Top-left origin. Height is fixed at 22.
     pub rect: Rect,
     pub label: &'a str,
@@ -230,23 +230,21 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: ChipState,
     layout_params: S::Params,
-    builder: ChipSpecBuilder<'a, T>,
+    builder: ChipSpecBuilder<'a>,
     input: &Input,
 ) -> ChipInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let mut builder = builder
         .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
+        .with_theme(&ctx.theme);
     if builder.clip_rect.is_none() {
         builder.clip_rect = ctx.clip_rect;
     }
     let spec = builder.build();
-    let result = raw::chip(state, spec, input, ctx.focus_sys);
-    
+    let result = raw::chip(state, spec, input, ctx.focus_sys, ctx.text_system);
+
     ctx.append_cmds(result.draw.0);
-    
+
     ChipInfo {
         layout: result.layout,
         input: result.input,
@@ -258,17 +256,16 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::chip as chip_raw;
 
-pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct ChipSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<ChipStyle>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
 }
 
-impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
+impl<'a> ChipSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             label: None,
@@ -276,7 +273,6 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
             style: None,
             disabled: None,
             rect: None,
-            ts: None,
             clip_rect: None,
         }
     }
@@ -303,7 +299,7 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
+impl<'a> ChipSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -317,14 +313,8 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> ChipSpec<'a, T> {
+    pub fn build(self) -> ChipSpec<'a> {
         ChipSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             label: self.label.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
@@ -341,7 +331,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn ch_ip<'a, T: crate::text::TextSystem>(spec: ChipSpec<'a, T>) -> ChipResult {
+    fn ch_ip<'a>(spec: ChipSpec<'a>) -> ChipResult {
         chip_raw(
             ChipState::default(),
             spec,
@@ -354,7 +344,6 @@ mod tests {
     fn test_chip_visual_normal() {
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
@@ -392,7 +381,6 @@ mod tests {
         let mut state = ChipState::default();
         state.active = true;
         let spec = ChipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
@@ -432,7 +420,6 @@ mod tests {
         focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),
@@ -482,7 +469,6 @@ mod tests {
 
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
-            ts: &mut text_sys,
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",
             font: FontId(0),

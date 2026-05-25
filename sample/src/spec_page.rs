@@ -1,5 +1,8 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
+use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
+use framewise::widgets::slider::SliderSpecBuilder;
+use framewise::widgets::text_edit::TextEditSpecBuilder;
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
     draw::DrawCmd,
@@ -175,14 +178,14 @@ impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::Keycap
 }
 
 // 10. Select
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SelectSpecBuilder<'a, T> {
+impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SelectSpecBuilder<'a> {
     type Info = framewise::widgets::SelectInfo;
     fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
+        let spec = self.with_rect(rect).with_theme(theme).build();
         let state = SelectState::default();
         let input = Input::default();
         let mut dummy_focus_sys = FocusSystem::new();
-        let result = select_raw(state, spec, &input, &mut dummy_focus_sys);
+        let result = select_raw(state, spec, &input, &mut dummy_focus_sys, ts);
         (result.draw.0, SelectInfo {
             layout: result.layout,
             input: result.input,
@@ -285,38 +288,17 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         inner_layout: L,
         input: &Input,
     ) -> Builder<'_, T, OffsetState<L::State>> {
-        let bounds = self.ctx.layout(layout_params);
-        let clip_rect = self.ctx.clip_rect;
-        let time = self.ctx.time;
-        let (scope, content_bounds, offset) = begin_scroll_area(
+        let (widget_context, scope) = begin_scroll_area(
             &mut self.ctx,
-            bounds,
+            layout_params,
             content_size,
             h_vis,
             v_vis,
             state,
+            inner_layout,
             input,
-            clip_rect,
-            time,
         );
-        
-        let mut w_ctx = WidgetContext::new(
-            self.ctx.theme.clone(),
-            self.ctx.text_system,
-            self.ctx.focus_sys,
-            OffsetLayout { offset, inner: inner_layout }.begin(content_bounds),
-        );
-        w_ctx.bg_color = self.ctx.bg_color;
-        w_ctx.accent_color = self.ctx.accent_color;
-        w_ctx.text_color = self.ctx.text_color;
-        w_ctx.border_color = self.ctx.border_color;
-        w_ctx.button_style = self.ctx.button_style;
-        w_ctx.frame_style = self.ctx.frame_style;
-        w_ctx.text_size = self.ctx.text_size;
-        w_ctx.text_font = self.ctx.text_font;
-        w_ctx.time = self.ctx.time;
-        w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
-        Builder { ctx: w_ctx, scroll_scope: Some(scope), window_scope: None }
+        Builder { ctx: widget_context, scroll_scope: Some(scope), window_scope: None }
     }
 
     pub fn window<L: Layout>(
@@ -331,10 +313,10 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
             .with_theme(&self.ctx.theme)
             .with_text_system(self.ctx.text_system)
             .build();
-        
+
         let (pre_cmds, scope, content_bounds) = begin_window_raw(widget_spec);
         self.ctx.append_cmds(pre_cmds);
-        
+
         let mut w_ctx = WidgetContext::new(
             self.ctx.theme.clone(),
             self.ctx.text_system,
@@ -351,102 +333,73 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         w_ctx.text_font = self.ctx.text_font;
         w_ctx.time = self.ctx.time;
         w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
-        
+
         Builder { ctx: w_ctx, scroll_scope: None, window_scope: Some(scope) }
     }
 
     pub fn label(&mut self, layout_params: S::Params, text: &str) -> LabelInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = LabelSpec {
-            rect,
-            text: text.to_string(),
-            size: self.ctx.text_size,
-            font: self.ctx.text_font,
-            text_color: self.ctx.text_color,
-            rule: false,
-        };
-        label(&mut self.ctx, spec)
+        let spec_builder = LabelSpecBuilder::new(text.to_string())
+            .size(self.ctx.text_size)
+            .font(self.ctx.text_font)
+            .text_color(self.ctx.text_color)
+            .rule(false);
+        label(&mut self.ctx, layout_params, spec_builder)
     }
 
-    pub fn label_styled(&mut self, rect: Rect, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
-        let spec = LabelSpec {
-            rect,
-            text: text.to_string(),
-            size,
-            font: self.ctx.text_font,
-            text_color: color,
-            rule,
-        };
-        label(&mut self.ctx, spec)
+    pub fn label_styled(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool) -> LabelInfo {
+        let spec_builder = LabelSpecBuilder::new(text.to_string())
+            .size(size)
+            .font(self.ctx.text_font)
+            .text_color(color)
+            .rule(rule);
+        label(&mut self.ctx, layout_params, spec_builder)
     }
 
-    pub fn label_styled_font(&mut self, rect: Rect, text: &str, size: f32, color: Color, rule: bool, font: framewise::text::FontId) -> LabelInfo {
-        let spec = LabelSpec {
-            rect,
-            text: text.to_string(),
-            size,
-            font,
-            text_color: color,
-            rule,
-        };
-        label(&mut self.ctx, spec)
+    pub fn label_styled_font(&mut self, layout_params: S::Params, text: &str, size: f32, color: Color, rule: bool, font: framewise::text::FontId) -> LabelInfo {
+        let spec_builder = LabelSpecBuilder::new(text.to_string())
+            .size(size)
+            .font(font)
+            .text_color(color)
+            .rule(rule);
+        label(&mut self.ctx, layout_params, spec_builder)
     }
 
-    pub fn divider(&mut self, rect: Rect) -> DividerInfo {
-        let spec = DividerSpec {
-            rect,
-            color: self.ctx.theme.line,
-            width: 1.0,
-        };
-        divider(&mut self.ctx, spec)
+    pub fn divider(&mut self, layout_params: S::Params) -> DividerInfo {
+        let spec_builder = DividerSpecBuilder::new()
+            .color(self.ctx.theme.line)
+            .width(1.0);
+        divider(&mut self.ctx, layout_params, spec_builder)
     }
 
     pub fn button(&mut self, state: ButtonState, layout_params: S::Params, text: String, input: &Input) -> ButtonInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = ButtonSpec {
-            rect,
-            text,
-            style: self.ctx.button_style,
-            clip_rect: self.ctx.clip_rect,
-            disabled: false,
-        };
-        button(&mut self.ctx, state, spec, input)
+        let spec_builder = ButtonSpecBuilder::new(text)
+            .style(self.ctx.button_style)
+            .disabled(false);
+        button(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn button_styled(&mut self, state: ButtonState, layout_params: S::Params, text: &str, style: ButtonStyle, disabled: bool, input: &Input) -> ButtonInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = ButtonSpec {
-            rect,
-            text: text.to_string(),
-            style,
-            clip_rect: self.ctx.clip_rect,
-            disabled,
-        };
-        button(&mut self.ctx, state, spec, input)
+        let spec_builder = ButtonSpecBuilder::new(text.to_string())
+            .style(style)
+            .disabled(disabled);
+        button(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn checkbox(&mut self, state: CheckboxState, layout_params: S::Params, input: &Input) -> CheckboxInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = CheckboxSpec {
-            rect,
-            state: state.check,
-            disabled: false,
-            style: self.ctx.theme.checkbox_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        checkbox(&mut self.ctx, state, spec, input)
+        let spec_builder = CheckboxSpecBuilder::new(state.check)
+            .disabled(false)
+            .style(self.ctx.theme.checkbox_style())
+            .clip_rect(self.ctx.clip_rect);
+        checkbox(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn radio(&mut self, state: RadioState, layout_params: S::Params, input: &Input) -> RadioInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = RadioSpec {
-            rect,
-            selected: state.selected,
-            disabled: false,
-            style: self.ctx.theme.radio_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        radio(&mut self.ctx, state, spec, input)
+        let spec_builder = RadioSpecBuilder::new()
+            .selected(state.selected)
+            .disabled(false)
+            .style(self.ctx.theme.radio_style())
+            .clip_rect(self.ctx.clip_rect);
+        radio(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn switch(&mut self, state: SwitchState, layout_params: S::Params, input: &Input) -> SwitchInfo {
@@ -454,15 +407,12 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
     }
 
     pub fn switch_styled(&mut self, state: SwitchState, layout_params: S::Params, disabled: bool, input: &Input) -> SwitchInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = SwitchSpec {
-            rect,
-            on: state.on,
-            disabled,
-            style: self.ctx.theme.switch_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        switch(&mut self.ctx, state, spec, input)
+        let spec_builder = SwitchSpecBuilder::new()
+            .on(state.on)
+            .disabled(disabled)
+            .style(self.ctx.theme.switch_style())
+            .clip_rect(self.ctx.clip_rect);
+        switch(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn select(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, input: &Input) -> SelectInfo {
@@ -470,23 +420,19 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
     }
 
     pub fn select_styled(&mut self, state: SelectState, options: &[&str], layout_params: S::Params, disabled: bool, input: &Input) -> SelectInfo {
-        let rect = self.ctx.layout(layout_params);
         let value = if state.selected_index < options.len() {
             options[state.selected_index]
         } else {
             ""
         };
-        let spec = SelectSpec {
-            ts: self.ctx.text_system,
-            rect,
-            value,
-            font: self.ctx.text_font,
-            options,
-            disabled,
-            style: self.ctx.theme.select_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        let result = select_raw(state, spec, input, self.ctx.focus_sys);
+        let spec_builder = SelectSpecBuilder::new()
+            .value(value)
+            .font(self.ctx.text_font)
+            .options(options)
+            .disabled(disabled)
+            .style(self.ctx.theme.select_style())
+            .clip_rect(self.ctx.clip_rect);
+        let result = select_raw(state, spec_builder.build(), input, self.ctx.focus_sys, self.ctx.text_system);
         self.ctx.append_cmds(result.draw.0);
         SelectInfo {
             layout: result.layout,
@@ -497,25 +443,14 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
     }
 
     pub fn segmented(&mut self, state: SegmentedState, items: &[&str], layout_params: S::Params, input: &Input) -> SegmentedInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = SegmentedSpec {
-            ts: self.ctx.text_system,
-            rect,
-            items,
-            font: self.ctx.text_font,
-            active_index: state.active_index,
-            disabled: false,
-            style: self.ctx.theme.segmented_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        let result = segmented_raw(state, spec, input, self.ctx.focus_sys);
-        self.ctx.append_cmds(result.draw.0);
-        SegmentedInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        }
+        let spec_builder = SegmentedSpecBuilder::new()
+            .items(items)
+            .font(self.ctx.text_font)
+            .active_index(state.active_index)
+            .disabled(false)
+            .style(self.ctx.theme.segmented_style())
+            .clip_rect(self.ctx.clip_rect);
+        segmented(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn text_edit(&mut self, state: TextEditState, layout_params: S::Params, input: &Input) -> TextEditInfo {
@@ -523,83 +458,46 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
     }
 
     pub fn text_edit_ext(&mut self, state: TextEditState, layout_params: S::Params, error: bool, disabled: bool, input: &Input) -> TextEditInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = TextEditSpec {
-            rect,
-            style: self.ctx.theme.text_edit_style(),
-            clip_rect: self.ctx.clip_rect,
-            error,
-            disabled,
-        };
-        let time = self.ctx.time;
-        text_edit(&mut self.ctx, state, spec, input, time)
+        let spec_builder = TextEditSpecBuilder::new()
+            .style(self.ctx.theme.text_edit_style())
+            .clip_rect(self.ctx.clip_rect)
+            .error(error)
+            .disabled(disabled);
+        text_edit(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn drag_number(&mut self, state: DragNumberState, label: &str, min: f32, max: f32, layout_params: S::Params, input: &Input) -> DragNumberInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = DragNumberSpec {
-            ts: self.ctx.text_system,
-            rect,
-            label,
-            font: self.ctx.text_font,
-            value: state.value,
-            min,
-            max,
-            disabled: false,
-            style: self.ctx.theme.drag_number_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        let result = drag_number_raw(state, spec, input, self.ctx.focus_sys);
-        self.ctx.append_cmds(result.draw.0);
-        DragNumberInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        }
+        let spec_builder = DragNumberSpecBuilder::new()
+            .label(label)
+            .font(self.ctx.text_font)
+            .value(state.value)
+            .min(min)
+            .max(max)
+            .disabled(false)
+            .style(self.ctx.theme.drag_number_style())
+            .clip_rect(self.ctx.clip_rect);
+        drag_number(&mut self.ctx, state,layout_params, spec_builder, input)
     }
 
     pub fn chip(&mut self, state: ChipState, label: &str, layout_params: S::Params, input: &Input) -> ChipInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = ChipSpec {
-            ts: self.ctx.text_system,
-            rect,
-            label,
-            font: self.ctx.text_font,
-            disabled: false,
-            style: self.ctx.theme.chip_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        let result = chip_raw(state, spec, input, self.ctx.focus_sys);
-        self.ctx.append_cmds(result.draw.0);
-        ChipInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        }
+        let spec_builder = ChipSpecBuilder::new()
+            .label(label)
+            .font(self.ctx.text_font)
+            .disabled(false)
+            .style(self.ctx.theme.chip_style())
+            .clip_rect(self.ctx.clip_rect);
+        chip(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn tabs(&mut self, state: TabsState, items: &[&str], layout_params: S::Params, input: &Input) -> TabsInfo {
-        let rect = self.ctx.layout(layout_params);
-        let spec = TabsSpec {
-            ts: self.ctx.text_system,
-            rect,
-            items,
-            font: self.ctx.text_font,
-            active_index: state.active_index,
-            disabled: false,
-            style: self.ctx.theme.tabs_style(),
-            clip_rect: self.ctx.clip_rect,
-        };
-        let result = tabs_raw(state, spec, input, self.ctx.focus_sys);
-        self.ctx.append_cmds(result.draw.0);
-        TabsInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        }
+        let spec_builder = TabsSpecBuilder::new()
+            .items(items)
+            .font(self.ctx.text_font)
+            .active_index(state.active_index)
+            .disabled(false)
+            .style(self.ctx.theme.tabs_style())
+            .clip_rect(self.ctx.clip_rect);
+        tabs(&mut self.ctx, state, layout_params, spec_builder, input)
     }
 
     pub fn slider(
@@ -613,20 +511,17 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
         layout_params: S::Params,
         input: &Input,
     ) {
-        let rect = self.ctx.layout(layout_params);
-        let spec = SliderSpec {
-            rect,
-            min,
-            max,
-            page_step: step,
-            step,
-            orientation,
-            thumb_size_ratio: None,
-            style: self.ctx.theme.slider_style(),
-            clip_rect: self.ctx.clip_rect,
-            claim_scroll_at_ends: true,
-        };
-        slider(&mut self.ctx, state, value, spec, input);
+        let spec_builder = SliderSpecBuilder::new()
+            .min(min)
+            .max(max)
+            .page_step(step)
+            .step(step)
+            .orientation(orientation)
+            .thumb_size_ratio(None)
+            .style(self.ctx.theme.slider_style())
+            .clip_rect(self.ctx.clip_rect)
+            .claim_scroll_at_ends(true);
+        slider(&mut self.ctx, state, value, layout_params, spec_builder, input);
     }
 
     pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
@@ -775,7 +670,6 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
 
     let dummy_input = Input::default();
     let spec = SelectSpec {
-        ts: b.ctx.text_system,
         rect,
         value,
         font: b.ctx.theme.sans_font,
@@ -790,6 +684,7 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
         spec,
         &dummy_input,
         &mut dummy_focus_sys,
+        b.ctx.text_system,
     );
     b.append_cmds(result.draw.0);
 }
@@ -3409,10 +3304,10 @@ fn hero_logo(t: &Theme, lx: f32, y0: f32) -> Vec<DrawCmd> {
     let ls = 0.48_f32;
     let lx0 = lx;
     let lw = 4.8_f32;
-    
+
     // Since lines are drawn using "butt end caps" (which terminate flat at endpoints),
     // we manually extend/overlap connected segment coordinates by half the stroke width
-    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and 
+    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and
     // simulate square cap endings.
     let ext = 5.0_f32;
 

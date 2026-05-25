@@ -15,9 +15,10 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn tabs<'a, T: crate::text::TextSystem>(
         mut state: TabsState,
-        spec: TabsSpec<'a, T>,
+        spec: TabsSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
+        text_sys: &mut T,
     ) -> TabsResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
@@ -29,7 +30,7 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let layout = spec.ts.prepare(label, s.text_size, spec.font);
+            let layout = text_sys.prepare(label, s.text_size, spec.font);
             total_w += layout.size.x + pad_x * 2.0;
         }
 
@@ -73,7 +74,7 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let layout = spec.ts.prepare(label, s.text_size, spec.font);
+                let layout = text_sys.prepare(label, s.text_size, spec.font);
                 let tab_w = layout.size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
@@ -102,7 +103,7 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let layout = spec.ts.prepare(label, s.text_size, spec.font);
+            let layout = text_sys.prepare(label, s.text_size, spec.font);
             let tab_w = layout.size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -159,8 +160,7 @@ pub mod raw {
     }
 }
 
-pub struct TabsSpec<'a, T: crate::text::TextSystem> {
-    pub ts: &'a mut T,
+pub struct TabsSpec<'a> {
     /// Bounding rect; only x/y/w used — height is fixed at 36.
     pub rect: Rect,
     pub items: &'a [&'a str],
@@ -276,20 +276,18 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     ctx: &mut WidgetContext<T, S>,
     state: TabsState,
     layout_params: S::Params,
-    builder: TabsSpecBuilder<'a, T>,
+    builder: TabsSpecBuilder<'a>,
     input: &Input,
 ) -> TabsInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme)
-        .with_text_system(unsafe { &mut *ts_ptr });
-    let spec = builder.build();
-    let result = raw::tabs(state, spec, input, ctx.focus_sys);
-    
+        .with_theme(&ctx.theme);
+    let mut spec = builder.build();
+    spec.rect = rect;
+    let result = raw::tabs(state, spec, input, ctx.focus_sys, ctx.text_system);
+
     ctx.append_cmds(result.draw.0);
-    
+
     TabsInfo {
         layout: result.layout,
         input: result.input,
@@ -301,18 +299,17 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 pub use raw::tabs as tabs_raw;
 
-pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
+pub struct TabsSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
     pub style: Option<TabsStyle>,
     pub active_index: Option<usize>,
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
-    pub ts: Option<&'a mut T>,
     pub clip_rect: Option<Rect>,
 }
 
-impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
+impl<'a> TabsSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
             items: None,
@@ -321,7 +318,6 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
             active_index: None,
             disabled: None,
             rect: None,
-            ts: None,
             clip_rect: None,
         }
     }
@@ -352,7 +348,7 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
+impl<'a> TabsSpecBuilder<'a> {
     pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
@@ -366,14 +362,8 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
         self
     }
 
-    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
-        self.ts = Some(ts);
-        self
-    }
-
-    pub fn build(self) -> TabsSpec<'a, T> {
+    pub fn build(self) -> TabsSpec<'a> {
         TabsSpec {
-            ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
             items: self.items.unwrap(),
             font: self.font.expect("font must be specified or resolved from a theme"),
