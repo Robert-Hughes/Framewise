@@ -650,6 +650,36 @@ mod tests {
     }
 
     #[test]
+    fn test_button_click_takes_focus() {
+        let mut text_system = DummyTextSys;
+        let state = ButtonState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        let spec = ButtonSpec {
+            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+            text: "Btn".to_string(),
+            style: ButtonStyle::default(),
+            clip_rect: None,
+            disabled: false,
+        };
+
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(50.0, 25.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        focus_sys.begin_frame();
+        let res = raw::button(state, spec, &input, &mut text_system, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking button must request focus"
+        );
+    }
+
+    #[test]
     fn test_enter_clicks_raw_button() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();

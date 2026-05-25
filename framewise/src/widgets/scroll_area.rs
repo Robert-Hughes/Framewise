@@ -1194,6 +1194,44 @@ focus_sys.take_focus(btn_state.focus_id);
         );
     }
 
+    /// Clicking on a scroll area's scrollbar slider should take focus.
+    #[test]
+    fn test_scrollbar_click_takes_focus() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Pre-render to materialise the vertical slider's focus_id.
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, &Input::new(), &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+
+        // Click on the vertical scrollbar track (at x=194, y=10 - within the scrollbar area)
+        let mut input = Input::new();
+        input.mouse_pos = Vec2::new(194.0, 10.0);
+        input.mouse_pressed = true;
+
+        focus_sys.begin_frame();
+        let (_, scope, _, _) = begin_scroll_area(
+            bounds, Vec2::new(200.0, 1000.0),
+            ScrollbarVisibility::None, ScrollbarVisibility::Always,
+            &mut state, &input, &mut focus_sys, None, 0.0,
+        );
+        scope.finish(&mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(state.vert_slider_state.focus_id),
+            "Clicking scrollbar slider must request focus"
+        );
+    }
+
     /// Home/End act when the scrollbar slider is focused (slider's own keyboard handler).
     /// They do not propagate from child widgets via the scope — that's intentional.
     #[test]
