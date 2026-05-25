@@ -256,42 +256,7 @@ impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
 
 
 
-    pub fn window<L: Layout>(
-        &mut self,
-        layout_params: S::Params,
-        widget_spec_builder: WindowSpecBuilder<'_, T>,
-        inner_layout: L,
-    ) -> Builder<'_, T, L::State> {
-        let rect = self.ctx.layout(layout_params);
-        let widget_spec = widget_spec_builder
-            .with_rect(rect)
-            .with_theme(&self.ctx.theme)
-            .with_text_system(self.ctx.text_system)
-            .build();
 
-        let (pre_cmds, scope, content_bounds) = begin_window_raw(widget_spec);
-        self.ctx.append_cmds(pre_cmds);
-
-        let mut w_ctx = WidgetContext::new(
-            self.ctx.theme.clone(),
-            self.ctx.text_system,
-            self.ctx.focus_sys,
-            self.ctx.input,
-            inner_layout.begin(content_bounds),
-        );
-        w_ctx.bg_color = self.ctx.bg_color;
-        w_ctx.accent_color = self.ctx.accent_color;
-        w_ctx.text_color = self.ctx.text_color;
-        w_ctx.border_color = self.ctx.border_color;
-        w_ctx.button_style = self.ctx.button_style;
-        w_ctx.frame_style = self.ctx.frame_style;
-        w_ctx.text_size = self.ctx.text_size;
-        w_ctx.text_font = self.ctx.text_font;
-        w_ctx.time = self.ctx.time;
-        w_ctx.clip_rect = Some(self.ctx.clip_rect.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
-
-        Builder { ctx: w_ctx, scroll_scope: None, window_scope: Some(scope) }
-    }
 
     pub fn custom(&mut self, layout_params: S::Params, draw_fn: impl FnOnce(Rect) -> Vec<DrawCmd>) {
         let rect = self.ctx.layout(layout_params);
@@ -2934,15 +2899,16 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let win_rect = Rect::new(lx, y, 360.0, 280.0);
-                let mut win = b.window(
-                    win_rect,
-                    framewise::widgets::WindowSpecBuilder::new()
-                        .title("Inspector")
-                        .buttons(&win_buttons)
-                        .status_bar(true)
-                        .status_text("RENDERING  frame #00248  2.4 ms"),
-                    ManualLayout,
-                );
+                let mut win = {
+                    let this = &mut *b;
+                    let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+                                        .title("Inspector")
+                                        .buttons(&win_buttons)
+                                        .status_bar(true)
+                                        .status_text("RENDERING  frame #00248  2.4 ms");
+                    let (widget_context, scope) = begin_window(&mut this.ctx, win_rect, widget_spec_builder, ManualLayout);
+                    Builder { ctx: widget_context, scroll_scope: None, window_scope: Some(scope) }
+                };
 
                 // Inner content: drag numbers + checkboxes
                 let mut iy = 0.0;
@@ -3106,37 +3072,34 @@ pub fn draw_spec_page(
                     ]
                 });
                 {
-                    let this = &mut *b;
                     let layout_params = Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("⌘".to_string())
                             .size(size)
-                            .font(this.ctx.text_font)
+                            .font(b.ctx.text_font)
                             .text_color(light)
                             .rule(false);
-                    label(&mut this.ctx, layout_params, spec_builder)
+                    label(&mut b.ctx, layout_params, spec_builder)
                 };
                 {
-                    let this = &mut *b;
                     let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("K".to_string())
                             .size(size)
-                            .font(this.ctx.text_font)
+                            .font(b.ctx.text_font)
                             .text_color(light)
                             .rule(false);
-                    label(&mut this.ctx, layout_params, spec_builder)
+                    label(&mut b.ctx, layout_params, spec_builder)
                 };
                 {
-                    let this = &mut *b;
                     let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("search everything".to_string())
                             .size(size)
-                            .font(this.ctx.text_font)
+                            .font(b.ctx.text_font)
                             .text_color(muted_l)
                             .rule(false);
-                    label(&mut this.ctx, layout_params, spec_builder)
+                    label(&mut b.ctx, layout_params, spec_builder)
                 };
 
                 // fake dark input
@@ -3235,15 +3198,16 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let wr = Rect::new(lx, y, win_w_left, win_h_full);
-                let mut win = b.window(
-                    wr,
-                    framewise::widgets::WindowSpecBuilder::new()
-                        .title("Renderer Settings")
-                        .buttons(&win_buttons)
-                        .status_bar(true)
-                        .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa"),
-                    ManualLayout,
-                );
+                let mut win = {
+                    let this = &mut *b;
+                    let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+                                        .title("Renderer Settings")
+                                        .buttons(&win_buttons)
+                                        .status_bar(true)
+                                        .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa");
+                    let (widget_context, scope) = begin_window(&mut this.ctx, wr, widget_spec_builder, ManualLayout);
+                    Builder { ctx: widget_context, scroll_scope: None, window_scope: Some(scope) }
+                };
                 let cr_w = win_w_left - 32.0;
 
                 // Tabs inside window
@@ -3596,15 +3560,16 @@ pub fn draw_spec_page(
                     WindowButton { symbol: "×" },
                 ];
                 let fl_rect = Rect::new(rcol_x, y, rcol_w, fl_h);
-                let mut fl_win = b.window(
-                    fl_rect,
-                    framewise::widgets::WindowSpecBuilder::new()
-                        .title("Frame Log")
-                        .buttons(&fl_buttons)
-                        .status_bar(true)
-                        .status_text("RECORDING  248 frames  2.6 ms avg"),
-                    ManualLayout,
-                );
+                let mut fl_win = {
+                    let this = &mut *b;
+                    let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+                                        .title("Frame Log")
+                                        .buttons(&fl_buttons)
+                                        .status_bar(true)
+                                        .status_text("RECORDING  248 frames  2.6 ms avg");
+                    let (widget_context, scope) = begin_window(&mut this.ctx, fl_rect, widget_spec_builder, ManualLayout);
+                    Builder { ctx: widget_context, scroll_scope: None, window_scope: Some(scope) }
+                };
                 let fl_cr_w = rcol_w - 32.0;
                 let fl_cr_h = fl_h - 80.0; // 26 title + 22 status + 32 padding
 
@@ -3687,15 +3652,16 @@ pub fn draw_spec_page(
                 let qa_y = y + fl_h + 16.0;
                 let qa_buttons = [WindowButton { symbol: "×" }];
                 let qa_rect = Rect::new(rcol_x, qa_y, rcol_w, 174.0);
-                let mut qa_win = b.window(
-                    qa_rect,
-                    framewise::widgets::WindowSpecBuilder::new()
-                        .title("Quick actions")
-                        .buttons(&qa_buttons)
-                        .status_bar(false)
-                        .status_text(""),
-                    ManualLayout,
-                );
+                let mut qa_win = {
+                    let this = &mut *b;
+                    let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+                                        .title("Quick actions")
+                                        .buttons(&qa_buttons)
+                                        .status_bar(false)
+                                        .status_text("");
+                    let (widget_context, scope) = begin_window(&mut this.ctx, qa_rect, widget_spec_builder, ManualLayout);
+                    Builder { ctx: widget_context, scroll_scope: None, window_scope: Some(scope) }
+                };
                 let qa_cr_w = rcol_w - 32.0;
 
                 let qa_items = [
