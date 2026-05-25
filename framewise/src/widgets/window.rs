@@ -235,9 +235,9 @@ pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, LS: crate::layout::L
     child
 }
 
-/// High-level window end function using WidgetContext.
-///
-/// This function accepts finished child commands and completes the window on the parent context.
+// High-level window end function using WidgetContext.
+//
+// This function accepts finished child commands and completes the window on the parent context.
 // pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
 //     parent: &mut WidgetContext<T, S>,
 //     cmds: Vec<crate::draw::DrawCmd>,

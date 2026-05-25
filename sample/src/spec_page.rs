@@ -1069,7 +1069,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(pf_x, y + 18.0, 24.0, t.h_md);
                     let rect = this.layout(layout_params);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect { rect, color: t.ink },
                                         DrawCmd::StrokeRect {
@@ -1077,8 +1077,7 @@ pub fn draw_spec_page(
                                             color: t.line,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -1530,13 +1529,12 @@ pub fn draw_spec_page(
                     {
                         let this = &mut *b;
                         let layout_params = Rect::new(tx - 0.5, tick_y, 1.0, tick_h);
-                        let rect2 = this.layout(layout_params);
-                        let cmds = (|rect| {
+                        let rect = this.layout(layout_params);
+                        let cmds =
                                             vec![DrawCmd::FillRect {
                                                 rect,
                                                 color: t.line,
-                                            }]
-                                        })(rect2);
+                                            }];
                         this.append_cmds(cmds);
                     };
                 }
@@ -1552,8 +1550,8 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx, mid_y - 0.75, track_w, 12.0);
-                    let rect2 = this.layout(layout_params);
-                    let cmds = (|r: Rect| {
+                    let r = this.layout(layout_params);
+                    let cmds ={
                                     let lx = r.x;
                                     let track_w = r.w;
                                     let mid_y = r.y + 0.75;
@@ -1595,8 +1593,7 @@ pub fn draw_spec_page(
                                             color: t.ink,
                                             width: 1.5,
                                         },
-                                    ]
-                                })(rect2);
+                                    ] };
                     this.append_cmds(cmds);
                 };
                 {
@@ -1687,7 +1684,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(stepper_x, y, 64.0, t.h_md);
                     let rect = this.layout(layout_params);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect,
@@ -1698,8 +1695,7 @@ pub fn draw_spec_page(
                                             color: t.line,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -1717,8 +1713,8 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(stepper_x + 64.0, y, 40.0, t.h_md);
-                    let rect2 = this.layout(layout_params);
-                    let cmds = (|rect| {
+                    let rect = this.layout(layout_params);
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect,
@@ -1729,8 +1725,7 @@ pub fn draw_spec_page(
                                             color: t.line,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect2);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -1751,8 +1746,8 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(sx, y, 84.0, t.h_sm);
-                    let rect2 = this.layout(layout_params);
-                    let cmds = (|rect: Rect| {
+                    let rect = this.layout(layout_params);
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
@@ -1781,8 +1776,7 @@ pub fn draw_spec_page(
                                             color: t.line,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect2);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2064,13 +2058,13 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b1);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![DrawCmd::StrokeRect {
                                         rect,
                                         color: t.line,
                                         width: 1.0,
-                                    }]
-                                })(rect);
+                                    }];
+
                     this.append_cmds(cmds);
                 };
                 {
@@ -2141,13 +2135,12 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b2);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![DrawCmd::StrokeRect {
                                         rect,
                                         color: t.line,
                                         width: 1.0,
-                                    }]
-                                })(rect);
+                                    }];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2205,13 +2198,12 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b3);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![DrawCmd::StrokeRect {
                                         rect,
                                         color: t.line,
                                         width: 1.0,
-                                    }]
-                                })(rect);
+                                    }];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2266,13 +2258,12 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b4);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![DrawCmd::StrokeRect {
                                         rect,
                                         color: t.line,
                                         width: 1.0,
-                                    }]
-                                })(rect);
+                                    }];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2825,7 +2816,7 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(dw);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect,
@@ -2840,8 +2831,7 @@ pub fn draw_spec_page(
                                             rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
                                             color: darker,
                                         },
-                                    ]
-                                })(rect);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2873,8 +2863,8 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
-                    let rect2 = this.layout(layout_params);
-                    let cmds = (|rect: Rect| {
+                    let rect = this.layout(layout_params);
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
@@ -2894,8 +2884,8 @@ pub fn draw_spec_page(
                                             color: dark_bdr,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect2);
+                                    ];
+
                     this.append_cmds(cmds);
                 };
                 {
@@ -2935,7 +2925,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, inp_y, dw.w - 32.0, 26.0);
                     let rect = this.layout(layout_params);
-                    let cmds = (|rect| {
+                    let cmds =
                                     vec![
                                         DrawCmd::FillRect {
                                             rect,
@@ -2946,8 +2936,7 @@ pub fn draw_spec_page(
                                             color: dark_bdr,
                                             width: 1.0,
                                         },
-                                    ]
-                                })(rect);
+                                    ];
                     this.append_cmds(cmds);
                 };
                 {
@@ -2967,15 +2956,14 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
-                    let rect2 = this.layout(layout_params);
-                    let cmds = (|rect: Rect| {
+                    let rect = this.layout(layout_params);
+                    let cmds =
                                     vec![DrawCmd::StrokeLine {
                                         p0: Vec2::new(rect.x, rect.y),
                                         p1: Vec2::new(rect.x + rect.w, rect.y),
                                         color: dark_bdr,
                                         width: 1.0,
-                                    }]
-                                })(rect2);
+                                    }];
                     this.append_cmds(cmds);
                 };
                 let tab_items = ["Files", "Symbols", "Frames"];
@@ -2997,13 +2985,13 @@ pub fn draw_spec_page(
                         {
                             let this = &mut *b;
                             let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
-                            let rect2 = this.layout(layout_params);
-                            let cmds = (|rect: Rect| {
+                            let rect = this.layout(layout_params);
+                            let cmds =
                                                     vec![DrawCmd::FillRect {
                                                         rect,
                                                         color: t.rust,
-                                                    }]
-                                                })(rect2);
+                                                    }];
+
                             this.append_cmds(cmds);
                         };
                     }
