@@ -124,6 +124,12 @@ This pattern cleanly separates concerns:
 - **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.
 - **High-level functions** are ergonomic and integrated — they resolve defaults from the context, handle layout, and bridge to the low-level layer.
 
+> [!IMPORTANT]
+> **Spec and SpecBuilder Value-Type Rule:** `*Spec` and `*SpecBuilder` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
+
+> [!IMPORTANT]
+> **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset. Builders that use internal spec structs should fully initialize the spec with defaults in their `new()` constructor.
+
 Example:
 ```rust
 // Low-level: fully resolved, no defaults

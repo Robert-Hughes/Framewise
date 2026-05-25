@@ -13,13 +13,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Should WidgetContext have things like button style, bg_color etc. on it? Should this be in the theme?
 * Check Widget types are consistent about theme application in high-level function etc., make sure DESIGN.md is clear on this
 * Some widgets embed styling directly into their *Spec struct instead of having a separate *Style struct (e.g., ColorSwatch, Divider, Keycap, Label, Meter). This is a minor variation but still consistent with the overall *Spec and *SpecBuilder pattern. If acceptable, not in DESIGN.md.
-* WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the high-level widget API from the widget context? Maybe we need a "outside-builder"-only spec struct?
-* Add note to DESIGN.md that Spec and SpecBuilders shouldn't include 'systems' like input, focus etc. Just basic parameters. It should ideally be a 'value-type' with no external references.
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
 
-* Add "reset" button to spec page, to reset all state
-* Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused. Not sure how though, as we don't want to affect the styling (as that's exactly what we're trying to show!)
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 ## Things Still to Figure Out
