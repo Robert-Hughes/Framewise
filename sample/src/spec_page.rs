@@ -43,201 +43,14 @@ use framewise::{
 
 use std::ops::{Deref, DerefMut};
 
-// ── BuilderCtx Compatibility ──────────────────────────────────────────────────
-
-#[derive(Debug, Clone)]
-pub struct BuilderCtx {
-    pub theme: Theme,
-    pub bg_color: Color,
-    pub accent_color: Color,
-    pub text_color: Color,
-    pub border_color: Color,
-    pub button_style: ButtonStyle,
-    pub frame_style: FrameStyle,
-    pub text_size: f32,
-    pub text_font: framewise::text::FontId,
-    pub time: f64,
-    pub clip_rect: Option<Rect>,
-}
-
-impl Default for BuilderCtx {
-    fn default() -> Self {
-        let theme = Theme::default();
-        let frame_style = theme.frame_style();
-        Self {
-            theme,
-            bg_color: Color::WHITE,
-            accent_color: Color::BLACK,
-            text_color: Color::BLACK,
-            border_color: Color::BLACK,
-            button_style: ButtonStyle::default(),
-            frame_style,
-            text_size: 14.0,
-            text_font: framewise::text::FontId::default(),
-            time: 0.0,
-            clip_rect: None,
-        }
-    }
-}
-
-// ── WidgetRenderCompat Compatibility Trait ──────────────────────────────────────
-
-pub trait WidgetRenderCompat<'a, T: TextSystem> {
-    type Info;
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info);
-}
-
-// 1. ColorSwatch
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::ColorSwatchSpecBuilder {
-    type Info = framewise::widgets::ColorSwatchInfo;
-    fn render(self, rect: Rect, _theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).build();
-        let result = color_swatch_raw(spec);
-        (result.draw.0, ColorSwatchInfo { layout: result.layout })
-    }
-}
-
-// 2. Menu
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::MenuSpecBuilder<'a, T> {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
-        let result = menu_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 3. ProgressBar
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::ProgressBarSpecBuilder {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).build();
-        let result = progress_bar_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 4. Meter
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::MeterSpecBuilder {
-    type Info = framewise::widgets::MeterInfo;
-    fn render(self, rect: Rect, _theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).build();
-        let result = meter_raw(spec);
-        (result.draw.0, MeterInfo { layout: result.layout })
-    }
-}
-
-// 5. Spinner
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SpinnerSpecBuilder {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, _ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).build();
-        let result = spinner_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 6. Status
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::StatusSpecBuilder<'a, T> {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
-        let result = status_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 7. Tree
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::TreeSpecBuilder<'a, T> {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
-        let result = tree_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 8. Tooltip
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::TooltipSpecBuilder<'a, T> {
-    type Info = ();
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
-        let result = tooltip_raw(spec);
-        (result.draw.0, ())
-    }
-}
-
-// 9. Keycap
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::KeycapSpecBuilder<'a, T> {
-    type Info = framewise::widgets::KeycapInfo;
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).with_text_system(ts).build();
-        let result = keycap_raw(spec);
-        (result.draw.0, KeycapInfo { layout: result.layout })
-    }
-}
-
-// 10. Select
-impl<'a, T: TextSystem> WidgetRenderCompat<'a, T> for framewise::widgets::SelectSpecBuilder<'a> {
-    type Info = framewise::widgets::SelectInfo;
-    fn render(self, rect: Rect, theme: &Theme, ts: &'a mut T) -> (Vec<DrawCmd>, Self::Info) {
-        let spec = self.with_rect(rect).with_theme(theme).build();
-        let state = SelectState::default();
-        let input = Input::default();
-        let mut dummy_focus_sys = FocusSystem::new();
-        let result = select_raw(state, spec, &input, &mut dummy_focus_sys, ts);
-        (result.draw.0, SelectInfo {
-            layout: result.layout,
-            input: result.input,
-            state: result.state,
-            focused: result.focused,
-        })
-    }
-}
-
-// ── Builder Compatibility ─────────────────────────────────────────────────────
-
 pub struct Builder<'a, T: TextSystem, S: LayoutState> {
     pub ctx: WidgetContext<'a, T, S>,
     pub scroll_scope: Option<ScrollAreaScope>,
     pub window_scope: Option<WindowScope>,
 }
 
-impl<'a, T: TextSystem, S: LayoutState> Deref for Builder<'a, T, S> {
-    type Target = WidgetContext<'a, T, S>;
-    fn deref(&self) -> &Self::Target {
-        &self.ctx
-    }
-}
-
-impl<'a, T: TextSystem, S: LayoutState> DerefMut for Builder<'a, T, S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.ctx
-    }
-}
 
 impl<'a, T: TextSystem, S: LayoutState> Builder<'a, T, S> {
-    pub fn new(
-        ctx: BuilderCtx,
-        text_system: &'a mut T,
-        focus_sys: &'a mut FocusSystem,
-        input: &'a Input,
-        layout_state: S,
-    ) -> Self {
-        let mut w_ctx = WidgetContext::new(ctx.theme, text_system, focus_sys, input, layout_state);
-        w_ctx.bg_color = ctx.bg_color;
-        w_ctx.accent_color = ctx.accent_color;
-        w_ctx.text_color = ctx.text_color;
-        w_ctx.border_color = ctx.border_color;
-        w_ctx.button_style = ctx.button_style;
-        w_ctx.frame_style = ctx.frame_style;
-        w_ctx.text_size = ctx.text_size;
-        w_ctx.text_font = ctx.text_font;
-        w_ctx.time = ctx.time;
-        w_ctx.clip_rect = ctx.clip_rect;
-        Self { ctx: w_ctx, scroll_scope: None, window_scope: None }
-    }
-
     pub fn append_cmds(&mut self, cmds: Vec<DrawCmd>) {
         self.ctx.append_cmds(cmds);
     }
@@ -753,16 +566,22 @@ pub fn draw_spec_page(
     let content_w = (win_w - MARGIN * 2.0).min(1100.0);
     let lx = (win_w - content_w) * 0.5;
 
-    let mut ctx = BuilderCtx::default();
-    ctx.text_color = t.ink;
-    ctx.bg_color = t.paper;
-    ctx.text_size = t.text_md;
-    ctx.text_font = t.mono_font;
-    ctx.time = time;
-    ctx.button_style = ButtonStyle::default();
-
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
-    let mut b = Builder::new(ctx, ts, focus_sys, input, ManualLayout.begin(win_rect));
+    let mut b = {
+        let layout_state = ManualLayout.begin(win_rect);
+        let mut w_ctx = WidgetContext::new(t, ts, focus_sys, input, layout_state);
+        w_ctx.bg_color = t.paper;
+        w_ctx.accent_color = Color::BLACK;
+        w_ctx.text_color = Color::BLACK;
+        w_ctx.border_color = Color::BLACK;
+        w_ctx.button_style = ButtonStyle::default();
+        w_ctx.frame_style = t.frame_style();
+        w_ctx.text_size = t.text_md;
+        w_ctx.text_font = t.mono_font;
+        w_ctx.time = 0.0;
+        w_ctx.clip_rect = None;
+        Builder { ctx: w_ctx, scroll_scope: None, window_scope: None }
+    };
 
     // Background fill (outside clip so it covers the whole viewport).
     let bg = frame_raw(FrameSpec {
@@ -2057,7 +1876,7 @@ pub fn draw_spec_page(
                 let chip_y = y;
                 let mut chip_x = lx + 560.0;
                 for (i, label) in chip_labels.iter().enumerate() {
-                    let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
+                    let layout = b.ctx.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
                     let chip_info = {
                         let this = &mut *b;
@@ -2075,6 +1894,7 @@ pub fn draw_spec_page(
                     chip_x += chip_w + 6.0;
                 }
                 let add_layout = b
+                    .ctx
                     .text_system
                     .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
