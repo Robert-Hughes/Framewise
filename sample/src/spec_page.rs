@@ -477,6 +477,26 @@ pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
+fn static_badge<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
+    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
+    t: &Theme,
+    x: f32,
+    y: f32,
+) {
+    {
+        let this = &mut *b;
+        let layout_params = Rect::new(x, y, 44.0, 12.0);
+        let size = 9.0;
+        let color = t.muted;
+        let spec_builder = LabelSpecBuilder::new("(STATIC)".to_string())
+                .size(size)
+                .font(this.text_font)
+                .text_color(color)
+                .rule(false);
+        label(this, layout_params, spec_builder)
+    };
+}
+
 fn sec_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
     b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
     t: &Theme,
@@ -791,6 +811,10 @@ pub fn draw_spec_page(
 
                 // column headers
                 for (ci, col) in col_labels.iter().enumerate() {
+                    // Add STATIC badge for fake state columns
+                    if ci >= 1 && ci <= 3 {
+                        static_badge(&mut b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                    }
                     {
                         let this = &mut *b;
                         let layout_params = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
@@ -1145,6 +1169,10 @@ pub fn draw_spec_page(
                 let label_w = 80.0_f32;
                 let cell_w = 100.0_f32;
                 for (ci, col) in col_labels.iter().enumerate() {
+                    // Add STATIC badge for fake state columns
+                    if ci >= 3 && ci <= 4 {
+                        static_badge(&mut b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                    }
                     {
                         let this = &mut *b;
                         let layout_params = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
@@ -1278,6 +1306,7 @@ pub fn draw_spec_page(
                             }
                         }
                     } else {
+                        static_badge(&mut b, &t, lx - 48.0, ry);
                         draw_radio_fake_state(&mut b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
                     }
                     {
@@ -1299,7 +1328,10 @@ pub fn draw_spec_page(
                     let ry = y + i as f32 * 22.0;
                     let label_color = if i == 3 { t.muted } else { t.ink };
                     match i {
-                        2 => draw_switch_fake_state(&mut b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false),
+                        2 => {
+                            static_badge(&mut b, &t, sw_x - 48.0, ry);
+                            draw_switch_fake_state(&mut b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false);
+                        }
                         3 => {
                             let info = {
                                 let this = &mut *b;
@@ -1626,6 +1658,7 @@ pub fn draw_spec_page(
                 state.dn_showcase[1] = info.state;
                 bx += 100.0 + 8.0;
                 // W — fake (forced active/dragging)
+                static_badge(&mut b, &t, bx, y - 14.0);
                 draw_drag_number_fake_state(&mut b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
                 bx += 100.0 + 8.0;
                 // H — real
@@ -1840,6 +1873,7 @@ pub fn draw_spec_page(
                 );
                 state.sel_state = sel_info.state;
 
+                static_badge(&mut b, &t, lx - 48.0, y + t.h_md + 4.0);
                 draw_select_fake_state(
                     &mut b,
                     Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
