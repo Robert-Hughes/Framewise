@@ -417,7 +417,7 @@ pub fn begin_scroll_area<'b, T: crate::text::TextSystem, S: crate::layout::Layou
     v_vis: ScrollbarVisibility,
     state: &'b mut ScrollState,
     inner_layout: L,
-) -> (WidgetContext<'b, T, crate::layout::OffsetState<L::State>>, ScrollAreaScope) {
+) -> WidgetContext<'b, T, crate::layout::OffsetState<L::State>> {
     let bounds = parent.layout(layout_params);
     let (pre_cmds, scope, content_bounds, offset) = raw::begin_scroll_area(
         bounds,
@@ -464,22 +464,23 @@ pub fn begin_scroll_area<'b, T: crate::text::TextSystem, S: crate::layout::Layou
     child.text_font = parent.text_font;
     child.time = parent.time;
     child.clip_rect = new_clip;
+    child.scroll_scope = Some(scope); //TODO: assert non-empty?
 
-    (child, scope)
+    child
 }
 
 /// High-level scroll area end function using WidgetContext.
 ///
 /// This function accepts finished child commands and a ScrollAreaScope and completes the scroll area on the parent context.
-pub fn end_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    parent: &mut WidgetContext<T, S>,
-    cmds: Vec<crate::draw::DrawCmd>,
-    scope: ScrollAreaScope,
-) {
-    parent.append_cmds(cmds);
-    let post_cmds = raw::end_scroll_area(scope, parent.focus_sys);
-    parent.append_cmds(post_cmds);
-}
+// pub fn end_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+//     parent: &mut WidgetContext<T, S>,
+//     cmds: Vec<crate::draw::DrawCmd>,
+//     scope: ScrollAreaScope,
+// ) {
+//     parent.append_cmds(cmds);
+//     let post_cmds = raw::end_scroll_area(scope, parent.focus_sys);
+//     parent.append_cmds(post_cmds);
+// }
 
 // ── Re-export raw functions for direct use ───────────────────────────────────────────
 pub use raw::{begin_scroll_area as begin_scroll_area_raw, end_scroll_area as end_scroll_area_raw};

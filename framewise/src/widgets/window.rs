@@ -207,7 +207,7 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     layout_params: S::Params,
     builder: WindowSpecBuilder<'b, T>,
     inner_layout: L,
-) -> (WidgetContext<'b, T, L::State>, WindowScope) {
+) -> WidgetContext<'b, T, L::State> {
     let bounds = parent.layout(layout_params);
     let ts_ptr = parent.text_system as *mut T;
     let fs_ptr = parent.focus_sys as *mut crate::focus::FocusSystem;
@@ -258,21 +258,23 @@ pub fn begin_window<'b, T: crate::text::TextSystem, S: crate::layout::LayoutStat
     let new_clip = Some(parent_clip.map_or(content, |pc| pc.intersect(&content)));
     child.clip_rect = new_clip;
 
-    (child, scope)
+    child.window_scope = Some(scope); //TODO: assert non-empty?
+
+    child
 }
 
 /// High-level window end function using WidgetContext.
 ///
 /// This function accepts finished child commands and completes the window on the parent context.
-pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    parent: &mut WidgetContext<T, S>,
-    cmds: Vec<crate::draw::DrawCmd>,
-    scope: WindowScope,
-) {
-    parent.append_cmds(cmds);
-    let post_cmds = raw::end_window(scope);
-    parent.append_cmds(post_cmds);
-}
+// pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+//     parent: &mut WidgetContext<T, S>,
+//     cmds: Vec<crate::draw::DrawCmd>,
+//     scope: WindowScope,
+// ) {
+//     parent.append_cmds(cmds);
+//     let post_cmds = raw::end_window(scope);
+//     parent.append_cmds(post_cmds);
+// }
 
 // ── Re-export raw functions for direct use ───────────────────────────────────────────
 pub use raw::{begin_window as begin_window_raw, end_window as end_window_raw};

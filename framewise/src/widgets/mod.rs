@@ -37,7 +37,7 @@ pub use menu::{menu, menu_raw, MenuSpec, MenuStyle, MenuItem, MenuResult, MenuSp
 pub use meter::{meter, meter_raw, MeterSpec, MeterInfo, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{progress_bar, progress_bar_raw, ProgressBarSpec, ProgressBarStyle, ProgressBarResult, ProgressBarSpecBuilder};
 pub use radio::{radio, radio_raw, RadioSpec, RadioStyle, RadioState, RadioInfo, RadioResult, RadioSpecBuilder};
-pub use scroll_area::{begin_scroll_area, begin_scroll_area_raw, end_scroll_area, end_scroll_area_raw, ScrollState, ScrollbarVisibility, ScrollAreaScope};
+pub use scroll_area::{begin_scroll_area, begin_scroll_area_raw, end_scroll_area_raw, ScrollState, ScrollbarVisibility, ScrollAreaScope};
 pub use segmented::{segmented, segmented_raw, SegmentedSpec, SegmentedStyle, SegmentedState, SegmentedInfo, SegmentedResult, SegmentedSpecBuilder};
 pub use select::{select, select_raw, SelectSpec, SelectStyle, SelectState, SelectInfo, SelectResult, SelectSpecBuilder};
 pub use slider::{slider, slider_raw, SliderStyle, SliderState, SliderSpec, Orientation};
@@ -48,4 +48,4 @@ pub use tabs::{tabs, tabs_raw, TabsSpec, TabsStyle, TabsState, TabsInfo, TabsRes
 pub use text_edit::{text_edit, text_edit_raw, TextEditSpec, TextEditStyle, TextEditState, TextEditInfo, TextEditResult, ClipboardAction, find_word_boundary, word_bounds, raw};
 pub use tooltip::{tooltip, tooltip_raw, TooltipSpec, TooltipStyle, TooltipVariant, TooltipResult, TooltipSpecBuilder};
 pub use tree::{tree, tree_raw, TreeSpec, TreeStyle, TreeRow, TreeResult, TreeSpecBuilder};
-pub use window::{begin_window, begin_window_raw, end_window, end_window_raw, WindowSpec, WindowStyle, WindowButton, WindowScope, WindowInfo, WindowSpecBuilder};
+pub use window::{begin_window, begin_window_raw, end_window_raw, WindowSpec, WindowStyle, WindowButton, WindowScope, WindowInfo, WindowSpecBuilder};

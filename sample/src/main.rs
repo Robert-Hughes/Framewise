@@ -3,7 +3,7 @@ mod spec_page;
 mod text;
 
 use framewise::{
-    DrawCmd, input::Input, layout::{ColumnLayout, Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState, RowLayout}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::{ButtonInfo, ButtonSpec, ButtonState, ButtonStyle, button}, frame::{FrameInfo, FrameSpec, FrameStyle, frame}, label::{LabelInfo, LabelSpec, label}, scroll_area::{ScrollAreaScope, ScrollState, ScrollbarVisibility, begin_scroll_area, end_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpec, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditInfo, TextEditSpec, TextEditSpecBuilder, TextEditState, text_edit}}
+    DrawCmd, input::Input, layout::{ColumnLayout, Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState, RowLayout}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::{ButtonInfo, ButtonSpec, ButtonState, ButtonStyle, button}, frame::{FrameInfo, FrameSpec, FrameStyle, frame}, label::{LabelInfo, LabelSpec, label}, scroll_area::{ScrollAreaScope, ScrollState, ScrollbarVisibility, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpec, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditInfo, TextEditSpec, TextEditSpecBuilder, TextEditState, text_edit}}
 };
 
 use renderer::Renderer;
@@ -292,7 +292,7 @@ impl App {
                 };
 
                 let content_height = 20.0 * 32.0 + 20.0 * 8.0; // 20 buttons * 32h + 8 spacing
-                let (mut sidebar_scroll, scope) = begin_scroll_area(
+                let mut sidebar_scroll = begin_scroll_area(
                     &mut sidebar_col,
                     Vec2::new(200.0, win_size.1 - 60.0),
                     Vec2::new(200.0, content_height),
@@ -320,7 +320,7 @@ impl App {
                     if clicked { self.sidebar_btns[i].clicks += 1; }
                 }
                 let sidebar_cmds = sidebar_scroll.finish();
-                end_scroll_area(&mut sidebar_col, sidebar_cmds, scope);
+                sidebar_col.append_cmds(sidebar_cmds);
 
                 sidebar_col.finish()
             };
@@ -328,7 +328,7 @@ impl App {
 
             // -- MAIN CONTENT (Right Column) --
             {
-                let (mut content_col, content_scope) = begin_scroll_area(
+                let mut content_col = begin_scroll_area(
                     &mut main_row,
                     Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
                     Vec2::new(win_size.0 - 240.0, 2000.0),
@@ -579,7 +579,7 @@ impl App {
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let content_height = 30.0 * 50.0 + 30.0 * 10.0;
-                let (mut main_scroll, scope) = begin_scroll_area(
+                let mut main_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 250.0),
                     Vec2::new(inner_w, content_height),
@@ -610,7 +610,7 @@ impl App {
                     if clicked { self.main_btns[i].clicks += 1; }
                 }
                 let main_cmds = main_scroll.finish();
-                end_scroll_area(&mut content_col, main_cmds, scope);
+                content_col.append_cmds(main_cmds);
 
                 // Nested Scroll Area Demo
                 {
@@ -626,7 +626,7 @@ impl App {
 
                 let row_h = 160.0;
                 let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
-                let (mut outer_scroll, outer_scope) = begin_scroll_area(
+                let mut outer_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 300.0),
                     Vec2::new(800.0, outer_content_height),
@@ -688,7 +688,7 @@ impl App {
 
                     // 1. Vertical Inner scroll area
                     let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0;
-                    let (mut inner_scroll, inner_scope) = begin_scroll_area(
+                    let mut inner_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(120.0, row_h),
                         Vec2::new(120.0, inner_content_height),
@@ -716,11 +716,11 @@ impl App {
                         if clicked { row_state.inner_btns[j].clicks += 1; }
                     }
                     let inner_cmds = inner_scroll.finish();
-                    end_scroll_area(&mut row_builder, inner_cmds, inner_scope);
+                    row_builder.append_cmds(inner_cmds);
 
                     // 2. Horizontal Inner scroll area (using None for vertical scrollbar)
                     let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;
-                    let (mut horiz_scroll, horiz_scope) = begin_scroll_area(
+                    let mut horiz_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(180.0, row_h),
                         Vec2::new(horiz_content_width, row_h),
@@ -748,12 +748,12 @@ impl App {
                         if clicked { row_state.horiz_btns[j].clicks += 1; }
                     }
                     let horiz_cmds = horiz_scroll.finish();
-                    end_scroll_area(&mut row_builder, horiz_cmds, horiz_scope);
+                    row_builder.append_cmds(horiz_cmds);
 
                     // 3. Both directions Inner scroll area
                     let both_width = 8.0 * 80.0 + 7.0 * 8.0;
                     let both_height = 6.0 * 45.0 + 5.0 * 8.0;
-                    let (mut both_scroll, both_scope) = begin_scroll_area(
+                    let mut both_scroll = begin_scroll_area(
                         &mut row_builder,
                         Vec2::new(200.0, row_h),
                         Vec2::new(both_width, both_height),
@@ -784,7 +784,7 @@ impl App {
                         if clicked { row_state.both_btns[j].clicks += 1; }
                     }
                     let both_cmds = both_scroll.finish();
-                    end_scroll_area(&mut row_builder, both_cmds, both_scope);
+                    row_builder.append_cmds(both_cmds);
 
                     // Standalone vertical slider
                     {
@@ -830,7 +830,7 @@ impl App {
                     outer_scroll.append_cmds(row_cmds);
                 }
                 let outer_cmds = outer_scroll.finish();
-                end_scroll_area(&mut content_col, outer_cmds, outer_scope);
+                content_col.append_cmds(outer_cmds);
 
                 // Double Horizontal Scroll Demo
                 {
@@ -843,7 +843,7 @@ impl App {
                     ;
                     label(&mut content_col, layout_params, spec_builder)
                 };
-                let (mut d_outer_scroll, d_outer_scope) = begin_scroll_area(
+                let mut d_outer_scroll = begin_scroll_area(
                     &mut content_col,
                     Vec2::new(inner_w, 150.0),
                     Vec2::new(2000.0, 150.0),
@@ -867,7 +867,7 @@ impl App {
                 };
 
                 // Inner horizontal scroll area
-                let (mut d_inner_scroll, d_inner_scope) = begin_scroll_area(
+                let mut d_inner_scroll = begin_scroll_area(
                     &mut d_outer_scroll,
                     Vec2::new(600.0, 120.0),
                     Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0),
@@ -891,7 +891,7 @@ impl App {
                     self.double_horiz_btns[j].state = btn.state;
                 }
                 let d_inner_cmds = d_inner_scroll.finish();
-                end_scroll_area(&mut d_outer_scroll, d_inner_cmds, d_inner_scope);
+                d_outer_scroll.append_cmds(d_inner_cmds);
 
                 // Right spacer/button
                 {
@@ -907,7 +907,7 @@ impl App {
                 };
 
                 let d_outer_cmds = d_outer_scroll.finish();
-                end_scroll_area(&mut content_col, d_outer_cmds, d_outer_scope);
+                content_col.append_cmds(d_outer_cmds);
 
                 // Nested 2D Scroll Demo: outer[2D] > inner[2D]
                 {
@@ -928,7 +928,7 @@ impl App {
                     };
 
                     // Outer 2D: viewport 420x200, content 840x400
-                    let (mut outer, outer_scope) = begin_scroll_area(
+                    let mut outer = begin_scroll_area(
                         &mut content_col,
                         Vec2::new(inner_w.min(440.0), 200.0),
                         Vec2::new(840.0, 400.0),
@@ -974,7 +974,7 @@ impl App {
                     }
 
                     // Inner 2D: viewport 250x150, content 500x300 — 4x5 button grid
-                    let (mut inner, inner_scope) = begin_scroll_area(
+                    let mut inner = begin_scroll_area(
                         &mut outer,
                         Rect::new(80.0, 50.0, 250.0, 150.0),
                         Vec2::new(500.0, 300.0),
@@ -1005,10 +1005,10 @@ impl App {
                         if clicked { self.nested_2d_inner_btns[j].clicks += 1; }
                     }
                     let inner_cmds = inner.finish();
-                    end_scroll_area(&mut outer, inner_cmds, inner_scope);
+                    outer.append_cmds(inner_cmds);
 
                     let outer_cmds = outer.finish();
-                    end_scroll_area(&mut content_col, outer_cmds, outer_scope);
+                    content_col.append_cmds(outer_cmds);
                 }
 
                 // Triple-Nested Scroll Demo: outer_vert -> middle_horiz -> inner_vert
@@ -1030,7 +1030,7 @@ impl App {
                     };
 
                     // Outer vertical scroll area (taller content)
-                    let (mut outer_scroll, outer_scope) = begin_scroll_area(
+                    let mut outer_scroll = begin_scroll_area(
                         &mut content_col,
                         Vec2::new(inner_w, 220.0),
                         Vec2::new(inner_w, 500.0),
@@ -1056,7 +1056,7 @@ impl App {
                     };
 
                     // Middle horizontal scroll area inside outer vertical
-                    let (mut middle_scroll, middle_scope) = begin_scroll_area(
+                    let mut middle_scroll = begin_scroll_area(
                         &mut outer_scroll,
                         Vec2::new(inner_w - 15.0, 160.0),
                         Vec2::new(1400.0, 160.0),
@@ -1079,7 +1079,7 @@ impl App {
 
                     // Inner vertical scroll area inside middle horizontal
                     let inner_content_h = 12.0 * 35.0 + 50.0 + 12.0 * 6.0;
-                    let (mut inner_scroll, inner_scope) = begin_scroll_area(
+                    let mut inner_scroll = begin_scroll_area(
                         &mut middle_scroll,
                         Vec2::new(200.0, 130.0),
                         Vec2::new(200.0, inner_content_h),
@@ -1110,7 +1110,7 @@ impl App {
 
                     // Innermost horizontal scroll area — 4th nesting level
                     let innermost_content_w = 5.0 * 80.0 + 4.0 * 6.0;
-                    let (mut innermost_scroll, innermost_scope) = begin_scroll_area(
+                    let mut innermost_scroll = begin_scroll_area(
                         &mut inner_scroll,
                         Vec2::new(165.0, 50.0),
                         Vec2::new(innermost_content_w, 50.0),
@@ -1137,10 +1137,10 @@ impl App {
                         if clicked { self.triple_innermost_btns[k].clicks += 1; }
                     }
                     let innermost_cmds = innermost_scroll.finish();
-                    end_scroll_area(&mut inner_scroll, innermost_cmds, innermost_scope);
+                    inner_scroll.append_cmds(innermost_cmds);
 
                     let inner_cmds = inner_scroll.finish();
-                    end_scroll_area(&mut middle_scroll, inner_cmds, inner_scope);
+                    middle_scroll.append_cmds(inner_cmds);
 
                     // Inner vertical slider
                     {
@@ -1174,7 +1174,7 @@ impl App {
                     };
 
                     let middle_cmds = middle_scroll.finish();
-                    end_scroll_area(&mut outer_scroll, middle_cmds, middle_scope);
+                    outer_scroll.append_cmds(middle_cmds);
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
@@ -1228,11 +1228,11 @@ impl App {
                     };
 
                     let outer_cmds = outer_scroll.finish();
-                    end_scroll_area(&mut content_col, outer_cmds, outer_scope);
+                    content_col.append_cmds(outer_cmds);
                 }
 
                 let content_cmds = content_col.finish();
-                end_scroll_area(&mut main_row, content_cmds, content_scope);
+                main_row.append_cmds(content_cmds);
             }
 
             main_row.finish()

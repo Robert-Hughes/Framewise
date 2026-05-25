@@ -5,6 +5,7 @@ use crate::layout::LayoutState;
 use crate::text::{FontId, TextSystem};
 use crate::theme::Theme;
 use crate::types::{Color, Rect};
+use crate::widgets::{ScrollAreaScope, WindowScope};
 use crate::widgets::{button::ButtonStyle, frame::FrameStyle};
 
 // ── Common result fragments ───────────────────────────────────────────────────
@@ -72,6 +73,10 @@ pub struct WidgetContext<'a, T: TextSystem, S: LayoutState> {
 
     pub layout_state: S,
     cmds: Vec<DrawCmd>,
+
+    //TODO: this isn't good - not extensible!
+    pub scroll_scope: Option<ScrollAreaScope>,
+    pub window_scope: Option<WindowScope>,
 }
 
 impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
@@ -99,6 +104,8 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
             input,
             layout_state,
             cmds: Vec::new(),
+            scroll_scope: None,
+            window_scope: None,
         }
     }
 
@@ -108,9 +115,18 @@ impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
     }
 
     /// Consume the context and return all accumulated draw commands.
-    pub fn finish(self) -> Vec<DrawCmd> {
+    pub fn finish(mut self) -> Vec<DrawCmd> {
+        if let Some(scope) = self.scroll_scope.take() {
+            let post_cmds = scope.finish(self.focus_sys);
+            self.append_cmds(post_cmds);
+        }
+        if let Some(scope) = self.window_scope.take() {
+            let post_cmds = scope.finish();
+            self.append_cmds(post_cmds);
+        }
         self.cmds
     }
+
 
     /// Resolve layout using the context's layout state.
     pub fn layout(&mut self, params: S::Params) -> Rect {
