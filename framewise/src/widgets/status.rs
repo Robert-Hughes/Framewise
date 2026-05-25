@@ -2,8 +2,53 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    WidgetResult,
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level status widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> StatusResult {
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+
+        let dot_size = s.dot_size;
+        let gap = s.gap;
+
+        let dot_color = match spec.variant {
+            StatusVariant::Neutral => s.neutral,
+            StatusVariant::Ok => s.ok,
+            StatusVariant::Warn => s.warn,
+            StatusVariant::Err => s.err,
+            StatusVariant::Live => s.live,
+        };
+
+        cmds.push(DrawCmd::FillRect {
+            rect: Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
+            color: dot_color,
+        });
+
+        let label_upper = spec.label.to_uppercase();
+        let layout = spec.ts.prepare(&label_upper, s.text_size, spec.font);
+        let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(
+                spec.rect.x + dot_size + gap,
+                ty,
+                layout.size.x,
+                layout.size.y,
+            ),
+            color: s.text,
+            handle: layout.handle,
+        });
+
+        StatusResult { draw: cmds }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StatusVariant {
@@ -56,50 +101,27 @@ pub struct StatusResult {
     pub draw: DrawCommands,
 }
 
-impl WidgetResult for StatusResult {
-    type Info = ();
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl StatusResult {
+    pub fn into_parts(self) -> (DrawCommands, ()) {
         (self.draw, ())
     }
 }
 
-pub fn status<'a, T: crate::text::TextSystem>(spec: StatusSpec<'a, T>) -> StatusResult {
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    let dot_size = s.dot_size;
-    let gap = s.gap;
-
-    let dot_color = match spec.variant {
-        StatusVariant::Neutral => s.neutral,
-        StatusVariant::Ok => s.ok,
-        StatusVariant::Warn => s.warn,
-        StatusVariant::Err => s.err,
-        StatusVariant::Live => s.live,
-    };
-
-    cmds.push(DrawCmd::FillRect {
-        rect: Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
-        color: dot_color,
-    });
-
-    let label_upper = spec.label.to_uppercase();
-    let layout = spec.ts.prepare(&label_upper, s.text_size, spec.font);
-    let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(
-            spec.rect.x + dot_size + gap,
-            ty,
-            layout.size.x,
-            layout.size.y,
-        ),
-        color: s.text,
-        handle: layout.handle,
-    });
-
-    StatusResult { draw: cmds }
+/// High-level status widget function using WidgetContext.
+///
+/// This function accepts a StatusSpec and calls the low-level raw::status function.
+pub fn status<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: StatusSpec<'_, T>,
+) {
+    let result = raw::status(spec);
+    ctx.append_cmds(result.draw.0);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::status as status_raw;
 
 pub struct StatusSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
@@ -140,21 +162,13 @@ impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for StatusSpecBuilder<'a, T>
-{
-    type Spec = StatusSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> StatusSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.status_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
@@ -162,12 +176,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> StatusSpec<'a, T> {
         StatusSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),

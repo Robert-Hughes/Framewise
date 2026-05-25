@@ -1,9 +1,63 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{WidgetSpec, WidgetSpecBuilder},
-    WidgetResult,
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level progress bar widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn progress_bar(spec: ProgressBarSpec) -> ProgressBarResult {
+        let mut cmds = DrawCommands::new();
+
+        // Track: 3px high, centered vertically in the given rect.
+        let track_h = spec.style.track_height;
+        let track = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - track_h) * 0.5,
+            spec.rect.w,
+            track_h,
+        );
+        cmds.push(DrawCmd::FillRect {
+            rect: track,
+            color: spec.style.track_color,
+        });
+
+        let fill_color = if spec.active {
+            spec.style.active_fill_color
+        } else {
+            spec.style.fill_color
+        };
+
+        if spec.value.is_nan() {
+            // Indeterminate: 30% width sweeping along, wrapped by phase.
+            let seg_w = spec.rect.w * spec.style.indeterminate_fraction;
+            let start = spec.phase * spec.rect.w;
+            let x = track.x + start;
+            let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
+            if visible_w > 0.0 {
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(x, track.y, visible_w, track_h),
+                    color: fill_color,
+                });
+            }
+        } else {
+            let fill_w = (spec.rect.w * spec.value.clamp(0.0, 1.0)).max(0.0);
+            if fill_w > 0.0 {
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(track.x, track.y, fill_w, track_h),
+                    color: fill_color,
+                });
+            }
+        }
+
+        ProgressBarResult { draw: cmds }
+    }
+}
 
 pub struct ProgressBarSpec {
     pub rect: Rect,
@@ -37,9 +91,6 @@ impl Default for ProgressBarStyle {
     }
 }
 
-impl WidgetSpec for ProgressBarSpec {
-    type Builder = ProgressBarSpecBuilder;
-}
 
 pub struct ProgressBarSpecBuilder {
     spec: ProgressBarSpec,
@@ -78,26 +129,18 @@ impl ProgressBarSpecBuilder {
         self.spec.style = style;
         self
     }
-}
 
-impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for ProgressBarSpecBuilder {
-    type Spec = ProgressBarSpec;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.progress_bar_style();
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> ProgressBarSpec {
         self.spec
     }
 }
@@ -106,60 +149,27 @@ pub struct ProgressBarResult {
     pub draw: DrawCommands,
 }
 
-impl WidgetResult for ProgressBarResult {
-    type Info = ();
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl ProgressBarResult {
+    pub fn into_parts(self) -> (DrawCommands, ()) {
         (self.draw, ())
     }
 }
 
-pub fn progress_bar(spec: ProgressBarSpec) -> ProgressBarResult {
-    let mut cmds = DrawCommands::new();
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    // Track: 3px high, centered vertically in the given rect.
-    let track_h = spec.style.track_height;
-    let track = Rect::new(
-        spec.rect.x,
-        spec.rect.y + (spec.rect.h - track_h) * 0.5,
-        spec.rect.w,
-        track_h,
-    );
-    cmds.push(DrawCmd::FillRect {
-        rect: track,
-        color: spec.style.track_color,
-    });
-
-    let fill_color = if spec.active {
-        spec.style.active_fill_color
-    } else {
-        spec.style.fill_color
-    };
-
-    if spec.value.is_nan() {
-        // Indeterminate: 30% width sweeping along, wrapped by phase.
-        let seg_w = spec.rect.w * spec.style.indeterminate_fraction;
-        let start = spec.phase * spec.rect.w;
-        let x = track.x + start;
-        let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
-        if visible_w > 0.0 {
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(x, track.y, visible_w, track_h),
-                color: fill_color,
-            });
-        }
-    } else {
-        let fill_w = (spec.rect.w * spec.value.clamp(0.0, 1.0)).max(0.0);
-        if fill_w > 0.0 {
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(track.x, track.y, fill_w, track_h),
-                color: fill_color,
-            });
-        }
-    }
-
-    ProgressBarResult { draw: cmds }
+/// High-level progress bar widget function using WidgetContext.
+///
+/// This function accepts a ProgressBarSpec and calls the low-level raw::progress_bar function.
+pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: ProgressBarSpec,
+) {
+    let result = raw::progress_bar(spec);
+    ctx.append_cmds(result.draw.0);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::progress_bar as progress_bar_raw;
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,380 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     types::{Color, Rect, Vec2},
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level slider widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn slider(
+        state: &mut SliderState,
+        value: &mut f32,
+        spec: SliderSpec,
+        input: &Input,
+        _time: f64,
+        focus_sys: &mut FocusSystem,
+    ) -> Vec<DrawCmd> {
+        let mut cmds = Vec::new();
+
+        // Safety clamp min/max
+        let min = spec.min.min(spec.max);
+        let max = spec.max.max(spec.min);
+        *value = value.clamp(min, max);
+        let range = max - min;
+
+        let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+
+        // 1. Calculate Thumb Rect
+        let track_rect = spec.rect;
+        let focused = focus_sys.register(state.focus_id, track_rect, spec.clip_rect);
+        let is_vert = spec.orientation == Orientation::Vertical;
+
+        let track_len = if is_vert { track_rect.h } else { track_rect.w };
+
+        // Use proportional thumb size, or fallback to fixed size
+        let thumb_len = if let Some(ratio) = spec.thumb_size_ratio {
+            (track_len * ratio.clamp(0.0, 1.0)).max(24.0)
+        } else {
+            spec.style.thumb_size
+        };
+
+        // Usable track length for the thumb's top/left edge
+        let usable_track = (track_len - thumb_len).max(0.0);
+
+        let val_ratio = if range > 0.0 {
+            (*value - min) / range
+        } else {
+            0.0
+        };
+
+        let thumb_pos =
+            (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
+        let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
+
+        // Thumb hit rect — centered on the track axis.
+        let thumb_rect = if spec.style.scrollbar_mode {
+            let margin = 1.0;
+            let cross = (track_cross_size - margin * 2.0).max(1.0);
+            if is_vert {
+                Rect::new(track_rect.x + margin, thumb_pos, cross, thumb_len)
+            } else {
+                Rect::new(thumb_pos, track_rect.y + margin, thumb_len, cross)
+            }
+        } else {
+            let half = spec.style.thumb_size * 0.5;
+            let center = if is_vert {
+                track_rect.x + track_rect.w * 0.5
+            } else {
+                track_rect.y + track_rect.h * 0.5
+            };
+            if is_vert {
+                Rect::new(
+                    center - half,
+                    thumb_pos,
+                    spec.style.thumb_size,
+                    spec.style.thumb_size,
+                )
+            } else {
+                Rect::new(
+                    thumb_pos,
+                    center - half,
+                    spec.style.thumb_size,
+                    spec.style.thumb_size,
+                )
+            }
+        };
+
+        // Helper to get main coordinate
+        let get_coord = |v: crate::types::Vec2| if is_vert { v.y } else { v.x };
+        let mouse_coord = get_coord(input.mouse_pos);
+        let _thumb_start = get_coord(Vec2::new(thumb_rect.x, thumb_rect.y));
+        let _thumb_end = if is_vert {
+            thumb_rect.bottom()
+        } else {
+            thumb_rect.right()
+        };
+
+        // 2. Input Handling
+
+        const TRACK_DRAG_THRESHOLD: f32 = 4.0;
+
+        // Drag release
+        if state.is_dragging && !input.mouse_down {
+            state.is_dragging = false;
+        }
+
+        // Drag update
+        if state.is_dragging {
+            if usable_track > 0.0 {
+                let delta = mouse_coord - state.drag_start_mouse_coord;
+                let val_delta = (delta / usable_track) * range;
+                *value = (state.drag_start_val + val_delta).clamp(min, max);
+            }
+        }
+
+        // Track click release
+        if state.is_track_clicking && !input.mouse_down {
+            state.is_track_clicking = false;
+        }
+
+        // Track click → drag transition: mouse moved past threshold
+        if state.is_track_clicking && input.mouse_down {
+            if (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
+                if usable_track > 0.0 {
+                    let track_start = if is_vert { track_rect.y } else { track_rect.x };
+                    let snapped =
+                        (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
+                    *value = (min + (snapped / usable_track) * range).clamp(min, max);
+                    state.drag_start_mouse_coord = mouse_coord;
+                    state.drag_start_val = *value;
+                }
+                state.is_dragging = true;
+                state.is_track_clicking = false;
+            }
+        }
+
+        // Mouse wheel scrolling — suppressed during an active drag so that drag
+        // motion is authoritative (otherwise wheel ticks would stack on top of
+        // the drag-projected value).
+        if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
+            let at_min = *value <= min;
+            let at_max = *value >= max;
+
+            let scroll_delta = if is_vert {
+                input.scroll_delta.y
+            } else {
+                // For horizontal sliders, listen to horizontal wheel delta.
+                // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
+                if input.scroll_delta.x != 0.0 {
+                    input.scroll_delta.x
+                } else {
+                    input.scroll_delta.y
+                }
+            };
+
+            if spec.claim_scroll_at_ends {
+                focus_sys.claim_scroll_up(state.focus_id);
+                focus_sys.claim_scroll_down(state.focus_id);
+                focus_sys.claim_scroll_left(state.focus_id);
+                focus_sys.claim_scroll_right(state.focus_id);
+            } else {
+                if is_vert {
+                    // Vertical slider:
+                    // Conditionally claim vertical scrolling to allow same-axis bubbling.
+                    if !at_min {
+                        focus_sys.claim_scroll_up(state.focus_id);
+                    }
+                    if !at_max {
+                        focus_sys.claim_scroll_down(state.focus_id);
+                    }
+                    // Unconditionally claim horizontal scrolling to isolate from the horizontal axis.
+                    focus_sys.claim_scroll_left(state.focus_id);
+                    focus_sys.claim_scroll_right(state.focus_id);
+                } else {
+                    // Horizontal slider:
+                    // Conditionally claim horizontal scrolling to allow same-axis bubbling.
+                    if !at_min {
+                        focus_sys.claim_scroll_left(state.focus_id);
+                    }
+                    if !at_max {
+                        focus_sys.claim_scroll_right(state.focus_id);
+                    }
+                    // Unconditionally claim vertical scrolling to isolate from the vertical axis.
+                    focus_sys.claim_scroll_up(state.focus_id);
+                    focus_sys.claim_scroll_down(state.focus_id);
+                }
+            }
+
+            let is_active_up_left = if is_vert {
+                focus_sys.is_active_scroll_up(state.focus_id)
+            } else {
+                focus_sys.is_active_scroll_left(state.focus_id)
+                    || focus_sys.is_active_scroll_up(state.focus_id)
+            };
+            let is_active_down_right = if is_vert {
+                focus_sys.is_active_scroll_down(state.focus_id)
+            } else {
+                focus_sys.is_active_scroll_right(state.focus_id)
+                    || focus_sys.is_active_scroll_down(state.focus_id)
+            };
+
+            if scroll_delta > 0.0 && is_active_up_left {
+                *value = (*value - scroll_delta * 40.0).clamp(min, max);
+            }
+            if scroll_delta < 0.0 && is_active_down_right {
+                *value = (*value - scroll_delta * 40.0).clamp(min, max);
+            }
+        }
+
+        // Track click (mouse down on track, not on thumb)
+        if input.mouse_pressed && !thumb_rect.contains(input.mouse_pos) && track_rect.contains(input.mouse_pos) {
+            state.is_track_clicking = true;
+            state.track_click_start_coord = mouse_coord;
+            if usable_track > 0.0 {
+                let track_start = if is_vert { track_rect.y } else { track_rect.x };
+                let snapped =
+                    (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
+                *value = (min + (snapped / usable_track) * range).clamp(min, max);
+            }
+        }
+
+        // Thumb drag start
+        if input.mouse_pressed && thumb_rect.contains(input.mouse_pos) {
+            state.is_dragging = true;
+            state.drag_start_mouse_coord = mouse_coord;
+            state.drag_start_val = *value;
+        }
+
+        // Keyboard handling
+        if focused {
+            let is_active_pgup = if is_vert {
+                focus_sys.is_active_pgup_vert(state.focus_id)
+            } else {
+                focus_sys.is_active_pgup_horiz(state.focus_id)
+            };
+            let is_active_pgdn = if is_vert {
+                focus_sys.is_active_pgdn_vert(state.focus_id)
+            } else {
+                focus_sys.is_active_pgdn_horiz(state.focus_id)
+            };
+
+            if input.key_pressed_page_up && is_active_pgup {
+                *value = (*value - spec.page_step).clamp(min, max);
+            }
+            if input.key_pressed_page_down && is_active_pgdn {
+                *value = (*value + spec.page_step).clamp(min, max);
+            }
+            if input.key_pressed_up || input.key_pressed_left {
+                *value = (*value - spec.step).clamp(min, max);
+            }
+            if input.key_pressed_down || input.key_pressed_right {
+                *value = (*value + spec.step).clamp(min, max);
+            }
+            if input.key_pressed_home {
+                *value = min;
+            }
+            if input.key_pressed_end {
+                *value = max;
+            }
+
+            // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
+            focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+        }
+
+        // 3. Drawing
+
+        // Focus outline.
+        if focused {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: track_rect.inset(-2.0),
+                color: spec.style.focus_outline_color,
+                width: 2.0,
+            });
+        }
+
+        let thumb_is_hovered = thumb_rect.contains(input.mouse_pos) && is_visible;
+        let effective_thumb_fill = if state.is_dragging {
+            spec.style.thumb_drag_color
+        } else if thumb_is_hovered {
+            spec.style.thumb_hover_color
+        } else {
+            spec.style.thumb_color
+        };
+        let effective_thumb_border = if state.is_dragging {
+            spec.style.thumb_drag_color
+        } else {
+            spec.style.thumb_border_color
+        };
+
+        if spec.style.scrollbar_mode {
+            // Scrollbar: filled track background, ink/rust thumb spanning cross-section.
+            cmds.push(DrawCmd::FillRect {
+                rect: track_rect,
+                color: spec.style.track_color,
+            });
+            cmds.push(DrawCmd::FillRect {
+                rect: thumb_rect,
+                color: effective_thumb_fill,
+            });
+        } else {
+            // Standalone slider: hairline track, fill bar, square thumb with border.
+            let half_thick = spec.style.thickness * 0.5;
+            let fill_len = thumb_pos - (if is_vert { track_rect.y } else { track_rect.x })
+                + spec.style.thumb_size * 0.5;
+
+            let (track_line, fill_bar) = if is_vert {
+                let cx = track_rect.x + track_rect.w * 0.5;
+                (
+                    Rect::new(
+                        cx - half_thick,
+                        track_rect.y,
+                        spec.style.thickness,
+                        track_rect.h,
+                    ),
+                    Rect::new(
+                        cx - half_thick,
+                        track_rect.y,
+                        spec.style.thickness,
+                        fill_len.max(0.0),
+                    ),
+                )
+            } else {
+                let cy = track_rect.y + track_rect.h * 0.5;
+                (
+                    Rect::new(
+                        track_rect.x,
+                        cy - half_thick,
+                        track_rect.w,
+                        spec.style.thickness,
+                    ),
+                    Rect::new(
+                        track_rect.x,
+                        cy - half_thick,
+                        fill_len.max(0.0),
+                        spec.style.thickness,
+                    ),
+                )
+            };
+
+            // Full track (ink).
+            cmds.push(DrawCmd::FillRect {
+                rect: track_line,
+                color: spec.style.track_color,
+            });
+
+            // Fill bar (rust when dragging, same as track otherwise — overlays track).
+            let fill_color = if state.is_dragging {
+                spec.style.thumb_drag_color
+            } else {
+                spec.style.track_color
+            };
+            cmds.push(DrawCmd::FillRect {
+                rect: fill_bar,
+                color: fill_color,
+            });
+
+            // Square thumb.
+            cmds.push(DrawCmd::FillRect {
+                rect: thumb_rect,
+                color: effective_thumb_fill,
+            });
+            if spec.style.thumb_border_width > 0.0 {
+                cmds.push(DrawCmd::StrokeRect {
+                    rect: thumb_rect,
+                    color: effective_thumb_border,
+                    width: spec.style.thumb_border_width,
+                });
+            }
+        }
+
+        cmds
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SliderStyle {
@@ -111,437 +484,24 @@ impl Default for SliderState {
     }
 }
 
-pub fn slider(
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level slider widget function using WidgetContext.
+///
+/// This function accepts a SliderSpec and calls the low-level raw::slider function.
+pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
     state: &mut SliderState,
     value: &mut f32,
     spec: SliderSpec,
     input: &Input,
-    time: f64,
-    focus_sys: &mut FocusSystem,
-) -> Vec<DrawCmd> {
-    let mut cmds = Vec::new();
-
-    // Safety clamp min/max
-    let min = spec.min.min(spec.max);
-    let max = spec.max.max(spec.min);
-    *value = value.clamp(min, max);
-    let range = max - min;
-
-    let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
-
-    // 1. Calculate Thumb Rect
-    let track_rect = spec.rect;
-    let focused = focus_sys.register(state.focus_id, track_rect, spec.clip_rect);
-    let is_vert = spec.orientation == Orientation::Vertical;
-
-    let track_len = if is_vert { track_rect.h } else { track_rect.w };
-
-    // Use proportional thumb size, or fallback to fixed size
-    let thumb_len = if let Some(ratio) = spec.thumb_size_ratio {
-        (track_len * ratio.clamp(0.0, 1.0)).max(24.0)
-    } else {
-        spec.style.thumb_size
-    };
-
-    // Usable track length for the thumb's top/left edge
-    let usable_track = (track_len - thumb_len).max(0.0);
-
-    let val_ratio = if range > 0.0 {
-        (*value - min) / range
-    } else {
-        0.0
-    };
-
-    let thumb_pos =
-        (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
-    let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
-
-    // Thumb hit rect — centered on the track axis.
-    let thumb_rect = if spec.style.scrollbar_mode {
-        let margin = 1.0;
-        let cross = (track_cross_size - margin * 2.0).max(1.0);
-        if is_vert {
-            Rect::new(track_rect.x + margin, thumb_pos, cross, thumb_len)
-        } else {
-            Rect::new(thumb_pos, track_rect.y + margin, thumb_len, cross)
-        }
-    } else {
-        let half = spec.style.thumb_size * 0.5;
-        let center = if is_vert {
-            track_rect.x + track_rect.w * 0.5
-        } else {
-            track_rect.y + track_rect.h * 0.5
-        };
-        if is_vert {
-            Rect::new(
-                center - half,
-                thumb_pos,
-                spec.style.thumb_size,
-                spec.style.thumb_size,
-            )
-        } else {
-            Rect::new(
-                thumb_pos,
-                center - half,
-                spec.style.thumb_size,
-                spec.style.thumb_size,
-            )
-        }
-    };
-
-    // Helper to get main coordinate
-    let get_coord = |v: crate::types::Vec2| if is_vert { v.y } else { v.x };
-    let mouse_coord = get_coord(input.mouse_pos);
-    let thumb_start = get_coord(Vec2::new(thumb_rect.x, thumb_rect.y));
-    let thumb_end = if is_vert {
-        thumb_rect.bottom()
-    } else {
-        thumb_rect.right()
-    };
-
-    // 2. Input Handling
-
-    const TRACK_DRAG_THRESHOLD: f32 = 4.0;
-
-    // Drag release
-    if state.is_dragging && !input.mouse_down {
-        state.is_dragging = false;
-    }
-
-    // Drag update
-    if state.is_dragging {
-        if usable_track > 0.0 {
-            let delta = mouse_coord - state.drag_start_mouse_coord;
-            let val_delta = (delta / usable_track) * range;
-            *value = (state.drag_start_val + val_delta).clamp(min, max);
-        }
-    }
-
-    // Track click release
-    if state.is_track_clicking && !input.mouse_down {
-        state.is_track_clicking = false;
-    }
-
-    // Track click → drag transition: mouse moved past threshold
-    if state.is_track_clicking && input.mouse_down {
-        if (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
-            if usable_track > 0.0 {
-                let track_start = if is_vert { track_rect.y } else { track_rect.x };
-                let snapped =
-                    (mouse_coord - track_start - thumb_len / 2.0).clamp(0.0, usable_track);
-                *value = (min + (snapped / usable_track) * range).clamp(min, max);
-                state.drag_start_mouse_coord = mouse_coord;
-                state.drag_start_val = *value;
-            }
-            state.is_dragging = true;
-            state.is_track_clicking = false;
-        }
-    }
-
-    // Mouse wheel scrolling — suppressed during an active drag so that drag
-    // motion is authoritative (otherwise wheel ticks would stack on top of
-    // the drag-projected value).
-    if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
-        let at_min = *value <= min;
-        let at_max = *value >= max;
-
-        let scroll_delta = if is_vert {
-            input.scroll_delta.y
-        } else {
-            // For horizontal sliders, listen to horizontal wheel delta.
-            // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
-            if input.scroll_delta.x != 0.0 {
-                input.scroll_delta.x
-            } else {
-                input.scroll_delta.y
-            }
-        };
-
-        if spec.claim_scroll_at_ends {
-            focus_sys.claim_scroll_up(state.focus_id);
-            focus_sys.claim_scroll_down(state.focus_id);
-            focus_sys.claim_scroll_left(state.focus_id);
-            focus_sys.claim_scroll_right(state.focus_id);
-        } else {
-            if is_vert {
-                // Vertical slider:
-                // Conditionally claim vertical scrolling to allow same-axis bubbling.
-                if !at_min {
-                    focus_sys.claim_scroll_up(state.focus_id);
-                }
-                if !at_max {
-                    focus_sys.claim_scroll_down(state.focus_id);
-                }
-                // Unconditionally claim horizontal scrolling to isolate from the horizontal axis.
-                focus_sys.claim_scroll_left(state.focus_id);
-                focus_sys.claim_scroll_right(state.focus_id);
-            } else {
-                // Horizontal slider:
-                // Conditionally claim horizontal scrolling to allow same-axis bubbling.
-                if !at_min {
-                    focus_sys.claim_scroll_left(state.focus_id);
-                }
-                if !at_max {
-                    focus_sys.claim_scroll_right(state.focus_id);
-                }
-                // Unconditionally claim vertical scrolling to isolate from the vertical axis.
-                focus_sys.claim_scroll_up(state.focus_id);
-                focus_sys.claim_scroll_down(state.focus_id);
-            }
-        }
-
-        let is_active_up_left = if is_vert {
-            focus_sys.is_active_scroll_up(state.focus_id)
-        } else {
-            focus_sys.is_active_scroll_left(state.focus_id)
-                || focus_sys.is_active_scroll_up(state.focus_id)
-        };
-        let is_active_down_right = if is_vert {
-            focus_sys.is_active_scroll_down(state.focus_id)
-        } else {
-            focus_sys.is_active_scroll_right(state.focus_id)
-                || focus_sys.is_active_scroll_down(state.focus_id)
-        };
-
-        if scroll_delta > 0.0 && is_active_up_left {
-            *value = (*value - scroll_delta * spec.step).clamp(min, max);
-        }
-        if scroll_delta < 0.0 && is_active_down_right {
-            *value = (*value - scroll_delta * spec.step).clamp(min, max);
-        }
-    }
-
-    // Mouse clicks
-    if input.mouse_pressed && is_visible {
-        if thumb_rect.contains(input.mouse_pos) {
-            // Clicked thumb -> start dragging
-            state.is_dragging = true;
-            state.drag_start_mouse_coord = mouse_coord;
-            state.drag_start_val = *value;
-            focus_sys.take_focus(state.focus_id);
-        } else if track_rect.contains(input.mouse_pos) {
-            // Clicked track -> page up/down towards mouse
-            if mouse_coord < thumb_start {
-                *value = (*value - spec.page_step).clamp(min, max);
-            } else if mouse_coord > thumb_end {
-                *value = (*value + spec.page_step).clamp(min, max);
-            }
-            focus_sys.take_focus(state.focus_id);
-            state.is_track_clicking = true;
-            state.track_click_start_coord = mouse_coord;
-            state.next_repeat_time = time + 0.5;
-        }
-    } else if state.is_track_clicking && time >= state.next_repeat_time {
-        if track_rect.contains(input.mouse_pos) {
-            let track_start = if is_vert { track_rect.y } else { track_rect.x };
-            if mouse_coord < thumb_start {
-                // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
-                let cursor_val = if usable_track > 0.0 {
-                    min + ((mouse_coord - track_start - thumb_len) / usable_track).clamp(0.0, 1.0)
-                        * range
-                } else {
-                    min
-                };
-                *value = (*value - spec.page_step).max(cursor_val).clamp(min, max);
-                state.next_repeat_time = time + 0.05;
-            } else if mouse_coord > thumb_end {
-                // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
-                let cursor_val = if usable_track > 0.0 {
-                    min + ((mouse_coord - track_start) / usable_track).clamp(0.0, 1.0) * range
-                } else {
-                    max
-                };
-                *value = (*value + spec.page_step).min(cursor_val).clamp(min, max);
-                state.next_repeat_time = time + 0.05;
-            }
-            // else: cursor is now inside the thumb; paging stops but keep
-            // is_track_clicking=true so the drag-transition check can still fire.
-        } else {
-            state.is_track_clicking = false;
-        }
-    }
-
-    // Keyboard Input (if focused)
-    if focused {
-        let at_min = *value <= min;
-        let at_max = *value >= max;
-
-        if spec.claim_scroll_at_ends {
-            if is_vert {
-                focus_sys.claim_pgup_vert(state.focus_id);
-                focus_sys.claim_pgdn_vert(state.focus_id);
-                focus_sys.claim_pgup_horiz(state.focus_id);
-                focus_sys.claim_pgdn_horiz(state.focus_id);
-            } else {
-                focus_sys.claim_pgup_horiz(state.focus_id);
-                focus_sys.claim_pgdn_horiz(state.focus_id);
-                focus_sys.claim_pgup_vert(state.focus_id);
-                focus_sys.claim_pgdn_vert(state.focus_id);
-            }
-        } else {
-            if is_vert {
-                if !at_min {
-                    focus_sys.claim_pgup_vert(state.focus_id);
-                }
-                if !at_max {
-                    focus_sys.claim_pgdn_vert(state.focus_id);
-                }
-                focus_sys.claim_pgup_horiz(state.focus_id);
-                focus_sys.claim_pgdn_horiz(state.focus_id);
-            } else {
-                if !at_min {
-                    focus_sys.claim_pgup_horiz(state.focus_id);
-                }
-                if !at_max {
-                    focus_sys.claim_pgdn_horiz(state.focus_id);
-                }
-                focus_sys.claim_pgup_vert(state.focus_id);
-                focus_sys.claim_pgdn_vert(state.focus_id);
-            }
-        }
-
-        let is_active_pgup = if is_vert {
-            focus_sys.is_active_pgup_vert(state.focus_id)
-        } else {
-            focus_sys.is_active_pgup_horiz(state.focus_id)
-        };
-        let is_active_pgdn = if is_vert {
-            focus_sys.is_active_pgdn_vert(state.focus_id)
-        } else {
-            focus_sys.is_active_pgdn_horiz(state.focus_id)
-        };
-
-        if input.key_pressed_page_up && is_active_pgup {
-            *value = (*value - spec.page_step).clamp(min, max);
-        }
-        if input.key_pressed_page_down && is_active_pgdn {
-            *value = (*value + spec.page_step).clamp(min, max);
-        }
-        if input.key_pressed_up || input.key_pressed_left {
-            *value = (*value - spec.step).clamp(min, max);
-        }
-        if input.key_pressed_down || input.key_pressed_right {
-            *value = (*value + spec.step).clamp(min, max);
-        }
-        if input.key_pressed_home {
-            *value = min;
-        }
-        if input.key_pressed_end {
-            *value = max;
-        }
-
-        // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
-        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
-    }
-
-    // 3. Drawing
-
-    // Focus outline.
-    if focused {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: track_rect.inset(-2.0),
-            color: spec.style.focus_outline_color,
-            width: 2.0,
-        });
-    }
-
-    let thumb_is_hovered = thumb_rect.contains(input.mouse_pos) && is_visible;
-    let effective_thumb_fill = if state.is_dragging {
-        spec.style.thumb_drag_color
-    } else if thumb_is_hovered {
-        spec.style.thumb_hover_color
-    } else {
-        spec.style.thumb_color
-    };
-    let effective_thumb_border = if state.is_dragging {
-        spec.style.thumb_drag_color
-    } else {
-        spec.style.thumb_border_color
-    };
-
-    if spec.style.scrollbar_mode {
-        // Scrollbar: filled track background, ink/rust thumb spanning cross-section.
-        cmds.push(DrawCmd::FillRect {
-            rect: track_rect,
-            color: spec.style.track_color,
-        });
-        cmds.push(DrawCmd::FillRect {
-            rect: thumb_rect,
-            color: effective_thumb_fill,
-        });
-    } else {
-        // Standalone slider: hairline track, fill bar, square thumb with border.
-        let half_thick = spec.style.thickness * 0.5;
-        let fill_len = thumb_pos - (if is_vert { track_rect.y } else { track_rect.x })
-            + spec.style.thumb_size * 0.5;
-
-        let (track_line, fill_bar) = if is_vert {
-            let cx = track_rect.x + track_rect.w * 0.5;
-            (
-                Rect::new(
-                    cx - half_thick,
-                    track_rect.y,
-                    spec.style.thickness,
-                    track_rect.h,
-                ),
-                Rect::new(
-                    cx - half_thick,
-                    track_rect.y,
-                    spec.style.thickness,
-                    fill_len.max(0.0),
-                ),
-            )
-        } else {
-            let cy = track_rect.y + track_rect.h * 0.5;
-            (
-                Rect::new(
-                    track_rect.x,
-                    cy - half_thick,
-                    track_rect.w,
-                    spec.style.thickness,
-                ),
-                Rect::new(
-                    track_rect.x,
-                    cy - half_thick,
-                    fill_len.max(0.0),
-                    spec.style.thickness,
-                ),
-            )
-        };
-
-        // Full track (ink).
-        cmds.push(DrawCmd::FillRect {
-            rect: track_line,
-            color: spec.style.track_color,
-        });
-
-        // Fill bar (rust when dragging, same as track otherwise — overlays track).
-        let fill_color = if state.is_dragging {
-            spec.style.thumb_drag_color
-        } else {
-            spec.style.track_color
-        };
-        cmds.push(DrawCmd::FillRect {
-            rect: fill_bar,
-            color: fill_color,
-        });
-
-        // Square thumb.
-        cmds.push(DrawCmd::FillRect {
-            rect: thumb_rect,
-            color: effective_thumb_fill,
-        });
-        if spec.style.thumb_border_width > 0.0 {
-            cmds.push(DrawCmd::StrokeRect {
-                rect: thumb_rect,
-                color: effective_thumb_border,
-                width: spec.style.thumb_border_width,
-            });
-        }
-    }
-
-    cmds
+) {
+    let cmds = raw::slider(state, value, spec, input, ctx.time, ctx.focus_sys);
+    ctx.append_cmds(cmds);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::slider as slider_raw;
 
 #[cfg(test)]
 mod tests {

@@ -2,7 +2,268 @@ use crate::{
     draw::DrawCmd,
     input::Input,
     types::{Rect, Vec2},
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level scroll area begin function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn begin_scroll_area(
+        bounds: Rect,
+        content_size: Vec2,
+        h_vis: ScrollbarVisibility,
+        v_vis: ScrollbarVisibility,
+        state: &mut ScrollState,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+        clip_rect: Option<Rect>,
+        time: f64,
+    ) -> (Vec<DrawCmd>, ScrollAreaScope, Rect, Vec2) {
+        let mut pre_cmds = Vec::new();
+
+        focus_sys.push_keyboard_scroll_scope(state.id);
+
+        let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+        let max_scroll = Vec2::new((content_size.x - bounds.w).max(0.0), (content_size.y - bounds.h).max(0.0));
+
+        let needs_h = match h_vis {
+            ScrollbarVisibility::Always => true,
+            ScrollbarVisibility::None => false,
+            ScrollbarVisibility::Auto => max_scroll.x > 0.0,
+        };
+        let needs_v = match v_vis {
+            ScrollbarVisibility::Always => true,
+            ScrollbarVisibility::None => false,
+            ScrollbarVisibility::Auto => max_scroll.y > 0.0,
+        };
+
+        let scrollbar_w = 12.0;
+        let content_w = if needs_v { (bounds.w - scrollbar_w).max(0.0) } else { bounds.w };
+        let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
+        let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
+
+        let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll);
+
+        if content_bounds.contains(input.mouse_pos) && is_visible {
+            let at_top    = state.offset.y <= 0.0;
+            let at_bottom = state.offset.y >= max_scroll.y;
+            let at_left   = state.offset.x <= 0.0;
+            let at_right  = state.offset.x >= max_scroll.x;
+
+            // Same-axis: conditional on having room. Cross-axis: unconditional, to
+            // block a parent of the other orientation from stealing the wheel.
+            match mode {
+                ScrollMode::None => {}
+                ScrollMode::Vert => {
+                    if !at_top    { focus_sys.claim_scroll_up(state.id); }
+                    if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+                    focus_sys.claim_scroll_left(state.id);
+                    focus_sys.claim_scroll_right(state.id);
+                }
+                ScrollMode::Horiz => {
+                    if !at_left  { focus_sys.claim_scroll_left(state.id); }
+                    if !at_right { focus_sys.claim_scroll_right(state.id); }
+                    focus_sys.claim_scroll_up(state.id);
+                    focus_sys.claim_scroll_down(state.id);
+                }
+                ScrollMode::Both => {
+                    if !at_top    { focus_sys.claim_scroll_up(state.id); }
+                    if !at_bottom { focus_sys.claim_scroll_down(state.id); }
+                    if !at_left   { focus_sys.claim_scroll_left(state.id); }
+                    if !at_right  { focus_sys.claim_scroll_right(state.id); }
+                }
+            }
+
+            apply_wheel(state, mode, focus_sys, input);
+        }
+
+        apply_page_keys(state, mode, content_bounds, focus_sys, input);
+
+        state.offset.x = state.offset.x.clamp(0.0, max_scroll.x);
+        state.offset.y = state.offset.y.clamp(0.0, max_scroll.y);
+
+        if needs_v {
+            let view_ratio = if content_size.y > 0.0 { (content_bounds.h / content_size.y).min(1.0) } else { 1.0 };
+            let track_rect = Rect::new(content_bounds.right(), bounds.y, scrollbar_w, content_bounds.h);
+            
+            let slider_spec = crate::widgets::slider::SliderSpec {
+                orientation: crate::widgets::slider::Orientation::Vertical,
+                rect: track_rect,
+                min: 0.0,
+                max: max_scroll.y,
+                page_step: content_bounds.h,
+                step: 40.0,
+                thumb_size_ratio: Some(view_ratio),
+                style: crate::widgets::slider::SliderStyle::scrollbar(),
+                clip_rect,
+                claim_scroll_at_ends: false,
+            };
+            
+            let slider_cmds = crate::widgets::slider::slider_raw(
+                &mut state.vert_slider_state,
+                &mut state.offset.y,
+                slider_spec,
+                input,
+                time,
+                focus_sys,
+            );
+            pre_cmds.extend(slider_cmds);
+        }
+
+        if needs_h {
+            let view_ratio = if content_size.x > 0.0 { (content_bounds.w / content_size.x).min(1.0) } else { 1.0 };
+            let track_rect = Rect::new(bounds.x, content_bounds.bottom(), content_bounds.w, scrollbar_w);
+            
+            let slider_spec = crate::widgets::slider::SliderSpec {
+                orientation: crate::widgets::slider::Orientation::Horizontal,
+                rect: track_rect,
+                min: 0.0,
+                max: max_scroll.x,
+                page_step: content_bounds.w,
+                step: 40.0,
+                thumb_size_ratio: Some(view_ratio),
+                style: crate::widgets::slider::SliderStyle::scrollbar(),
+                clip_rect,
+                claim_scroll_at_ends: false,
+            };
+            
+            let slider_cmds = crate::widgets::slider::slider_raw(
+                &mut state.horiz_slider_state,
+                &mut state.offset.x,
+                slider_spec,
+                input,
+                time,
+                focus_sys,
+            );
+            pre_cmds.extend(slider_cmds);
+        }
+
+        pre_cmds.push(DrawCmd::PushClip { rect: content_bounds });
+
+        // at_* is snapshotted AFTER this frame's scroll actions are applied so that
+        // reaching the limit on a press releases the corresponding claim next frame,
+        // letting the very next PgUp/PgDn press bubble to the parent. Pre-action
+        // snapshotting would force a release+repress to bubble.
+        let scope = ScrollAreaScope {
+            id: state.id,
+            content_bounds,
+            at_top: state.offset.y <= 0.0,
+            at_bottom: state.offset.y >= max_scroll.y,
+            at_left: state.offset.x <= 0.0,
+            at_right: state.offset.x >= max_scroll.x,
+            mode,
+            is_finished: false,
+        };
+
+        (pre_cmds, scope, content_bounds, state.offset)
+    }
+
+    /// Low-level scroll area end function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn end_scroll_area(scope: ScrollAreaScope, focus_sys: &mut crate::focus::FocusSystem) -> Vec<DrawCmd> {
+        scope.finish(focus_sys)
+    }
+
+    /// Route the wheel delta to the appropriate axis(es) based on mode, but only
+    /// fire on claims this scope actually owns (so unconditional cross-axis claims
+    /// don't double as a remap trigger).
+    fn apply_wheel(
+        state: &mut ScrollState,
+        mode: ScrollMode,
+        focus_sys: &mut crate::focus::FocusSystem,
+        input: &Input,
+    ) {
+        let dy = input.scroll_delta.y;
+        let dx_raw = input.scroll_delta.x;
+
+        let scroll_vert = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem| {
+            if dy > 0.0 && focus_sys.is_active_scroll_up(state.id) {
+                state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
+            }
+            if dy < 0.0 && focus_sys.is_active_scroll_down(state.id) {
+                state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
+            }
+        };
+        let scroll_horiz = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
+            if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+            }
+            if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+            }
+        };
+
+        match mode {
+            ScrollMode::None => {}
+            ScrollMode::Vert => scroll_vert(state, focus_sys),
+            ScrollMode::Horiz => {
+                // Vertical wheel remaps to horizontal when there's no explicit dx.
+                let dx = if dx_raw == 0.0 { dy } else { dx_raw };
+                scroll_horiz(state, focus_sys, dx);
+            }
+            ScrollMode::Both => {
+                scroll_vert(state, focus_sys);
+                // If we won the horizontal claim but NOT the vertical one (a nested
+                // horiz slider blocked vertical), remap dy → dx so the vertical
+                // wheel still bubbles to our horizontal axis.
+                let mut dx = dx_raw;
+                if dx == 0.0 && dy != 0.0 {
+                    let won_horiz = focus_sys.is_active_scroll_left(state.id)
+                        || focus_sys.is_active_scroll_right(state.id);
+                    let own_vert = focus_sys.is_active_scroll_up(state.id)
+                        || focus_sys.is_active_scroll_down(state.id);
+                    if won_horiz && !own_vert {
+                        dx = dy;
+                    }
+                }
+                scroll_horiz(state, focus_sys, dx);
+            }
+        }
+    }
+
+    fn apply_page_keys(
+        state: &mut ScrollState,
+        mode: ScrollMode,
+        content_bounds: Rect,
+        focus_sys: &mut crate::focus::FocusSystem,
+        input: &Input,
+    ) {
+        if !input.key_pressed_page_up && !input.key_pressed_page_down {
+            return;
+        }
+        let sign: f32 = if input.key_pressed_page_down { 1.0 } else { -1.0 };
+        let (is_pgup_vert, is_pgdn_vert) = (
+            focus_sys.is_active_pgup_vert(state.id),
+            focus_sys.is_active_pgdn_vert(state.id),
+        );
+        let (is_pgup_horiz, is_pgdn_horiz) = (
+            focus_sys.is_active_pgup_horiz(state.id),
+            focus_sys.is_active_pgdn_horiz(state.id),
+        );
+        let active_vert  = if sign > 0.0 { is_pgdn_vert }  else { is_pgup_vert };
+        let active_horiz = if sign > 0.0 { is_pgdn_horiz } else { is_pgup_horiz };
+
+        match mode {
+            ScrollMode::None => {}
+            ScrollMode::Vert => {
+                if active_vert { state.offset.y += sign * content_bounds.h; }
+            }
+            ScrollMode::Horiz => {
+                if active_horiz { state.offset.x += sign * content_bounds.w; }
+            }
+            ScrollMode::Both => {
+                if active_vert  { state.offset.y += sign * content_bounds.h; }
+                if active_horiz { state.offset.x += sign * content_bounds.w; }
+            }
+        }
+    }
+}
 
 /// Pixels of scroll per wheel "line" (winit `LineDelta` unit).
 ///
@@ -138,249 +399,52 @@ impl ScrollAreaScope {
     }
 }
 
-pub fn begin_scroll_area(
+// ── High-level widget functions ───────────────────────────────────────────────────
+
+/// High-level scroll area begin function using WidgetContext.
+///
+/// This function accepts scroll parameters and calls the low-level raw::begin_scroll_area function.
+pub fn begin_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
     bounds: Rect,
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
     v_vis: ScrollbarVisibility,
     state: &mut ScrollState,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
     clip_rect: Option<Rect>,
     time: f64,
-) -> (Vec<DrawCmd>, ScrollAreaScope, Rect, Vec2) {
-    let mut pre_cmds = Vec::new();
-
-    focus_sys.push_keyboard_scroll_scope(state.id);
-
-    let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
-    let max_scroll = Vec2::new((content_size.x - bounds.w).max(0.0), (content_size.y - bounds.h).max(0.0));
-
-    let needs_h = match h_vis {
-        ScrollbarVisibility::Always => true,
-        ScrollbarVisibility::None => false,
-        ScrollbarVisibility::Auto => max_scroll.x > 0.0,
-    };
-    let needs_v = match v_vis {
-        ScrollbarVisibility::Always => true,
-        ScrollbarVisibility::None => false,
-        ScrollbarVisibility::Auto => max_scroll.y > 0.0,
-    };
-
-    let scrollbar_w = 12.0;
-    let content_w = if needs_v { (bounds.w - scrollbar_w).max(0.0) } else { bounds.w };
-    let content_h = if needs_h { (bounds.h - scrollbar_w).max(0.0) } else { bounds.h };
-    let content_bounds = Rect::new(bounds.x, bounds.y, content_w, content_h);
-
-    let mode = ScrollMode::resolve(needs_v, needs_h, max_scroll);
-
-    if content_bounds.contains(input.mouse_pos) && is_visible {
-        let at_top    = state.offset.y <= 0.0;
-        let at_bottom = state.offset.y >= max_scroll.y;
-        let at_left   = state.offset.x <= 0.0;
-        let at_right  = state.offset.x >= max_scroll.x;
-
-        // Same-axis: conditional on having room. Cross-axis: unconditional, to
-        // block a parent of the other orientation from stealing the wheel.
-        match mode {
-            ScrollMode::None => {}
-            ScrollMode::Vert => {
-                if !at_top    { focus_sys.claim_scroll_up(state.id); }
-                if !at_bottom { focus_sys.claim_scroll_down(state.id); }
-                focus_sys.claim_scroll_left(state.id);
-                focus_sys.claim_scroll_right(state.id);
-            }
-            ScrollMode::Horiz => {
-                if !at_left  { focus_sys.claim_scroll_left(state.id); }
-                if !at_right { focus_sys.claim_scroll_right(state.id); }
-                focus_sys.claim_scroll_up(state.id);
-                focus_sys.claim_scroll_down(state.id);
-            }
-            ScrollMode::Both => {
-                if !at_top    { focus_sys.claim_scroll_up(state.id); }
-                if !at_bottom { focus_sys.claim_scroll_down(state.id); }
-                if !at_left   { focus_sys.claim_scroll_left(state.id); }
-                if !at_right  { focus_sys.claim_scroll_right(state.id); }
-            }
-        }
-
-        apply_wheel(state, mode, focus_sys, input);
-    }
-
-    apply_page_keys(state, mode, content_bounds, focus_sys, input);
-
-    state.offset.x = state.offset.x.clamp(0.0, max_scroll.x);
-    state.offset.y = state.offset.y.clamp(0.0, max_scroll.y);
-
-    if needs_v {
-        let view_ratio = if content_size.y > 0.0 { (content_bounds.h / content_size.y).min(1.0) } else { 1.0 };
-        let track_rect = Rect::new(content_bounds.right(), bounds.y, scrollbar_w, content_bounds.h);
-        
-        let slider_spec = crate::widgets::slider::SliderSpec {
-            orientation: crate::widgets::slider::Orientation::Vertical,
-            rect: track_rect,
-            min: 0.0,
-            max: max_scroll.y,
-            page_step: content_bounds.h,
-            step: 40.0,
-            thumb_size_ratio: Some(view_ratio),
-            style: crate::widgets::slider::SliderStyle::scrollbar(),
-            clip_rect,
-            claim_scroll_at_ends: false,
-        };
-        
-        let slider_cmds = crate::widgets::slider::slider(
-            &mut state.vert_slider_state,
-            &mut state.offset.y,
-            slider_spec,
-            input,
-            time,
-            focus_sys,
-        );
-        pre_cmds.extend(slider_cmds);
-    }
-
-    if needs_h {
-        let view_ratio = if content_size.x > 0.0 { (content_bounds.w / content_size.x).min(1.0) } else { 1.0 };
-        let track_rect = Rect::new(bounds.x, content_bounds.bottom(), content_bounds.w, scrollbar_w);
-        
-        let slider_spec = crate::widgets::slider::SliderSpec {
-            orientation: crate::widgets::slider::Orientation::Horizontal,
-            rect: track_rect,
-            min: 0.0,
-            max: max_scroll.x,
-            page_step: content_bounds.w,
-            step: 40.0,
-            thumb_size_ratio: Some(view_ratio),
-            style: crate::widgets::slider::SliderStyle::scrollbar(),
-            clip_rect,
-            claim_scroll_at_ends: false,
-        };
-        
-        let slider_cmds = crate::widgets::slider::slider(
-            &mut state.horiz_slider_state,
-            &mut state.offset.x,
-            slider_spec,
-            input,
-            time,
-            focus_sys,
-        );
-        pre_cmds.extend(slider_cmds);
-    }
-
-    pre_cmds.push(DrawCmd::PushClip { rect: content_bounds });
-
-    // at_* is snapshotted AFTER this frame's scroll actions are applied so that
-    // reaching the limit on a press releases the corresponding claim next frame,
-    // letting the very next PgUp/PgDn press bubble to the parent. Pre-action
-    // snapshotting would force a release+repress to bubble.
-    let scope = ScrollAreaScope {
-        id: state.id,
-        content_bounds,
-        at_top: state.offset.y <= 0.0,
-        at_bottom: state.offset.y >= max_scroll.y,
-        at_left: state.offset.x <= 0.0,
-        at_right: state.offset.x >= max_scroll.x,
-        mode,
-        is_finished: false,
-    };
-
-    (pre_cmds, scope, content_bounds, state.offset)
-}
-
-/// Route the wheel delta to the appropriate axis(es) based on mode, but only
-/// fire on claims this scope actually owns (so unconditional cross-axis claims
-/// don't double as a remap trigger).
-fn apply_wheel(
-    state: &mut ScrollState,
-    mode: ScrollMode,
-    focus_sys: &crate::focus::FocusSystem,
-    input: &Input,
-) {
-    let dy = input.scroll_delta.y;
-    let dx_raw = input.scroll_delta.x;
-
-    let scroll_vert = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem| {
-        if dy > 0.0 && focus_sys.is_active_scroll_up(state.id) {
-            state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
-        }
-        if dy < 0.0 && focus_sys.is_active_scroll_down(state.id) {
-            state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
-        }
-    };
-    let scroll_horiz = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
-        if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
-            state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-        }
-        if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
-            state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-        }
-    };
-
-    match mode {
-        ScrollMode::None => {}
-        ScrollMode::Vert => scroll_vert(state, focus_sys),
-        ScrollMode::Horiz => {
-            // Vertical wheel remaps to horizontal when there's no explicit dx.
-            let dx = if dx_raw == 0.0 { dy } else { dx_raw };
-            scroll_horiz(state, focus_sys, dx);
-        }
-        ScrollMode::Both => {
-            scroll_vert(state, focus_sys);
-            // If we won the horizontal claim but NOT the vertical one (a nested
-            // horiz slider blocked vertical), remap dy → dx so the vertical
-            // wheel still bubbles to our horizontal axis.
-            let mut dx = dx_raw;
-            if dx == 0.0 && dy != 0.0 {
-                let won_horiz = focus_sys.is_active_scroll_left(state.id)
-                    || focus_sys.is_active_scroll_right(state.id);
-                let own_vert = focus_sys.is_active_scroll_up(state.id)
-                    || focus_sys.is_active_scroll_down(state.id);
-                if won_horiz && !own_vert {
-                    dx = dy;
-                }
-            }
-            scroll_horiz(state, focus_sys, dx);
-        }
-    }
-}
-
-fn apply_page_keys(
-    state: &mut ScrollState,
-    mode: ScrollMode,
-    content_bounds: Rect,
-    focus_sys: &crate::focus::FocusSystem,
-    input: &Input,
-) {
-    if !input.key_pressed_page_up && !input.key_pressed_page_down {
-        return;
-    }
-    let sign: f32 = if input.key_pressed_page_down { 1.0 } else { -1.0 };
-    let (is_pgup_vert, is_pgdn_vert) = (
-        focus_sys.is_active_pgup_vert(state.id),
-        focus_sys.is_active_pgdn_vert(state.id),
+) -> (ScrollAreaScope, Rect, Vec2) {
+    let (pre_cmds, scope, content_bounds, offset) = raw::begin_scroll_area(
+        bounds,
+        content_size,
+        h_vis,
+        v_vis,
+        state,
+        input,
+        ctx.focus_sys,
+        clip_rect,
+        time,
     );
-    let (is_pgup_horiz, is_pgdn_horiz) = (
-        focus_sys.is_active_pgup_horiz(state.id),
-        focus_sys.is_active_pgdn_horiz(state.id),
-    );
-    let active_vert  = if sign > 0.0 { is_pgdn_vert }  else { is_pgup_vert };
-    let active_horiz = if sign > 0.0 { is_pgdn_horiz } else { is_pgup_horiz };
-
-    match mode {
-        ScrollMode::None => {}
-        ScrollMode::Vert => {
-            if active_vert { state.offset.y += sign * content_bounds.h; }
-        }
-        ScrollMode::Horiz => {
-            if active_horiz { state.offset.x += sign * content_bounds.w; }
-        }
-        ScrollMode::Both => {
-            if active_vert  { state.offset.y += sign * content_bounds.h; }
-            if active_horiz { state.offset.x += sign * content_bounds.w; }
-        }
-    }
+    
+    ctx.append_cmds(pre_cmds);
+    
+    (scope, content_bounds, offset)
 }
+
+/// High-level scroll area end function using WidgetContext.
+///
+/// This function accepts a ScrollAreaScope and calls the low-level raw::end_scroll_area function.
+pub fn end_scroll_area<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    scope: ScrollAreaScope,
+) {
+    let post_cmds = raw::end_scroll_area(scope, ctx.focus_sys);
+    ctx.append_cmds(post_cmds);
+}
+
+// ── Re-export raw functions for direct use ───────────────────────────────────────────
+pub use raw::{begin_scroll_area as begin_scroll_area_raw, end_scroll_area as end_scroll_area_raw};
 
 
 #[cfg(test)]
@@ -417,7 +481,7 @@ mod tests {
         clip_rect: Option<Rect>,
         time: f64,
     ) -> (Vec<DrawCmd>, Rect, crate::layout::OffsetLayout<crate::layout::ManualLayout>) {
-        let (mut pre_cmds, scope, cb, scroll_offset) = begin_scroll_area(
+        let (mut pre_cmds, scope, cb, scroll_offset) = raw::begin_scroll_area(
             bounds, content_size,
             ScrollbarVisibility::Auto, ScrollbarVisibility::Auto,
             state, input, focus_sys, clip_rect, time
@@ -513,7 +577,7 @@ mod tests {
 
         for _ in 0..2 {
             focus_sys.begin_frame();
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(400.0, 200.0),
                 ScrollbarVisibility::Auto, ScrollbarVisibility::None,
                 &mut state, &input, &mut focus_sys, None, 0.0
@@ -561,7 +625,7 @@ focus_sys.take_focus(btn_state.focus_id);
         // content_bounds = (0,0,188,188). PgDn step must be 188, not bounds.h=200.
         for _ in 0..2 {
             focus_sys.begin_frame();
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut state, &input, &mut focus_sys, None, 0.0
@@ -615,7 +679,7 @@ focus_sys.take_focus(btn_state.focus_id);
             );
             btn_state = info.state;
 
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut state, &input, &mut focus_sys, None, 0.0,
@@ -748,7 +812,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(500.0, 500.0); // far outside
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut state, &input, fs, None, 0.0,
@@ -801,7 +865,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0);
             input.scroll_delta = if frame == 1 { Vec2::new(-1.0, -1.0) } else { Vec2::ZERO };
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut state, &input, fs, None, 0.0,
@@ -869,7 +933,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 250.0); // x<bounds.x → outside
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(200.0, 1000.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut state2, &input, &mut focus_sys2, None, 0.0,
@@ -894,7 +958,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(194.0, 194.0); // inside corner, outside content_bounds
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(1000.0, 1000.0),
                 ScrollbarVisibility::Always, ScrollbarVisibility::Always,
                 &mut state, &input, fs, None, 0.0,
@@ -921,7 +985,7 @@ focus_sys.take_focus(btn_state.focus_id);
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(150.0, 150.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
-            let (_, scope, _, _) = begin_scroll_area(
+            let (_, scope, _, _) = raw::begin_scroll_area(
                 bounds, Vec2::new(200.0, 400.0),
                 ScrollbarVisibility::None, ScrollbarVisibility::Always,
                 &mut state, &input, fs, Some(clip), 0.0,

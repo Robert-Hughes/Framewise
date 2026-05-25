@@ -2,8 +2,133 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    WidgetResult,
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level menu widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult {
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+
+        let row_h = s.row_height;
+        let sep_h = s.separator_height;
+        let group_h = s.group_height;
+        let pad_x = s.pad_x;
+
+        let total_h: f32 = spec
+            .items
+            .iter()
+            .map(|item| match item {
+                MenuItem::Item { .. } => row_h,
+                MenuItem::Separator => sep_h,
+                MenuItem::Group(_) => group_h,
+            })
+            .sum::<f32>()
+            + s.pad_y * 2.0;
+
+        let w = spec.rect.w.max(s.min_width);
+        let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
+
+        cmds.push(DrawCmd::FillRect {
+            rect: outer,
+            color: s.background,
+        });
+        cmds.push(DrawCmd::StrokeRect {
+            rect: outer,
+            color: s.border,
+            width: s.border_width,
+        });
+
+        let mut y = spec.rect.y + s.pad_y;
+
+        for item in spec.items {
+            match item {
+                MenuItem::Separator => {
+                    let sep_y = y + s.separator_y;
+                    cmds.push(DrawCmd::StrokeLine {
+                        p0: Vec2::new(outer.x, sep_y),
+                        p1: Vec2::new(outer.x + w, sep_y),
+                        color: s.separator,
+                        width: s.border_width,
+                    });
+                    y += sep_h;
+                }
+                MenuItem::Group(label) => {
+                    let layout = spec.ts.prepare(label, s.meta_size, spec.meta_font);
+                    let ty = y + s.group_text_y;
+                    cmds.push(DrawCmd::Text {
+                        rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
+                        color: s.muted,
+                        handle: layout.handle,
+                    });
+                    y += group_h;
+                }
+                MenuItem::Item {
+                    label,
+                    shortcut,
+                    selected,
+                    disabled,
+                } => {
+                    let alpha = if *disabled { s.disabled_alpha } else { 1.0 };
+                    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+                    let row_rect = Rect::new(outer.x, y, w, row_h);
+
+                    if *selected {
+                        cmds.push(DrawCmd::FillRect {
+                            rect: row_rect,
+                            color: tint(s.selected_bg),
+                        });
+                    }
+
+                    let text_color = if *selected {
+                        tint(s.selected_text)
+                    } else {
+                        tint(s.text)
+                    };
+                    let layout = spec.ts.prepare(label, s.label_size, spec.label_font);
+                    let ty = y + (row_h - layout.size.y) * 0.5;
+                    cmds.push(DrawCmd::Text {
+                        rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
+                        color: text_color,
+                        handle: layout.handle,
+                    });
+
+                    if let Some(sc) = shortcut {
+                        let sc_color = if *selected {
+                            Color::linear_rgba(
+                                s.selected_text.r,
+                                s.selected_text.g,
+                                s.selected_text.b,
+                                s.shortcut_selected_alpha * alpha,
+                            )
+                        } else {
+                            tint(s.muted)
+                        };
+                        let sc_layout = spec.ts.prepare(sc, s.meta_size, spec.meta_font);
+                        let sc_x = outer.x + w - pad_x - sc_layout.size.x;
+                        let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
+                        cmds.push(DrawCmd::Text {
+                            rect: Rect::new(sc_x, sc_ty, sc_layout.size.x, sc_layout.size.y),
+                            color: sc_color,
+                            handle: sc_layout.handle,
+                        });
+                    }
+
+                    y += row_h;
+                }
+            }
+        }
+
+        MenuResult { draw: cmds }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum MenuItem<'a> {
@@ -55,130 +180,27 @@ pub struct MenuResult {
     pub draw: DrawCommands,
 }
 
-impl WidgetResult for MenuResult {
-    type Info = ();
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl MenuResult {
+    pub fn into_parts(self) -> (DrawCommands, ()) {
         (self.draw, ())
     }
 }
 
-pub fn menu<'a, T: crate::text::TextSystem>(spec: MenuSpec<'a, T>) -> MenuResult {
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    let row_h = s.row_height;
-    let sep_h = s.separator_height;
-    let group_h = s.group_height;
-    let pad_x = s.pad_x;
-
-    let total_h: f32 = spec
-        .items
-        .iter()
-        .map(|item| match item {
-            MenuItem::Item { .. } => row_h,
-            MenuItem::Separator => sep_h,
-            MenuItem::Group(_) => group_h,
-        })
-        .sum::<f32>()
-        + s.pad_y * 2.0;
-
-    let w = spec.rect.w.max(s.min_width);
-    let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
-
-    cmds.push(DrawCmd::FillRect {
-        rect: outer,
-        color: s.background,
-    });
-    cmds.push(DrawCmd::StrokeRect {
-        rect: outer,
-        color: s.border,
-        width: s.border_width,
-    });
-
-    let mut y = spec.rect.y + s.pad_y;
-
-    for item in spec.items {
-        match item {
-            MenuItem::Separator => {
-                let sep_y = y + s.separator_y;
-                cmds.push(DrawCmd::StrokeLine {
-                    p0: Vec2::new(outer.x, sep_y),
-                    p1: Vec2::new(outer.x + w, sep_y),
-                    color: s.separator,
-                    width: s.border_width,
-                });
-                y += sep_h;
-            }
-            MenuItem::Group(label) => {
-                let layout = spec.ts.prepare(label, s.meta_size, spec.meta_font);
-                let ty = y + s.group_text_y;
-                cmds.push(DrawCmd::Text {
-                    rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
-                    color: s.muted,
-                    handle: layout.handle,
-                });
-                y += group_h;
-            }
-            MenuItem::Item {
-                label,
-                shortcut,
-                selected,
-                disabled,
-            } => {
-                let alpha = if *disabled { s.disabled_alpha } else { 1.0 };
-                let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-                let row_rect = Rect::new(outer.x, y, w, row_h);
-
-                if *selected {
-                    cmds.push(DrawCmd::FillRect {
-                        rect: row_rect,
-                        color: tint(s.selected_bg),
-                    });
-                }
-
-                let text_color = if *selected {
-                    tint(s.selected_text)
-                } else {
-                    tint(s.text)
-                };
-                let layout = spec.ts.prepare(label, s.label_size, spec.label_font);
-                let ty = y + (row_h - layout.size.y) * 0.5;
-                cmds.push(DrawCmd::Text {
-                    rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
-                    color: text_color,
-                    handle: layout.handle,
-                });
-
-                if let Some(sc) = shortcut {
-                    let sc_color = if *selected {
-                        Color::linear_rgba(
-                            s.selected_text.r,
-                            s.selected_text.g,
-                            s.selected_text.b,
-                            s.shortcut_selected_alpha * alpha,
-                        )
-                    } else {
-                        tint(s.muted)
-                    };
-                    let sc_layout = spec.ts.prepare(sc, s.meta_size, spec.meta_font);
-                    let sc_x = outer.x + w - pad_x - sc_layout.size.x;
-                    let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
-                    cmds.push(DrawCmd::Text {
-                        rect: Rect::new(sc_x, sc_ty, sc_layout.size.x, sc_layout.size.y),
-                        color: sc_color,
-                        handle: sc_layout.handle,
-                    });
-                }
-
-                y += row_h;
-            }
-        }
-    }
-
-    MenuResult { draw: cmds }
+/// High-level menu widget function using WidgetContext.
+///
+/// This function accepts a MenuSpec and calls the low-level raw::menu function.
+pub fn menu<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: MenuSpec<'_, T>,
+) {
+    let result = raw::menu(spec);
+    ctx.append_cmds(result.draw.0);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::menu as menu_raw;
 
 pub struct MenuSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [MenuItem<'a>]>,
@@ -219,21 +241,13 @@ impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for MenuSpecBuilder<'a, T>
-{
-    type Spec = MenuSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> MenuSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.menu_style());
         if self.label_font.is_none() {
             self.label_font = Some(theme.sans_font);
@@ -244,12 +258,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> MenuSpec<'a, T> {
         MenuSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),

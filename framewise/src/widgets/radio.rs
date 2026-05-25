@@ -1,10 +1,120 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level radio widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn radio(
+        mut state: RadioState,
+        spec: RadioSpec,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> RadioResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        let mut is_clicked = clicked;
+        if focused && input.key_pressed_enter {
+            is_clicked = true;
+        }
+        if state.space_is_active && input.key_released_space {
+            is_clicked = true;
+        }
+
+        // Update space activation state for keyboard space press
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        // Keep state.selected in sync with spec.selected
+        if state.selected != spec.selected {
+            state.selected = spec.selected;
+        }
+
+        if is_clicked {
+            state.selected = true;
+        }
+
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let cx = spec.rect.x + s.radius;
+        let cy = spec.rect.y + s.radius;
+        let center = Vec2::new(cx, cy);
+
+        let visually_focused = focused;
+
+        // Focus ring (outset 2px).
+        if visually_focused {
+            cmds.push(DrawCmd::StrokeCircle {
+                center,
+                radius: s.radius + s.focus_offset,
+                color: tint(s.focus),
+                width: s.focus_width,
+            });
+        }
+
+        // Background fill.
+        cmds.push(DrawCmd::FillCircle {
+            center,
+            radius: s.radius,
+            color: tint(s.background),
+        });
+
+        // Outer ring.
+        cmds.push(DrawCmd::StrokeCircle {
+            center,
+            radius: s.radius,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        // Inner dot when selected.
+        if state.selected {
+            cmds.push(DrawCmd::FillCircle {
+                center,
+                radius: s.dot_radius,
+                color: tint(s.dot),
+            });
+        }
+
+        RadioResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct RadioSpec {
     /// Top-left of the 14×14 bounding area.
@@ -65,9 +175,6 @@ impl Default for RadioStyle {
     }
 }
 
-impl WidgetSpec for RadioSpec {
-    type Builder = RadioSpecBuilder;
-}
 
 pub struct RadioSpecBuilder {
     spec: RadioSpec,
@@ -115,25 +222,18 @@ impl RadioSpecBuilder {
         self.spec.clip_rect = clip_rect;
         self
     }
-}
-impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for RadioSpecBuilder {
-    type Spec = RadioSpec;
 
-    fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.radio_style();
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> RadioSpec {
         self.spec
     }
 }
@@ -168,10 +268,8 @@ impl RadioInfo {
     }
 }
 
-impl WidgetResult for RadioResult {
-    type Info = RadioInfo;
-
-    fn into_parts(self) -> (DrawCommands, RadioInfo) {
+impl RadioResult {
+    pub fn into_parts(self) -> (DrawCommands, RadioInfo) {
         (
             self.draw,
             RadioInfo {
@@ -184,108 +282,31 @@ impl WidgetResult for RadioResult {
     }
 }
 
-pub fn radio(
-    mut state: RadioState,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level radio widget function using WidgetContext.
+///
+/// This function accepts a RadioSpec and calls the low-level raw::radio function.
+pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: RadioState,
     spec: RadioSpec,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> RadioResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    let mut is_clicked = clicked;
-    if focused && input.key_pressed_enter {
-        is_clicked = true;
-    }
-    if state.space_is_active && input.key_released_space {
-        is_clicked = true;
-    }
-
-    // Update space activation state for keyboard space press
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    // Keep state.selected in sync with spec.selected
-    if state.selected != spec.selected {
-        state.selected = spec.selected;
-    }
-
-    if is_clicked {
-        state.selected = true;
-    }
-
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let cx = spec.rect.x + s.radius;
-    let cy = spec.rect.y + s.radius;
-    let center = Vec2::new(cx, cy);
-
-    let visually_focused = focused;
-
-    // Focus ring (outset 2px).
-    if visually_focused {
-        cmds.push(DrawCmd::StrokeCircle {
-            center,
-            radius: s.radius + s.focus_offset,
-            color: tint(s.focus),
-            width: s.focus_width,
-        });
-    }
-
-    // Background fill.
-    cmds.push(DrawCmd::FillCircle {
-        center,
-        radius: s.radius,
-        color: tint(s.background),
-    });
-
-    // Outer ring.
-    cmds.push(DrawCmd::StrokeCircle {
-        center,
-        radius: s.radius,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    // Inner dot when selected.
-    if state.selected {
-        cmds.push(DrawCmd::FillCircle {
-            center,
-            radius: s.dot_radius,
-            color: tint(s.dot),
-        });
-    }
-
-    RadioResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> RadioInfo {
+    let result = raw::radio(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    RadioInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::radio as radio_raw;
 
 #[cfg(test)]
 mod tests {

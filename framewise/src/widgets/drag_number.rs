@@ -2,10 +2,165 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{WidgetSpec, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level drag number widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn drag_number<'a, T: crate::text::TextSystem>(
+        mut state: DragNumberState,
+        spec: DragNumberSpec<'a, T>,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> DragNumberResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        if state.value != spec.value && !state.is_dragging {
+            state.value = spec.value;
+        }
+
+        let s = spec.style;
+
+        // Label width calculation
+        let label_layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
+        let label_w = label_layout.size.x + s.label_pad_x * 2.0;
+        let value_x = spec.rect.x + label_w;
+        let value_w = (spec.rect.w - label_w).max(20.0);
+
+        // Mouse drag interaction
+        if !spec.disabled {
+            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            let hovered_value_area = is_visible && input.mouse_pos.x >= value_x && input.mouse_pos.x <= spec.rect.x + spec.rect.w && input.mouse_pos.y >= spec.rect.y && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
+
+            if input.mouse_pressed && hovered_value_area {
+                state.is_dragging = true;
+                state.drag_start_x = input.mouse_pos.x;
+                state.drag_start_value = state.value;
+                focus_sys.take_focus(state.focus_id);
+            }
+
+            if state.is_dragging {
+                if !input.mouse_down {
+                    state.is_dragging = false;
+                } else {
+                    let dx = input.mouse_pos.x - state.drag_start_x;
+                    let value_range = spec.max - spec.min;
+                    let delta_val = (dx / value_w) * value_range;
+                    state.value = (state.drag_start_value + delta_val).clamp(spec.min, spec.max);
+                }
+            }
+        }
+
+        // Keyboard navigation when focused
+        if focused && !spec.disabled {
+            let step = (spec.max - spec.min) * 0.01;
+            if input.key_pressed_left {
+                state.value = (state.value - step).clamp(spec.min, spec.max);
+            }
+            if input.key_pressed_right {
+                state.value = (state.value + step).clamp(spec.min, spec.max);
+            }
+        }
+
+        let mut cmds = DrawCommands::new();
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let visually_active = focused || state.is_dragging;
+
+        // Focus / active ring.
+        if visually_active && !spec.disabled {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: spec.rect.inset(-s.focus_offset),
+                color: tint(s.focus),
+                width: s.focus_width,
+            });
+        }
+
+        cmds.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: tint(s.background),
+        });
+        cmds.push(DrawCmd::StrokeRect {
+            rect: spec.rect,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        // Label section (ink/rust bg, paper text).
+        let label_rect = Rect::new(spec.rect.x, spec.rect.y, label_w, spec.rect.h);
+        let label_bg = if visually_active {
+            s.active_label_bg
+        } else {
+            s.label_bg
+        };
+        cmds.push(DrawCmd::FillRect {
+            rect: label_rect,
+            color: tint(label_bg),
+        });
+
+        let lty = spec.rect.y + (spec.rect.h - label_layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(
+                spec.rect.x + s.label_pad_x,
+                lty,
+                label_layout.size.x,
+                label_layout.size.y,
+            ),
+            color: tint(s.label_text),
+            handle: label_layout.handle,
+        });
+
+        // Value area: rust_soft fill proportional to value fraction.
+        let frac = ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
+        if frac > 0.0 {
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
+                color: tint(s.value_fill),
+            });
+        }
+
+        let value_text = format!("{:.2}", state.value);
+        let val_layout = spec.ts.prepare(&value_text, s.text_size, spec.font);
+        let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
+        let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
+            color: tint(s.value_text),
+            handle: val_layout.handle,
+        });
+
+        DragNumberResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: state.is_dragging,
+                clicked: clicked && !state.is_dragging,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct DragNumberSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
@@ -111,10 +266,8 @@ impl DragNumberInfo {
     }
 }
 
-impl WidgetResult for DragNumberResult {
-    type Info = DragNumberInfo;
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl DragNumberResult {
+    pub fn into_parts(self) -> (DrawCommands, DragNumberInfo) {
         (
             self.draw,
             DragNumberInfo {
@@ -127,153 +280,31 @@ impl WidgetResult for DragNumberResult {
     }
 }
 
-pub fn drag_number<'a, T: crate::text::TextSystem>(
-    mut state: DragNumberState,
-    spec: DragNumberSpec<'a, T>,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level drag number widget function using WidgetContext.
+///
+/// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
+pub fn drag_number<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: DragNumberState,
+    spec: DragNumberSpec<'_, T>,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> DragNumberResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    if state.value != spec.value && !state.is_dragging {
-        state.value = spec.value;
-    }
-
-    let s = spec.style;
-
-    // Label width calculation
-    let label_layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
-    let label_w = label_layout.size.x + s.label_pad_x * 2.0;
-    let value_x = spec.rect.x + label_w;
-    let value_w = (spec.rect.w - label_w).max(20.0);
-
-    // Mouse drag interaction
-    if !spec.disabled {
-        let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
-        let hovered_value_area = is_visible && input.mouse_pos.x >= value_x && input.mouse_pos.x <= spec.rect.x + spec.rect.w && input.mouse_pos.y >= spec.rect.y && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
-
-        if input.mouse_pressed && hovered_value_area {
-            state.is_dragging = true;
-            state.drag_start_x = input.mouse_pos.x;
-            state.drag_start_value = state.value;
-            focus_sys.take_focus(state.focus_id);
-        }
-
-        if state.is_dragging {
-            if !input.mouse_down {
-                state.is_dragging = false;
-            } else {
-                let dx = input.mouse_pos.x - state.drag_start_x;
-                let value_range = spec.max - spec.min;
-                let delta_val = (dx / value_w) * value_range;
-                state.value = (state.drag_start_value + delta_val).clamp(spec.min, spec.max);
-            }
-        }
-    }
-
-    // Keyboard navigation when focused
-    if focused && !spec.disabled {
-        let step = (spec.max - spec.min) * 0.01;
-        if input.key_pressed_left {
-            state.value = (state.value - step).clamp(spec.min, spec.max);
-        }
-        if input.key_pressed_right {
-            state.value = (state.value + step).clamp(spec.min, spec.max);
-        }
-    }
-
-    let mut cmds = DrawCommands::new();
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let visually_active = focused || state.is_dragging;
-
-    // Focus / active ring.
-    if visually_active && !spec.disabled {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: spec.rect.inset(-s.focus_offset),
-            color: tint(s.focus),
-            width: s.focus_width,
-        });
-    }
-
-    cmds.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: tint(s.background),
-    });
-    cmds.push(DrawCmd::StrokeRect {
-        rect: spec.rect,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    // Label section (ink/rust bg, paper text).
-    let label_rect = Rect::new(spec.rect.x, spec.rect.y, label_w, spec.rect.h);
-    let label_bg = if visually_active {
-        s.active_label_bg
-    } else {
-        s.label_bg
-    };
-    cmds.push(DrawCmd::FillRect {
-        rect: label_rect,
-        color: tint(label_bg),
-    });
-
-    let lty = spec.rect.y + (spec.rect.h - label_layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(
-            spec.rect.x + s.label_pad_x,
-            lty,
-            label_layout.size.x,
-            label_layout.size.y,
-        ),
-        color: tint(s.label_text),
-        handle: label_layout.handle,
-    });
-
-    // Value area: rust_soft fill proportional to value fraction.
-    let frac = ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
-    if frac > 0.0 {
-        cmds.push(DrawCmd::FillRect {
-            rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
-            color: tint(s.value_fill),
-        });
-    }
-
-    let value_text = format!("{:.2}", state.value);
-    let val_layout = spec.ts.prepare(&value_text, s.text_size, spec.font);
-    let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
-    let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
-        color: tint(s.value_text),
-        handle: val_layout.handle,
-    });
-
-    DragNumberResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: state.is_dragging,
-            clicked: clicked && !state.is_dragging,
-        },
-        state,
-        focused,
+) -> DragNumberInfo {
+    let result = raw::drag_number(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    DragNumberInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::drag_number as drag_number_raw;
 
 pub struct DragNumberSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
@@ -338,21 +369,13 @@ impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for DragNumberSpecBuilder<'a, T>
-{
-    type Spec = DragNumberSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> DragNumberSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.drag_number_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);
@@ -360,12 +383,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> DragNumberSpec<'a, T> {
         DragNumberSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
@@ -379,10 +402,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             clip_rect: self.clip_rect,
         }
     }
-}
-
-impl<'a, T: crate::text::TextSystem> WidgetSpec for DragNumberSpec<'a, T> {
-    type Builder = DragNumberSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]

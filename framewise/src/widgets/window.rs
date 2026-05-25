@@ -2,8 +2,119 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level window begin function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn begin_window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> (Vec<DrawCmd>, WindowScope, Rect) {
+        let mut draw = Vec::new();
+        let s = spec.style;
+
+        let title_h = s.title_height;
+        let btn_size = s.button_size;
+        let status_h = if spec.status_bar {
+            s.status_height
+        } else {
+            0.0
+        };
+
+        // Body.
+        draw.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: s.background,
+        });
+        draw.push(DrawCmd::StrokeRect {
+            rect: spec.rect,
+            color: s.border,
+            width: s.border_width,
+        });
+
+        // Title bar.
+        let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
+        draw.push(DrawCmd::FillRect {
+            rect: title_rect,
+            color: s.title_bg,
+        });
+
+        let title_upper = spec.title.to_uppercase();
+        let title_layout = spec.ts.prepare(&title_upper, s.text_size, spec.font);
+        let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
+        draw.push(DrawCmd::Text {
+            rect: Rect::new(
+                spec.rect.x + s.text_pad_x,
+                tty,
+                title_layout.size.x,
+                title_layout.size.y,
+            ),
+            color: s.title_text,
+            handle: title_layout.handle,
+        });
+
+        // Window buttons (right side).
+        let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
+        for btn in spec.buttons.iter().rev() {
+            btn_x -= btn_size + s.button_gap;
+            let btn_layout = spec.ts.prepare(btn.symbol, s.text_size, spec.font);
+            let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
+            draw.push(DrawCmd::Text {
+                rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
+                color: s.title_text,
+                handle: btn_layout.handle,
+            });
+        }
+
+        // Status bar.
+        if spec.status_bar {
+            let bar_y = spec.rect.y + spec.rect.h - status_h;
+            draw.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(spec.rect.x, bar_y),
+                p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
+                color: s.status_border,
+                width: s.border_width,
+            });
+            let status_layout = spec.ts.prepare(spec.status_text, s.text_size, spec.font);
+            let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
+            draw.push(DrawCmd::Text {
+                rect: Rect::new(
+                    spec.rect.x + s.text_pad_x,
+                    sty,
+                    status_layout.size.x,
+                    status_layout.size.y,
+                ),
+                color: s.status_text,
+                handle: status_layout.handle,
+            });
+        }
+
+        let content_top = spec.rect.y + title_h + s.content_pad_y;
+        let content_bottom = spec.rect.y + spec.rect.h - status_h - s.content_pad_y;
+        let content = Rect::new(
+            spec.rect.x + s.content_pad_x,
+            content_top,
+            spec.rect.w - s.content_pad_x * 2.0,
+            (content_bottom - content_top).max(0.0),
+        );
+
+        draw.push(DrawCmd::PushClip { rect: content });
+
+        let scope = WindowScope { is_finished: false };
+        (draw, scope, content)
+    }
+
+    /// Low-level window end function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn end_window(scope: WindowScope) -> Vec<DrawCmd> {
+        scope.finish()
+    }
+}
 
 pub struct WindowButton {
     pub symbol: &'static str,
@@ -55,9 +166,8 @@ impl WindowInfo {
     }
 }
 
-impl WidgetResult for WindowResult {
-    type Info = WindowInfo;
-    fn into_parts(self) -> (DrawCommands, WindowInfo) {
+impl WindowResult {
+    pub fn into_parts(self) -> (DrawCommands, WindowInfo) {
         (
             self.draw,
             WindowInfo {
@@ -86,100 +196,33 @@ impl WindowScope {
     }
 }
 
-pub fn window<'a, T: crate::text::TextSystem>(spec: WindowSpec<'a, T>) -> WindowResult {
-    let mut draw = DrawCommands::new();
-    let s = spec.style;
+// ── High-level widget functions ───────────────────────────────────────────────────
 
-    let title_h = s.title_height;
-    let btn_size = s.button_size;
-    let status_h = if spec.status_bar {
-        s.status_height
-    } else {
-        0.0
-    };
-
-    // Body.
-    draw.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: s.background,
-    });
-    draw.push(DrawCmd::StrokeRect {
-        rect: spec.rect,
-        color: s.border,
-        width: s.border_width,
-    });
-
-    // Title bar.
-    let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
-    draw.push(DrawCmd::FillRect {
-        rect: title_rect,
-        color: s.title_bg,
-    });
-
-    let title_upper = spec.title.to_uppercase();
-    let title_layout = spec.ts.prepare(&title_upper, s.text_size, spec.font);
-    let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
-    draw.push(DrawCmd::Text {
-        rect: Rect::new(
-            spec.rect.x + s.text_pad_x,
-            tty,
-            title_layout.size.x,
-            title_layout.size.y,
-        ),
-        color: s.title_text,
-        handle: title_layout.handle,
-    });
-
-    // Window buttons (right side).
-    let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
-    for btn in spec.buttons.iter().rev() {
-        btn_x -= btn_size + s.button_gap;
-        let btn_layout = spec.ts.prepare(btn.symbol, s.text_size, spec.font);
-        let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
-        draw.push(DrawCmd::Text {
-            rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
-            color: s.title_text,
-            handle: btn_layout.handle,
-        });
-    }
-
-    // Status bar.
-    if spec.status_bar {
-        let bar_y = spec.rect.y + spec.rect.h - status_h;
-        draw.push(DrawCmd::StrokeLine {
-            p0: Vec2::new(spec.rect.x, bar_y),
-            p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
-            color: s.status_border,
-            width: s.border_width,
-        });
-        let status_layout = spec.ts.prepare(spec.status_text, s.text_size, spec.font);
-        let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
-        draw.push(DrawCmd::Text {
-            rect: Rect::new(
-                spec.rect.x + s.text_pad_x,
-                sty,
-                status_layout.size.x,
-                status_layout.size.y,
-            ),
-            color: s.status_text,
-            handle: status_layout.handle,
-        });
-    }
-
-    let content_top = spec.rect.y + title_h + s.content_pad_y;
-    let content_bottom = spec.rect.y + spec.rect.h - status_h - s.content_pad_y;
-    let content = Rect::new(
-        spec.rect.x + s.content_pad_x,
-        content_top,
-        spec.rect.w - s.content_pad_x * 2.0,
-        (content_bottom - content_top).max(0.0),
-    );
-
-    WindowResult {
-        draw,
-        layout: LayoutInfo::new(spec.rect, content),
-    }
+/// High-level window begin function using WidgetContext.
+///
+/// This function accepts a WindowSpec and calls the low-level raw::begin_window function.
+pub fn begin_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: WindowSpec<'_, T>,
+) -> (WindowScope, Rect) {
+    let (pre_cmds, scope, content) = raw::begin_window(spec);
+    ctx.append_cmds(pre_cmds);
+    (scope, content)
 }
+
+/// High-level window end function using WidgetContext.
+///
+/// This function accepts a WindowScope and calls the low-level raw::end_window function.
+pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    scope: WindowScope,
+) {
+    let post_cmds = raw::end_window(scope);
+    ctx.append_cmds(post_cmds);
+}
+
+// ── Re-export raw functions for direct use ───────────────────────────────────────────
+pub use raw::{begin_window as begin_window_raw, end_window as end_window_raw};
 
 pub struct WindowSpecBuilder<'a, T: crate::text::TextSystem> {
     pub title: Option<&'a str>,
@@ -232,21 +275,13 @@ impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for WindowSpecBuilder<'a, T>
-{
-    type Spec = WindowSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> WindowSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.window_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
@@ -254,12 +289,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> WindowSpec<'a, T> {
         WindowSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),

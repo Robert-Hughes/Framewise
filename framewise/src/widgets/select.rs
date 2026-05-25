@@ -2,10 +2,268 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{WidgetSpec, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level select widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn select<'a, T: crate::text::TextSystem>(
+        mut state: SelectState,
+        spec: SelectSpec<'a, T>,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> SelectResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        if !spec.options.is_empty() {
+            let current_val = if state.selected_index < spec.options.len() {
+                spec.options[state.selected_index]
+            } else {
+                ""
+            };
+            if current_val != spec.value {
+                // Out of band update, search for spec.value in options
+                let mut found = false;
+                for (i, opt) in spec.options.iter().enumerate() {
+                    if *opt == spec.value {
+                        state.selected_index = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    state.selected_index = state.selected_index.min(spec.options.len() - 1);
+                }
+            }
+        }
+
+        let mut is_clicked = clicked;
+        if focused && input.key_pressed_enter && !state.open {
+            is_clicked = true;
+        }
+        if state.space_is_active && input.key_released_space && !state.open {
+            is_clicked = true;
+        }
+
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        if is_clicked && !spec.disabled {
+            state.open = !state.open;
+            if state.open {
+                state.hovered = Some(state.selected_index);
+            }
+        }
+
+        let s = spec.style;
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y,
+            spec.rect.w.max(s.min_width),
+            s.height,
+        );
+
+        // Keyboard navigation when focused
+        if focused && !spec.disabled && !spec.options.is_empty() {
+            if input.key_pressed_down {
+                if state.open {
+                    let current = state.hovered.unwrap_or(0);
+                    if current + 1 < spec.options.len() {
+                        state.hovered = Some(current + 1);
+                    }
+                } else {
+                    if state.selected_index + 1 < spec.options.len() {
+                        state.selected_index += 1;
+                    }
+                }
+            }
+
+            if input.key_pressed_up {
+                if state.open {
+                    let current = state.hovered.unwrap_or(0);
+                    if current > 0 {
+                        state.hovered = Some(current - 1);
+                    }
+                } else {
+                    if state.selected_index > 0 {
+                        state.selected_index -= 1;
+                    }
+                }
+            }
+
+            if state.open && input.key_pressed_enter {
+                if let Some(h) = state.hovered {
+                    if h < spec.options.len() {
+                        state.selected_index = h;
+                        state.open = false;
+                    }
+                }
+            }
+        }
+
+        // Mouse interaction with popup when open
+        if state.open && !spec.disabled && !spec.options.is_empty() {
+            let row_h = s.row_height;
+            let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
+            let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
+
+            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            if is_visible && popup.contains(input.mouse_pos) {
+                let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
+                let hovered_row = (relative_y / row_h).floor() as i32;
+                if hovered_row >= 0 && hovered_row < spec.options.len() as i32 {
+                    state.hovered = Some(hovered_row as usize);
+
+                    if input.mouse_pressed {
+                        state.selected_index = hovered_row as usize;
+                        state.open = false;
+                    }
+                }
+            } else if input.mouse_pressed && !r.contains(input.mouse_pos) {
+                state.open = false;
+            }
+        }
+
+        let mut cmds = DrawCommands::new();
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let visually_focused = focused;
+
+        // Focus / open ring.
+        if visually_focused || state.open {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: r.inset(-s.focus_offset),
+                color: tint(s.accent),
+                width: s.focus_width,
+            });
+        }
+
+        cmds.push(DrawCmd::FillRect {
+            rect: r,
+            color: tint(s.background),
+        });
+        cmds.push(DrawCmd::StrokeRect {
+            rect: r,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        // Selected value text.
+        let display_text = if !spec.options.is_empty() && state.selected_index < spec.options.len() {
+            spec.options[state.selected_index]
+        } else {
+            spec.value
+        };
+
+        let val_layout = spec.ts.prepare(display_text, s.text_size, spec.font);
+        let vty = r.y + (s.height - val_layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
+            color: tint(s.text),
+            handle: val_layout.handle,
+        });
+
+        // Chevron "v".
+        let chev_color = if state.open { s.accent } else { s.muted };
+        let chev_layout = spec.ts.prepare("v", s.chevron_size, spec.font);
+        let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(
+                r.x + r.w - s.chevron_right,
+                cty,
+                chev_layout.size.x,
+                chev_layout.size.y,
+            ),
+            color: tint(chev_color),
+            handle: chev_layout.handle,
+        });
+
+        // Dropdown popup.
+        if state.open && !spec.options.is_empty() {
+            let row_h = s.row_height;
+            let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
+            let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
+
+            cmds.push(DrawCmd::FillRect {
+                rect: popup,
+                color: tint(s.background),
+            });
+            cmds.push(DrawCmd::StrokeRect {
+                rect: popup,
+                color: tint(s.border),
+                width: s.border_width,
+            });
+
+            for (i, opt) in spec.options.iter().enumerate() {
+                let is_selected = i == state.selected_index;
+                let is_hovered = state.hovered == Some(i);
+                let row_y = popup.y + s.popup_pad_y + i as f32 * row_h;
+                let row_rect = Rect::new(popup.x, row_y, popup.w, row_h);
+
+                if is_selected {
+                    cmds.push(DrawCmd::FillRect {
+                        rect: row_rect,
+                        color: tint(s.selected_bg),
+                    });
+                } else if is_hovered {
+                    cmds.push(DrawCmd::FillRect {
+                        rect: row_rect,
+                        color: tint(s.hover),
+                    });
+                }
+
+                let text_color = if is_selected { s.selected_text } else { s.text };
+                let opt_layout = spec.ts.prepare(opt, s.text_size, spec.font);
+                let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
+                cmds.push(DrawCmd::Text {
+                    rect: Rect::new(
+                        popup.x + s.pad_x + 2.0,
+                        oty,
+                        opt_layout.size.x,
+                        opt_layout.size.y,
+                    ),
+                    color: tint(text_color),
+                    handle: opt_layout.handle,
+                });
+            }
+        }
+
+        SelectResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct SelectSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
@@ -126,10 +384,8 @@ impl SelectInfo {
     }
 }
 
-impl WidgetResult for SelectResult {
-    type Info = SelectInfo;
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl SelectResult {
+    pub fn into_parts(self) -> (DrawCommands, SelectInfo) {
         (
             self.draw,
             SelectInfo {
@@ -142,256 +398,31 @@ impl WidgetResult for SelectResult {
     }
 }
 
-pub fn select<'a, T: crate::text::TextSystem>(
-    mut state: SelectState,
-    spec: SelectSpec<'a, T>,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level select widget function using WidgetContext.
+///
+/// This function accepts a SelectSpec and calls the low-level raw::select function.
+pub fn select<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: SelectState,
+    spec: SelectSpec<'_, T>,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> SelectResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    if !spec.options.is_empty() {
-        let current_val = if state.selected_index < spec.options.len() {
-            spec.options[state.selected_index]
-        } else {
-            ""
-        };
-        if current_val != spec.value {
-            // Out of band update, search for spec.value in options
-            let mut found = false;
-            for (i, opt) in spec.options.iter().enumerate() {
-                if *opt == spec.value {
-                    state.selected_index = i;
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                state.selected_index = state.selected_index.min(spec.options.len() - 1);
-            }
-        }
-    }
-
-    let mut is_clicked = clicked;
-    if focused && input.key_pressed_enter && !state.open {
-        is_clicked = true;
-    }
-    if state.space_is_active && input.key_released_space && !state.open {
-        is_clicked = true;
-    }
-
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    if is_clicked && !spec.disabled {
-        state.open = !state.open;
-        if state.open {
-            state.hovered = Some(state.selected_index);
-        }
-    }
-
-    let s = spec.style;
-    let r = Rect::new(
-        spec.rect.x,
-        spec.rect.y,
-        spec.rect.w.max(s.min_width),
-        s.height,
-    );
-
-    // Keyboard navigation when focused
-    if focused && !spec.disabled && !spec.options.is_empty() {
-        if input.key_pressed_down {
-            if state.open {
-                let current = state.hovered.unwrap_or(0);
-                if current + 1 < spec.options.len() {
-                    state.hovered = Some(current + 1);
-                }
-            } else {
-                if state.selected_index + 1 < spec.options.len() {
-                    state.selected_index += 1;
-                }
-            }
-        }
-
-        if input.key_pressed_up {
-            if state.open {
-                let current = state.hovered.unwrap_or(0);
-                if current > 0 {
-                    state.hovered = Some(current - 1);
-                }
-            } else {
-                if state.selected_index > 0 {
-                    state.selected_index -= 1;
-                }
-            }
-        }
-
-        if state.open && input.key_pressed_enter {
-            if let Some(h) = state.hovered {
-                if h < spec.options.len() {
-                    state.selected_index = h;
-                    state.open = false;
-                }
-            }
-        }
-    }
-
-    // Mouse interaction with popup when open
-    if state.open && !spec.disabled && !spec.options.is_empty() {
-        let row_h = s.row_height;
-        let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
-        let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
-
-        let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
-        if is_visible && popup.contains(input.mouse_pos) {
-            let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
-            let hovered_row = (relative_y / row_h).floor() as i32;
-            if hovered_row >= 0 && hovered_row < spec.options.len() as i32 {
-                state.hovered = Some(hovered_row as usize);
-
-                if input.mouse_pressed {
-                    state.selected_index = hovered_row as usize;
-                    state.open = false;
-                }
-            }
-        } else if input.mouse_pressed && !r.contains(input.mouse_pos) {
-            state.open = false;
-        }
-    }
-
-    let mut cmds = DrawCommands::new();
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let visually_focused = focused;
-
-    // Focus / open ring.
-    if visually_focused || state.open {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: r.inset(-s.focus_offset),
-            color: tint(s.accent),
-            width: s.focus_width,
-        });
-    }
-
-    cmds.push(DrawCmd::FillRect {
-        rect: r,
-        color: tint(s.background),
-    });
-    cmds.push(DrawCmd::StrokeRect {
-        rect: r,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    // Selected value text.
-    let display_text = if !spec.options.is_empty() && state.selected_index < spec.options.len() {
-        spec.options[state.selected_index]
-    } else {
-        spec.value
-    };
-
-    let val_layout = spec.ts.prepare(display_text, s.text_size, spec.font);
-    let vty = r.y + (s.height - val_layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
-        color: tint(s.text),
-        handle: val_layout.handle,
-    });
-
-    // Chevron "v".
-    let chev_color = if state.open { s.accent } else { s.muted };
-    let chev_layout = spec.ts.prepare("v", s.chevron_size, spec.font);
-    let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(
-            r.x + r.w - s.chevron_right,
-            cty,
-            chev_layout.size.x,
-            chev_layout.size.y,
-        ),
-        color: tint(chev_color),
-        handle: chev_layout.handle,
-    });
-
-    // Dropdown popup.
-    if state.open && !spec.options.is_empty() {
-        let row_h = s.row_height;
-        let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
-        let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
-
-        cmds.push(DrawCmd::FillRect {
-            rect: popup,
-            color: tint(s.background),
-        });
-        cmds.push(DrawCmd::StrokeRect {
-            rect: popup,
-            color: tint(s.border),
-            width: s.border_width,
-        });
-
-        for (i, opt) in spec.options.iter().enumerate() {
-            let is_selected = i == state.selected_index;
-            let is_hovered = state.hovered == Some(i);
-            let row_y = popup.y + s.popup_pad_y + i as f32 * row_h;
-            let row_rect = Rect::new(popup.x, row_y, popup.w, row_h);
-
-            if is_selected {
-                cmds.push(DrawCmd::FillRect {
-                    rect: row_rect,
-                    color: tint(s.selected_bg),
-                });
-            } else if is_hovered {
-                cmds.push(DrawCmd::FillRect {
-                    rect: row_rect,
-                    color: tint(s.hover),
-                });
-            }
-
-            let text_color = if is_selected { s.selected_text } else { s.text };
-            let opt_layout = spec.ts.prepare(opt, s.text_size, spec.font);
-            let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
-            cmds.push(DrawCmd::Text {
-                rect: Rect::new(
-                    popup.x + s.pad_x + 2.0,
-                    oty,
-                    opt_layout.size.x,
-                    opt_layout.size.y,
-                ),
-                color: tint(text_color),
-                handle: opt_layout.handle,
-            });
-        }
-    }
-
-    SelectResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> SelectInfo {
+    let result = raw::select(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    SelectInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::select as select_raw;
 
 pub struct SelectSpecBuilder<'a, T: crate::text::TextSystem> {
     pub value: Option<&'a str>,
@@ -444,21 +475,13 @@ impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for SelectSpecBuilder<'a, T>
-{
-    type Spec = SelectSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> SelectSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.select_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);
@@ -466,12 +489,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> SelectSpec<'a, T> {
         SelectSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
@@ -483,10 +506,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             clip_rect: self.clip_rect,
         }
     }
-}
-
-impl<'a, T: crate::text::TextSystem> WidgetSpec for SelectSpec<'a, T> {
-    type Builder = SelectSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]

@@ -1,8 +1,41 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level frame widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn frame(spec: FrameSpec) -> FrameResult {
+        let mut draw = DrawCommands::new();
+
+        draw.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: spec.style.background,
+        });
+
+        if spec.style.border_width > 0.0 {
+            draw.push(DrawCmd::StrokeRect {
+                rect: spec.rect,
+                color: spec.style.border,
+                width: spec.style.border_width,
+            });
+        }
+
+        let inset = spec.style.border_width + spec.style.padding;
+        let content = spec.rect.inset(inset);
+
+        FrameResult {
+            draw,
+            layout: LayoutInfo::new(spec.rect, content),
+        }
+    }
+}
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
@@ -41,10 +74,8 @@ impl FrameInfo {
     }
 }
 
-impl WidgetResult for FrameResult {
-    type Info = FrameInfo;
-
-    fn into_parts(self) -> (DrawCommands, FrameInfo) {
+impl FrameResult {
+    pub fn into_parts(self) -> (DrawCommands, FrameInfo) {
         (
             self.draw,
             FrameInfo {
@@ -54,36 +85,26 @@ impl WidgetResult for FrameResult {
     }
 }
 
-// ── Widget function ───────────────────────────────────────────────────────────
+// ── High-level widget function ───────────────────────────────────────────────────
 
-/// Produce a frame widget — a bordered, filled background rectangle.
+/// High-level frame widget function using WidgetContext.
 ///
-/// The returned `FrameInfo` exposes the inner `content_rect()` which callers
-/// can use to place child widgets.
-pub fn frame(spec: FrameSpec) -> FrameResult {
-    let mut draw = DrawCommands::new();
-
-    draw.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: spec.style.background,
-    });
-
-    if spec.style.border_width > 0.0 {
-        draw.push(DrawCmd::StrokeRect {
-            rect: spec.rect,
-            color: spec.style.border,
-            width: spec.style.border_width,
-        });
-    }
-
-    let inset = spec.style.border_width + spec.style.padding;
-    let content = spec.rect.inset(inset);
-
-    FrameResult {
-        draw,
-        layout: LayoutInfo::new(spec.rect, content),
+/// This function accepts a FrameSpec and calls the low-level raw::frame function.
+pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: FrameSpec,
+) -> FrameInfo {
+    let result = raw::frame(spec);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    FrameInfo {
+        layout: result.layout,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::frame as frame_raw;
 
 #[cfg(test)]
 mod tests {

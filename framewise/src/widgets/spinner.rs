@@ -1,9 +1,104 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder},
-    WidgetResult,
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level spinner widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    /// Square reticle spinner — four corner brackets with a single animated segment.
+    /// Since we can't animate, we draw it at a fixed phase (segment at top).
+    pub fn spinner(spec: SpinnerSpec) -> SpinnerResult {
+        let mut cmds = DrawCommands::new();
+
+        let size = if spec.large {
+            spec.style.large_size
+        } else {
+            spec.style.small_size
+        };
+        let color = spec.color.unwrap_or(spec.style.color);
+
+        let x = spec.rect.x;
+        let y = spec.rect.y;
+
+        // Corner bracket size: 5px at 16, 7px at 24.
+        let arm = if spec.large {
+            spec.style.large_arm
+        } else {
+            spec.style.small_arm
+        };
+        let w = spec.style.width;
+
+        // Top-left bracket.
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x, y + arm),
+            p1: Vec2::new(x, y),
+            color,
+            width: w,
+        });
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x, y),
+            p1: Vec2::new(x + arm, y),
+            color,
+            width: w,
+        });
+        // Top-right bracket.
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + size - arm, y),
+            p1: Vec2::new(x + size, y),
+            color,
+            width: w,
+        });
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + size, y),
+            p1: Vec2::new(x + size, y + arm),
+            color,
+            width: w,
+        });
+        // Bottom-right bracket.
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + size, y + size - arm),
+            p1: Vec2::new(x + size, y + size),
+            color,
+            width: w,
+        });
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + size, y + size),
+            p1: Vec2::new(x + size - arm, y + size),
+            color,
+            width: w,
+        });
+        // Bottom-left bracket.
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + arm, y + size),
+            p1: Vec2::new(x, y + size),
+            color,
+            width: w,
+        });
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x, y + size),
+            p1: Vec2::new(x, y + size - arm),
+            color,
+            width: w,
+        });
+
+        // Animated segment on the top edge — drawn as a rust highlight.
+        let seg_w = size * spec.style.highlight_fraction;
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(x + size * 0.1, y),
+            p1: Vec2::new(x + size * 0.1 + seg_w, y),
+            color: spec.style.highlight,
+            width: w,
+        });
+
+        SpinnerResult { draw: cmds }
+    }
+}
 
 pub struct SpinnerSpec {
     /// Top-left. Size is either 16 or 24 (use `large` flag).
@@ -40,9 +135,6 @@ impl Default for SpinnerStyle {
     }
 }
 
-impl WidgetSpec for SpinnerSpec {
-    type Builder = SpinnerSpecBuilder;
-}
 
 pub struct SpinnerSpecBuilder {
     spec: SpinnerSpec,
@@ -83,26 +175,18 @@ impl SpinnerSpecBuilder {
         self.spec.style = style;
         self
     }
-}
 
-impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for SpinnerSpecBuilder {
-    type Spec = SpinnerSpec;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.spinner_style();
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> SpinnerSpec {
         self.spec
     }
 }
@@ -111,101 +195,27 @@ pub struct SpinnerResult {
     pub draw: DrawCommands,
 }
 
-impl WidgetResult for SpinnerResult {
-    type Info = ();
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl SpinnerResult {
+    pub fn into_parts(self) -> (DrawCommands, ()) {
         (self.draw, ())
     }
 }
 
-/// Square reticle spinner — four corner brackets with a single animated segment.
-/// Since we can't animate, we draw it at a fixed phase (segment at top).
-pub fn spinner(spec: SpinnerSpec) -> SpinnerResult {
-    let mut cmds = DrawCommands::new();
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    let size = if spec.large {
-        spec.style.large_size
-    } else {
-        spec.style.small_size
-    };
-    let color = spec.color.unwrap_or(spec.style.color);
-
-    let x = spec.rect.x;
-    let y = spec.rect.y;
-
-    // Corner bracket size: 5px at 16, 7px at 24.
-    let arm = if spec.large {
-        spec.style.large_arm
-    } else {
-        spec.style.small_arm
-    };
-    let w = spec.style.width;
-
-    // Top-left bracket.
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x, y + arm),
-        p1: Vec2::new(x, y),
-        color,
-        width: w,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x, y),
-        p1: Vec2::new(x + arm, y),
-        color,
-        width: w,
-    });
-    // Top-right bracket.
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + size - arm, y),
-        p1: Vec2::new(x + size, y),
-        color,
-        width: w,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + size, y),
-        p1: Vec2::new(x + size, y + arm),
-        color,
-        width: w,
-    });
-    // Bottom-right bracket.
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + size, y + size - arm),
-        p1: Vec2::new(x + size, y + size),
-        color,
-        width: w,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + size, y + size),
-        p1: Vec2::new(x + size - arm, y + size),
-        color,
-        width: w,
-    });
-    // Bottom-left bracket.
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + arm, y + size),
-        p1: Vec2::new(x, y + size),
-        color,
-        width: w,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x, y + size),
-        p1: Vec2::new(x, y + size - arm),
-        color,
-        width: w,
-    });
-
-    // Animated segment on the top edge — drawn as a rust highlight.
-    let seg_w = size * spec.style.highlight_fraction;
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(x + size * 0.1, y),
-        p1: Vec2::new(x + size * 0.1 + seg_w, y),
-        color: spec.style.highlight,
-        width: w,
-    });
-
-    SpinnerResult { draw: cmds }
+/// High-level spinner widget function using WidgetContext.
+///
+/// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
+pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: SpinnerSpec,
+) {
+    let result = raw::spinner(spec);
+    ctx.append_cmds(result.draw.0);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::spinner as spinner_raw;
 
 #[cfg(test)]
 mod tests {

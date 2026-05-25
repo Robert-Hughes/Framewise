@@ -1,6 +1,10 @@
-use crate::draw::DrawCommands;
+use crate::draw::DrawCmd;
+use crate::focus::FocusSystem;
+use crate::layout::LayoutState;
+use crate::text::{FontId, TextSystem};
 use crate::theme::Theme;
-use crate::types::Rect;
+use crate::types::{Color, Rect};
+use crate::widgets::{button::ButtonStyle, frame::FrameStyle};
 
 // ── Common result fragments ───────────────────────────────────────────────────
 
@@ -41,48 +45,70 @@ pub struct InputInfo {
     pub clicked: bool,
 }
 
-// ── WidgetResult trait ────────────────────────────────────────────────────────
+// ── WidgetContext ───────────────────────────────────────────────────────────
 
-/// Every value returned by a low-level widget function implements this trait
-/// so that `Builder::emit` can extract draw commands while returning the
-/// app-facing info.
-pub trait WidgetResult {
-    /// The information returned to the caller after draw commands are extracted.
-    type Info;
+/// Context struct providing theme, input, focus, text system, and draw command
+/// accumulation for high-level widget functions. This replaces the old `Builder`
+/// pattern with freestanding functions.
+pub struct WidgetContext<'a, T: TextSystem, S: LayoutState> {
+    // Styling & environment fields (formerly BuilderCtx)
+    pub theme: Theme,
+    pub bg_color: Color,
+    pub accent_color: Color,
+    pub text_color: Color,
+    pub border_color: Color,
+    pub button_style: ButtonStyle,
+    pub frame_style: FrameStyle,
+    pub text_size: f32,
+    pub text_font: FontId,
+    pub time: f64,
+    pub clip_rect: Option<Rect>,
 
-    /// Consume `self`, yielding the draw commands and the caller-facing info.
-    fn into_parts(self) -> (DrawCommands, Self::Info);
+    // System resources
+    pub text_system: &'a mut T,
+    pub focus_sys: &'a mut FocusSystem,
+    pub layout_state: S,
+    cmds: Vec<DrawCmd>,
 }
 
-//TODO: should the spec traits actually be part of the builder API, as that's the only
-// thing that actually requires a consistent shape.
-
-/// Trait for input structs widget functions, so that `Builder` can work with them.
-/// Provides common things that all widgets will have, like a rect for layout.
-/// A not-fully-specified widget spec, turned into a fully specified WidgetSpec upon build.
-pub trait WidgetSpecBuilder<'a, T: crate::text::TextSystem> {
-    type Spec;
-
-    fn with_rect(self, rect: Rect) -> Self;
-    fn with_style(self) -> Self;
-    fn with_theme(self, _theme: &Theme) -> Self
-    where
-        Self: Sized,
-    {
-        self
+impl<'a, T: TextSystem, S: LayoutState> WidgetContext<'a, T, S> {
+    pub fn new(
+        theme: Theme,
+        text_system: &'a mut T,
+        focus_sys: &'a mut FocusSystem,
+        layout_state: S,
+    ) -> Self {
+        Self {
+            bg_color: Color::from_srgb_f32(0.10, 0.10, 0.13, 1.0),
+            accent_color: Color::from_srgb_f32(0.30, 0.55, 0.95, 1.0),
+            text_color: Color::from_srgb_f32(0.90, 0.90, 0.95, 1.0),
+            border_color: Color::from_srgb_f32(0.30, 0.30, 0.38, 1.0),
+            button_style: theme.button_secondary_style(),
+            frame_style: theme.frame_style(),
+            text_size: 14.0,
+            text_font: theme.sans_font,
+            time: 0.0,
+            clip_rect: None,
+            theme,
+            text_system,
+            focus_sys,
+            layout_state,
+            cmds: Vec::new(),
+        }
     }
 
-    fn with_text_system(self, _ts: &'a mut T) -> Self
-    where
-        Self: Sized,
-    {
-        self
+    /// Append draw commands to the context's accumulated list.
+    pub fn append_cmds(&mut self, mut cmds: Vec<DrawCmd>) {
+        self.cmds.append(&mut cmds);
     }
 
-    fn build(self) -> Self::Spec;
-}
+    /// Consume the context and return all accumulated draw commands.
+    pub fn finish(self) -> Vec<DrawCmd> {
+        self.cmds
+    }
 
-/// Fully-specified, ready to be passed into a widget function
-pub trait WidgetSpec {
-    type Builder;
+    /// Resolve layout using the context's layout state.
+    pub fn layout(&mut self, params: S::Params) -> Rect {
+        self.layout_state.layout(params)
+    }
 }

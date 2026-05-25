@@ -2,10 +2,162 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level tabs widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn tabs<'a, T: crate::text::TextSystem>(
+        mut state: TabsState,
+        spec: TabsSpec<'a, T>,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> TabsResult {
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+
+        let tab_h = s.height;
+        let pad_x = s.pad_x;
+        let underbar_h = s.underbar_height;
+
+        // Sum width of tabs
+        let mut total_w = 0.0;
+        for label in spec.items.iter() {
+            let layout = spec.ts.prepare(label, s.text_size, spec.font);
+            total_w += layout.size.x + pad_x * 2.0;
+        }
+
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        if state.active_index != spec.active_index {
+            state.active_index = spec.active_index;
+        }
+
+        let mut is_clicked = clicked;
+
+        // Left/Right keyboard navigation
+        if focused && !spec.disabled && !spec.items.is_empty() {
+            if input.key_pressed_left {
+                if state.active_index > 0 {
+                    state.active_index -= 1;
+                    is_clicked = true;
+                }
+            }
+            if input.key_pressed_right {
+                if state.active_index + 1 < spec.items.len() {
+                    state.active_index += 1;
+                    is_clicked = true;
+                }
+            }
+        }
+
+        // Mouse click segment detection
+        if clicked && !spec.disabled && !spec.items.is_empty() {
+            let mut x = spec.rect.x;
+            for (i, label) in spec.items.iter().enumerate() {
+                let layout = spec.ts.prepare(label, s.text_size, spec.font);
+                let tab_w = layout.size.x + pad_x * 2.0;
+                let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
+                let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+                if tab_rect.contains(input.mouse_pos) && is_visible {
+                    state.active_index = i;
+                    break;
+                }
+                x += tab_w;
+            }
+        }
+
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        // Bottom border across the full width.
+        let border_y = spec.rect.y + tab_h;
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(spec.rect.x, border_y),
+            p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        let mut x = spec.rect.x;
+
+        for (i, label) in spec.items.iter().enumerate() {
+            let is_active = i == state.active_index;
+
+            let layout = spec.ts.prepare(label, s.text_size, spec.font);
+            let tab_w = layout.size.x + pad_x * 2.0;
+            let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
+
+            // Focus ring.
+            let visually_focused = focused && i == state.active_index;
+            if visually_focused && !spec.disabled {
+                cmds.push(DrawCmd::StrokeRect {
+                    rect: tab_rect.inset(-s.focus_offset),
+                    color: tint(s.focus),
+                    width: s.focus_width,
+                });
+            }
+
+            let text_color = if is_active { s.text } else { s.inactive_text };
+            let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
+            cmds.push(DrawCmd::Text {
+                rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
+                color: tint(text_color),
+                handle: layout.handle,
+            });
+
+            // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
+            if is_active {
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
+                    color: tint(s.accent),
+                });
+                // Left uptick (3px wide, 9px tall)
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
+                    color: tint(s.accent),
+                });
+                // Right uptick (3px wide, 9px tall)
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
+                    color: tint(s.accent),
+                });
+            }
+
+            x += tab_w;
+        }
+
+        TabsResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: clicked && input.mouse_down,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct TabsSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
@@ -101,10 +253,8 @@ impl TabsInfo {
     }
 }
 
-impl WidgetResult for TabsResult {
-    type Info = TabsInfo;
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl TabsResult {
+    pub fn into_parts(self) -> (DrawCommands, TabsInfo) {
         (
             self.draw,
             TabsInfo {
@@ -117,150 +267,31 @@ impl WidgetResult for TabsResult {
     }
 }
 
-pub fn tabs<'a, T: crate::text::TextSystem>(
-    mut state: TabsState,
-    spec: TabsSpec<'a, T>,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level tabs widget function using WidgetContext.
+///
+/// This function accepts a TabsSpec and calls the low-level raw::tabs function.
+pub fn tabs<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: TabsState,
+    spec: TabsSpec<'_, T>,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> TabsResult {
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
-
-    let tab_h = s.height;
-    let pad_x = s.pad_x;
-    let underbar_h = s.underbar_height;
-
-    // Sum width of tabs
-    let mut total_w = 0.0;
-    for label in spec.items.iter() {
-        let layout = spec.ts.prepare(label, s.text_size, spec.font);
-        total_w += layout.size.x + pad_x * 2.0;
-    }
-
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    if state.active_index != spec.active_index {
-        state.active_index = spec.active_index;
-    }
-
-    let mut is_clicked = clicked;
-
-    // Left/Right keyboard navigation
-    if focused && !spec.disabled && !spec.items.is_empty() {
-        if input.key_pressed_left {
-            if state.active_index > 0 {
-                state.active_index -= 1;
-                is_clicked = true;
-            }
-        }
-        if input.key_pressed_right {
-            if state.active_index + 1 < spec.items.len() {
-                state.active_index += 1;
-                is_clicked = true;
-            }
-        }
-    }
-
-    // Mouse click segment detection
-    if clicked && !spec.disabled && !spec.items.is_empty() {
-        let mut x = spec.rect.x;
-        for (i, label) in spec.items.iter().enumerate() {
-            let layout = spec.ts.prepare(label, s.text_size, spec.font);
-            let tab_w = layout.size.x + pad_x * 2.0;
-            let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
-            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
-            if tab_rect.contains(input.mouse_pos) && is_visible {
-                state.active_index = i;
-                break;
-            }
-            x += tab_w;
-        }
-    }
-
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    // Bottom border across the full width.
-    let border_y = spec.rect.y + tab_h;
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(spec.rect.x, border_y),
-        p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    let mut x = spec.rect.x;
-
-    for (i, label) in spec.items.iter().enumerate() {
-        let is_active = i == state.active_index;
-
-        let layout = spec.ts.prepare(label, s.text_size, spec.font);
-        let tab_w = layout.size.x + pad_x * 2.0;
-        let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
-
-        // Focus ring.
-        let visually_focused = focused && i == state.active_index;
-        if visually_focused && !spec.disabled {
-            cmds.push(DrawCmd::StrokeRect {
-                rect: tab_rect.inset(-s.focus_offset),
-                color: tint(s.focus),
-                width: s.focus_width,
-            });
-        }
-
-        let text_color = if is_active { s.text } else { s.inactive_text };
-        let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
-        cmds.push(DrawCmd::Text {
-            rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
-            color: tint(text_color),
-            handle: layout.handle,
-        });
-
-        // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
-        if is_active {
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
-                color: tint(s.accent),
-            });
-            // Left uptick (3px wide, 9px tall)
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
-                color: tint(s.accent),
-            });
-            // Right uptick (3px wide, 9px tall)
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
-                color: tint(s.accent),
-            });
-        }
-
-        x += tab_w;
-    }
-
-    TabsResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: clicked && input.mouse_down,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> TabsInfo {
+    let result = raw::tabs(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    TabsInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::tabs as tabs_raw;
 
 pub struct TabsSpecBuilder<'a, T: crate::text::TextSystem> {
     pub items: Option<&'a [&'a str]>,
@@ -313,21 +344,13 @@ impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for TabsSpecBuilder<'a, T>
-{
-    type Spec = TabsSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> TabsSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tabs_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);
@@ -335,12 +358,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> TabsSpec<'a, T> {
         TabsSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
@@ -352,10 +375,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             clip_rect: self.clip_rect,
         }
     }
-}
-
-impl<'a, T: crate::text::TextSystem> WidgetSpec for TabsSpec<'a, T> {
-    type Builder = TabsSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]

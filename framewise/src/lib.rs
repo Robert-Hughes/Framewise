@@ -21,7 +21,6 @@
 //! }
 //! ```
 
-pub mod builder;
 pub mod draw;
 pub mod focus;
 pub mod input;
@@ -36,13 +35,12 @@ pub mod widgets;
 pub mod test_utils;
 // ── Public re-exports ─────────────────────────────────────────────────────────
 
-pub use builder::{Builder, BuilderCtx};
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use theme::Theme;
 pub use types::{Color, Rect, Vec2};
-pub use widget::{InputInfo, LayoutInfo, WidgetResult};
+pub use widget::{InputInfo, LayoutInfo, WidgetContext};
 
 // Widget functions (low-level API)
 pub use widgets::button::{button, ButtonInfo, ButtonResult, ButtonSpec, ButtonStyle};

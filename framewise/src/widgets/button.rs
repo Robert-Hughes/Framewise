@@ -3,8 +3,162 @@ use crate::{
     input::Input,
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetResult},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level button widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn button<T: crate::text::TextSystem>(
+        mut state: ButtonState,
+        spec: ButtonSpec,
+        input: &Input,
+        text_system: &mut T,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> ButtonResult {
+        // Disabled: register for layout but skip all interaction.
+        if spec.disabled {
+            let alpha = 0.32_f32;
+            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+            let mut draw = DrawCommands::new();
+            draw.push(DrawCmd::FillRect {
+                rect: spec.rect,
+                color: tint(spec.style.background),
+            });
+            if spec.style.border_width > 0.0 {
+                draw.push(DrawCmd::StrokeRect {
+                    rect: spec.rect,
+                    color: tint(spec.style.border),
+                    width: spec.style.border_width,
+                });
+            }
+            let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
+            let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
+            let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+            draw.push(DrawCmd::Text {
+                rect: Rect::new(tx, ty, text_layout.size.x, text_layout.size.y),
+                color: tint(spec.style.text_color),
+                handle: text_layout.handle,
+            });
+            return ButtonResult {
+                draw,
+                layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
+                input: InputInfo {
+                    hovered: false,
+                    pressed: false,
+                    clicked: false,
+                },
+                state,
+                focused: false,
+            };
+        }
+
+        let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
+
+        let is_visible = spec
+            .clip_rect
+            .map_or(true, |clip| clip.contains(input.mouse_pos));
+        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+
+        if contains && input.mouse_pressed {
+            state.is_active = true;
+        }
+
+        let hovered = contains && (!input.mouse_down || state.is_active);
+        let mut clicked = state.is_active && hovered && input.mouse_clicked;
+
+        // Trigger click on Enter (immediate) or Space release (if it was active)
+        if focused && input.key_pressed_enter {
+            clicked = true;
+        }
+        if state.space_is_active && input.key_released_space {
+            clicked = true;
+        }
+
+        // Update space activation state
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        // Update mouse activation state
+        if !input.mouse_down {
+            state.is_active = false;
+        }
+
+        let pressed = (state.is_active && hovered && input.mouse_down) || state.space_is_active;
+
+        if pressed {
+            focus_sys.take_focus(state.focus_id);
+        }
+
+        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
+
+        // Choose fill colour based on interaction state.
+        let fill = if pressed {
+            spec.style.pressed
+        } else if hovered {
+            spec.style.hovered
+        } else {
+            spec.style.background
+        };
+
+        let mut draw = DrawCommands::new();
+
+        // Focus ring drawn first (outset — sits outside the button bounds).
+        if focused {
+            draw.push(DrawCmd::StrokeRect {
+                rect: spec.rect.inset(-(spec.style.border_width + 2.0)),
+                color: spec.style.focus_border,
+                width: 2.0,
+            });
+        }
+
+        // Background fill.
+        draw.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: fill,
+        });
+
+        // Border.
+        if spec.style.border_width > 0.0 {
+            draw.push(DrawCmd::StrokeRect {
+                rect: spec.rect,
+                color: spec.style.border,
+                width: spec.style.border_width,
+            });
+        }
+
+        // Text centered.
+        let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
+        let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
+        let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+
+        draw.push(DrawCmd::Text {
+            rect: Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
+            color: spec.style.text_color,
+            handle: text_layout.handle,
+        });
+
+        ButtonResult {
+            draw,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
+            input: InputInfo {
+                hovered,
+                pressed,
+                clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
@@ -140,10 +294,8 @@ impl ButtonInfo {
     }
 }
 
-impl WidgetResult for ButtonResult {
-    type Info = ButtonInfo;
-
-    fn into_parts(self) -> (DrawCommands, ButtonInfo) {
+impl ButtonResult {
+    pub fn into_parts(self) -> (DrawCommands, ButtonInfo) {
         (
             self.draw,
             ButtonInfo {
@@ -156,157 +308,31 @@ impl WidgetResult for ButtonResult {
     }
 }
 
-// ── Widget function ───────────────────────────────────────────────────────────
+// ── High-level widget function ───────────────────────────────────────────────────
 
-/// Produce a button widget.
+/// High-level button widget function using WidgetContext.
 ///
-/// Hit-testing is performed immediately against `input`. The returned
-/// `ButtonResult` already contains the resolved interaction state.
-pub fn button<T: crate::text::TextSystem>(
-    mut state: ButtonState,
+/// This function accepts a ButtonSpec and calls the low-level raw::button function.
+pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: ButtonState,
     spec: ButtonSpec,
     input: &Input,
-    text_system: &mut T,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> ButtonResult {
-    // Disabled: register for layout but skip all interaction.
-    if spec.disabled {
-        let alpha = 0.32_f32;
-        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-        let mut draw = DrawCommands::new();
-        draw.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: tint(spec.style.background),
-        });
-        if spec.style.border_width > 0.0 {
-            draw.push(DrawCmd::StrokeRect {
-                rect: spec.rect,
-                color: tint(spec.style.border),
-                width: spec.style.border_width,
-            });
-        }
-        let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
-        let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
-        let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
-        draw.push(DrawCmd::Text {
-            rect: Rect::new(tx, ty, text_layout.size.x, text_layout.size.y),
-            color: tint(spec.style.text_color),
-            handle: text_layout.handle,
-        });
-        return ButtonResult {
-            draw,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
-            input: InputInfo {
-                hovered: false,
-                pressed: false,
-                clicked: false,
-            },
-            state,
-            focused: false,
-        };
-    }
-
-    let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
-
-    let is_visible = spec
-        .clip_rect
-        .map_or(true, |clip| clip.contains(input.mouse_pos));
-    let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-
-    if contains && input.mouse_pressed {
-        state.is_active = true;
-    }
-
-    let hovered = contains && (!input.mouse_down || state.is_active);
-    let mut clicked = state.is_active && hovered && input.mouse_clicked;
-
-    // Trigger click on Enter (immediate) or Space release (if it was active)
-    if focused && input.key_pressed_enter {
-        clicked = true;
-    }
-    if state.space_is_active && input.key_released_space {
-        clicked = true;
-    }
-
-    // Update space activation state
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    // Update mouse activation state
-    if !input.mouse_down {
-        state.is_active = false;
-    }
-
-    let pressed = (state.is_active && hovered && input.mouse_down) || state.space_is_active;
-
-    if pressed {
-        focus_sys.take_focus(state.focus_id);
-    }
-
-    focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
-
-    // Choose fill colour based on interaction state.
-    let fill = if pressed {
-        spec.style.pressed
-    } else if hovered {
-        spec.style.hovered
-    } else {
-        spec.style.background
-    };
-
-    let mut draw = DrawCommands::new();
-
-    // Focus ring drawn first (outset — sits outside the button bounds).
-    if focused {
-        draw.push(DrawCmd::StrokeRect {
-            rect: spec.rect.inset(-(spec.style.border_width + 2.0)),
-            color: spec.style.focus_border,
-            width: 2.0,
-        });
-    }
-
-    // Background fill.
-    draw.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: fill,
-    });
-
-    // Border.
-    if spec.style.border_width > 0.0 {
-        draw.push(DrawCmd::StrokeRect {
-            rect: spec.rect,
-            color: spec.style.border,
-            width: spec.style.border_width,
-        });
-    }
-
-    // Text centered.
-    let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
-    let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
-    let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
-
-    draw.push(DrawCmd::Text {
-        rect: Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
-        color: spec.style.text_color,
-        handle: text_layout.handle,
-    });
-
-    ButtonResult {
-        draw,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(spec.style.border_width)),
-        input: InputInfo {
-            hovered,
-            pressed,
-            clicked,
-        },
-        state,
-        focused,
+) -> ButtonInfo {
+    let result = raw::button(state, spec, input, ctx.text_system, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    ButtonInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::button as button_raw;
 
 #[cfg(test)]
 mod tests {

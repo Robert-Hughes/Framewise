@@ -1,8 +1,26 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level color swatch widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn color_swatch(spec: ColorSwatchSpec) -> ColorSwatchResult {
+        let mut draw = DrawCommands::new();
+        draw.push(DrawCmd::FillRect { rect: spec.rect, color: spec.color });
+        draw.push(DrawCmd::StrokeRect { rect: spec.rect, color: spec.border, width: 1.0 });
+        ColorSwatchResult {
+            draw,
+            layout: LayoutInfo::tight(spec.rect),
+        }
+    }
+}
 
 pub struct ColorSwatchSpec {
     pub rect:   Rect,
@@ -30,22 +48,28 @@ pub struct ColorSwatchInfo {
     pub layout: LayoutInfo,
 }
 
-impl WidgetResult for ColorSwatchResult {
-    type Info = ColorSwatchInfo;
-    fn into_parts(self) -> (DrawCommands, ColorSwatchInfo) {
+impl ColorSwatchResult {
+    pub fn into_parts(self) -> (DrawCommands, ColorSwatchInfo) {
         (self.draw, ColorSwatchInfo { layout: self.layout })
     }
 }
 
-pub fn color_swatch(spec: ColorSwatchSpec) -> ColorSwatchResult {
-    let mut draw = DrawCommands::new();
-    draw.push(DrawCmd::FillRect { rect: spec.rect, color: spec.color });
-    draw.push(DrawCmd::StrokeRect { rect: spec.rect, color: spec.border, width: 1.0 });
-    ColorSwatchResult {
-        draw,
-        layout: LayoutInfo::tight(spec.rect),
-    }
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level color swatch widget function using WidgetContext.
+///
+/// This function accepts a ColorSwatchSpec and calls the low-level raw::color_swatch function.
+pub fn color_swatch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: ColorSwatchSpec,
+) -> ColorSwatchInfo {
+    let result = raw::color_swatch(spec);
+    ctx.append_cmds(result.draw.0);
+    ColorSwatchInfo { layout: result.layout }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::color_swatch as color_swatch_raw;
 
 
 pub struct ColorSwatchSpecBuilder {
@@ -74,19 +98,13 @@ impl ColorSwatchSpecBuilder {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T> for ColorSwatchSpecBuilder {
-    type Spec = ColorSwatchSpec;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl ColorSwatchSpecBuilder {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> ColorSwatchSpec {
         let mut spec = ColorSwatchSpec::default();
         if let Some(r) = self.rect { spec.rect = r; }
         if let Some(c) = self.color { spec.color = c; }

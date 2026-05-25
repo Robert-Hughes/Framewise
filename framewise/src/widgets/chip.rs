@@ -2,10 +2,113 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{WidgetSpec, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level chip widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn chip<'a, T: crate::text::TextSystem>(
+        mut state: ChipState,
+        spec: ChipSpec<'a, T>,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> ChipResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        let mut is_clicked = clicked;
+        if focused && input.key_pressed_enter {
+            is_clicked = true;
+        }
+        if state.space_is_active && input.key_released_space {
+            is_clicked = true;
+        }
+
+        // Update space activation state for keyboard space press
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        if is_clicked {
+            state.active = !state.active;
+        }
+
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let h = s.height;
+        let pad_x = s.pad_x;
+
+        let layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
+        let w = spec.rect.w.max(32.0);
+        let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
+
+        let visually_focused = focused;
+
+        // Focus ring.
+        if visually_focused {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: r.inset(-s.focus_offset),
+                color: tint(s.focus),
+                width: s.focus_width,
+            });
+        }
+
+        let bg = if state.active {
+            s.active_bg
+        } else {
+            s.background
+        };
+        cmds.push(DrawCmd::FillRect { rect: r, color: tint(bg) });
+        cmds.push(DrawCmd::StrokeRect {
+            rect: r,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        let text_color = if state.active { s.active_text } else { s.text };
+        let ty = r.y + (h - layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
+            color: tint(text_color),
+            handle: layout.handle,
+        });
+
+        ChipResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct ChipSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
@@ -104,10 +207,8 @@ impl ChipInfo {
     }
 }
 
-impl WidgetResult for ChipResult {
-    type Info = ChipInfo;
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl ChipResult {
+    pub fn into_parts(self) -> (DrawCommands, ChipInfo) {
         (
             self.draw,
             ChipInfo {
@@ -120,101 +221,31 @@ impl WidgetResult for ChipResult {
     }
 }
 
-pub fn chip<'a, T: crate::text::TextSystem>(
-    mut state: ChipState,
-    spec: ChipSpec<'a, T>,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level chip widget function using WidgetContext.
+///
+/// This function accepts a ChipSpec and calls the low-level raw::chip function.
+pub fn chip<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: ChipState,
+    spec: ChipSpec<'_, T>,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> ChipResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    let mut is_clicked = clicked;
-    if focused && input.key_pressed_enter {
-        is_clicked = true;
-    }
-    if state.space_is_active && input.key_released_space {
-        is_clicked = true;
-    }
-
-    // Update space activation state for keyboard space press
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    if is_clicked {
-        state.active = !state.active;
-    }
-
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let h = s.height;
-    let pad_x = s.pad_x;
-
-    let layout = spec.ts.prepare(spec.label, s.text_size, spec.font);
-    let w = spec.rect.w.max(32.0);
-    let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
-
-    let visually_focused = focused;
-
-    // Focus ring.
-    if visually_focused {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: r.inset(-s.focus_offset),
-            color: tint(s.focus),
-            width: s.focus_width,
-        });
-    }
-
-    let bg = if state.active {
-        s.active_bg
-    } else {
-        s.background
-    };
-    cmds.push(DrawCmd::FillRect { rect: r, color: tint(bg) });
-    cmds.push(DrawCmd::StrokeRect {
-        rect: r,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    let text_color = if state.active { s.active_text } else { s.text };
-    let ty = r.y + (h - layout.size.y) * 0.5;
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
-        color: tint(text_color),
-        handle: layout.handle,
-    });
-
-    ChipResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> ChipInfo {
+    let result = raw::chip(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    ChipInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::chip as chip_raw;
 
 pub struct ChipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
@@ -261,21 +292,13 @@ impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for ChipSpecBuilder<'a, T>
-{
-    type Spec = ChipSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> ChipSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.chip_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
@@ -283,12 +306,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> ChipSpec<'a, T> {
         ChipSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
@@ -299,10 +322,6 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
             clip_rect: self.clip_rect,
         }
     }
-}
-
-impl<'a, T: crate::text::TextSystem> WidgetSpec for ChipSpec<'a, T> {
-    type Builder = ChipSpecBuilder<'a, T>;
 }
 
 #[cfg(test)]

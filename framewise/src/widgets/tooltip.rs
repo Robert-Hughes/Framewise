@@ -2,8 +2,63 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    WidgetResult,
+    widget::WidgetContext,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level tooltip widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> TooltipResult {
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+
+        let pad_x = s.pad_x;
+        let pad_y_top = s.pad_y_top;
+        let pad_y_bot = s.pad_y_bot;
+        let arrow_h = s.arrow_h;
+        let arrow_w = s.arrow_w;
+
+        let (bg, text_color): (Color, Color) = match spec.variant {
+            TooltipVariant::Dark => (s.dark_bg, s.dark_text),
+            TooltipVariant::Rust => (s.rust_bg, s.rust_text),
+        };
+
+        let layout = spec.ts.prepare(spec.text, s.text_size, spec.font);
+        let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
+        let box_h = layout.size.y + pad_y_top + pad_y_bot;
+
+        let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
+        cmds.push(DrawCmd::FillRect { rect: r, color: bg });
+
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(r.x + pad_x, r.y + pad_y_top, layout.size.x, layout.size.y),
+            color: text_color,
+            handle: layout.handle,
+        });
+
+        // Arrow triangle below (two lines converging to a point).
+        let arrow_x = r.x + s.arrow_x;
+        let arrow_y = r.y + box_h;
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(arrow_x, arrow_y),
+            p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
+            color: bg,
+            width: s.arrow_width,
+        });
+        cmds.push(DrawCmd::StrokeLine {
+            p0: Vec2::new(arrow_x + arrow_w, arrow_y),
+            p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
+            color: bg,
+            width: s.arrow_width,
+        });
+
+        TooltipResult { draw: cmds }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TooltipVariant {
@@ -61,60 +116,27 @@ pub struct TooltipResult {
     pub draw: DrawCommands,
 }
 
-impl WidgetResult for TooltipResult {
-    type Info = ();
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl TooltipResult {
+    pub fn into_parts(self) -> (DrawCommands, ()) {
         (self.draw, ())
     }
 }
 
-pub fn tooltip<'a, T: crate::text::TextSystem>(spec: TooltipSpec<'a, T>) -> TooltipResult {
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    let pad_x = s.pad_x;
-    let pad_y_top = s.pad_y_top;
-    let pad_y_bot = s.pad_y_bot;
-    let arrow_h = s.arrow_h;
-    let arrow_w = s.arrow_w;
-
-    let (bg, text_color): (Color, Color) = match spec.variant {
-        TooltipVariant::Dark => (s.dark_bg, s.dark_text),
-        TooltipVariant::Rust => (s.rust_bg, s.rust_text),
-    };
-
-    let layout = spec.ts.prepare(spec.text, s.text_size, spec.font);
-    let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
-    let box_h = layout.size.y + pad_y_top + pad_y_bot;
-
-    let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
-    cmds.push(DrawCmd::FillRect { rect: r, color: bg });
-
-    cmds.push(DrawCmd::Text {
-        rect: Rect::new(r.x + pad_x, r.y + pad_y_top, layout.size.x, layout.size.y),
-        color: text_color,
-        handle: layout.handle,
-    });
-
-    // Arrow triangle below (two lines converging to a point).
-    let arrow_x = r.x + s.arrow_x;
-    let arrow_y = r.y + box_h;
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(arrow_x, arrow_y),
-        p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
-        color: bg,
-        width: s.arrow_width,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(arrow_x + arrow_w, arrow_y),
-        p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
-        color: bg,
-        width: s.arrow_width,
-    });
-
-    TooltipResult { draw: cmds }
+/// High-level tooltip widget function using WidgetContext.
+///
+/// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
+pub fn tooltip<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: TooltipSpec<'_, T>,
+) {
+    let result = raw::tooltip(spec);
+    ctx.append_cmds(result.draw.0);
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::tooltip as tooltip_raw;
 
 pub struct TooltipSpecBuilder<'a, T: crate::text::TextSystem> {
     pub text: Option<&'a str>,
@@ -155,21 +177,13 @@ impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for TooltipSpecBuilder<'a, T>
-{
-    type Spec = TooltipSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> TooltipSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tooltip_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
@@ -177,12 +191,12 @@ impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> TooltipSpec<'a, T> {
         TooltipSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
@@ -211,7 +225,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = tooltip(spec);
+        let res = raw::tooltip(spec);
 
         assert_eq!(
             res.draw,
@@ -253,7 +267,7 @@ mod tests {
             style: Default::default(),
         };
         let style = spec.style;
-        let res = tooltip(spec);
+        let res = raw::tooltip(spec);
 
         assert_eq!(
             res.draw,

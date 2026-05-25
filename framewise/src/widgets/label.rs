@@ -2,8 +2,43 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::{FontId, TextSystem},
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level label widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
+        let mut draw = DrawCommands::new();
+
+        let layout = text_system.prepare(&spec.text, spec.size, spec.font);
+
+        draw.push(DrawCmd::Text {
+            rect: spec.rect,
+            color: spec.text_color,
+            handle: layout.handle,
+        });
+
+        if spec.rule {
+            let y = spec.rect.y + spec.rect.h;
+            draw.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(spec.rect.x, y),
+                p1: Vec2::new(spec.rect.x + spec.rect.w, y),
+                color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
+                width: 1.0,
+            });
+        }
+
+        LabelResult {
+            draw,
+            layout: LayoutInfo::tight(spec.rect),
+        }
+    }
+}
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
@@ -28,10 +63,8 @@ pub struct LabelInfo {
     pub layout: LayoutInfo,
 }
 
-impl WidgetResult for LabelResult {
-    type Info = LabelInfo;
-
-    fn into_parts(self) -> (DrawCommands, LabelInfo) {
+impl LabelResult {
+    pub fn into_parts(self) -> (DrawCommands, LabelInfo) {
         (
             self.draw,
             LabelInfo {
@@ -41,34 +74,26 @@ impl WidgetResult for LabelResult {
     }
 }
 
-// ── Widget function ───────────────────────────────────────────────────────────
+// ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
-    let mut draw = DrawCommands::new();
-
-    let layout = text_system.prepare(&spec.text, spec.size, spec.font);
-
-    draw.push(DrawCmd::Text {
-        rect: spec.rect,
-        color: spec.text_color,
-        handle: layout.handle,
-    });
-
-    if spec.rule {
-        let y = spec.rect.y + spec.rect.h;
-        draw.push(DrawCmd::StrokeLine {
-            p0: Vec2::new(spec.rect.x, y),
-            p1: Vec2::new(spec.rect.x + spec.rect.w, y),
-            color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
-            width: 1.0,
-        });
-    }
-
-    LabelResult {
-        draw,
-        layout: LayoutInfo::tight(spec.rect),
+/// High-level label widget function using WidgetContext.
+///
+/// This function accepts a LabelSpec and calls the low-level raw::label function.
+pub fn label<T: TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: LabelSpec,
+) -> LabelInfo {
+    let result = raw::label(spec, ctx.text_system);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    LabelInfo {
+        layout: result.layout,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::label as label_raw;
 
 #[cfg(test)]
 mod tests {

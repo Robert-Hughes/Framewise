@@ -1,10 +1,120 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level switch widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn switch(
+        mut state: SwitchState,
+        spec: SwitchSpec,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> SwitchResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        let mut is_clicked = clicked;
+        if focused && input.key_pressed_enter {
+            is_clicked = true;
+        }
+        if state.space_is_active && input.key_released_space {
+            is_clicked = true;
+        }
+
+        // Update space activation state for keyboard space press
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        // Keep state.on in sync with spec.on if spec.on changed out of band.
+        if state.on != spec.on {
+            state.on = spec.on;
+        }
+
+        if is_clicked {
+            state.on = !state.on;
+        }
+
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let r = Rect::new(spec.rect.x, spec.rect.y, s.size.0, s.size.1);
+
+        let visually_focused = focused;
+
+        // Focus ring.
+        if visually_focused {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: r.inset(-s.focus_offset),
+                color: tint(s.focus),
+                width: s.focus_width,
+            });
+        }
+
+        // Track fill.
+        let track_fill = if state.on { s.on_fill } else { s.off_fill };
+        cmds.push(DrawCmd::FillRect {
+            rect: r,
+            color: tint(track_fill),
+        });
+
+        // Track border.
+        cmds.push(DrawCmd::StrokeRect {
+            rect: r,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        // Thumb dot (10×10, vertically centered, left/right positioned).
+        let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
+        let dot_x = if state.on {
+            r.x + r.w - s.thumb_size - s.border_width
+        } else {
+            r.x + s.border_width
+        };
+        let dot_color = if state.on { s.on_thumb } else { s.off_thumb };
+        cmds.push(DrawCmd::FillRect {
+            rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
+            color: tint(dot_color),
+        });
+
+        SwitchResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 pub struct SwitchSpec {
     /// Top-left of the 30×16 bounding area.
@@ -69,9 +179,6 @@ impl Default for SwitchStyle {
     }
 }
 
-impl WidgetSpec for SwitchSpec {
-    type Builder = SwitchSpecBuilder;
-}
 
 pub struct SwitchSpecBuilder {
     spec: SwitchSpec,
@@ -122,26 +229,18 @@ impl SwitchSpecBuilder {
         self.spec.clip_rect = clip_rect;
         self
     }
-}
 
-impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for SwitchSpecBuilder {
-    type Spec = SwitchSpec;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.switch_style();
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> SwitchSpec {
         self.spec
     }
 }
@@ -176,10 +275,8 @@ impl SwitchInfo {
     }
 }
 
-impl WidgetResult for SwitchResult {
-    type Info = SwitchInfo;
-
-    fn into_parts(self) -> (DrawCommands, Self::Info) {
+impl SwitchResult {
+    pub fn into_parts(self) -> (DrawCommands, SwitchInfo) {
         (
             self.draw,
             SwitchInfo {
@@ -192,108 +289,31 @@ impl WidgetResult for SwitchResult {
     }
 }
 
-pub fn switch(
-    mut state: SwitchState,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level switch widget function using WidgetContext.
+///
+/// This function accepts a SwitchSpec and calls the low-level raw::switch function.
+pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: SwitchState,
     spec: SwitchSpec,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> SwitchResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    let mut is_clicked = clicked;
-    if focused && input.key_pressed_enter {
-        is_clicked = true;
-    }
-    if state.space_is_active && input.key_released_space {
-        is_clicked = true;
-    }
-
-    // Update space activation state for keyboard space press
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    // Keep state.on in sync with spec.on if spec.on changed out of band.
-    if state.on != spec.on {
-        state.on = spec.on;
-    }
-
-    if is_clicked {
-        state.on = !state.on;
-    }
-
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let r = Rect::new(spec.rect.x, spec.rect.y, s.size.0, s.size.1);
-
-    let visually_focused = focused;
-
-    // Focus ring.
-    if visually_focused {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: r.inset(-s.focus_offset),
-            color: tint(s.focus),
-            width: s.focus_width,
-        });
-    }
-
-    // Track fill.
-    let track_fill = if state.on { s.on_fill } else { s.off_fill };
-    cmds.push(DrawCmd::FillRect {
-        rect: r,
-        color: tint(track_fill),
-    });
-
-    // Track border.
-    cmds.push(DrawCmd::StrokeRect {
-        rect: r,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    // Thumb dot (10×10, vertically centered, left/right positioned).
-    let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
-    let dot_x = if state.on {
-        r.x + r.w - s.thumb_size - s.border_width
-    } else {
-        r.x + s.border_width
-    };
-    let dot_color = if state.on { s.on_thumb } else { s.off_thumb };
-    cmds.push(DrawCmd::FillRect {
-        rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
-        color: tint(dot_color),
-    });
-
-    SwitchResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> SwitchInfo {
+    let result = raw::switch(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    SwitchInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::switch as switch_raw;
 
 #[cfg(test)]
 mod tests {

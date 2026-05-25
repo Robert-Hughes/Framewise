@@ -1,10 +1,145 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{WidgetSpec, WidgetSpecBuilder, InputInfo, LayoutInfo},
-    WidgetResult,
+    widget::{InputInfo, LayoutInfo, WidgetContext},
     input::Input,
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level checkbox widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn checkbox(
+        mut state: CheckboxState,
+        spec: CheckboxSpec,
+        input: &Input,
+        focus_sys: &mut crate::focus::FocusSystem,
+    ) -> CheckboxResult {
+        let (focused, clicked) = if spec.disabled {
+            (false, false)
+        } else {
+            crate::focus::handle_widget_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                input,
+                focus_sys,
+                crate::focus::FocusTraversalKeys::all(),
+                spec.disabled,
+            )
+        };
+
+        let mut is_clicked = clicked;
+        if focused && input.key_pressed_enter {
+            is_clicked = true;
+        }
+        if state.space_is_active && input.key_released_space {
+            is_clicked = true;
+        }
+
+        // Update space activation state for keyboard space press
+        if !focused || !input.key_down_space {
+            state.space_is_active = false;
+        }
+        if focused && input.key_pressed_space {
+            state.space_is_active = true;
+        }
+
+        // Keep state.check in sync with spec.state if spec.state changed out of band.
+        if state.check != spec.state {
+            state.check = spec.state;
+        }
+
+        if is_clicked {
+            state.check = match state.check {
+                CheckState::Off => CheckState::On,
+                CheckState::On => CheckState::Off,
+                CheckState::Indeterminate => CheckState::On,
+            };
+        }
+
+        let mut cmds = DrawCommands::new();
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let r = Rect::new(spec.rect.x, spec.rect.y, s.size, s.size);
+
+        let visually_focused = focused;
+
+        // Focus ring (outset 2px).
+        if visually_focused {
+            cmds.push(DrawCmd::StrokeRect {
+                rect: r.inset(-s.focus_offset),
+                color: tint(s.focus),
+                width: s.focus_width,
+            });
+        }
+
+        // Box fill.
+        let fill = match state.check {
+            CheckState::Off => s.background,
+            _ => s.selected_fill,
+        };
+        cmds.push(DrawCmd::FillRect {
+            rect: r,
+            color: tint(fill),
+        });
+
+        // Box border.
+        cmds.push(DrawCmd::StrokeRect {
+            rect: r,
+            color: tint(s.border),
+            width: s.border_width,
+        });
+
+        // Inner mark.
+        match state.check {
+            CheckState::On => {
+                // Checkmark: two lines forming a tick (√).
+                let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
+                let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
+                let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
+                let mark = tint(s.mark);
+                cmds.push(DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: mark,
+                    width: s.mark_width,
+                });
+                cmds.push(DrawCmd::StrokeLine {
+                    p0: p1,
+                    p1: p2,
+                    color: mark,
+                    width: s.mark_width,
+                });
+            }
+            CheckState::Indeterminate => {
+                // Horizontal dash.
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: tint(s.mark),
+                });
+            }
+            CheckState::Off => {}
+        }
+
+        CheckboxResult {
+            draw: cmds,
+            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
+            input: InputInfo {
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                clicked: is_clicked,
+            },
+            state,
+            focused,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CheckState {
@@ -73,9 +208,6 @@ impl Default for CheckboxStyle {
         }
     }
 }
-impl WidgetSpec for CheckboxSpec {
-    type Builder = CheckboxSpecBuilder;
-}
 
 pub struct CheckboxSpecBuilder {
     spec: CheckboxSpec,
@@ -119,25 +251,18 @@ impl CheckboxSpecBuilder {
         self.spec.clip_rect = clip_rect;
         self
     }
-}
-impl<'a, T: crate::text::TextSystem> WidgetSpecBuilder<'a, T> for CheckboxSpecBuilder {
-    type Spec = CheckboxSpec;
 
-    fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.checkbox_style();
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> CheckboxSpec {
         self.spec
     }
 }
@@ -172,10 +297,8 @@ impl CheckboxInfo {
     }
 }
 
-impl WidgetResult for CheckboxResult {
-    type Info = CheckboxInfo;
-
-    fn into_parts(self) -> (DrawCommands, CheckboxInfo) {
+impl CheckboxResult {
+    pub fn into_parts(self) -> (DrawCommands, CheckboxInfo) {
         (
             self.draw,
             CheckboxInfo {
@@ -188,133 +311,31 @@ impl WidgetResult for CheckboxResult {
     }
 }
 
-pub fn checkbox(
-    mut state: CheckboxState,
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level checkbox widget function using WidgetContext.
+///
+/// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
+pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: CheckboxState,
     spec: CheckboxSpec,
     input: &Input,
-    focus_sys: &mut crate::focus::FocusSystem,
-) -> CheckboxResult {
-    let (focused, clicked) = if spec.disabled {
-        (false, false)
-    } else {
-        crate::focus::handle_widget_focus(
-            state.focus_id,
-            spec.rect,
-            spec.clip_rect,
-            input,
-            focus_sys,
-            crate::focus::FocusTraversalKeys::all(),
-            spec.disabled,
-        )
-    };
-
-    let mut is_clicked = clicked;
-    if focused && input.key_pressed_enter {
-        is_clicked = true;
-    }
-    if state.space_is_active && input.key_released_space {
-        is_clicked = true;
-    }
-
-    // Update space activation state for keyboard space press
-    if !focused || !input.key_down_space {
-        state.space_is_active = false;
-    }
-    if focused && input.key_pressed_space {
-        state.space_is_active = true;
-    }
-
-    // Keep state.check in sync with spec.state if spec.state changed out of band.
-    if state.check != spec.state {
-        state.check = spec.state;
-    }
-
-    if is_clicked {
-        state.check = match state.check {
-            CheckState::Off => CheckState::On,
-            CheckState::On => CheckState::Off,
-            CheckState::Indeterminate => CheckState::On,
-        };
-    }
-
-    let mut cmds = DrawCommands::new();
-    let s = spec.style;
-    let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-
-    let r = Rect::new(spec.rect.x, spec.rect.y, s.size, s.size);
-
-    let visually_focused = focused;
-
-    // Focus ring (outset 2px).
-    if visually_focused {
-        cmds.push(DrawCmd::StrokeRect {
-            rect: r.inset(-s.focus_offset),
-            color: tint(s.focus),
-            width: s.focus_width,
-        });
-    }
-
-    // Box fill.
-    let fill = match state.check {
-        CheckState::Off => s.background,
-        _ => s.selected_fill,
-    };
-    cmds.push(DrawCmd::FillRect {
-        rect: r,
-        color: tint(fill),
-    });
-
-    // Box border.
-    cmds.push(DrawCmd::StrokeRect {
-        rect: r,
-        color: tint(s.border),
-        width: s.border_width,
-    });
-
-    // Inner mark.
-    match state.check {
-        CheckState::On => {
-            // Checkmark: two lines forming a tick (√).
-            let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
-            let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
-            let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
-            let mark = tint(s.mark);
-            cmds.push(DrawCmd::StrokeLine {
-                p0,
-                p1,
-                color: mark,
-                width: s.mark_width,
-            });
-            cmds.push(DrawCmd::StrokeLine {
-                p0: p1,
-                p1: p2,
-                color: mark,
-                width: s.mark_width,
-            });
-        }
-        CheckState::Indeterminate => {
-            // Horizontal dash.
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: tint(s.mark),
-            });
-        }
-        CheckState::Off => {}
-    }
-
-    CheckboxResult {
-        draw: cmds,
-        layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
-        input: InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
-            clicked: is_clicked,
-        },
-        state,
-        focused,
+) -> CheckboxInfo {
+    let result = raw::checkbox(state, spec, input, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    CheckboxInfo {
+        layout: result.layout,
+        input: result.input,
+        state: result.state,
+        focused: result.focused,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::checkbox as checkbox_raw;
 
 #[cfg(test)]
 mod tests {

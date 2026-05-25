@@ -4,8 +4,397 @@ use crate::{
     input::{Input, TextEvent},
     text::{FontId, TextSystem},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level text edit widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn text_edit<T: TextSystem>(
+        mut state: TextEditState,
+        spec: TextEditSpec,
+        input: &Input,
+        time: f64,
+        text_system: &mut T,
+        focus_sys: &mut FocusSystem,
+    ) -> TextEditResult {
+        let mut draw = DrawCommands::new();
+
+        let mut clipboard_action = None;
+
+        // Disabled: draw at reduced alpha, no interaction.
+        if spec.disabled {
+            let alpha = 0.55_f32;
+            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+            // Transparent bg per mockup, just border.
+            if spec.style.border_width > 0.0 {
+                draw.push(DrawCmd::StrokeRect {
+                    rect: spec.rect,
+                    color: tint(spec.style.border),
+                    width: spec.style.border_width,
+                });
+            }
+            let inset = spec.style.border_width + spec.style.padding;
+            let content_rect = spec.rect.inset(inset);
+            if !state.value.is_empty() {
+                let layout = text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
+                let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
+                draw.push(DrawCmd::Text {
+                    rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
+                    color: tint(spec.style.text_color),
+                    handle: layout.handle,
+                });
+            }
+            return TextEditResult {
+                draw,
+                layout: LayoutInfo::new(spec.rect, content_rect),
+                state,
+                clipboard_action: None,
+            };
+        }
+
+        let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
+        let just_focused = focused && !state.was_focused;
+
+        let old_caret = state.caret_byte;
+        let old_selection = state.selection_byte;
+
+        // Hit test mouse
+        let is_visible = spec
+            .clip_rect
+            .map_or(true, |clip| clip.contains(input.mouse_pos));
+        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+
+        if just_focused {
+            if !(contains && input.mouse_pressed) {
+                state.selection_byte = Some(0);
+                state.caret_byte = state.value.len();
+            }
+        }
+
+        // Process keyboard events if focused
+        if focused {
+            for ev in &input.text_events {
+                match ev {
+                    TextEvent::Char(c) => {
+                        if !c.is_control() {
+                            state.remove_selection();
+                            state.value.insert(state.caret_byte, *c);
+                            state.caret_byte += c.len_utf8();
+                        }
+                    }
+                    TextEvent::Backspace { ctrl } => {
+                        if state.selection_byte.is_some() {
+                            state.remove_selection();
+                        } else if *ctrl {
+                            let prev = find_word_boundary(&state.value, state.caret_byte, false);
+                            state.value.replace_range(prev..state.caret_byte, "");
+                            state.caret_byte = prev;
+                        } else if state.caret_byte > 0 {
+                            // Find previous char boundary
+                            let mut prev = state.caret_byte - 1;
+                            while prev > 0 && !state.value.is_char_boundary(prev) {
+                                prev -= 1;
+                            }
+                            state.value.remove(prev);
+                            state.caret_byte = prev;
+                        }
+                    }
+                    TextEvent::Delete { ctrl } => {
+                        if state.selection_byte.is_some() {
+                            state.remove_selection();
+                        } else if *ctrl {
+                            let next = find_word_boundary(&state.value, state.caret_byte, true);
+                            state.value.replace_range(state.caret_byte..next, "");
+                        } else if state.caret_byte < state.value.len() {
+                            state.value.remove(state.caret_byte);
+                        }
+                    }
+                    TextEvent::CaretLeft { shift, ctrl } => {
+                        if *shift {
+                            if state.selection_byte.is_none() {
+                                state.selection_byte = Some(state.caret_byte);
+                            }
+                        } else {
+                            state.selection_byte = None;
+                        }
+
+                        if *ctrl {
+                            state.caret_byte =
+                                find_word_boundary(&state.value, state.caret_byte, false);
+                        } else if state.caret_byte > 0 {
+                            let mut prev = state.caret_byte - 1;
+                            while prev > 0 && !state.value.is_char_boundary(prev) {
+                                prev -= 1;
+                            }
+                            state.caret_byte = prev;
+                        }
+                    }
+                    TextEvent::CaretRight { shift, ctrl } => {
+                        if *shift {
+                            if state.selection_byte.is_none() {
+                                state.selection_byte = Some(state.caret_byte);
+                            }
+                        } else {
+                            state.selection_byte = None;
+                        }
+
+                        if *ctrl {
+                            state.caret_byte = find_word_boundary(&state.value, state.caret_byte, true);
+                        } else if state.caret_byte < state.value.len() {
+                            let mut next = state.caret_byte + 1;
+                            while next < state.value.len() && !state.value.is_char_boundary(next) {
+                                next += 1;
+                            }
+                            state.caret_byte = next;
+                        }
+                    }
+                    TextEvent::CaretHome { shift } => {
+                        if *shift && state.selection_byte.is_none() {
+                            state.selection_byte = Some(state.caret_byte);
+                        } else if !*shift {
+                            state.selection_byte = None;
+                        }
+                        state.caret_byte = 0;
+                    }
+                    TextEvent::CaretEnd { shift } => {
+                        if *shift && state.selection_byte.is_none() {
+                            state.selection_byte = Some(state.caret_byte);
+                        } else if !*shift {
+                            state.selection_byte = None;
+                        }
+                        state.caret_byte = state.value.len();
+                    }
+                    TextEvent::SelectAll => {
+                        state.selection_byte = Some(0);
+                        state.caret_byte = state.value.len();
+                    }
+                    TextEvent::Copy => {
+                        if let Some(sel) = state.selection_byte {
+                            let start = state.caret_byte.min(sel);
+                            let end = state.caret_byte.max(sel);
+                            if start < end {
+                                clipboard_action =
+                                    Some(ClipboardAction::Copy(state.value[start..end].to_string()));
+                            }
+                        }
+                    }
+                    TextEvent::Cut => {
+                        if let Some(sel) = state.selection_byte {
+                            let start = state.caret_byte.min(sel);
+                            let end = state.caret_byte.max(sel);
+                            if start < end {
+                                clipboard_action =
+                                    Some(ClipboardAction::Cut(state.value[start..end].to_string()));
+                                state.remove_selection();
+                            }
+                        }
+                    }
+                    TextEvent::Paste(text) => {
+                        state.remove_selection();
+                        state.value.insert_str(state.caret_byte, &text);
+                        state.caret_byte += text.len();
+                    }
+                }
+            }
+        }
+
+        // Safety checks
+        if state.caret_byte > state.value.len() {
+            state.caret_byte = state.value.len();
+        }
+        if !state.value.is_char_boundary(state.caret_byte) {
+            state.caret_byte = 0; // fallback
+        }
+
+        // Prepare text to get layout handle
+        let text_content = if state.value.is_empty() {
+            " "
+        } else {
+            &state.value
+        };
+        let layout = text_system.prepare(text_content, spec.style.text_size, spec.style.font);
+        let handle = layout.handle;
+
+        let inset = spec.style.border_width + spec.style.padding;
+        let mut content_rect = spec.rect.inset(inset);
+        if spec.error {
+            // shift content right to clear the 4px error stripe
+            content_rect.x += 4.0;
+            content_rect.w -= 4.0;
+        }
+        let text_y = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
+
+        // Mouse interaction
+        if contains && input.mouse_pressed {
+            focus_sys.take_focus(state.focus_id);
+
+            let relative_x = input.mouse_pos.x - content_rect.x;
+            let clicked_byte = text_system.hit_test_x(handle, relative_x);
+            let clicked_byte = clicked_byte.min(state.value.len());
+
+            // Handling double/triple clicks
+            if input.mouse_click_count == 2 {
+                let (start, end) = word_bounds(&state.value, clicked_byte);
+                state.selection_byte = Some(start);
+                state.caret_byte = end;
+                state.is_dragging = true;
+                state.drag_word_origin = Some((start, end));
+            } else if input.mouse_click_count >= 3 {
+                // Select line
+                state.selection_byte = Some(0);
+                state.caret_byte = state.value.len();
+            } else {
+                state.caret_byte = clicked_byte;
+                state.selection_byte = None;
+                state.is_dragging = true;
+                state.drag_word_origin = None;
+            }
+        }
+
+        if state.is_dragging {
+            if input.mouse_down {
+                let relative_x = input.mouse_pos.x - content_rect.x;
+                let current_byte = text_system.hit_test_x(handle, relative_x);
+                let current_byte = current_byte.min(state.value.len());
+
+                if let Some((orig_start, orig_end)) = state.drag_word_origin {
+                    let (cur_start, cur_end) = word_bounds(&state.value, current_byte);
+                    if current_byte < orig_start {
+                        state.selection_byte = Some(orig_end);
+                        state.caret_byte = cur_start;
+                    } else {
+                        state.selection_byte = Some(orig_start);
+                        state.caret_byte = cur_end;
+                    }
+                } else {
+                    if state.selection_byte.is_none() && current_byte != state.caret_byte {
+                        state.selection_byte = Some(state.caret_byte);
+                    }
+                    state.caret_byte = current_byte;
+                }
+            } else {
+                state.is_dragging = false;
+                state.drag_word_origin = None;
+            }
+        }
+
+        if state.caret_byte != old_caret || state.selection_byte != old_selection {
+            state.last_caret_move_time = time;
+        }
+
+        // Drawing Background
+        let bg_color = if spec.error {
+            Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0) // rust_soft
+        } else {
+            spec.style.background
+        };
+        draw.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: bg_color,
+        });
+
+        // Error: 4px rust left stripe
+        if spec.error {
+            let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
+            draw.push(DrawCmd::FillRect {
+                rect: stripe,
+                color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+            });
+        }
+
+        // Border
+        if spec.style.border_width > 0.0 {
+            let b_color = if spec.error {
+                Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) // rust
+            } else if focused {
+                spec.style.focus_border
+            } else {
+                spec.style.border
+            };
+            draw.push(DrawCmd::StrokeRect {
+                rect: spec.rect,
+                color: b_color,
+                width: spec.style.border_width,
+            });
+        }
+
+        // Selection
+        if focused {
+            if let Some(sel) = state.selection_byte {
+                if sel != state.caret_byte {
+                    let start = sel.min(state.caret_byte);
+                    let end = sel.max(state.caret_byte);
+
+                    let start_x = text_system.measure_byte_x(handle, start);
+                    let end_x = text_system.measure_byte_x(handle, end);
+
+                    let sel_rect = Rect::new(
+                        content_rect.x + start_x,
+                        content_rect.y,
+                        end_x - start_x,
+                        content_rect.h,
+                    );
+
+                    draw.push(DrawCmd::FillRect {
+                        rect: sel_rect,
+                        color: spec.style.select_color,
+                    });
+                }
+            }
+        }
+
+        // Text
+        if !state.value.is_empty() {
+            draw.push(DrawCmd::Text {
+                rect: Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
+                color: spec.style.text_color,
+                handle,
+            });
+        }
+
+        // Caret
+        if focused && state.selection_byte.map_or(true, |s| s == state.caret_byte) {
+            let time_since_move = time - state.last_caret_move_time;
+            // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
+            let blink_on = if time_since_move < 0.5 {
+                true
+            } else {
+                time_since_move.fract() < 0.5
+            };
+
+            if blink_on {
+                let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
+                let caret_rect = Rect::new(
+                    content_rect.x + cursor_x,
+                    content_rect.y + 2.0,
+                    1.0,
+                    content_rect.h - 4.0,
+                );
+                draw.push(DrawCmd::FillRect {
+                    rect: caret_rect,
+                    color: spec.style.caret_color,
+                });
+            }
+        }
+
+        // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
+        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+
+        state.was_focused = focused || (contains && input.mouse_pressed);
+
+        TextEditResult {
+            draw,
+            layout: LayoutInfo::new(spec.rect, content_rect),
+            state,
+            clipboard_action,
+        }
+    }
+}
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
@@ -119,10 +508,8 @@ pub struct TextEditInfo {
     pub state: TextEditState,
 }
 
-impl WidgetResult for TextEditResult {
-    type Info = TextEditInfo;
-
-    fn into_parts(self) -> (DrawCommands, TextEditInfo) {
+impl TextEditResult {
+    pub fn into_parts(self) -> (DrawCommands, TextEditInfo) {
         (
             self.draw,
             TextEditInfo {
@@ -242,388 +629,31 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
     (left, text.len())
 }
 
-// ── Widget function ───────────────────────────────────────────────────────────
+// ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn text_edit<T: TextSystem>(
-    mut state: TextEditState,
+/// High-level text edit widget function using WidgetContext.
+///
+/// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
+pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    state: TextEditState,
     spec: TextEditSpec,
     input: &Input,
     time: f64,
-    text_system: &mut T,
-    focus_sys: &mut FocusSystem,
-) -> TextEditResult {
-    let mut draw = DrawCommands::new();
-
-    let mut clipboard_action = None;
-
-    // Disabled: draw at reduced alpha, no interaction.
-    if spec.disabled {
-        let alpha = 0.55_f32;
-        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-        // Transparent bg per mockup, just border.
-        if spec.style.border_width > 0.0 {
-            draw.push(DrawCmd::StrokeRect {
-                rect: spec.rect,
-                color: tint(spec.style.border),
-                width: spec.style.border_width,
-            });
-        }
-        let inset = spec.style.border_width + spec.style.padding;
-        let content_rect = spec.rect.inset(inset);
-        if !state.value.is_empty() {
-            let layout = text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
-            let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
-            draw.push(DrawCmd::Text {
-                rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
-                color: tint(spec.style.text_color),
-                handle: layout.handle,
-            });
-        }
-        return TextEditResult {
-            draw,
-            layout: LayoutInfo::new(spec.rect, content_rect),
-            state,
-            clipboard_action: None,
-        };
-    }
-
-    let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
-    let just_focused = focused && !state.was_focused;
-
-    let old_caret = state.caret_byte;
-    let old_selection = state.selection_byte;
-
-    // Hit test mouse
-    let is_visible = spec
-        .clip_rect
-        .map_or(true, |clip| clip.contains(input.mouse_pos));
-    let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-
-    if just_focused {
-        if !(contains && input.mouse_pressed) {
-            state.selection_byte = Some(0);
-            state.caret_byte = state.value.len();
-        }
-    }
-
-    // Process keyboard events if focused
-    if focused {
-        for ev in &input.text_events {
-            match ev {
-                TextEvent::Char(c) => {
-                    if !c.is_control() {
-                        state.remove_selection();
-                        state.value.insert(state.caret_byte, *c);
-                        state.caret_byte += c.len_utf8();
-                    }
-                }
-                TextEvent::Backspace { ctrl } => {
-                    if state.selection_byte.is_some() {
-                        state.remove_selection();
-                    } else if *ctrl {
-                        let prev = find_word_boundary(&state.value, state.caret_byte, false);
-                        state.value.replace_range(prev..state.caret_byte, "");
-                        state.caret_byte = prev;
-                    } else if state.caret_byte > 0 {
-                        // Find previous char boundary
-                        let mut prev = state.caret_byte - 1;
-                        while prev > 0 && !state.value.is_char_boundary(prev) {
-                            prev -= 1;
-                        }
-                        state.value.remove(prev);
-                        state.caret_byte = prev;
-                    }
-                }
-                TextEvent::Delete { ctrl } => {
-                    if state.selection_byte.is_some() {
-                        state.remove_selection();
-                    } else if *ctrl {
-                        let next = find_word_boundary(&state.value, state.caret_byte, true);
-                        state.value.replace_range(state.caret_byte..next, "");
-                    } else if state.caret_byte < state.value.len() {
-                        state.value.remove(state.caret_byte);
-                    }
-                }
-                TextEvent::CaretLeft { shift, ctrl } => {
-                    if *shift {
-                        if state.selection_byte.is_none() {
-                            state.selection_byte = Some(state.caret_byte);
-                        }
-                    } else {
-                        state.selection_byte = None;
-                    }
-
-                    if *ctrl {
-                        state.caret_byte =
-                            find_word_boundary(&state.value, state.caret_byte, false);
-                    } else if state.caret_byte > 0 {
-                        let mut prev = state.caret_byte - 1;
-                        while prev > 0 && !state.value.is_char_boundary(prev) {
-                            prev -= 1;
-                        }
-                        state.caret_byte = prev;
-                    }
-                }
-                TextEvent::CaretRight { shift, ctrl } => {
-                    if *shift {
-                        if state.selection_byte.is_none() {
-                            state.selection_byte = Some(state.caret_byte);
-                        }
-                    } else {
-                        state.selection_byte = None;
-                    }
-
-                    if *ctrl {
-                        state.caret_byte = find_word_boundary(&state.value, state.caret_byte, true);
-                    } else if state.caret_byte < state.value.len() {
-                        let mut next = state.caret_byte + 1;
-                        while next < state.value.len() && !state.value.is_char_boundary(next) {
-                            next += 1;
-                        }
-                        state.caret_byte = next;
-                    }
-                }
-                TextEvent::CaretHome { shift } => {
-                    if *shift && state.selection_byte.is_none() {
-                        state.selection_byte = Some(state.caret_byte);
-                    } else if !*shift {
-                        state.selection_byte = None;
-                    }
-                    state.caret_byte = 0;
-                }
-                TextEvent::CaretEnd { shift } => {
-                    if *shift && state.selection_byte.is_none() {
-                        state.selection_byte = Some(state.caret_byte);
-                    } else if !*shift {
-                        state.selection_byte = None;
-                    }
-                    state.caret_byte = state.value.len();
-                }
-                TextEvent::SelectAll => {
-                    state.selection_byte = Some(0);
-                    state.caret_byte = state.value.len();
-                }
-                TextEvent::Copy => {
-                    if let Some(sel) = state.selection_byte {
-                        let start = state.caret_byte.min(sel);
-                        let end = state.caret_byte.max(sel);
-                        if start < end {
-                            clipboard_action =
-                                Some(ClipboardAction::Copy(state.value[start..end].to_string()));
-                        }
-                    }
-                }
-                TextEvent::Cut => {
-                    if let Some(sel) = state.selection_byte {
-                        let start = state.caret_byte.min(sel);
-                        let end = state.caret_byte.max(sel);
-                        if start < end {
-                            clipboard_action =
-                                Some(ClipboardAction::Cut(state.value[start..end].to_string()));
-                            state.remove_selection();
-                        }
-                    }
-                }
-                TextEvent::Paste(text) => {
-                    state.remove_selection();
-                    state.value.insert_str(state.caret_byte, &text);
-                    state.caret_byte += text.len();
-                }
-            }
-        }
-    }
-
-    // Safety checks
-    if state.caret_byte > state.value.len() {
-        state.caret_byte = state.value.len();
-    }
-    if !state.value.is_char_boundary(state.caret_byte) {
-        state.caret_byte = 0; // fallback
-    }
-
-    // Prepare text to get layout handle
-    let text_content = if state.value.is_empty() {
-        " "
-    } else {
-        &state.value
-    };
-    let layout = text_system.prepare(text_content, spec.style.text_size, spec.style.font);
-    let handle = layout.handle;
-
-    let inset = spec.style.border_width + spec.style.padding;
-    let mut content_rect = spec.rect.inset(inset);
-    if spec.error {
-        // shift content right to clear the 4px error stripe
-        content_rect.x += 4.0;
-        content_rect.w -= 4.0;
-    }
-    let text_y = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
-
-    // Mouse interaction
-    if contains && input.mouse_pressed {
-        focus_sys.take_focus(state.focus_id);
-
-        let relative_x = input.mouse_pos.x - content_rect.x;
-        let clicked_byte = text_system.hit_test_x(handle, relative_x);
-        let clicked_byte = clicked_byte.min(state.value.len());
-
-        // Handling double/triple clicks
-        if input.mouse_click_count == 2 {
-            let (start, end) = word_bounds(&state.value, clicked_byte);
-            state.selection_byte = Some(start);
-            state.caret_byte = end;
-            state.is_dragging = true;
-            state.drag_word_origin = Some((start, end));
-        } else if input.mouse_click_count >= 3 {
-            // Select line
-            state.selection_byte = Some(0);
-            state.caret_byte = state.value.len();
-        } else {
-            state.caret_byte = clicked_byte;
-            state.selection_byte = None;
-            state.is_dragging = true;
-            state.drag_word_origin = None;
-        }
-    }
-
-    if state.is_dragging {
-        if input.mouse_down {
-            let relative_x = input.mouse_pos.x - content_rect.x;
-            let current_byte = text_system.hit_test_x(handle, relative_x);
-            let current_byte = current_byte.min(state.value.len());
-
-            if let Some((orig_start, orig_end)) = state.drag_word_origin {
-                let (cur_start, cur_end) = word_bounds(&state.value, current_byte);
-                if current_byte < orig_start {
-                    state.selection_byte = Some(orig_end);
-                    state.caret_byte = cur_start;
-                } else {
-                    state.selection_byte = Some(orig_start);
-                    state.caret_byte = cur_end;
-                }
-            } else {
-                if state.selection_byte.is_none() && current_byte != state.caret_byte {
-                    state.selection_byte = Some(state.caret_byte);
-                }
-                state.caret_byte = current_byte;
-            }
-        } else {
-            state.is_dragging = false;
-            state.drag_word_origin = None;
-        }
-    }
-
-    if state.caret_byte != old_caret || state.selection_byte != old_selection {
-        state.last_caret_move_time = time;
-    }
-
-    // Drawing Background
-    let bg_color = if spec.error {
-        Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0) // rust_soft
-    } else {
-        spec.style.background
-    };
-    draw.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: bg_color,
-    });
-
-    // Error: 4px rust left stripe
-    if spec.error {
-        let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
-        draw.push(DrawCmd::FillRect {
-            rect: stripe,
-            color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
-        });
-    }
-
-    // Border
-    if spec.style.border_width > 0.0 {
-        let b_color = if spec.error {
-            Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) // rust
-        } else if focused {
-            spec.style.focus_border
-        } else {
-            spec.style.border
-        };
-        draw.push(DrawCmd::StrokeRect {
-            rect: spec.rect,
-            color: b_color,
-            width: spec.style.border_width,
-        });
-    }
-
-    // Selection
-    if focused {
-        if let Some(sel) = state.selection_byte {
-            if sel != state.caret_byte {
-                let start = sel.min(state.caret_byte);
-                let end = sel.max(state.caret_byte);
-
-                let start_x = text_system.measure_byte_x(handle, start);
-                let end_x = text_system.measure_byte_x(handle, end);
-
-                let sel_rect = Rect::new(
-                    content_rect.x + start_x,
-                    content_rect.y,
-                    end_x - start_x,
-                    content_rect.h,
-                );
-
-                draw.push(DrawCmd::FillRect {
-                    rect: sel_rect,
-                    color: spec.style.select_color,
-                });
-            }
-        }
-    }
-
-    // Text
-    if !state.value.is_empty() {
-        draw.push(DrawCmd::Text {
-            rect: Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
-            color: spec.style.text_color,
-            handle,
-        });
-    }
-
-    // Caret
-    if focused && state.selection_byte.map_or(true, |s| s == state.caret_byte) {
-        let time_since_move = time - state.last_caret_move_time;
-        // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
-        let blink_on = if time_since_move < 0.5 {
-            true
-        } else {
-            time_since_move.fract() < 0.5
-        };
-
-        if blink_on {
-            let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
-            let caret_rect = Rect::new(
-                content_rect.x + cursor_x,
-                content_rect.y + 2.0,
-                1.0,
-                content_rect.h - 4.0,
-            );
-            draw.push(DrawCmd::FillRect {
-                rect: caret_rect,
-                color: spec.style.caret_color,
-            });
-        }
-    }
-
-    // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
-    focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
-
-    state.was_focused = focused || (contains && input.mouse_pressed);
-
-    TextEditResult {
-        draw,
-        layout: LayoutInfo::new(spec.rect, content_rect),
-        state,
-        clipboard_action,
+) -> TextEditInfo {
+    let result = raw::text_edit(state, spec, input, time, ctx.text_system, ctx.focus_sys);
+    
+    ctx.append_cmds(result.draw.0);
+    
+    TextEditInfo {
+        layout: result.layout,
+        clipboard_action: result.clipboard_action,
+        state: result.state,
     }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::text_edit as text_edit_raw;
 
 #[cfg(test)]
 mod tests {
@@ -655,7 +685,7 @@ mod tests {
         input.text_events.push(TextEvent::Char('b'));
         input.text_events.push(TextEvent::Char('c'));
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "abc");
         assert_eq!(state.caret_byte, 3);
@@ -666,14 +696,14 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.caret_byte, 2);
 
         // Insert at cursor
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('x'));
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "abxc");
         assert_eq!(state.caret_byte, 3);
@@ -692,14 +722,14 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: false });
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "helo");
         assert_eq!(state.caret_byte, 2);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: false });
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
@@ -718,14 +748,14 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: true });
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "hello rld");
         assert_eq!(state.caret_byte, 6); // end of "hello "
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: true });
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "hello ");
         assert_eq!(state.caret_byte, 6);
@@ -751,14 +781,14 @@ mod tests {
             ctrl: false,
         });
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(1));
         assert_eq!(state.caret_byte, 3);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.value, "halo");
         assert_eq!(state.caret_byte, 2);
@@ -779,7 +809,7 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
@@ -787,13 +817,13 @@ mod tests {
 
         input.mouse_pressed = false;
         input.mouse_pos.x += 24.0;
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
 
         input.mouse_down = false;
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         assert!(!state.is_dragging);
         assert_eq!(state.selection_byte, Some(5));
@@ -816,7 +846,7 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
 
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         // Selection should be "rust" (6 to 10)
         assert_eq!(state.selection_byte, Some(6));
@@ -827,7 +857,7 @@ mod tests {
         // Now drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
         input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
@@ -835,7 +865,7 @@ mod tests {
 
         // Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
         state = res.state;
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
@@ -1079,7 +1109,7 @@ mod tests {
         let mut focus_sys = FocusSystem::new();
         let state = TextEditState::new("hello");
         let input = Input::default();
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
         assert_eq!(
             res.draw,
@@ -1114,7 +1144,7 @@ mod tests {
         state.was_focused = true; // ensure state knows
 
         let input = Input::default();
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
         assert_eq!(
             res.draw,
@@ -1155,7 +1185,7 @@ mod tests {
         state.caret_byte = 5;
 
         let input = Input::default();
-        let res = text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
 
         assert_eq!(
             res.draw,

@@ -2,8 +2,59 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetResult},
+    widget::{LayoutInfo, WidgetContext},
 };
+
+pub mod raw {
+    use super::*;
+
+    /// Low-level keycap widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a, T>) -> KeycapResult {
+        let mut draw = DrawCommands::new();
+
+        // Background + border
+        draw.push(DrawCmd::FillRect {
+            rect: spec.rect,
+            color: spec.bg,
+        });
+        draw.push(DrawCmd::StrokeRect {
+            rect: spec.rect,
+            color: spec.border,
+            width: 1.0,
+        });
+        // Bottom shadow line
+        let shadow_rect = Rect::new(
+            spec.rect.x + 1.0,
+            spec.rect.y + spec.rect.h,
+            spec.rect.w - 1.0,
+            2.0,
+        );
+        draw.push(DrawCmd::FillRect {
+            rect: shadow_rect,
+            color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
+        });
+
+        // Label, centered
+        if !spec.label.is_empty() {
+            let layout = spec.ts.prepare(spec.label, spec.text_size, spec.font);
+            let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
+            let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
+            draw.push(DrawCmd::Text {
+                rect: Rect::new(tx, ty, layout.size.x, layout.size.y),
+                color: spec.text_color,
+                handle: layout.handle,
+            });
+        }
+
+        KeycapResult {
+            draw,
+            layout: LayoutInfo::tight(spec.rect),
+        }
+    }
+}
 
 pub struct KeycapSpec<'a, T: crate::text::TextSystem> {
     pub ts: &'a mut T,
@@ -28,9 +79,8 @@ pub struct KeycapInfo {
     pub layout: LayoutInfo,
 }
 
-impl WidgetResult for KeycapResult {
-    type Info = KeycapInfo;
-    fn into_parts(self) -> (DrawCommands, KeycapInfo) {
+impl KeycapResult {
+    pub fn into_parts(self) -> (DrawCommands, KeycapInfo) {
         (
             self.draw,
             KeycapInfo {
@@ -40,48 +90,22 @@ impl WidgetResult for KeycapResult {
     }
 }
 
-pub fn keycap<'a, T: crate::text::TextSystem>(spec: KeycapSpec<'a, T>) -> KeycapResult {
-    let mut draw = DrawCommands::new();
+// ── High-level widget function ───────────────────────────────────────────────────
 
-    // Background + border
-    draw.push(DrawCmd::FillRect {
-        rect: spec.rect,
-        color: spec.bg,
-    });
-    draw.push(DrawCmd::StrokeRect {
-        rect: spec.rect,
-        color: spec.border,
-        width: 1.0,
-    });
-    // Bottom shadow line
-    let shadow_rect = Rect::new(
-        spec.rect.x + 1.0,
-        spec.rect.y + spec.rect.h,
-        spec.rect.w - 1.0,
-        2.0,
-    );
-    draw.push(DrawCmd::FillRect {
-        rect: shadow_rect,
-        color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
-    });
-
-    // Label, centered
-    if !spec.label.is_empty() {
-        let layout = spec.ts.prepare(spec.label, spec.text_size, spec.font);
-        let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
-        let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
-        draw.push(DrawCmd::Text {
-            rect: Rect::new(tx, ty, layout.size.x, layout.size.y),
-            color: spec.text_color,
-            handle: layout.handle,
-        });
-    }
-
-    KeycapResult {
-        draw,
-        layout: LayoutInfo::tight(spec.rect),
-    }
+/// High-level keycap widget function using WidgetContext.
+///
+/// This function accepts a KeycapSpec and calls the low-level raw::keycap function.
+pub fn keycap<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
+    ctx: &mut WidgetContext<T, S>,
+    spec: KeycapSpec<'_, T>,
+) -> KeycapInfo {
+    let result = raw::keycap(spec);
+    ctx.append_cmds(result.draw.0);
+    KeycapInfo { layout: result.layout }
 }
+
+// ── Re-export raw function for direct use ───────────────────────────────────────────
+pub use raw::keycap as keycap_raw;
 
 pub struct KeycapSpecBuilder<'a, T: crate::text::TextSystem> {
     pub label: Option<&'a str>,
@@ -134,33 +158,25 @@ impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
     }
 }
 
-impl<'a, T: crate::text::TextSystem> crate::widget::WidgetSpecBuilder<'a, T>
-    for KeycapSpecBuilder<'a, T>
-{
-    type Spec = KeycapSpec<'a, T>;
-
-    fn with_rect(mut self, rect: Rect) -> Self {
+impl<'a, T: crate::text::TextSystem> KeycapSpecBuilder<'a, T> {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    fn with_style(self) -> Self {
-        self
-    }
-
-    fn with_theme(mut self, theme: &crate::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
         }
         self
     }
 
-    fn with_text_system(mut self, ts: &'a mut T) -> Self {
+    pub fn with_text_system(mut self, ts: &'a mut T) -> Self {
         self.ts = Some(ts);
         self
     }
 
-    fn build(self) -> Self::Spec {
+    pub fn build(self) -> KeycapSpec<'a, T> {
         KeycapSpec {
             ts: self.ts.expect("TextSystem is required"),
             rect: self.rect.unwrap_or_default(),
