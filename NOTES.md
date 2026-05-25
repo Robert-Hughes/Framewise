@@ -5,6 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Add "reset" button to spec page, to reset all state
+* Indicate which widgets have deliberately fake state (no input/focus), so user doesn't get confused.
+
 ## Things Still to Figure Out
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual
@@ -18,6 +21,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - **`LayoutInfo` bounds redundancy** — is there any point in `LayoutInfo` returning the
   overall bounds, given that's always passed in directly when calling a widget function?
+* Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
 
 - **Off-screen draw cost** — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
@@ -30,32 +34,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
   glyph atlas cache miss, that might be awkward to figure out in profiling. Will see how
   this plays out in practice.
 
-* How do custom widgets (i.e. functions) get used in a builder? See builder::custom() and builder::add()
 * Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
 * Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc
-* Tried something with WidgetSpec and WidgetSpecBuilder - is this good? Apply to all widget kinds? Move this trait to the builder-level, as is only relevant for that?
-* Is the "optional" text-system a good design feature - it does does create some awkwardness?
 * WidgetSpecBuilders should ideally get required fields up-front, so can't panic later on missing values? What about TextSystem etc. though, they're only added later by the builder? Maybe we need a "outside-builder"-only spec struct?
 
 * Should widgets be returning a LayoutInfo with their bounds, when this is one of the thigns that we always(?) pass in? i.e. just copied out.
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
-
-//TODO: should the spec traits actually be part of the builder API, as that's the only thing that actually requires a consistent shape.
-Also having themes here might be inconsistent as they're supposed to be a high level concept!
-
-* The most elegant, industry-standard pattern for custom widgets in immediate-mode architectures is "Builder Referencing": defining custom widgets as standalone functions that take &mut Builder directly:
-rust
-
-
-pub fn my_custom_widget(
-    ui: &mut Builder<'_, impl TextSystem, impl LayoutState>,
-    state: &mut MyWidgetState,
-    layout_params: impl LayoutParams,
-    input: &Input,
-) -> MyWidgetInfo { ... }
-
-
-* Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
 
 - **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
 

@@ -12,7 +12,7 @@ use framewise::{
     widgets::{
         button::{button, ButtonSpec, ButtonState, ButtonStyle},
         checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec},
-        chip::{chip, ChipState, ChipSpec},
+        chip::{ChipState},
         color_swatch::color_swatch,
         drag_number::{drag_number, DragNumberState, DragNumberSpec},
         frame::FrameSpec,
@@ -23,13 +23,13 @@ use framewise::{
         progress_bar::progress_bar,
         radio::{radio, RadioState, RadioSpec},
         scroll_area::{ScrollState, ScrollbarVisibility},
-        segmented::{segmented, SegmentedState, SegmentedSpec},
-        select::{select, SelectSpec},
+        segmented::{SegmentedState},
+        select::{select, SelectSpec, SelectState},
         slider::{Orientation as SliderOrientation, SliderState},
         spinner::spinner,
         status::{status, StatusVariant},
         switch::{switch, SwitchState, SwitchSpec},
-        tabs::{tabs, TabsState, TabsSpec},
+        tabs::{TabsState},
         text_edit::TextEditState,
         tooltip::{tooltip, TooltipVariant},
         tree::{tree, TreeRow},
@@ -140,42 +140,6 @@ fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
     b.append_cmds(result.draw.0);
 }
 
-fn draw_chip_fake_state<'a, T: TextSystem, S: LayoutState>(
-    b: &mut Builder<'a, T, S>,
-    layout_params: S::Params,
-    label: &'a str,
-    is_active: bool,
-    is_focused: bool,
-) {
-    let rect = b.layout_state.layout(layout_params);
-    let mut state = ChipState::default();
-    state.active = is_active;
-
-    let mut dummy_focus_sys = FocusSystem::new();
-    if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
-    }
-
-    let dummy_input = Input::default();
-    let spec = ChipSpec {
-        ts: b.text_system,
-        rect,
-        label,
-        font: b.ctx.text_font,
-        disabled: false,
-        style: b.ctx.theme.chip_style(),
-        clip_rect: b.ctx.clip_rect,
-    };
-
-    let result = chip(
-        state,
-        spec,
-        &dummy_input,
-        &mut dummy_focus_sys,
-    );
-    b.append_cmds(result.draw.0);
-}
-
 fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
     b: &mut Builder<'a, T, S>,
     layout_params: S::Params,
@@ -209,80 +173,6 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
     };
 
     let result = select(
-        state,
-        spec,
-        &dummy_input,
-        &mut dummy_focus_sys,
-    );
-    b.append_cmds(result.draw.0);
-}
-
-fn draw_segmented_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
-    b: &mut Builder<'a, T, S>,
-    layout_params: S::Params,
-    items: &'s [&'s str],
-    active_index: usize,
-    is_focused: bool,
-) {
-    let rect = b.layout_state.layout(layout_params);
-    let mut state = SegmentedState::default();
-    state.active_index = active_index;
-
-    let mut dummy_focus_sys = FocusSystem::new();
-    if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
-    }
-
-    let dummy_input = Input::default();
-    let spec = SegmentedSpec {
-        ts: b.text_system,
-        rect,
-        items,
-        font: b.ctx.theme.sans_font,
-        active_index,
-        disabled: false,
-        style: b.ctx.theme.segmented_style(),
-        clip_rect: b.ctx.clip_rect,
-    };
-
-    let result = segmented(
-        state,
-        spec,
-        &dummy_input,
-        &mut dummy_focus_sys,
-    );
-    b.append_cmds(result.draw.0);
-}
-
-fn draw_tabs_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
-    b: &mut Builder<'a, T, S>,
-    layout_params: S::Params,
-    items: &'s [&'s str],
-    active_index: usize,
-    is_focused: bool,
-) {
-    let rect = b.layout_state.layout(layout_params);
-    let mut state = TabsState::default();
-    state.active_index = active_index;
-
-    let mut dummy_focus_sys = FocusSystem::new();
-    if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
-    }
-
-    let dummy_input = Input::default();
-    let spec = TabsSpec {
-        ts: b.text_system,
-        rect,
-        items,
-        font: b.ctx.theme.sans_font,
-        active_index,
-        disabled: false,
-        style: b.ctx.theme.tabs_style(),
-        clip_rect: b.ctx.clip_rect,
-    };
-
-    let result = tabs(
         state,
         spec,
         &dummy_input,
@@ -391,6 +281,10 @@ pub struct SpecPageState {
     pub te_prefixed: TextEditState,
     pub te_multiline: TextEditState,
 
+    // 03 Radios & switches
+    pub radio_states: Vec<RadioState>,   // items 0,1,2 — item 3 (focused) stays fake
+    pub switch_states: Vec<SwitchState>, // items 0,1,3 — item 2 (focused) stays fake
+
     // 04 Sliders
     pub slider1_state: SliderState,
     pub slider1_val: f32,
@@ -401,6 +295,23 @@ pub struct SpecPageState {
     pub slider4_state: SliderState,
     pub slider4_val: f32, // stepped 0–9
 
+    // 04 Drag-number showcase
+    pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400) — W stays fake
+
+    // 05 Selection
+    pub sel_state: SelectState,
+    pub seg1_state: SegmentedState,
+    pub seg2_state: SegmentedState,
+    pub chip_states: Vec<ChipState>, // opengl, vulkan, metal, wgpu, + add backend
+
+    // 07 Tabs
+    pub tabs1_state: TabsState,
+    pub tabs2_state: TabsState,
+
+    // 11 Window chrome (Inspector inner content)
+    pub win11_drags: Vec<DragNumberState>, // X(320), Y(144), W(576), H(400)
+    pub win11_cbs: Vec<CheckboxState>,     // clip to parent (On), debug overlay (Off)
+
     // 06 Scroll areas
     pub scroll_vert: ScrollState,
     pub scroll_horiz: ScrollState,
@@ -408,6 +319,8 @@ pub struct SpecPageState {
     pub scroll_both_axes: ScrollState,
 
     // 12 In Use
+    pub iu_backend: SegmentedState,
+    pub iu_tabs: TabsState,
     pub iu_fps_slider: SliderState,
     pub iu_fps_val: f32,
     pub iu_btns: Vec<ButtonState>, // [Reset, Cancel, Apply]
@@ -462,10 +375,49 @@ impl Default for SpecPageState {
             slider3_val: 0.88,
             slider4_state: SliderState::default(),
             slider4_val: 3.0,
+            radio_states: vec![
+                RadioState { selected: true, ..Default::default() },
+                RadioState { selected: false, ..Default::default() },
+                RadioState { selected: false, ..Default::default() },
+            ],
+            switch_states: vec![
+                SwitchState { on: false, ..Default::default() },
+                SwitchState { on: true, ..Default::default() },
+                SwitchState { on: false, ..Default::default() }, // multisampling disabled
+            ],
+            dn_showcase: vec![
+                DragNumberState { value: 320.0, ..Default::default() },
+                DragNumberState { value: 144.0, ..Default::default() },
+                DragNumberState { value: 400.0, ..Default::default() },
+            ],
+            sel_state: SelectState::default(),
+            seg1_state: SegmentedState { active_index: 0, ..Default::default() },
+            seg2_state: SegmentedState { active_index: 1, ..Default::default() },
+            chip_states: vec![
+                ChipState { active: true, ..Default::default() },
+                ChipState { active: false, ..Default::default() },
+                ChipState { active: false, ..Default::default() },
+                ChipState { active: false, ..Default::default() },
+                ChipState { active: false, ..Default::default() },
+            ],
+            tabs1_state: TabsState { active_index: 0, ..Default::default() },
+            tabs2_state: TabsState { active_index: 1, ..Default::default() },
+            win11_drags: vec![
+                DragNumberState { value: 320.0, ..Default::default() },
+                DragNumberState { value: 144.0, ..Default::default() },
+                DragNumberState { value: 576.0, ..Default::default() },
+                DragNumberState { value: 400.0, ..Default::default() },
+            ],
+            win11_cbs: vec![
+                CheckboxState { check: CheckState::On, ..Default::default() },
+                CheckboxState { check: CheckState::Off, ..Default::default() },
+            ],
             scroll_vert: ScrollState::default(),
             scroll_horiz: ScrollState::default(),
             scroll_both: ScrollState::default(),
             scroll_both_axes: ScrollState::default(),
+            iu_backend: SegmentedState { active_index: 1, ..Default::default() },
+            iu_tabs: TabsState { active_index: 0, ..Default::default() },
             iu_fps_slider: SliderState::default(),
             iu_fps_val: 60.0,
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
@@ -1094,27 +1046,24 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "radio  ·  switch");
             y += 20.0;
             {
-                let radio_items: &[(bool, bool, bool, &str)] = &[
-                    (true, false, false, "immediate-mode"),
-                    (false, false, false, "retained-mode"),
-                    (false, false, false, "hybrid"),
-                    (false, true, false, "deferred"),
-                ];
-                let switch_items: &[(bool, bool, bool, &str)] = &[
-                    (false, false, false, "debug overlay"),
-                    (true, false, false, "show layout grid"),
-                    (true, true, false, "vsync"),
-                    (false, false, true, "multisampling"),
-                ];
-                for (i, (selected, focused, disabled, label)) in radio_items.iter().enumerate() {
+                let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
+                for (i, label) in radio_labels.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    draw_radio_fake_state(
-                        &mut b,
-                        Rect::new(lx, ry, 14.0, 14.0),
-                        *selected,
-                        *focused,
-                        *disabled,
-                    );
+                    if i < 3 {
+                        let info = b.radio(
+                            std::mem::take(&mut state.radio_states[i]),
+                            Rect::new(lx, ry, 14.0, 14.0),
+                            input,
+                        );
+                        state.radio_states[i] = info.state;
+                        if info.input.clicked {
+                            for j in 0..3 {
+                                state.radio_states[j].selected = j == i;
+                            }
+                        }
+                    } else {
+                        draw_radio_fake_state(&mut b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
+                    }
                     b.label_styled(
                         Rect::new(lx + 18.0, ry, 140.0, 14.0),
                         label,
@@ -1124,16 +1073,30 @@ pub fn draw_spec_page(
                     );
                 }
                 let sw_x = lx + 220.0;
-                for (i, (on, focused, disabled, label)) in switch_items.iter().enumerate() {
+                let switch_labels = ["debug overlay", "show layout grid", "vsync", "multisampling"];
+                for (i, label) in switch_labels.iter().enumerate() {
                     let ry = y + i as f32 * 22.0;
-                    draw_switch_fake_state(
-                        &mut b,
-                        Rect::new(sw_x, ry, 30.0, 16.0),
-                        *on,
-                        *focused,
-                        *disabled,
-                    );
-                    let label_color = if *disabled { t.muted } else { t.ink };
+                    let label_color = if i == 3 { t.muted } else { t.ink };
+                    match i {
+                        2 => draw_switch_fake_state(&mut b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false),
+                        3 => {
+                            let info = b.switch_styled(
+                                std::mem::take(&mut state.switch_states[2]),
+                                Rect::new(sw_x, ry, 30.0, 16.0),
+                                true,
+                                input,
+                            );
+                            state.switch_states[2] = info.state;
+                        }
+                        _ => {
+                            let info = b.switch(
+                                std::mem::take(&mut state.switch_states[i]),
+                                Rect::new(sw_x, ry, 30.0, 16.0),
+                                input,
+                            );
+                            state.switch_states[i] = info.state;
+                        }
+                    }
                     b.label_styled(
                         Rect::new(sw_x + 36.0, ry, 140.0, 16.0),
                         label,
@@ -1317,25 +1280,21 @@ pub fn draw_spec_page(
             group_y(&mut b, &t, lx, y, "drag-number (imgui-style)");
             y += 20.0;
             {
-                let drag_items: &[(&str, f32, f32, f32, bool)] = &[
-                    ("X", 320.0, 0.0, 800.0, false),
-                    ("Y", 144.0, 0.0, 600.0, false),
-                    ("W", 576.0, 0.0, 800.0, true),
-                    ("H", 400.0, 0.0, 600.0, false),
-                ];
                 let mut bx = lx;
-                for (label, val, min, max, active) in drag_items {
-                    draw_drag_number_fake_state(
-                        &mut b,
-                        Rect::new(bx, y, 100.0, t.h_md),
-                        label,
-                        *val,
-                        *min,
-                        *max,
-                        *active,
-                    );
-                    bx += 100.0 + 8.0;
-                }
+                // X — real
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[0]), "X", 0.0, 800.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                state.dn_showcase[0] = info.state;
+                bx += 100.0 + 8.0;
+                // Y — real
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[1]), "Y", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                state.dn_showcase[1] = info.state;
+                bx += 100.0 + 8.0;
+                // W — fake (forced active/dragging)
+                draw_drag_number_fake_state(&mut b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
+                bx += 100.0 + 8.0;
+                // H — real
+                let info = b.drag_number(std::mem::take(&mut state.dn_showcase[2]), "H", 0.0, 600.0, Rect::new(bx, y, 100.0, t.h_md), input);
+                state.dn_showcase[2] = info.state;
             }
             y += t.h_md + GROUP_GAP;
 
@@ -1472,22 +1431,19 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 // Select widgets
-                let opts = ["Layout: row", "Layout: column", "Layout: grid"];
-                draw_select_fake_state(
-                    &mut b,
+                const LAYOUT_OPTS: &[&str] = &["Layout: row", "Layout: column", "Layout: grid"];
+                let sel_info = b.select(
+                    std::mem::take(&mut state.sel_state),
+                    LAYOUT_OPTS,
                     Rect::new(lx, y, 160.0, t.h_md),
-                    "Layout row",
-                    &opts,
-                    false,
-                    false,
-                    None,
-                    false,
+                    input,
                 );
+                state.sel_state = sel_info.state;
                 draw_select_fake_state(
                     &mut b,
                     Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
                     "Layout row",
-                    &opts,
+                    LAYOUT_OPTS,
                     true,
                     true,
                     Some(0),
@@ -1496,55 +1452,50 @@ pub fn draw_spec_page(
 
                 // Segmented controls
                 let seg_x = lx + 200.0;
-                let segs1 = ["row", "column", "grid", "flex"];
-                draw_segmented_fake_state(
-                    &mut b,
+                const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
+                let seg1_info = b.segmented(
+                    std::mem::take(&mut state.seg1_state),
+                    SEGS1,
                     Rect::new(seg_x, y, 0.0, t.h_md),
-                    &segs1,
-                    0,
-                    false,
+                    input,
                 );
-                let segs2 = ["start", "center", "end"];
-                draw_segmented_fake_state(
-                    &mut b,
+                state.seg1_state = seg1_info.state;
+                const SEGS2: &[&str] = &["start", "center", "end"];
+                let seg2_info = b.segmented(
+                    std::mem::take(&mut state.seg2_state),
+                    SEGS2,
                     Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md),
-                    &segs2,
-                    1,
-                    false,
+                    input,
                 );
+                state.seg2_state = seg2_info.state;
 
                 // Chips
-                let chip_data: &[(&str, bool)] = &[
-                    ("opengl", true),
-                    ("vulkan", false),
-                    ("metal", false),
-                    ("wgpu", false),
-                ];
+                let chip_labels = ["opengl", "vulkan", "metal", "wgpu"];
                 let chip_y = y;
                 let mut chip_x = lx + 560.0;
-                for (label, active) in chip_data {
+                for (i, label) in chip_labels.iter().enumerate() {
                     let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
-                    draw_chip_fake_state(
-                        &mut b,
-                        Rect::new(chip_x, chip_y, chip_w, 22.0),
+                    let chip_info = b.chip(
+                        std::mem::take(&mut state.chip_states[i]),
                         label,
-                        *active,
-                        false,
+                        Rect::new(chip_x, chip_y, chip_w, 22.0),
+                        input,
                     );
+                    state.chip_states[i] = chip_info.state;
                     chip_x += chip_w + 6.0;
                 }
                 let add_layout = b
                     .text_system
                     .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
-                draw_chip_fake_state(
-                    &mut b,
-                    Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
+                let add_info = b.chip(
+                    std::mem::take(&mut state.chip_states[4]),
                     "+ add backend",
-                    false,
-                    false,
+                    Rect::new(lx + 560.0, y + 28.0, add_w, 22.0),
+                    input,
                 );
+                state.chip_states[4] = add_info.state;
             }
             let select_open_h = 3.0 * 26.0 + 8.0;
             y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
@@ -1841,24 +1792,24 @@ pub fn draw_spec_page(
             sec_y(&mut b, &t, lx, y, content_w, "07", "Tabs");
             y += 46.0;
             {
-                let tabs1 = ["Inspector", "Layout", "Timing", "Logs", "Replay"];
-                draw_tabs_fake_state(
-                    &mut b,
+                const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
+                let t1_info = b.tabs(
+                    std::mem::take(&mut state.tabs1_state),
+                    TABS1,
                     Rect::new(lx, y, content_w.min(640.0), 36.0),
-                    &tabs1,
-                    0,
-                    false,
+                    input,
                 );
+                state.tabs1_state = t1_info.state;
                 y += 36.0 + 20.0;
 
-                let tabs2 = ["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-                draw_tabs_fake_state(
-                    &mut b,
+                const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
+                let t2_info = b.tabs(
+                    std::mem::take(&mut state.tabs2_state),
+                    TABS2,
                     Rect::new(lx, y, content_w.min(480.0), 36.0),
-                    &tabs2,
-                    1,
-                    false,
+                    input,
                 );
+                state.tabs2_state = t2_info.state;
                 y += 36.0;
             }
             y += SEC_GAP;
@@ -2230,54 +2181,31 @@ pub fn draw_spec_page(
 
                 // Inner content: drag numbers + checkboxes
                 let mut iy = 0.0;
-                let drag_items: &[(&str, f32, f32, f32)] =
-                    &[("X", 320.0, 0.0, 800.0), ("Y", 144.0, 0.0, 600.0)];
                 let mut drx = 0.0;
                 let cr_w = win_rect.w - 32.0;
-                for (label, val, min, max) in drag_items {
-                    draw_drag_number_fake_state(
-                        &mut win,
-                        Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
-                        label,
-                        *val,
-                        *min,
-                        *max,
-                        false,
-                    );
+                for (i, (label, min, max)) in [("X", 0.0_f32, 800.0_f32), ("Y", 0.0, 600.0)].iter().enumerate() {
+                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md), input);
+                    state.win11_drags[i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
                 drx = 0.0;
-                let drag_items2: &[(&str, f32, f32, f32)] =
-                    &[("W", 576.0, 0.0, 800.0), ("H", 400.0, 0.0, 600.0)];
-                for (label, val, min, max) in drag_items2 {
-                    draw_drag_number_fake_state(
-                        &mut win,
-                        Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md),
-                        label,
-                        *val,
-                        *min,
-                        *max,
-                        false,
-                    );
+                for (i, (label, min, max)) in [("W", 0.0_f32, 800.0_f32), ("H", 0.0, 600.0)].iter().enumerate() {
+                    let info = win.drag_number(std::mem::take(&mut state.win11_drags[2 + i]), label, *min, *max, Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md), input);
+                    state.win11_drags[2 + i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 10.0;
                 win.divider(Rect::new(0.0, iy, cr_w, 1.0));
                 iy += 10.0;
-                let check_items: &[(CheckState, &str)] = &[
-                    (CheckState::On, "clip to parent"),
-                    (CheckState::Off, "debug overlay"),
-                ];
-                for (cs, label) in check_items {
-                    draw_checkbox_fake_state(
-                        &mut win,
+                let check_labels = ["clip to parent", "debug overlay"];
+                for (i, label) in check_labels.iter().enumerate() {
+                    let cb_info = win.checkbox(
+                        std::mem::take(&mut state.win11_cbs[i]),
                         Rect::new(0.0, iy, 14.0, 14.0),
-                        *cs,
-                        false,
-                        false,
+                        input,
                     );
-
+                    state.win11_cbs[i] = cb_info.state;
                     win.label_styled(
                         Rect::new(18.0, iy, cr_w - 18.0, 14.0),
                         label,
@@ -2473,13 +2401,13 @@ pub fn draw_spec_page(
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                draw_tabs_fake_state(
-                    &mut win,
-                    Rect::new(0.0, 0.0, cr_w, 28.0),
+                let tabs_info = win.tabs(
+                    std::mem::take(&mut state.iu_tabs),
                     &tabs_items,
-                    0,
-                    false,
+                    Rect::new(0.0, 0.0, cr_w, 28.0),
+                    input,
                 );
+                state.iu_tabs = tabs_info.state;
 
                 // Form rows
                 let form_y_start = 38.0;
@@ -2499,13 +2427,13 @@ pub fn draw_spec_page(
                     false,
                 );
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                draw_segmented_fake_state(
-                    &mut win,
-                    Rect::new(widget_x, fy, 0.0, row_h),
+                let backend_info = win.segmented(
+                    std::mem::take(&mut state.iu_backend),
                     &backends,
-                    1,
-                    false,
+                    Rect::new(widget_x, fy, 0.0, row_h),
+                    input,
                 );
+                state.iu_backend = backend_info.state;
                 fy += row_h + row_gap;
 
                 // target fps (slider)
