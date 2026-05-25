@@ -69,18 +69,16 @@ pub mod raw {
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
-            if input.key_pressed_left {
-                if state.active_index > 0 {
+            if input.key_pressed_left
+                && state.active_index > 0 {
                     state.active_index -= 1;
                     is_clicked = true;
                 }
-            }
-            if input.key_pressed_right {
-                if state.active_index + 1 < spec.items.len() {
+            if input.key_pressed_right
+                && state.active_index + 1 < spec.items.len() {
                     state.active_index += 1;
                     is_clicked = true;
                 }
-            }
         }
 
         // Mouse click segment detection
@@ -88,7 +86,7 @@ pub mod raw {
             let mut x = spec.rect.x;
             for (i, &w) in widths.iter().enumerate() {
                 let seg_rect = Rect::new(x, spec.rect.y, w, h);
-                let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+                let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
                 if seg_rect.contains(input.mouse_pos) && is_visible {
                     state.active_index = i;
                     break;
@@ -158,7 +156,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: outer.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: outer.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
@@ -217,19 +215,12 @@ impl Default for SegmentedStyle {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SegmentedState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for SegmentedState {
-    fn default() -> Self {
-        Self {
-            active_index: 0,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 pub struct SegmentedResult {
     pub draw: DrawCommands,
@@ -315,6 +306,12 @@ pub struct SegmentedSpecBuilder<'a> {
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
+}
+
+impl<'a> Default for SegmentedSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> SegmentedSpecBuilder<'a> {

@@ -258,6 +258,12 @@ pub struct WindowSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for WindowSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> WindowSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

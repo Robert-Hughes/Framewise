@@ -140,6 +140,12 @@ pub struct SpinnerSpecBuilder {
     spec: SpinnerSpec,
 }
 
+impl Default for SpinnerSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpinnerSpecBuilder {
     pub fn new() -> Self {
         Self {

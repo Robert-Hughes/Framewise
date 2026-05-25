@@ -149,6 +149,12 @@ pub struct TooltipSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for TooltipSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> TooltipSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

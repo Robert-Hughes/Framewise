@@ -101,7 +101,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -122,6 +122,7 @@ pub struct ChipSpec<'a> {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ChipState {
     pub active: bool,
     pub is_active: bool,
@@ -129,16 +130,6 @@ pub struct ChipState {
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for ChipState {
-    fn default() -> Self {
-        Self {
-            active: false,
-            is_active: false,
-            space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChipStyle {
@@ -259,6 +250,12 @@ pub struct ChipSpecBuilder<'a> {
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
+}
+
+impl<'a> Default for ChipSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> ChipSpecBuilder<'a> {

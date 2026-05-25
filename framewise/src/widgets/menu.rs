@@ -222,6 +222,12 @@ pub struct MenuSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for MenuSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> MenuSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

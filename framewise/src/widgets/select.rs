@@ -130,7 +130,7 @@ pub mod raw {
             let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
-            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
             if is_visible && popup.contains(input.mouse_pos) {
                 let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
                 let hovered_row = (relative_y / row_h).floor() as i32;
@@ -256,7 +256,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -331,6 +331,7 @@ impl Default for SelectStyle {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SelectState {
     pub selected_index: usize,
     pub open: bool,
@@ -339,17 +340,6 @@ pub struct SelectState {
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for SelectState {
-    fn default() -> Self {
-        Self {
-            selected_index: 0,
-            open: false,
-            hovered: None,
-            space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 pub struct SelectResult {
     pub draw: DrawCommands,
@@ -436,6 +426,12 @@ pub struct SelectSpecBuilder<'a> {
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
+}
+
+impl<'a> Default for SelectSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> SelectSpecBuilder<'a> {

@@ -185,6 +185,12 @@ pub struct TreeSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for TreeSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> TreeSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

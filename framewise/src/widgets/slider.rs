@@ -29,7 +29,7 @@ pub mod raw {
         *value = value.clamp(min, max);
         let range = max - min;
 
-        let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+        let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
 
         // 1. Calculate Thumb Rect
         let track_rect = spec.rect;
@@ -111,13 +111,12 @@ pub mod raw {
         }
 
         // Drag update
-        if state.is_dragging {
-            if usable_track > 0.0 {
+        if state.is_dragging
+            && usable_track > 0.0 {
                 let delta = mouse_coord - state.drag_start_mouse_coord;
                 let val_delta = (delta / usable_track) * range;
                 *value = (state.drag_start_val + val_delta).clamp(min, max);
             }
-        }
 
         // Track click release
         if state.is_track_clicking && !input.mouse_down {
@@ -125,8 +124,8 @@ pub mod raw {
         }
 
         // Track click → drag transition: mouse moved past threshold
-        if state.is_track_clicking && input.mouse_down {
-            if (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
+        if state.is_track_clicking && input.mouse_down
+            && (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD {
                 if usable_track > 0.0 {
                     let track_start = if is_vert { track_rect.y } else { track_rect.x };
                     let snapped =
@@ -138,7 +137,6 @@ pub mod raw {
                 state.is_dragging = true;
                 state.is_track_clicking = false;
             }
-        }
 
         // Mouse wheel scrolling — suppressed during an active drag so that drag
         // motion is authoritative (otherwise wheel ticks would stack on top of
@@ -591,6 +589,12 @@ pub struct SliderSpecBuilder {
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
     pub claim_scroll_at_ends: Option<bool>,
+}
+
+impl Default for SliderSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SliderSpecBuilder {

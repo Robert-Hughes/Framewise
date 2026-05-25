@@ -48,7 +48,7 @@ pub mod raw {
 
         // Mouse drag interaction
         if !spec.disabled {
-            let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+            let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
             let hovered_value_area = is_visible && input.mouse_pos.x >= value_x && input.mouse_pos.x <= spec.rect.x + spec.rect.w && input.mouse_pos.y >= spec.rect.y && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
 
             if input.mouse_pressed && hovered_value_area {
@@ -153,7 +153,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: state.is_dragging,
                 clicked: clicked && !state.is_dragging,
             },
@@ -321,6 +321,12 @@ pub struct DragNumberSpecBuilder<'a> {
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
+}
+
+impl<'a> Default for DragNumberSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> DragNumberSpecBuilder<'a> {

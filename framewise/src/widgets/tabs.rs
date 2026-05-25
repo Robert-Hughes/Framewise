@@ -56,18 +56,16 @@ pub mod raw {
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
-            if input.key_pressed_left {
-                if state.active_index > 0 {
+            if input.key_pressed_left
+                && state.active_index > 0 {
                     state.active_index -= 1;
                     is_clicked = true;
                 }
-            }
-            if input.key_pressed_right {
-                if state.active_index + 1 < spec.items.len() {
+            if input.key_pressed_right
+                && state.active_index + 1 < spec.items.len() {
                     state.active_index += 1;
                     is_clicked = true;
                 }
-            }
         }
 
         // Mouse click segment detection
@@ -77,7 +75,7 @@ pub mod raw {
                 let layout = text_sys.prepare(label, s.text_size, spec.font);
                 let tab_w = layout.size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
-                let is_visible = spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos));
+                let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
                 if tab_rect.contains(input.mouse_pos) && is_visible {
                     state.active_index = i;
                     break;
@@ -150,7 +148,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
@@ -209,19 +207,12 @@ impl Default for TabsStyle {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct TabsState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for TabsState {
-    fn default() -> Self {
-        Self {
-            active_index: 0,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 pub struct TabsResult {
     pub draw: DrawCommands,
@@ -303,6 +294,12 @@ pub struct TabsSpecBuilder<'a> {
     pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
+}
+
+impl<'a> Default for TabsSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> TabsSpecBuilder<'a> {

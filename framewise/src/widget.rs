@@ -108,9 +108,9 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
             &'c mut self, inner_layout_state: LS2, inner_scope: Scope2
         ) -> WidgetContext<'c, T, LS2, Scope2> {
         WidgetContext {
-            theme: self.theme.clone(),
-            time: self.time.clone(),
-            clip_rect: self.clip_rect.clone(),
+            theme: self.theme,
+            time: self.time,
+            clip_rect: self.clip_rect,
             text_system: self.text_system,
             focus_sys: self.focus_sys,
             input: self.input,

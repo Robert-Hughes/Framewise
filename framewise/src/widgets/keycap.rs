@@ -121,6 +121,12 @@ pub struct KeycapSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for KeycapSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> KeycapSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

@@ -66,15 +66,14 @@ pub mod raw {
         // Hit test mouse
         let is_visible = spec
             .clip_rect
-            .map_or(true, |clip| clip.contains(input.mouse_pos));
+            .is_none_or(|clip| clip.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
 
-        if just_focused {
-            if !(contains && input.mouse_pressed) {
+        if just_focused
+            && !(contains && input.mouse_pressed) {
                 state.selection_byte = Some(0);
                 state.caret_byte = state.value.len();
             }
-        }
 
         // Process keyboard events if focused
         if focused {
@@ -196,7 +195,7 @@ pub mod raw {
                     }
                     TextEvent::Paste(text) => {
                         state.remove_selection();
-                        state.value.insert_str(state.caret_byte, &text);
+                        state.value.insert_str(state.caret_byte, text);
                         state.caret_byte += text.len();
                     }
                 }
@@ -358,7 +357,7 @@ pub mod raw {
         }
 
         // Caret
-        if focused && state.selection_byte.map_or(true, |s| s == state.caret_byte) {
+        if focused && state.selection_byte.is_none_or(|s| s == state.caret_byte) {
             let time_since_move = time - state.last_caret_move_time;
             // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
             let blink_on = if time_since_move < 0.5 {
@@ -665,6 +664,12 @@ pub struct TextEditSpecBuilder {
     pub clip_rect: Option<Rect>,
     pub error: Option<bool>,
     pub disabled: Option<bool>,
+}
+
+impl Default for TextEditSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TextEditSpecBuilder {

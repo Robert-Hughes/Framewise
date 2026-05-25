@@ -178,7 +178,7 @@ impl FocusSystem {
         // Only insert into the spatial map if at least one pixel of the widget
         // is inside the clip rect. Fully-clipped widgets are excluded from
         // directional navigation but remain in Tab order (linear).
-        let spatially_visible = clip_rect.map_or(true, |c| {
+        let spatially_visible = clip_rect.is_none_or(|c| {
             let i = rect.intersect(&c);
             i.w > 0.0 && i.h > 0.0
         });
@@ -419,7 +419,7 @@ pub fn handle_widget_focus(
     let focused = focus_sys.register(focus_id, rect, clip_rect);
 
     // 2. Perform clip-safe hover/press hit testing
-    let is_visible = clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+    let is_visible = clip_rect.is_none_or(|clip| clip.contains(input.mouse_pos));
     let hovered = rect.contains(input.mouse_pos) && is_visible;
     let clicked = hovered && input.mouse_pressed;
 
@@ -540,7 +540,7 @@ fn find_spatial_target(
         };
 
         let score = axial_dist + LATERAL_PENALTY * lateral_gap;
-        if best.map_or(true, |(_, s)| score < s) {
+        if best.is_none_or(|(_, s)| score < s) {
             best = Some((candidate_id, score));
         }
     }

@@ -134,6 +134,12 @@ pub struct StatusSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
+impl<'a> Default for StatusSpecBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> StatusSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {

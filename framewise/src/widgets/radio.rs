@@ -106,7 +106,7 @@ pub mod raw {
             draw: cmds,
             layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.map_or(true, |c| c.contains(input.mouse_pos)),
+                hovered: spec.rect.contains(input.mouse_pos) && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
@@ -126,6 +126,7 @@ pub struct RadioSpec {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct RadioState {
     pub selected: bool,
     pub is_active: bool,
@@ -133,16 +134,6 @@ pub struct RadioState {
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for RadioState {
-    fn default() -> Self {
-        Self {
-            selected: false,
-            is_active: false,
-            space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RadioStyle {
@@ -179,6 +170,12 @@ impl Default for RadioStyle {
 pub struct RadioSpecBuilder {
     spec: RadioSpec,
 }
+impl Default for RadioSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RadioSpecBuilder {
     pub fn new() -> Self {
         Self {

@@ -61,6 +61,12 @@ pub struct DividerSpecBuilder {
     pub width: Option<f32>,
 }
 
+impl Default for DividerSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DividerSpecBuilder {
     pub fn new() -> Self {
         Self { color: None, width: None }

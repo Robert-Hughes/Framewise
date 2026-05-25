@@ -61,7 +61,7 @@ pub mod raw {
 
         let is_visible = spec
             .clip_rect
-            .map_or(true, |clip| clip.contains(input.mouse_pos));
+            .is_none_or(|clip| clip.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
 
         if contains && input.mouse_pressed {
@@ -243,6 +243,7 @@ pub struct ButtonSpec {
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
+#[derive(Default)]
 pub struct ButtonState {
     /// True if the mouse was pressed while hovering this button, until the mouse is released.
     pub is_active: bool,
@@ -252,15 +253,6 @@ pub struct ButtonState {
     pub focus_id: crate::focus::FocusId,
 }
 
-impl Default for ButtonState {
-    fn default() -> Self {
-        Self {
-            is_active: false,
-            space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
-}
 
 // ── Result ───────────────────────────────────────────────────────────────────
 

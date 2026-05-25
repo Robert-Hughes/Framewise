@@ -108,6 +108,12 @@ pub struct MeterSpecBuilder {
     pub bars: Option<usize>,
 }
 
+impl Default for MeterSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeterSpecBuilder {
     pub fn new() -> Self {
         Self {

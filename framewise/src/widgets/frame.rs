@@ -91,6 +91,12 @@ pub struct FrameSpecBuilder {
     pub style: Option<FrameStyle>,
 }
 
+impl Default for FrameSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FrameSpecBuilder {
     pub fn new() -> Self {
         Self { style: None }

@@ -20,7 +20,7 @@ pub mod raw {
 
         focus_sys.push_keyboard_scroll_scope(state.id);
 
-        let is_visible = spec.clip_rect.map_or(true, |clip| clip.contains(input.mouse_pos));
+        let is_visible = spec.clip_rect.is_none_or(|clip| clip.contains(input.mouse_pos));
         let max_scroll = Vec2::new((spec.content_size.x - spec.rect.w).max(0.0), (spec.content_size.y - spec.rect.h).max(0.0));
 
         let needs_h = match spec.h_vis {
@@ -309,6 +309,12 @@ pub struct ScrollAreaSpecBuilder {
     pub h_vis: Option<ScrollbarVisibility>,
     pub v_vis: Option<ScrollbarVisibility>,
     pub clip_rect: Option<Rect>,
+}
+
+impl Default for ScrollAreaSpecBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ScrollAreaSpecBuilder {

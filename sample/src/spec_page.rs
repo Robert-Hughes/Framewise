@@ -203,10 +203,10 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, LS: LayoutState, Scope: WidgetS
     };
 }
 
-fn draw_drag_number_fake_state<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     b: &mut WidgetContext<T, LS, Scope>,
     layout_params: LS::Params,
-    label: &'a str,
+    label: &str,
     val: f32,
     min: f32,
     max: f32,
@@ -622,7 +622,7 @@ pub fn draw_spec_page(
                 )
         };
         {
-            let mut b = &mut page;
+            let b = &mut page;
 
             // ── HERO ─────────────────────────────────────────────────────────────────
             {
@@ -755,11 +755,11 @@ pub fn draw_spec_page(
             let mut y = MARGIN + 310.0;
 
             // ── 01 · BUTTONS ─────────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "01", "Buttons");
+            sec_y(b, &t, lx, y, content_w, "01", "Buttons");
             y += 46.0;
 
             // variants row
-            group_y(&mut b, &t, lx, y, "variants");
+            group_y(b, &t, lx, y, "variants");
             y += 20.0;
             {
                 let styles: &[(&str, ButtonStyle, bool)] = &[
@@ -775,8 +775,8 @@ pub fn draw_spec_page(
                         let this = &mut *b;
                         let state = std::mem::take(&mut state.btn_variants[i]);
                         let layout_params = Rect::new(bx, y, w, t.h_md);
-                        let text: &str = *label;
-                        let style = style.clone();
+                        let text: &str = label;
+                        let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
                                 .style(style)
                                 .disabled(false);
@@ -792,7 +792,7 @@ pub fn draw_spec_page(
             y += t.h_md + GROUP_GAP;
 
             // state matrix
-            group_y(&mut b, &t, lx, y, "states · default button");
+            group_y(b, &t, lx, y, "states · default button");
             y += 20.0;
             {
                 let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
@@ -809,8 +809,8 @@ pub fn draw_spec_page(
                 // column headers
                 for (ci, col) in col_labels.iter().enumerate() {
                     // Add STATIC badge for fake state columns
-                    if ci >= 1 && ci <= 3 {
-                        static_badge(&mut b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                    if (1..=3).contains(&ci) {
+                        static_badge(b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
                     }
                     {
                         let this = &mut *b;
@@ -843,16 +843,16 @@ pub fn draw_spec_page(
                     for ci in 0..5 {
                         let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
                         match ci {
-                            1 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), true, false, false),
-                            2 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), false, true, false),
-                            3 => draw_button_fake_state(&mut b, rect, "Action", row_styles[ri].clone(), false, false, true),
+                            1 => draw_button_fake_state(b, rect, "Action", row_styles[ri], true, false, false),
+                            2 => draw_button_fake_state(b, rect, "Action", row_styles[ri], false, true, false),
+                            3 => draw_button_fake_state(b, rect, "Action", row_styles[ri], false, false, true),
                             _ => {
                                 let disabled = ci == 4;
                                 let idx = ri * 2 + ci / 4; // ci=0 → idx 0 (default), ci=4 → idx 1 (disabled)
                                 let btn = {
                                     let this = &mut *b;
                                     let state = std::mem::take(&mut state.btn_matrix[idx]);
-                                    let style = row_styles[ri].clone();
+                                    let style = row_styles[ri];
                                     let spec_builder = ButtonSpecBuilder::new("Action".to_string())
                                             .style(style)
                                             .disabled(disabled);
@@ -868,7 +868,7 @@ pub fn draw_spec_page(
             y += GROUP_GAP;
 
             // sizes & groups
-            group_y(&mut b, &t, lx, y, "sizes  ·  groups");
+            group_y(b, &t, lx, y, "sizes  ·  groups");
             y += 20.0;
             {
                 let size_defs: &[(&str, f32, ButtonStyle)] = &[
@@ -883,8 +883,8 @@ pub fn draw_spec_page(
                         let this = &mut *b;
                         let state = std::mem::take(&mut state.btn_sizes[i]);
                         let layout_params = Rect::new(bx, y, w, *h);
-                        let text: &str = *label;
-                        let style = style.clone();
+                        let text: &str = label;
+                        let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
                                 .style(style)
                                 .disabled(false);
@@ -908,8 +908,8 @@ pub fn draw_spec_page(
                         let this = &mut *b;
                         let state = std::mem::take(&mut state.btn_grp1[i]);
                         let layout_params = Rect::new(bx, y, w, t.h_md);
-                        let text: &str = *label;
-                        let style = style.clone();
+                        let text: &str = label;
+                        let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
                                 .style(style)
                                 .disabled(false);
@@ -932,8 +932,8 @@ pub fn draw_spec_page(
                         let this = &mut *b;
                         let state = std::mem::take(&mut state.btn_grp2[i]);
                         let layout_params = Rect::new(bx, y, w, t.h_md);
-                        let text: &str = *label;
-                        let style = style.clone();
+                        let text: &str = label;
+                        let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
                                 .style(style)
                                 .disabled(false);
@@ -947,10 +947,10 @@ pub fn draw_spec_page(
             y += t.h_md + SEC_GAP;
 
             // ── 02 · TEXT INPUTS ─────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "02", "Text inputs");
+            sec_y(b, &t, lx, y, content_w, "02", "Text inputs");
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "states · single-line");
+            group_y(b, &t, lx, y, "states · single-line");
             y += 20.0;
             {
                 let col_labels = ["DEFAULT", "HOVER", "FOCUSED", "ERROR", "DISABLED"];
@@ -1009,7 +1009,7 @@ pub fn draw_spec_page(
             }
             y += GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "labelled  ·  prefixed  ·  multiline");
+            group_y(b, &t, lx, y, "labelled  ·  prefixed  ·  multiline");
             y += 20.0;
             {
                 // Labelled field
@@ -1149,7 +1149,7 @@ pub fn draw_spec_page(
 
             // ── 03 · CHECK · RADIO · SWITCH ──────────────────────────────────────────
             sec_y(
-                &mut b,
+                b,
                 &t,
                 lx,
                 y,
@@ -1159,7 +1159,7 @@ pub fn draw_spec_page(
             );
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "checkbox");
+            group_y(b, &t, lx, y, "checkbox");
             y += 20.0;
             {
                 let col_labels = ["OFF", "ON", "MIXED", "FOCUSED", "DISABLED"];
@@ -1167,8 +1167,8 @@ pub fn draw_spec_page(
                 let cell_w = 100.0_f32;
                 for (ci, col) in col_labels.iter().enumerate() {
                     // Add STATIC badge for fake state columns
-                    if ci >= 3 && ci <= 4 {
-                        static_badge(&mut b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                    if (3..=4).contains(&ci) {
+                        static_badge(b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
                     }
                     {
                         let this = &mut *b;
@@ -1219,7 +1219,7 @@ pub fn draw_spec_page(
                         };
                         state.cb_matrix[ci] = info.state;
                     } else {
-                        draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
+                        draw_checkbox_fake_state(b, rect, *cs, *focused, *disabled);
                     }
                 }
                 y += 14.0 + 12.0;
@@ -1253,7 +1253,7 @@ pub fn draw_spec_page(
                         state.cb_matrix[3 + ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(
-                            &mut b,
+                            b,
                             Rect::new(cx, y, 14.0, 14.0),
                             *cs,
                             *focused,
@@ -1278,7 +1278,7 @@ pub fn draw_spec_page(
             }
             y += GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "radio  ·  switch");
+            group_y(b, &t, lx, y, "radio  ·  switch");
             y += 20.0;
             {
                 let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
@@ -1303,8 +1303,8 @@ pub fn draw_spec_page(
                             }
                         }
                     } else {
-                        static_badge(&mut b, &t, lx - 48.0, ry);
-                        draw_radio_fake_state(&mut b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
+                        static_badge(b, &t, lx - 48.0, ry);
+                        draw_radio_fake_state(b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
                     }
                     {
                         let this = &mut *b;
@@ -1326,8 +1326,8 @@ pub fn draw_spec_page(
                     let label_color = if i == 3 { t.muted } else { t.ink };
                     match i {
                         2 => {
-                            static_badge(&mut b, &t, sw_x - 48.0, ry);
-                            draw_switch_fake_state(&mut b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false);
+                            static_badge(b, &t, sw_x - 48.0, ry);
+                            draw_switch_fake_state(b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false);
                         }
                         3 => {
                             let info = {
@@ -1378,7 +1378,7 @@ pub fn draw_spec_page(
 
             // ── 04 · SLIDERS · DRAGS ─────────────────────────────────────────────────
             sec_y(
-                &mut b,
+                b,
                 &t,
                 lx,
                 y,
@@ -1388,7 +1388,7 @@ pub fn draw_spec_page(
             );
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "slider · single value");
+            group_y(b, &t, lx, y, "slider · single value");
             y += 20.0;
             {
                 let slider_w = 360.0_f32;
@@ -1544,7 +1544,7 @@ pub fn draw_spec_page(
             }
             y += GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "range slider");
+            group_y(b, &t, lx, y, "range slider");
             y += 20.0;
             {
                 let track_w = 360.0_f32;
@@ -1614,7 +1614,7 @@ pub fn draw_spec_page(
             }
             y += t.h_md + GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "drag-number (imgui-style)");
+            group_y(b, &t, lx, y, "drag-number (imgui-style)");
             y += 20.0;
             {
                 let mut bx = lx;
@@ -1655,8 +1655,8 @@ pub fn draw_spec_page(
                 state.dn_showcase[1] = info.state;
                 bx += 100.0 + 8.0;
                 // W — fake (forced active/dragging)
-                static_badge(&mut b, &t, bx, y - 14.0);
-                draw_drag_number_fake_state(&mut b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
+                static_badge(b, &t, bx, y - 14.0);
+                draw_drag_number_fake_state(b, Rect::new(bx, y, 100.0, t.h_md), "W", 576.0, 0.0, 800.0, true);
                 bx += 100.0 + 8.0;
                 // H — real
                 let info = {
@@ -1678,7 +1678,7 @@ pub fn draw_spec_page(
             }
             y += t.h_md + GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "numeric stepper  ·  colour swatch");
+            group_y(b, &t, lx, y, "numeric stepper  ·  colour swatch");
             y += 20.0;
             {
                 // prefix + value display
@@ -1827,7 +1827,7 @@ pub fn draw_spec_page(
                 let swatches: &[(Color, &str)] = &[(t.ink, "#15130f"), (t.rust, "#c25a2c")];
                 let mut bx = sw_x;
                 for (color, hex) in swatches {
-                    color_swatch(&mut b, Rect::new(bx, y, 18.0, t.h_md), framewise::widgets::ColorSwatchSpecBuilder::new()
+                    color_swatch(b, Rect::new(bx, y, 18.0, t.h_md), framewise::widgets::ColorSwatchSpecBuilder::new()
                             .color(*color)
                             .border(t.line));
                     {
@@ -1848,10 +1848,10 @@ pub fn draw_spec_page(
             y += t.h_md + SEC_GAP;
 
             // ── 05 · SELECTION ───────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "05", "Selection");
+            sec_y(b, &t, lx, y, content_w, "05", "Selection");
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "select  ·  segmented  ·  chips");
+            group_y(b, &t, lx, y, "select  ·  segmented  ·  chips");
             y += 20.0;
             {
                 // Select widgets
@@ -1862,7 +1862,7 @@ pub fn draw_spec_page(
                     ""
                 };
                 let sel_state = std::mem::take(&mut state.sel_state);
-                let sel_info = select(&mut b, sel_state,
+                let sel_info = select(b, sel_state,
                     Rect::new(lx, y, 160.0, t.h_md),
                     SelectSpecBuilder::new()
                         .value(value)
@@ -1870,9 +1870,9 @@ pub fn draw_spec_page(
                 );
                 state.sel_state = sel_info.state;
 
-                static_badge(&mut b, &t, lx - 48.0, y + t.h_md + 4.0);
+                static_badge(b, &t, lx - 48.0, y + t.h_md + 4.0);
                 draw_select_fake_state(
-                    &mut b,
+                    b,
                     Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
                     "Layout row",
                     LAYOUT_OPTS,
@@ -1958,7 +1958,7 @@ pub fn draw_spec_page(
             let select_open_h = 3.0 * 26.0 + 8.0;
             y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "dropdown menu (open)");
+            group_y(b, &t, lx, y, "dropdown menu (open)");
             y += 20.0;
             {
                 static ITEMS1: &[MenuItem<'static>] = &[
@@ -2003,7 +2003,7 @@ pub fn draw_spec_page(
                         disabled: true,
                     },
                 ];
-                menu(&mut b, Rect::new(lx, y, 240.0, 0.0),
+                menu(b, Rect::new(lx, y, 240.0, 0.0),
                     framewise::widgets::MenuSpecBuilder::new().items(ITEMS1),
                 );
 
@@ -2034,7 +2034,7 @@ pub fn draw_spec_page(
                         disabled: false,
                     },
                 ];
-                menu(&mut b, Rect::new(lx + 264.0, y, 200.0, 0.0),
+                menu(b, Rect::new(lx + 264.0, y, 200.0, 0.0),
                     framewise::widgets::MenuSpecBuilder::new().items(ITEMS2),
                 );
 
@@ -2052,7 +2052,7 @@ pub fn draw_spec_page(
             y += SEC_GAP;
 
             // ── 06 · SCROLLBARS ──────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "06", "Scrollbars");
+            sec_y(b, &t, lx, y, content_w, "06", "Scrollbars");
             y += 46.0;
             {
                 let box_gap = 24.0_f32;
@@ -2337,7 +2337,7 @@ pub fn draw_spec_page(
             y += SEC_GAP;
 
             // ── 07 · TABS ────────────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "07", "Tabs");
+            sec_y(b, &t, lx, y, content_w, "07", "Tabs");
             y += 46.0;
             {
                 const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
@@ -2378,7 +2378,7 @@ pub fn draw_spec_page(
 
             // ── 08 · PROGRESS · METERS · STATUS ──────────────────────────────────────
             sec_y(
-                &mut b,
+                b,
                 &t,
                 lx,
                 y,
@@ -2388,7 +2388,7 @@ pub fn draw_spec_page(
             );
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "progress");
+            group_y(b, &t, lx, y, "progress");
             y += 20.0;
             {
                 let bar_items: &[(f32, bool, &str)] = &[
@@ -2399,7 +2399,7 @@ pub fn draw_spec_page(
                 ];
                 let bar_w = 240.0_f32;
                 for (val, active, bar_label) in bar_items {
-                    progress_bar(&mut b, Rect::new(lx, y + 8.0, bar_w, 3.0),
+                    progress_bar(b, Rect::new(lx, y + 8.0, bar_w, 3.0),
                         ProgressBarSpecBuilder::new(*val).phase((time as f32) * 0.5).active(*active));
                     {
                         let this = &mut *b;
@@ -2418,7 +2418,7 @@ pub fn draw_spec_page(
             }
             y += GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "meters");
+            group_y(b, &t, lx, y, "meters");
             y += 20.0;
             {
                 let meters: &[(&str, f32, Option<f32>)] = &[
@@ -2456,17 +2456,17 @@ pub fn draw_spec_page(
                         };
                         bx += 70.0;
                     } else {
-                        meter(&mut b, Rect::new(bx, y, 100.0, 12.0), framewise::widgets::MeterSpecBuilder::new().value(*val).peak(*peak).bars(10));
+                        meter(b, Rect::new(bx, y, 100.0, 12.0), framewise::widgets::MeterSpecBuilder::new().value(*val).peak(*peak).bars(10));
                         bx += 108.0;
                     }
                 }
             }
             y += 14.0 + GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "spinners  ·  status");
+            group_y(b, &t, lx, y, "spinners  ·  status");
             y += 20.0;
             {
-                spinner(&mut b, Rect::new(lx, y, 16.0, 16.0), SpinnerSpecBuilder::new());
+                spinner(b, Rect::new(lx, y, 16.0, 16.0), SpinnerSpecBuilder::new());
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0);
@@ -2480,7 +2480,7 @@ pub fn draw_spec_page(
                     label(this, layout_params, spec_builder)
                 };
 
-                spinner(&mut b, Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0), SpinnerSpecBuilder::new().large(true));
+                spinner(b, Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0), SpinnerSpecBuilder::new().large(true));
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0);
@@ -2503,14 +2503,14 @@ pub fn draw_spec_page(
                 ];
                 let mut sx = lx + 180.0;
                 for (label, variant) in status_items {
-                    status(&mut b, Rect::new(sx, y + 1.0, 120.0, 12.0), framewise::widgets::StatusSpecBuilder::new().label(label).variant(*variant));
+                    status(b, Rect::new(sx, y + 1.0, 120.0, 12.0), framewise::widgets::StatusSpecBuilder::new().label(label).variant(*variant));
                     sx += 110.0;
                 }
             }
             y += 16.0 + SEC_GAP;
 
             // ── 09 · TREE / LIST ─────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "09", "Tree & list");
+            sec_y(b, &t, lx, y, content_w, "09", "Tree & list");
             y += 46.0;
             {
                 static WIDGET_TREE: &[TreeRow<'static>] = &[
@@ -2585,7 +2585,7 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                tree(&mut b, Rect::new(lx, y, 320.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE));
+                tree(b, Rect::new(lx, y, 320.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE));
 
                 static FILE_LIST: &[TreeRow<'static>] = &[
                     TreeRow {
@@ -2638,35 +2638,35 @@ pub fn draw_spec_page(
                         selected: false,
                     },
                 ];
-                tree(&mut b, Rect::new(lx + 360.0, y, 240.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST));
+                tree(b, Rect::new(lx + 360.0, y, 240.0, 0.0), framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST));
 
                 y += WIDGET_TREE.len().max(FILE_LIST.len()) as f32 * 20.0 + 12.0;
             }
             y += SEC_GAP;
 
             // ── 10 · TOOLTIPS · KEYCAPS ──────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "10", "Tooltips & keycaps");
+            sec_y(b, &t, lx, y, content_w, "10", "Tooltips & keycaps");
             y += 46.0;
 
-            group_y(&mut b, &t, lx, y, "tooltips");
+            group_y(b, &t, lx, y, "tooltips");
             y += 20.0;
             {
-                tooltip(&mut b, Rect::new(lx, y, 0.0, 0.0),
+                tooltip(b, Rect::new(lx, y, 0.0, 0.0),
                     framewise::widgets::TooltipSpecBuilder::new()
                         .text("Drag to scrub — hold ⌥ for fine.")
                         .variant(TooltipVariant::Dark),
                 );
                 y += 28.0 + 8.0;
 
-                tooltip(&mut b, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
+                tooltip(b, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark));
                 y += 28.0 + 8.0;
 
-                tooltip(&mut b, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("⚠ shader recompiled this frame (12 ms)").variant(TooltipVariant::Rust));
+                tooltip(b, Rect::new(lx, y, 0.0, 0.0), framewise::widgets::TooltipSpecBuilder::new().text("⚠ shader recompiled this frame (12 ms)").variant(TooltipVariant::Rust));
                 y += 28.0;
             }
             y += GROUP_GAP;
 
-            group_y(&mut b, &t, lx, y, "keycaps");
+            group_y(b, &t, lx, y, "keycaps");
             y += 20.0;
             {
                 let key_rows: &[(&[&str], &str)] = &[
@@ -2679,7 +2679,7 @@ pub fn draw_spec_page(
                     let mut kx = lx;
                     for key in *keys {
                         let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
-                        keycap(&mut b, Rect::new(kx, y, kw, 22.0),
+                        keycap(b, Rect::new(kx, y, kw, 22.0),
                             framewise::widgets::KeycapSpecBuilder::new()
                                 .label(key)
                                 .bg(t.paper_elev)
@@ -2707,7 +2707,7 @@ pub fn draw_spec_page(
             y += SEC_GAP;
 
             // ── 11 · WINDOW CHROME ───────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "11", "Window & panel chrome");
+            sec_y(b, &t, lx, y, content_w, "11", "Window & panel chrome");
             y += 46.0;
             {
                 // Light window: Inspector with content
@@ -2906,7 +2906,7 @@ pub fn draw_spec_page(
                             .font(b.theme.sans_font)
                             .text_color(light)
                             .rule(false);
-                    label(&mut b, layout_params, spec_builder)
+                    label(b, layout_params, spec_builder)
                 };
                 {
                     let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
@@ -2916,7 +2916,7 @@ pub fn draw_spec_page(
                             .font(b.theme.sans_font)
                             .text_color(light)
                             .rule(false);
-                    label(&mut b, layout_params, spec_builder)
+                    label(b, layout_params, spec_builder)
                 };
                 {
                     let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
@@ -2926,7 +2926,7 @@ pub fn draw_spec_page(
                             .font(b.theme.sans_font)
                             .text_color(muted_l)
                             .rule(false);
-                    label(&mut b, layout_params, spec_builder)
+                    label(b, layout_params, spec_builder)
                 };
 
                 // fake dark input
@@ -3031,7 +3031,7 @@ pub fn draw_spec_page(
             }
 
             // ── 12 · IN USE ──────────────────────────────────────────────────────────
-            sec_y(&mut b, &t, lx, y, content_w, "12", "In use");
+            sec_y(b, &t, lx, y, content_w, "12", "In use");
             y += 46.0;
             {
                 // Left: Renderer Settings window
@@ -3378,8 +3378,8 @@ pub fn draw_spec_page(
                         let this = &mut win;
                         let state = std::mem::take(&mut state.iu_btns[i]);
                         let layout_params = Rect::new(btn_x, fy, bw, t.h_md);
-                        let text: &str = *label;
-                        let style = style.clone();
+                        let text: &str = label;
+                        let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
                                 .style(style)
                                 .disabled(false);

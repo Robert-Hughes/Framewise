@@ -48,19 +48,12 @@ impl GpuState {
     }
 }
 
+#[derive(Default)]
 struct SampleButton {
     state:  framewise::widgets::button::ButtonState,
     clicks: u32,
 }
 
-impl Default for SampleButton {
-    fn default() -> Self {
-        Self {
-            state:  framewise::widgets::button::ButtonState::default(),
-            clicks: 0,
-        }
-    }
-}
 
 struct App {
     window:          Option<Arc<Window>>,
