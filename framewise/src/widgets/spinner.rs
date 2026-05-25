@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -206,8 +206,8 @@ impl SpinnerResult {
 /// High-level spinner widget function using WidgetContext.
 ///
 /// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
-pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: SpinnerSpecBuilder,
 ) {

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     types::Color,
     types::{Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -91,8 +91,8 @@ impl DividerSpecBuilder {
 ///
 /// This function accepts a DividerSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::divider function.
-pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: DividerSpecBuilder,
 ) -> DividerInfo {

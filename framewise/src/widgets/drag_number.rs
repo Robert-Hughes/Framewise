@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -285,8 +285,8 @@ impl DragNumberResult {
 /// High-level drag number widget function using WidgetContext.
 ///
 /// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
-pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: DragNumberState,
     layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,

@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -168,8 +168,8 @@ impl ProgressBarResult {
 /// High-level progress bar widget function using WidgetContext.
 ///
 /// This function accepts a ProgressBarSpec and calls the low-level raw::progress_bar function.
-pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn progress_bar<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: ProgressBarSpecBuilder,
 ) -> ProgressBarInfo {

@@ -231,7 +231,7 @@ impl App {
                 let layout_params = Rect::new(10.0, 10.0, win_size.0 - 20.0, win_size.1 - 20.0);
                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
                 let bounds = ctx.layout(layout_params);
-                ctx.child_with_layout(layout.begin(bounds))
+                ctx.child_with_layout(layout.begin(bounds), ())
             };
 
             // -- SIDEBAR (Left Column) --
@@ -240,7 +240,7 @@ impl App {
                     let layout_params = Vec2::new(200.0, win_size.1 - 20.0);
                     let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                     let bounds = main_row.layout(layout_params);
-                    main_row.child_with_layout(layout.begin(bounds))
+                    main_row.child_with_layout(layout.begin(bounds), ())
                 };
                 sidebar_col.button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
                 sidebar_col.button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
@@ -311,7 +311,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 40.0);
                         let layout = framewise::layout::RowLayout { spacing: 10.0 };
                         let bounds = content_col.layout(layout_params);
-                        content_col.child_with_layout(layout.begin(bounds))
+                        content_col.child_with_layout(layout.begin(bounds), ())
                     };
                     header_row.button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
                     header_row.button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
@@ -372,7 +372,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 200.0);
                         let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                         let bounds = content_col.layout(layout_params);
-                        content_col.child_with_layout(layout.begin(bounds))
+                        content_col.child_with_layout(layout.begin(bounds), ())
                     };
                     grid_col.button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
                     grid_col.button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
@@ -395,7 +395,7 @@ impl App {
                                 let layout_params = Vec2::new(inner_w, 32.0);
                                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
                                 let bounds = grid_col.layout(layout_params);
-                                grid_col.child_with_layout(layout.begin(bounds))
+                                grid_col.child_with_layout(layout.begin(bounds), ())
                             };
                             for col in 0..4 {
                                 let idx = row * 4 + col;
@@ -427,7 +427,7 @@ impl App {
                         let layout_params = Vec2::new(inner_w, 100.0);
                         let layout = framewise::layout::RowLayout { spacing: 20.0 };
                         let bounds = content_col.layout(layout_params);
-                        content_col.child_with_layout(layout.begin(bounds))
+                        content_col.child_with_layout(layout.begin(bounds), ())
                     };
 
                     {
@@ -541,7 +541,7 @@ impl App {
                         let layout_params = Vec2::new(800.0, row_h);
                         let layout = framewise::layout::RowLayout { spacing: 10.0 };
                         let bounds = outer_scroll.layout(layout_params);
-                        outer_scroll.child_with_layout(layout.begin(bounds))
+                        outer_scroll.child_with_layout(layout.begin(bounds), ())
                     };
                     let (base_r, base_g, base_b) = match i {
                         0 => (0.40, 0.80, 0.10), // Lime green

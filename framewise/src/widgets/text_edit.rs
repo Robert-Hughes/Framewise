@@ -634,8 +634,8 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 /// High-level text edit widget function using WidgetContext.
 ///
 /// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
-pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn text_edit<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: crate::widget::WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: TextEditState,
     layout_params: S::Params,
     builder: TextEditSpecBuilder,

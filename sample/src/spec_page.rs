@@ -1,5 +1,6 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
+use framewise::widget::WidgetScope;
 use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
@@ -43,9 +44,9 @@ use framewise::{
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
-fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     state_val: CheckState,
     is_focused: bool,
     is_disabled: bool,
@@ -81,9 +82,9 @@ fn draw_checkbox_fake_state<T: TextSystem, S: LayoutState>(
     };
 }
 
-fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     selected: bool,
     is_focused: bool,
     is_disabled: bool,
@@ -119,9 +120,9 @@ fn draw_radio_fake_state<T: TextSystem, S: LayoutState>(
     };
 }
 
-fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     on: bool,
     is_focused: bool,
     is_disabled: bool,
@@ -157,9 +158,9 @@ fn draw_switch_fake_state<T: TextSystem, S: LayoutState>(
     };
 }
 
-fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_select_fake_state<'a, 's, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     value: &'s str,
     options: &'s [&'s str],
     is_open: bool,
@@ -202,9 +203,9 @@ fn draw_select_fake_state<'a, 's, T: TextSystem, S: LayoutState>(
     };
 }
 
-fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_drag_number_fake_state<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     label: &'a str,
     val: f32,
     min: f32,
@@ -244,9 +245,9 @@ fn draw_drag_number_fake_state<'a, T: TextSystem, S: LayoutState>(
     };
 }
 
-fn draw_button_fake_state<T: TextSystem, S: LayoutState>(
-    b: &mut WidgetContext<T, S>,
-    layout_params: S::Params,
+fn draw_button_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
+    b: &mut WidgetContext<T, LS, Scope>,
+    layout_params: LS::Params,
     text: &str,
     style: ButtonStyle,
     hover: bool,
@@ -476,8 +477,8 @@ pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
-fn sec_y<S: LayoutState<Params = Rect>>(
-    b: &mut WidgetContext<SampleTextSystem, S>,
+fn sec_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
+    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
     t: &Theme,
     lx: f32,
     y: f32,
@@ -519,8 +520,8 @@ fn sec_y<S: LayoutState<Params = Rect>>(
     };
 }
 
-fn group_y<S: LayoutState<Params = Rect>>(
-    b: &mut WidgetContext<SampleTextSystem, S>,
+fn group_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
+    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
     t: &Theme,
     lx: f32,
     y: f32,

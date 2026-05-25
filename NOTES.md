@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Many widget's high-level functiopns aren't following the design set out here: C:\Users\xman2\.windsurf\plans\framewise-redesign-c59d34.md
-  - They are not always performing layout!
 * DESIGN.md doesn't mention the current implementation's automatic scope finishing in WidgetContext::finish() vs the design document's explicit end_* function pattern. Need to figure out what we want to do here.
 * ⚠️ Has scroll_scope and window_scope fields with TODO comment: "this isn't good - not extensible!" - the design document didn't specify this approach
 * Widget types don't seem to consistently use *Spec and *SpecBuilder, are inconsistent about theme application in high-level function etc.

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -272,8 +272,8 @@ impl TabsResult {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpec and calls the low-level raw::tabs function.
-pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: TabsState,
     layout_params: S::Params,
     builder: TabsSpecBuilder<'a>,

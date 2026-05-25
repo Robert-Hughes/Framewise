@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -121,8 +121,8 @@ impl FrameSpecBuilder {
 ///
 /// This function accepts a FrameSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::frame function.
-pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: FrameSpecBuilder,
 ) -> FrameInfo {

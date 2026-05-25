@@ -3,7 +3,7 @@ use crate::{
     input::Input,
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -362,8 +362,8 @@ impl ButtonSpecBuilder {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,

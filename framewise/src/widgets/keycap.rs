@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -95,8 +95,8 @@ impl KeycapResult {
 /// High-level keycap widget function using WidgetContext.
 ///
 /// This function accepts a KeycapSpec and calls the low-level raw::keycap function.
-pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: KeycapSpecBuilder<'a>,
 ) -> KeycapInfo {

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -127,8 +127,8 @@ impl TooltipResult {
 /// High-level tooltip widget function using WidgetContext.
 ///
 /// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
-pub fn tooltip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn tooltip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
 ) {

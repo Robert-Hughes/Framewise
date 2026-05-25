@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -400,8 +400,8 @@ impl SelectResult {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: SelectState,
     layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,

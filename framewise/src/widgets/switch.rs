@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -294,8 +294,8 @@ impl SwitchResult {
 /// High-level switch widget function using WidgetContext.
 ///
 /// This function accepts a SwitchSpec and calls the low-level raw::switch function.
-pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: SwitchState,
     layout_params: S::Params,
     builder: SwitchSpecBuilder,

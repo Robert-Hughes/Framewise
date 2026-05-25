@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -560,8 +560,8 @@ impl Default for SliderState {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpec and calls the low-level raw::slider function.
-pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: &mut SliderState,
     value: &mut f32,
     layout_params: S::Params,

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -226,8 +226,8 @@ impl ChipResult {
 /// High-level chip widget function using WidgetContext.
 ///
 /// This function accepts a ChipSpec and calls the low-level raw::chip function.
-pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: ChipState,
     layout_params: S::Params,
     builder: ChipSpecBuilder<'a>,

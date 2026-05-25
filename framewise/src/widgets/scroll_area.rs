@@ -1,9 +1,5 @@
 use crate::{
-    draw::DrawCmd,
-    input::Input,
-    types::{Rect, Vec2},
-    widget::WidgetContext,
-    layout::Layout,
+    draw::DrawCmd, focus::FocusSystem, input::Input, layout::Layout, types::{Rect, Vec2}, widget::{WidgetContext, WidgetScope}
 };
 
 pub mod raw {
@@ -355,6 +351,12 @@ impl Drop for ScrollAreaScope {
     }
 }
 
+impl WidgetScope for ScrollAreaScope {
+    fn finish(self, focus_sys: &mut FocusSystem) -> Vec<DrawCmd> {
+        self.finish(focus_sys)
+    }
+}
+
 impl ScrollAreaScope {
     pub fn finish(
         mut self,
@@ -409,15 +411,15 @@ impl ScrollAreaScope {
 ///
 /// This function accepts scroll parameters, performs layout on the parent context,
 /// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
-pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
-    parent: &'b mut WidgetContext<'a, T, S>,
+pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout, Scope: WidgetScope>(
+    parent: &'b mut WidgetContext<'a, T, S, Scope>,
     layout_params: S::Params,
     content_size: Vec2,
     h_vis: ScrollbarVisibility,
     v_vis: ScrollbarVisibility,
     state: &'b mut ScrollState,
     inner_layout: L,
-) -> WidgetContext<'b, T, crate::layout::OffsetState<L::State>> {
+) -> WidgetContext<'b, T, crate::layout::OffsetState<L::State>, ScrollAreaScope> {
     let bounds = parent.layout(layout_params);
     let (pre_cmds, scope, content_bounds, offset) = raw::begin_scroll_area(
         bounds,
@@ -441,10 +443,9 @@ pub fn begin_scroll_area<'a, 'b, T: crate::text::TextSystem, S: crate::layout::L
     let parent_clip = parent.clip_rect;
     let new_clip = Some(parent_clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
 
-    let mut child = parent.child_with_layout(offset_layout.begin(content_bounds));
+    let mut child = parent.child_with_layout(offset_layout.begin(content_bounds), scope);
 
     child.clip_rect = new_clip;
-    child.scroll_scope = Some(scope); //TODO: assert non-empty?
 
     child
 }

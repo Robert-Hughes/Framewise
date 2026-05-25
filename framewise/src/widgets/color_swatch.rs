@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext, WidgetScope},
 };
 
 pub mod raw {
@@ -59,8 +59,8 @@ impl ColorSwatchResult {
 /// High-level color swatch widget function using WidgetContext.
 ///
 /// This function accepts a ColorSwatchSpec and calls the low-level raw::color_swatch function.
-pub fn color_swatch<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn color_swatch<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     layout_params: S::Params,
     builder: ColorSwatchSpecBuilder,
 ) -> ColorSwatchInfo {

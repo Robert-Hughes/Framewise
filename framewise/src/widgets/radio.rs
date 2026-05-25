@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -287,8 +287,8 @@ impl RadioResult {
 /// High-level radio widget function using WidgetContext.
 ///
 /// This function accepts a RadioSpec and calls the low-level raw::radio function.
-pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: RadioState,
     layout_params: S::Params,
     builder: RadioSpecBuilder,

@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
     input::Input,
 };
 
@@ -316,8 +316,8 @@ impl CheckboxResult {
 /// High-level checkbox widget function using WidgetContext.
 ///
 /// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
-pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
+    ctx: &mut WidgetContext<T, S, Scope>,
     state: CheckboxState,
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,

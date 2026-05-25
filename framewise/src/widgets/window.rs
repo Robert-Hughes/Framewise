@@ -1,8 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    text::FontId,
-    types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    draw::{DrawCmd, DrawCommands}, focus::FocusSystem, text::FontId, types::{Color, Rect, Vec2}, widget::{LayoutInfo, WidgetContext, WidgetScope}
 };
 
 pub mod raw {
@@ -109,13 +106,13 @@ pub mod raw {
         (draw, scope, content)
     }
 
-    /// Low-level window end function.
-    ///
-    /// This is the raw implementation that takes all parameters explicitly.
-    /// High-level wrappers should use this internally.
-    pub fn end_window(scope: WindowScope) -> Vec<DrawCmd> {
-        scope.finish()
-    }
+    // Low-level window end function.
+    //
+    // This is the raw implementation that takes all parameters explicitly.
+    // High-level wrappers should use this internally.
+    // pub fn end_window(scope: WindowScope) -> Vec<DrawCmd> {
+    //     scope.finish()
+    // }
 }
 
 pub struct WindowButton {
@@ -190,8 +187,8 @@ impl Drop for WindowScope {
     }
 }
 
-impl WindowScope {
-    pub fn finish(mut self) -> Vec<DrawCmd> {
+impl WidgetScope for WindowScope {
+    fn finish(mut self, _focus_sys: &mut FocusSystem) -> Vec<DrawCmd> {
         self.is_finished = true;
         vec![DrawCmd::PopClip]
     }
@@ -203,12 +200,12 @@ impl WindowScope {
 ///
 /// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
 /// and returns a child WidgetContext and the window scope.
-pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, S: crate::layout::LayoutState, L: crate::layout::Layout>(
-    parent: &'b mut WidgetContext<'a, T, S>,
-    layout_params: S::Params,
+pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, LS: crate::layout::LayoutState, L: crate::layout::Layout, Scope: WidgetScope>(
+    parent: &'b mut WidgetContext<'a, T, LS, Scope>,
+    layout_params: LS::Params,
     builder: WindowSpecBuilder<'c>,
     inner_layout: L,
-) -> WidgetContext<'b, T, L::State> {
+) -> WidgetContext<'b, T, L::State, WindowScope> {
     let bounds = parent.layout(layout_params);
 
     let mut resolved_builder = builder
@@ -231,11 +228,9 @@ pub fn begin_window<'a, 'b, 'c, T: crate::text::TextSystem, S: crate::layout::La
 
     let new_clip = Some(parent.clip_rect.map_or(content, |pc| pc.intersect(&content)));
 
-    let mut child = parent.child_with_layout(inner_layout.begin(content));
+    let mut child = parent.child_with_layout(inner_layout.begin(content), scope);
 
     child.clip_rect = new_clip;
-
-    child.window_scope = Some(scope); //TODO: assert non-empty?
 
     child
 }
