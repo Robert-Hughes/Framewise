@@ -400,7 +400,6 @@ mod tests {
 
     #[test]
     fn test_segmented_visual_normal() {
-        let mut text_sys = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
@@ -468,7 +467,7 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = raw::segmented(SegmentedState::default(), spec, &Input::default(), &mut focus_sys, &mut text_sys);
+        let res = raw::segmented(state, spec, &Input::default(), &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(

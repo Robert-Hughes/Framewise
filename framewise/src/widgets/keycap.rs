@@ -101,7 +101,6 @@ pub fn keycap<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState>(
     builder: KeycapSpecBuilder<'a>,
 ) -> KeycapInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let builder = builder
         .with_rect(rect)
         .with_theme(&ctx.theme);

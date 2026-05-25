@@ -388,7 +388,6 @@ mod tests {
 
     #[test]
     fn test_tabs_visual_normal() {
-        let mut text_sys = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),

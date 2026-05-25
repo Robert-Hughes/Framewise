@@ -292,7 +292,6 @@ pub fn drag_number<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState
     builder: DragNumberSpecBuilder<'a>,
 ) -> DragNumberInfo {
     let rect = ctx.layout(layout_params);
-    let ts_ptr = ctx.text_system as *mut T;
     let mut builder = builder
         .with_rect(rect)
         .with_theme(&ctx.theme);
@@ -420,7 +419,6 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_normal() {
-        let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             label: "X",
@@ -472,7 +470,6 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_active() {
-        let mut text_sys = DummyTextSys;
         let mut state = DragNumberState::default();
         state.is_dragging = true;
         state.drag_start_value = 50.0;

@@ -339,7 +339,6 @@ mod tests {
 
     #[test]
     fn test_chip_visual_normal() {
-        let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             label: "Tag",

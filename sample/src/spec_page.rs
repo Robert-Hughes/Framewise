@@ -1,6 +1,5 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
-use framewise::widgets::select::raw;
 use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
@@ -9,36 +8,36 @@ use framewise::{
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
-    layout::{Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState},
+    layout::{Layout, LayoutState, ManualLayout, },
     theme::Theme,
     types::{Color, Rect, Vec2},
-    widget::{WidgetContext, LayoutInfo},
+    widget::WidgetContext,
     widgets::{
-        button::{button, ButtonSpec, ButtonState, ButtonStyle, ButtonInfo},
-        checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec, CheckboxInfo, CheckboxSpecBuilder},
-        chip::{chip, ChipState, ChipSpec, ChipStyle, ChipInfo, ChipResult, ChipSpecBuilder},
-        color_swatch::{color_swatch, ColorSwatchSpec, ColorSwatchInfo, ColorSwatchSpecBuilder},
-        drag_number::{drag_number, DragNumberState, DragNumberSpec, DragNumberInfo, DragNumberSpecBuilder},
-        divider::{divider, DividerSpec, DividerInfo, DividerResult},
-        frame::{frame, FrameSpec, FrameStyle, FrameInfo, FrameResult},
-        keycap::{keycap, KeycapSpec, KeycapInfo, KeycapSpecBuilder},
-        label::{label, LabelSpec, LabelInfo},
-        menu::{menu, MenuItem, MenuSpec, MenuSpecBuilder},
-        meter::{meter, MeterSpec, MeterInfo, MeterSpecBuilder},
-        progress_bar::{progress_bar, ProgressBarSpec, ProgressBarStyle, ProgressBarSpecBuilder},
-        radio::{radio, RadioState, RadioSpec, RadioInfo, RadioSpecBuilder},
-        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility, ScrollAreaScope},
-        segmented::{segmented, SegmentedSpec, SegmentedStyle, SegmentedState, SegmentedInfo, SegmentedSpecBuilder},
-        select::{select, SelectSpec, SelectState, SelectInfo, SelectSpecBuilder},
-        slider::{slider, SliderStyle, SliderState, SliderSpec, Orientation as SliderOrientation},
-        spinner::{spinner, SpinnerSpec, SpinnerStyle, SpinnerSpecBuilder},
-        status::{status, StatusVariant, StatusSpec, StatusSpecBuilder},
-        switch::{switch, SwitchState, SwitchSpec, SwitchInfo, SwitchSpecBuilder},
-        tabs::{tabs, TabsSpec, TabsStyle, TabsState, TabsInfo, TabsSpecBuilder},
-        text_edit::{text_edit, TextEditState, TextEditSpec, TextEditInfo},
-        tooltip::{tooltip, TooltipVariant, TooltipSpec, TooltipSpecBuilder},
-        tree::{tree, TreeRow, TreeSpec, TreeSpecBuilder},
-        window::{begin_window, WindowButton, WindowScope, WindowSpec, WindowSpecBuilder},
+        button::{button, ButtonSpec, ButtonState, ButtonStyle},
+        checkbox::{checkbox, CheckboxState, CheckState, CheckboxSpec, CheckboxSpecBuilder},
+        chip::{chip, ChipState, ChipSpecBuilder},
+        color_swatch::color_swatch,
+        drag_number::{drag_number, DragNumberState, DragNumberSpec, DragNumberSpecBuilder},
+        divider::divider ,
+        frame::{FrameSpec, FrameStyle, },
+        keycap::keycap,
+        label::label ,
+        menu::{menu, MenuItem},
+        meter::meter,
+        progress_bar::{progress_bar, ProgressBarSpecBuilder},
+        radio::{radio, RadioState, RadioSpec, RadioSpecBuilder},
+        scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility},
+        segmented::{segmented, SegmentedState, SegmentedSpecBuilder},
+        select::{select, SelectSpec, SelectState, SelectSpecBuilder},
+        slider::{slider, SliderState, Orientation as SliderOrientation},
+        spinner::{spinner, SpinnerSpecBuilder},
+        status::{status, StatusVariant},
+        switch::{switch, SwitchState, SwitchSpec, SwitchSpecBuilder},
+        tabs::{tabs, TabsState, TabsSpecBuilder},
+        text_edit::{text_edit, TextEditState, },
+        tooltip::{tooltip, TooltipVariant},
+        tree::{tree, TreeRow},
+        window::{begin_window, WindowButton},
     },
 };
 
@@ -1827,35 +1826,20 @@ pub fn draw_spec_page(
             {
                 // Select widgets
                 const LAYOUT_OPTS: &[&str] = &["Layout: row", "Layout: column", "Layout: grid"];
-                let sel_info = {
-                    let this = &mut *b;
-                    let state = std::mem::take(&mut state.sel_state);
-                    let layout_params = Rect::new(lx, y, 160.0, t.h_md);
-                    {
-                        let this = &mut *this;
-                        let value = if state.selected_index < LAYOUT_OPTS.len() {
-                                LAYOUT_OPTS[state.selected_index]
-                            } else {
-                                ""
-                            };
-                        let spec_builder = SelectSpecBuilder::new()
-                                .value(value)
-                                .font(this.text_font)
-                                .options(LAYOUT_OPTS)
-                                .disabled(false)
-                                .style(this.theme.select_style())
-                                .clip_rect(this.clip_rect);
-                        let result = raw::select(state, spec_builder.build(), this.input, this.focus_sys, this.text_system);
-                        this.append_cmds(result.draw.0);
-                        SelectInfo {
-                                layout: result.layout,
-                                input: result.input,
-                                state: result.state,
-                                focused: result.focused,
-                            }
-                    }
+                let value = if state.sel_state.selected_index < LAYOUT_OPTS.len() {
+                    LAYOUT_OPTS[state.sel_state.selected_index]
+                } else {
+                    ""
                 };
+                let sel_state = std::mem::take(&mut state.sel_state);
+                let sel_info = select(&mut b, sel_state,
+                    Rect::new(lx, y, 160.0, t.h_md),
+                    SelectSpecBuilder::new()
+                        .value(value)
+                        .options(LAYOUT_OPTS)
+                );
                 state.sel_state = sel_info.state;
+
                 draw_select_fake_state(
                     &mut b,
                     Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),

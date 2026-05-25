@@ -3,7 +3,7 @@ mod spec_page;
 mod text;
 
 use framewise::{
-    DrawCmd, input::Input, layout::{ColumnLayout, Layout, LayoutState, ManualLayout, OffsetLayout, OffsetState, RowLayout}, text::TextSystem, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::{ButtonInfo, ButtonSpec, ButtonState, ButtonStyle, button}, frame::{FrameInfo, FrameSpec, FrameStyle, frame}, label::{LabelInfo, LabelSpec, label}, scroll_area::{ScrollAreaScope, ScrollState, ScrollbarVisibility, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpec, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditInfo, TextEditSpec, TextEditSpecBuilder, TextEditState, text_edit}}
+    input::Input, layout::Layout, theme::Theme, types::{Color, Rect, Vec2}, widget::WidgetContext, widgets::{ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder, button::button, frame::frame, label::label, scroll_area::{ScrollbarVisibility, begin_scroll_area}, slider::{Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle, slider}, text_edit::{TextEditSpecBuilder, text_edit}}
 };
 
 use renderer::Renderer;
@@ -740,7 +740,6 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(100.0, 100.0);
                     let text = "Outer L".to_string();
-                    let input: &Input = &self.input;
                     let spec_builder = ButtonSpecBuilder::new(text)
                         .style(d_outer_scroll.button_style)
                         .disabled(false)
@@ -780,7 +779,6 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(300.0, 100.0);
                     let text = "Outer R".to_string();
-                    let input: &Input = &self.input;
                     let spec_builder = ButtonSpecBuilder::new(text)
                         .style(d_outer_scroll.button_style)
                         .disabled(false)

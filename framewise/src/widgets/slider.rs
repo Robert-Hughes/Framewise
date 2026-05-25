@@ -206,10 +206,10 @@ pub mod raw {
             };
 
             if scroll_delta > 0.0 && is_active_up_left {
-                *value = (*value - scroll_delta * 40.0).clamp(min, max);
+                *value = (*value - scroll_delta * spec.step).clamp(min, max);
             }
             if scroll_delta < 0.0 && is_active_down_right {
-                *value = (*value - scroll_delta * 40.0).clamp(min, max);
+                *value = (*value - scroll_delta * spec.step).clamp(min, max);
             }
         }
 
