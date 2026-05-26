@@ -288,7 +288,7 @@ pub fn segmented<
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
-        .apply_theme(&ctx.theme)
+        .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
     let result = raw::segmented(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
@@ -364,7 +364,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.segmented_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);

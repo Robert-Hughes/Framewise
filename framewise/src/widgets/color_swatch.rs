@@ -82,7 +82,7 @@ pub fn color_swatch<
     builder: ColorSwatchSpecBuilder,
 ) -> ColorSwatchInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder.rect(rect).apply_theme(&ctx.theme);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::color_swatch(spec);
     ctx.append_cmds(result.draw.0);
@@ -129,7 +129,7 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
-    pub fn apply_theme(self, _theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(self, _theme: &crate::theme::Theme) -> Self {
         self
     }
 

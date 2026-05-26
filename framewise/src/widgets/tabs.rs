@@ -277,7 +277,7 @@ pub fn tabs<
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
-        .apply_theme(&ctx.theme)
+        .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
     let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
@@ -353,7 +353,7 @@ impl<'a> TabsSpecBuilder<'a> {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tabs_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);

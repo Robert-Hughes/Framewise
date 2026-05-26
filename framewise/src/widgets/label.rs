@@ -117,7 +117,7 @@ impl LabelSpecBuilder {
         self.rect = Some(rect);
         self
     }
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.size.is_none() {
             self.size = Some(theme.text_md);
         }
@@ -157,7 +157,7 @@ pub fn label<
     builder: LabelSpecBuilder,
 ) -> LabelInfo {
     let rect = ctx.layout(layout_params);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

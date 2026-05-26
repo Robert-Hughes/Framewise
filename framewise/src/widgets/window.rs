@@ -203,7 +203,7 @@ pub fn begin_window<
 ) -> WidgetContext<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
     let bounds = parent.layout(layout_params);
 
-    let mut resolved_builder = builder.rect(bounds).apply_theme(&parent.theme);
+    let mut resolved_builder = builder.rect(bounds).defaults_from_theme(&parent.theme);
 
     if resolved_builder.status_bar.is_none() {
         resolved_builder.status_bar = Some(false);
@@ -295,7 +295,7 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.window_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

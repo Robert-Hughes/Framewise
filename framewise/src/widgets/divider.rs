@@ -88,7 +88,7 @@ impl DividerSpecBuilder {
         self.rect = Some(rect);
         self
     }
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.color.is_none() {
             self.color = Some(theme.line);
         }
@@ -119,7 +119,7 @@ pub fn divider<
     builder: DividerSpecBuilder,
 ) -> DividerInfo {
     let rect = ctx.layout(layout_params);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::divider(spec);
 
     ctx.append_cmds(result.draw.0);

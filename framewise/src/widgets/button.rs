@@ -332,7 +332,7 @@ impl ButtonSpecBuilder {
         self.rect = Some(rect);
         self
     }
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(theme.button_secondary_style());
         }
@@ -373,7 +373,7 @@ pub fn button<
     let clip_rect = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
-        .apply_theme(&ctx.theme)
+        .defaults_from_theme(&ctx.theme)
         .clip_rect(clip_rect)
         .build();
 

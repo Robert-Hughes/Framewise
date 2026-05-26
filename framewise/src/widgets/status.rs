@@ -126,7 +126,7 @@ pub fn status<
     builder: StatusSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder.rect(rect).apply_theme(&ctx.theme);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -181,7 +181,7 @@ impl<'a> StatusSpecBuilder<'a> {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.status_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

@@ -649,7 +649,7 @@ pub fn text_edit<
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
-        .apply_theme(&ctx.theme)
+        .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
     let result = raw::text_edit(
@@ -717,7 +717,7 @@ impl TextEditSpecBuilder {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.text_edit_style());
         self
     }

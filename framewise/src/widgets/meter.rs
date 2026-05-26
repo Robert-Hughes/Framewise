@@ -111,7 +111,7 @@ pub fn meter<
     builder: MeterSpecBuilder,
 ) -> MeterInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder.rect(rect).apply_theme(&ctx.theme);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::meter(spec);
     ctx.append_cmds(result.draw.0);
@@ -165,7 +165,7 @@ impl MeterSpecBuilder {
         self
     }
 
-    pub fn apply_theme(self, _theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(self, _theme: &crate::theme::Theme) -> Self {
         self
     }
 

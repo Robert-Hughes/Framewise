@@ -582,7 +582,7 @@ pub fn slider<
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
-        .apply_theme(&ctx.theme)
+        .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
     let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
@@ -666,7 +666,7 @@ impl SliderSpecBuilder {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if let Some(style) = &self.style {
             if style.scrollbar_mode {
                 self.style = Some(theme.scrollbar_style());

@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Try to add tests for the WidgetContext nesting and scopes, to make sure things are finished in the right order, we don't miss scopes etc.
-* DESIGN.md doesn't mention the current implementation's automatic scope finishing in WidgetContext::finish() vs the design document's explicit end_* function pattern. Need to figure out what we want to do here.
 * SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback? Make this explicit in DESIGN.md and check the code. Add tests for fallback?
 * In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
 * Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc.
@@ -80,7 +78,6 @@ Features to design and implement, roughly in dependency order:
 * Built-in themes that are good
   * A Framewise-specific one - see Framewise Widgets.html (from Claude Design) for a version of this
     * Go through and make our 'spec page' look as similar as possible to the Claude design mockup. This will be a good way to check off features/improvements!
-    * Remove all uses of ".emit()" and ".append_cmds()" ideally
   * Windows native lookalike
   * Mac native lookalike
 
