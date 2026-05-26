@@ -59,6 +59,7 @@ impl DividerResult {
 pub struct DividerSpecBuilder {
     pub color: Option<Color>,
     pub width: Option<f32>,
+    pub rect: Option<Rect>,
 }
 
 impl Default for DividerSpecBuilder {
@@ -72,6 +73,7 @@ impl DividerSpecBuilder {
         Self {
             color: None,
             width: None,
+            rect: None,
         }
     }
     pub fn color(mut self, color: Color) -> Self {
@@ -82,12 +84,19 @@ impl DividerSpecBuilder {
         self.width = Some(width);
         self
     }
-    pub fn with_rect(self, _rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.color.is_none() {
+            self.color = Some(theme.line);
+        }
         self
     }
     pub fn build(self) -> DividerSpec {
         DividerSpec {
-            rect: Rect::ZERO,
+            rect: self.rect.unwrap_or_default(),
             color: self.color.unwrap_or(Color::WHITE),
             width: self.width.unwrap_or(1.0),
         }
@@ -106,11 +115,7 @@ pub fn divider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope:
     builder: DividerSpecBuilder,
 ) -> DividerInfo {
     let rect = ctx.layout(layout_params);
-    let spec = DividerSpec {
-        rect,
-        color: builder.color.unwrap_or(ctx.theme.line),
-        width: builder.width.unwrap_or(1.0),
-    };
+    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
     let result = raw::divider(spec);
 
     ctx.append_cmds(result.draw.0);

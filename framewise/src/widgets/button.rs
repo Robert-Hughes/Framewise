@@ -304,6 +304,7 @@ impl ButtonResult {
 pub struct ButtonSpecBuilder {
     pub text: String,
     pub style: Option<ButtonStyle>,
+    pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
     pub disabled: bool,
 }
@@ -313,6 +314,7 @@ impl ButtonSpecBuilder {
         Self {
             text,
             style: None,
+            rect: None,
             clip_rect: None,
             disabled: false,
         }
@@ -325,11 +327,14 @@ impl ButtonSpecBuilder {
         self.disabled = disabled;
         self
     }
-    pub fn with_rect(self, _rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
         self
     }
-    pub fn with_style(mut self, style: ButtonStyle) -> Self {
-        self.style = Some(style);
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(theme.button_secondary_style());
+        }
         self
     }
     pub fn with_clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
@@ -338,7 +343,7 @@ impl ButtonSpecBuilder {
     }
     pub fn build(self) -> ButtonSpec {
         ButtonSpec {
-            rect: Rect::ZERO,
+            rect: self.rect.unwrap_or_default(),
             text: self.text,
             style: self.style.unwrap_or_default(),
             clip_rect: self.clip_rect,
@@ -360,10 +365,12 @@ pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     builder: ButtonSpecBuilder,
 ) -> ButtonInfo {
     let rect = ctx.layout(layout_params);
-    let style = builder.style.unwrap_or(ctx.theme.button_secondary_style());
     let clip_rect = builder.clip_rect.or(ctx.clip_rect);
-    let mut spec = builder.with_style(style).with_clip_rect(clip_rect).build();
-    spec.rect = rect;
+    let spec = builder
+        .with_rect(rect)
+        .with_theme(&ctx.theme)
+        .with_clip_rect(clip_rect)
+        .build();
 
     let result = raw::button(state, spec, ctx.input, ctx.text_system, ctx.focus_sys);
 

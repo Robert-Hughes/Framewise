@@ -81,6 +81,7 @@ pub struct LabelSpecBuilder {
     pub size: Option<f32>,
     pub font: Option<FontId>,
     pub text_color: Option<Color>,
+    pub rect: Option<Rect>,
     pub rule: bool,
 }
 
@@ -91,6 +92,7 @@ impl LabelSpecBuilder {
             size: None,
             font: None,
             text_color: None,
+            rect: None,
             rule: false,
         }
     }
@@ -110,12 +112,25 @@ impl LabelSpecBuilder {
         self.rule = rule;
         self
     }
-    pub fn with_rect(self, _rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.size.is_none() {
+            self.size = Some(theme.text_md);
+        }
+        if self.font.is_none() {
+            self.font = Some(theme.sans_font);
+        }
+        if self.text_color.is_none() {
+            self.text_color = Some(theme.ink);
+        }
         self
     }
     pub fn build(self) -> LabelSpec {
         LabelSpec {
-            rect: Rect::ZERO,
+            rect: self.rect.unwrap_or_default(),
             text: self.text,
             size: self.size.unwrap_or(14.0),
             font: self.font.unwrap_or_default(),
@@ -137,14 +152,7 @@ pub fn label<T: TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
     builder: LabelSpecBuilder,
 ) -> LabelInfo {
     let rect = ctx.layout(layout_params);
-    let spec = LabelSpec {
-        rect,
-        text: builder.text,
-        size: builder.size.unwrap_or(ctx.theme.text_md),
-        font: builder.font.unwrap_or(ctx.theme.sans_font),
-        text_color: builder.text_color.unwrap_or(ctx.theme.ink),
-        rule: builder.rule,
-    };
+    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

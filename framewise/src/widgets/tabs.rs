@@ -268,9 +268,7 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: TabsSpecBuilder<'a>,
 ) -> TabsInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder.with_theme(&ctx.theme);
-    let mut spec = builder.build();
-    spec.rect = rect;
+    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
     let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

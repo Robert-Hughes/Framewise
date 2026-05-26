@@ -5,14 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Add AGENTS.md with notes about running tests, clippy, cargo fmt, keeping the sample app tidy with these as well as the lib crate.
-
 * Try to add tests for the WidgetContext nesting and scopes, to make sure things are finished in the right order, we don't miss scopes etc.
 * DESIGN.md doesn't mention the current implementation's automatic scope finishing in WidgetContext::finish() vs the design document's explicit end_* function pattern. Need to figure out what we want to do here.
 * SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback? Make this explicit in DESIGN.md and check the code. Add tests for fallback?
 * In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
 * Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc.
-* Check Widget types are consistent about theme application in high-level function etc., make sure DESIGN.md is clear on this
 * Some widgets embed styling directly into their *Spec struct instead of having a separate *Style struct (e.g., ColorSwatch, Divider, Keycap, Label, Meter). This is a minor variation but still consistent with the overall *Spec and *SpecBuilder pattern. If acceptable, not in DESIGN.md.
 * Add a note to DESIGN.md for widget design that the *Spec struct should not contain theme directly - the Theme is something that should be used by the Builder to populate specific colours, widths etc. of the Spec struct. Everything should be fully resolved into Spec. And check that we actually follow this guidance.
 

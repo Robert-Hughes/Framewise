@@ -89,6 +89,7 @@ impl FrameResult {
 
 pub struct FrameSpecBuilder {
     pub style: Option<FrameStyle>,
+    pub rect: Option<Rect>,
 }
 
 impl Default for FrameSpecBuilder {
@@ -99,18 +100,28 @@ impl Default for FrameSpecBuilder {
 
 impl FrameSpecBuilder {
     pub fn new() -> Self {
-        Self { style: None }
+        Self {
+            style: None,
+            rect: None,
+        }
     }
     pub fn style(mut self, style: FrameStyle) -> Self {
         self.style = Some(style);
         self
     }
-    pub fn with_rect(self, _rect: Rect) -> Self {
+    pub fn with_rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(theme.frame_style());
+        }
         self
     }
     pub fn build(self) -> FrameSpec {
         FrameSpec {
-            rect: Rect::ZERO,
+            rect: self.rect.unwrap_or_default(),
             style: self.style.unwrap_or(FrameStyle {
                 background: Color::TRANSPARENT,
                 border: Color::TRANSPARENT,
@@ -133,10 +144,7 @@ pub fn frame<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
     builder: FrameSpecBuilder,
 ) -> FrameInfo {
     let rect = ctx.layout(layout_params);
-    let spec = FrameSpec {
-        rect,
-        style: builder.style.unwrap_or(ctx.theme.frame_style()),
-    };
+    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
     let result = raw::frame(spec);
 
     ctx.append_cmds(result.draw.0);
