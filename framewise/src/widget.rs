@@ -52,6 +52,7 @@ pub struct InputInfo {
 /// pattern with freestanding functions.
 /// Can be associated with a 'on_finish' closure, which allows widget cleanup code to be run
 /// when this context is finished (e.g. for nested windows)
+#[must_use = "finish() must be called to run cleanup"]
 pub struct WidgetContext<
     'a,
     T: TextSystem,
@@ -67,10 +68,9 @@ pub struct WidgetContext<
     pub text_system: &'a mut T,
     pub focus_sys: &'a mut FocusSystem,
     pub input: &'a Input,
+    cmds: &'a mut Vec<DrawCmd>,
 
     pub layout_state: LS,
-    cmds: Vec<DrawCmd>,
-
     on_finish: CF,
 }
 
@@ -83,6 +83,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
         focus_sys: &'a mut FocusSystem,
         input: &'a Input,
         layout_state: LS,
+        cmds: &'a mut Vec<DrawCmd>,
     ) -> Self {
         Self {
             time: 0.0,
@@ -92,7 +93,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
             focus_sys,
             input,
             layout_state,
-            cmds: Vec::new(),
+            cmds,
             on_finish: |_| vec![], // No cleanup for root context
         }
     }
@@ -118,7 +119,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
             focus_sys: self.focus_sys,
             input: self.input,
             layout_state: inner_layout_state,
-            cmds: vec![],
+            cmds: self.cmds,
             on_finish: inner_on_finish, // The original on_finish is not copied - correct as the original context will still own it.
         }
     }
@@ -136,19 +137,13 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
     }
 
     /// Consume the context and return all accumulated draw commands.
-    pub fn finish(self) -> Vec<DrawCmd> {
+    pub fn finish(self) {
         let mut post_cmds = (self.on_finish)(self.focus_sys);
-        let mut cmds = self.cmds;
-        cmds.append(&mut post_cmds);
-        cmds
+        self.cmds.append(&mut post_cmds);
     }
 
     /// Resolve layout using the context's layout state.
     pub fn layout(&mut self, params: LS::Params) -> Rect {
         self.layout_state.layout(params)
     }
-
-    // pub fn finish_child<'a2, 'b, T2: TextSystem, S2: LayoutState>(&'b mut self, child: WidgetContext<'a2, T2, S2>) {
-    //      self.append_cmds(child.finish());
-    // }
 }

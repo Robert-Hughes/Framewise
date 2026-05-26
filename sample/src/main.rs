@@ -219,12 +219,14 @@ impl App {
         }
 
         self.focus_sys.begin_frame();
+        let mut cmds = vec![];
         let mut ctx = WidgetContext::root(
             Theme::default(),
             text_system,
             &mut self.focus_sys,
             &self.input,
             framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_size.0, win_size.1)),
+            &mut cmds,
         );
         ctx.time = self.start_time.elapsed().as_secs_f64();
 
@@ -236,7 +238,7 @@ impl App {
         );
 
         // Main container splitting into Sidebar (Left) and Content (Right)
-        let root_cmds = {
+        {
             let mut main_row = {
                 let layout_params = Rect::new(10.0, 10.0, win_size.0 - 20.0, win_size.1 - 20.0);
                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
@@ -245,7 +247,7 @@ impl App {
             };
 
             // -- SIDEBAR (Left Column) --
-            let sidebar_cmds = {
+            {
                 let mut sidebar_col = {
                     let layout_params = Vec2::new(200.0, win_size.1 - 20.0);
                     let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
@@ -298,12 +300,10 @@ impl App {
                         self.sidebar_btns[i].clicks += 1;
                     }
                 }
-                let sidebar_cmds = sidebar_scroll.finish();
-                sidebar_col.append_cmds(sidebar_cmds);
+                sidebar_scroll.finish();
 
                 sidebar_col.finish()
             };
-            main_row.append_cmds(sidebar_cmds);
 
             // -- MAIN CONTENT (Right Column) --
             {
@@ -320,7 +320,7 @@ impl App {
                 let inner_w = win_size.0 - 240.0 - 15.0;
 
                 // Top Header Row
-                let header_cmds = {
+                {
                     let mut header_row = {
                         let layout_params = Vec2::new(inner_w, 40.0);
                         let layout = framewise::layout::RowLayout { spacing: 10.0 };
@@ -381,10 +381,9 @@ impl App {
 
                     header_row.finish()
                 };
-                content_col.append_cmds(header_cmds);
 
                 // Nested Grid Area (4 Rows of 4 Buttons)
-                let grid_cmds = {
+                {
                     let mut grid_col = {
                         let layout_params = Vec2::new(inner_w, 200.0);
                         let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
@@ -407,7 +406,7 @@ impl App {
                     };
 
                     for row in 0..4 {
-                        let row_cmds = {
+                        {
                             let mut grid_row = {
                                 let layout_params = Vec2::new(inner_w, 32.0);
                                 let layout = framewise::layout::RowLayout { spacing: 10.0 };
@@ -436,14 +435,12 @@ impl App {
                             }
                             grid_row.finish()
                         };
-                        grid_col.append_cmds(row_cmds);
                     }
                     grid_col.finish()
                 };
-                content_col.append_cmds(grid_cmds);
 
                 // Standalone Slider Demo
-                let slider_cmds = {
+                {
                     let mut slider_row = {
                         let layout_params = Vec2::new(inner_w, 100.0);
                         let layout = framewise::layout::RowLayout { spacing: 20.0 };
@@ -484,7 +481,6 @@ impl App {
 
                     slider_row.finish()
                 };
-                content_col.append_cmds(slider_cmds);
 
                 // Main Scroll Area
                 {
@@ -531,8 +527,7 @@ impl App {
                         self.main_btns[i].clicks += 1;
                     }
                 }
-                let main_cmds = main_scroll.finish();
-                content_col.append_cmds(main_cmds);
+                main_scroll.finish();
 
                 // Nested Scroll Area Demo
                 {
@@ -632,9 +627,7 @@ impl App {
                             row_state.inner_btns[j].clicks += 1;
                         }
                     }
-                    let cmds = inner_scroll.finish();
-                    row_builder.append_cmds(cmds);
-                    // row_builder.finish_child(inner_scroll);//TODO:
+                    inner_scroll.finish();
 
                     // 2. Horizontal Inner scroll area (using None for vertical scrollbar)
                     let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;
@@ -673,8 +666,7 @@ impl App {
                             row_state.horiz_btns[j].clicks += 1;
                         }
                     }
-                    let horiz_cmds = horiz_scroll.finish();
-                    row_builder.append_cmds(horiz_cmds);
+                    horiz_scroll.finish();
 
                     // 3. Both directions Inner scroll area
                     let both_width = 8.0 * 80.0 + 7.0 * 8.0;
@@ -717,8 +709,7 @@ impl App {
                             row_state.both_btns[j].clicks += 1;
                         }
                     }
-                    let both_cmds = both_scroll.finish();
-                    row_builder.append_cmds(both_cmds);
+                    both_scroll.finish();
 
                     // Standalone vertical slider
                     {
@@ -760,11 +751,9 @@ impl App {
                         slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
-                    let row_cmds = row_builder.finish();
-                    outer_scroll.append_cmds(row_cmds);
+                    row_builder.finish();
                 }
-                let outer_cmds = outer_scroll.finish();
-                content_col.append_cmds(outer_cmds);
+                outer_scroll.finish();
 
                 // Double Horizontal Scroll Demo
                 {
@@ -819,8 +808,7 @@ impl App {
                     };
                     self.double_horiz_btns[j].state = btn.state;
                 }
-                let d_inner_cmds = d_inner_scroll.finish();
-                d_outer_scroll.append_cmds(d_inner_cmds);
+                d_inner_scroll.finish();
 
                 // Right spacer/button
                 {
@@ -831,8 +819,7 @@ impl App {
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
-                let d_outer_cmds = d_outer_scroll.finish();
-                content_col.append_cmds(d_outer_cmds);
+                d_outer_scroll.finish();
 
                 // Nested 2D Scroll Demo: outer[2D] > inner[2D]
                 {
@@ -942,11 +929,9 @@ impl App {
                             self.nested_2d_inner_btns[j].clicks += 1;
                         }
                     }
-                    let inner_cmds = inner.finish();
-                    outer.append_cmds(inner_cmds);
+                    inner.finish();
 
-                    let outer_cmds = outer.finish();
-                    content_col.append_cmds(outer_cmds);
+                    outer.finish();
                 }
 
                 // Triple-Nested Scroll Demo: outer_vert -> middle_horiz -> inner_vert
@@ -1084,11 +1069,9 @@ impl App {
                             self.triple_innermost_btns[k].clicks += 1;
                         }
                     }
-                    let innermost_cmds = innermost_scroll.finish();
-                    inner_scroll.append_cmds(innermost_cmds);
+                    innermost_scroll.finish();
 
-                    let inner_cmds = inner_scroll.finish();
-                    middle_scroll.append_cmds(inner_cmds);
+                    inner_scroll.finish();
 
                     // Inner vertical slider
                     {
@@ -1126,8 +1109,7 @@ impl App {
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
-                    let middle_cmds = middle_scroll.finish();
-                    outer_scroll.append_cmds(middle_cmds);
+                    middle_scroll.finish();
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
@@ -1180,19 +1162,16 @@ impl App {
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 
-                    let outer_cmds = outer_scroll.finish();
-                    content_col.append_cmds(outer_cmds);
+                    outer_scroll.finish();
                 }
 
-                let content_cmds = content_col.finish();
-                main_row.append_cmds(content_cmds);
+                content_col.finish();
             }
 
             main_row.finish()
         };
-        ctx.append_cmds(root_cmds);
 
-        let cmds = ctx.finish();
+        ctx.finish();
         self.focus_sys.end_frame();
         cmds
     }

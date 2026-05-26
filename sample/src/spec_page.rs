@@ -726,9 +726,10 @@ pub fn draw_spec_page(
     let lx = (win_w - content_w) * 0.5;
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
+    let mut cmds = vec![];
     let mut b = {
         let layout_state = ManualLayout.begin(win_rect);
-        let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state);
+        let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state, &mut cmds);
         w_ctx.theme.sans_font = t.mono_font;
         w_ctx.time = 0.0;
         w_ctx.clip_rect = None;
@@ -753,7 +754,7 @@ pub fn draw_spec_page(
 
     // Scroll area provides clip + scroll offset for all page content.
     let mut should_reset = false;
-    let page_cmds = {
+    {
         let mut page = {
             let this = &mut b;
             let content_size = Vec2::new(content_w, CONTENT_HEIGHT);
@@ -2338,11 +2339,7 @@ pub fn draw_spec_page(
                             label(this, layout_params, spec_builder)
                         };
                     }
-                    let sa_cmds = sa.finish();
-                    {
-                        let this = &mut *b;
-                        this.append_cmds(sa_cmds);
-                    };
+                    sa.finish();
                 }
                 {
                     let this = &mut *b;
@@ -2400,11 +2397,7 @@ pub fn draw_spec_page(
                             label(this, layout_params, spec_builder)
                         };
                     }
-                    let sa_cmds = sa.finish();
-                    {
-                        let this = &mut *b;
-                        this.append_cmds(sa_cmds);
-                    };
+                    sa.finish();
                 }
                 {
                     let this = &mut *b;
@@ -2460,11 +2453,7 @@ pub fn draw_spec_page(
                                 .rule(false);
                         label(this, layout_params, spec_builder)
                     };
-                    let sa_cmds = sa.finish();
-                    {
-                        let this = &mut *b;
-                        this.append_cmds(sa_cmds);
-                    };
+                    sa.finish();
                 }
                 {
                     let this = &mut *b;
@@ -2531,11 +2520,7 @@ pub fn draw_spec_page(
                             .rule(false);
                         label(this, layout_params, spec_builder)
                     };
-                    let sa_cmds = sa.finish();
-                    {
-                        let this = &mut *b;
-                        this.append_cmds(sa_cmds);
-                    };
+                    sa.finish();
                 }
                 {
                     let this = &mut *b;
@@ -3065,8 +3050,7 @@ pub fn draw_spec_page(
                     };
                     iy += 22.0;
                 }
-                let cmds = win.finish();
-                b.append_cmds(cmds);
+                win.finish();
 
                 // Dark variant window (drawn with DrawCmds)
                 let dw = Rect::new(lx + 388.0, y, 300.0, 240.0);
@@ -3649,11 +3633,7 @@ pub fn draw_spec_page(
                     state.iu_btns[i] = btn.state;
                     btn_x -= 8.0;
                 }
-                let cmds = win.finish();
-                {
-                    let this = &mut *b;
-                    this.append_cmds(cmds);
-                };
+                win.finish();
 
                 // Right column
                 let rcol_x = lx + win_w_left + 24.0;
@@ -3746,17 +3726,9 @@ pub fn draw_spec_page(
                             label(this, layout_params, spec_builder)
                         };
                     }
-                    let log_cmds = log_page.finish();
-                    {
-                        let this = &mut fl_win;
-                        this.append_cmds(log_cmds);
-                    };
+                    log_page.finish();
                 }
-                let cmds = fl_win.finish();
-                {
-                    let this = &mut *b;
-                    this.append_cmds(cmds);
-                };
+                fl_win.finish();
 
                 // Quick Actions window
                 let qa_y = y + fl_h + 16.0;
@@ -3805,12 +3777,7 @@ pub fn draw_spec_page(
                     Rect::new(0.0, -8.0, qa_cr_w, 0.0),
                     framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
                 );
-                let cmds = qa_win.finish();
-                {
-                    let this = &mut *b;
-                    this.append_cmds(cmds);
-                };
-
+                qa_win.finish();
                 y += win_h_full;
             }
             y += SEC_GAP;
@@ -3881,11 +3848,8 @@ pub fn draw_spec_page(
     if should_reset {
         *state = SpecPageState::default();
     }
-    {
-        let this = &mut b;
-        this.append_cmds(page_cmds);
-    };
-    b.finish()
+    b.finish();
+    cmds
 }
 
 fn hero_logo(t: &Theme, lx: f32, y0: f32) -> Vec<DrawCmd> {
