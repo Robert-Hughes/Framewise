@@ -639,9 +639,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new("(STATIC)".to_string())
             .size(size)
-            .font(this.theme.sans_font)
-            .text_color(color)
-            .rule(false);
+            .text_color(color);
         label(this, layout_params, spec_builder)
     };
 }
@@ -658,7 +656,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
     {
         let this = &mut *b;
         let layout_params = Rect::new(lx, y, w, 36.0);
-        let spec_builder = DividerSpecBuilder::new().color(this.theme.line).width(1.0);
+        let spec_builder = DividerSpecBuilder::new();
         divider(this, layout_params, spec_builder)
     };
     {
@@ -668,9 +666,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new(num.to_string())
             .size(size)
-            .font(this.theme.sans_font)
-            .text_color(color)
-            .rule(false);
+            .text_color(color);
         label(this, layout_params, spec_builder)
     };
     {
@@ -681,8 +677,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
         let spec_builder = LabelSpecBuilder::new(title.to_string())
             .size(18.0)
             .font(font)
-            .text_color(color)
-            .rule(false);
+            .text_color(color);
         label(this, layout_params, spec_builder)
     };
 }
@@ -702,9 +697,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<D
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new(text.to_string())
             .size(size)
-            .font(this.theme.sans_font)
-            .text_color(color)
-            .rule(false);
+            .text_color(color);
         label(this, layout_params, spec_builder)
     };
 }
@@ -790,9 +783,7 @@ pub fn draw_spec_page(
                         "FRAMEWISE · WIDGET SPECIFICATION · V0.1".to_string(),
                     )
                     .size(size)
-                    .font(this.theme.sans_font)
-                    .text_color(color)
-                    .rule(false);
+                    .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -805,8 +796,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new("A widget set that".to_string())
                         .size(56.0)
                         .font(font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -817,8 +807,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new("explains itself.".to_string())
                         .size(56.0)
                         .font(font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -834,8 +823,7 @@ pub fn draw_spec_page(
                     )
                     .size(15.0)
                     .font(font)
-                    .text_color(color)
-                    .rule(false);
+                    .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -847,8 +835,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new("reserved for focus, drag, and primary action. Every widget describes its state".to_string())
                             .size(15.0)
                             .font(font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -862,8 +849,7 @@ pub fn draw_spec_page(
                     )
                     .size(15.0)
                     .font(font)
-                    .text_color(color)
-                    .rule(false);
+                    .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -887,8 +873,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new(key.to_string())
                             .size(size)
                             .font(font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     let key_w = key.len() as f32 * 7.5 + 4.0;
@@ -901,8 +886,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new(val.to_string())
                             .size(size)
                             .font(font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     mx += key_w + val.len() as f32 * 6.5 + 24.0;
@@ -935,8 +919,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
-                            .style(style)
-                            .disabled(false);
+                            .style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     if btn.clicked() && i == 2 {
@@ -977,9 +960,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(col.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -993,9 +974,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(row_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     for ci in 0..5 {
@@ -1069,8 +1048,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
-                            .style(style)
-                            .disabled(false);
+                            .style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     state.btn_sizes[i] = btn.state;
@@ -1094,8 +1072,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
-                            .style(style)
-                            .disabled(false);
+                            .style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     state.btn_grp1[i] = btn.state;
@@ -1118,8 +1095,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
-                            .style(style)
-                            .disabled(false);
+                            .style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     state.btn_grp2[i] = btn.state;
@@ -1150,9 +1126,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(col.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -1166,9 +1140,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(row_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     for ci in 0..5 {
@@ -1185,8 +1157,6 @@ pub fn draw_spec_page(
                                 t.h_md,
                             );
                             let spec_builder = TextEditSpecBuilder::new()
-                                .style(this.theme.text_edit_style())
-                                .clip_rect(this.clip_rect)
                                 .error(error)
                                 .disabled(disabled);
                             text_edit(this, state, layout_params, spec_builder)
@@ -1210,20 +1180,14 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("CRATE NAME".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let info = {
                     let this = &mut *b;
                     let state = std::mem::take(&mut state.te_labelled);
                     let layout_params = Rect::new(field_x, y + 18.0, 160.0, t.h_md);
-                    let spec_builder = TextEditSpecBuilder::new()
-                        .style(this.theme.text_edit_style())
-                        .clip_rect(this.clip_rect)
-                        .error(false)
-                        .disabled(false);
+                    let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
                 state.te_labelled = info.state;
@@ -1235,9 +1199,7 @@ pub fn draw_spec_page(
                     let spec_builder =
                         LabelSpecBuilder::new("a–z, 0–9, hyphen; max 64".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -1250,9 +1212,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("VERSION".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -1276,20 +1236,14 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("v".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let info = {
                     let this = &mut *b;
                     let state = std::mem::take(&mut state.te_prefixed);
                     let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md);
-                    let spec_builder = TextEditSpecBuilder::new()
-                        .style(this.theme.text_edit_style())
-                        .clip_rect(this.clip_rect)
-                        .error(false)
-                        .disabled(false);
+                    let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
                 state.te_prefixed = info.state;
@@ -1301,9 +1255,7 @@ pub fn draw_spec_page(
                     let spec_builder =
                         LabelSpecBuilder::new("semver mismatch — bump minor".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -1316,20 +1268,14 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("DESCRIPTION".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let info = {
                     let this = &mut *b;
                     let state = std::mem::take(&mut state.te_multiline);
                     let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
-                    let spec_builder = TextEditSpecBuilder::new()
-                        .style(this.theme.text_edit_style())
-                        .clip_rect(this.clip_rect)
-                        .error(false)
-                        .disabled(false);
+                    let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
                 state.te_multiline = info.state;
@@ -1367,9 +1313,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(col.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -1383,9 +1327,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("box".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let box_specs: &[(CheckState, bool, bool)] = &[
@@ -1401,10 +1343,7 @@ pub fn draw_spec_page(
                         let info = {
                             let this = &mut *b;
                             let state = std::mem::take(&mut state.cb_matrix[ci]);
-                            let spec_builder = CheckboxSpecBuilder::new(state.check)
-                                .disabled(false)
-                                .style(this.theme.checkbox_style())
-                                .clip_rect(this.clip_rect);
+                            let spec_builder = CheckboxSpecBuilder::new(state.check);
                             checkbox(this, state, rect, spec_builder)
                         };
                         state.cb_matrix[ci] = info.state;
@@ -1422,9 +1361,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("with label".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
@@ -1434,10 +1371,7 @@ pub fn draw_spec_page(
                             let this = &mut *b;
                             let state = std::mem::take(&mut state.cb_matrix[3 + ci]);
                             let layout_params = Rect::new(cx, y, 14.0, 14.0);
-                            let spec_builder = CheckboxSpecBuilder::new(state.check)
-                                .disabled(false)
-                                .style(this.theme.checkbox_style())
-                                .clip_rect(this.clip_rect);
+                            let spec_builder = CheckboxSpecBuilder::new(state.check);
                             checkbox(this, state, layout_params, spec_builder)
                         };
                         state.cb_matrix[3 + ci] = info.state;
@@ -1458,9 +1392,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let spec_builder = LabelSpecBuilder::new("vsync".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(label_alpha)
-                            .rule(false);
+                            .text_color(label_alpha);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -1480,10 +1412,7 @@ pub fn draw_spec_page(
                             let state = std::mem::take(&mut state.radio_states[i]);
                             let layout_params = Rect::new(lx, ry, 14.0, 14.0);
                             let spec_builder = RadioSpecBuilder::new()
-                                .selected(state.selected)
-                                .disabled(false)
-                                .style(this.theme.radio_style())
-                                .clip_rect(this.clip_rect);
+                                .selected(state.selected);
                             radio(this, state, layout_params, spec_builder)
                         };
                         state.radio_states[i] = info.state;
@@ -1503,9 +1432,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new(radio_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -1537,9 +1464,7 @@ pub fn draw_spec_page(
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
                                 let spec_builder = SwitchSpecBuilder::new()
                                     .on(state.on)
-                                    .disabled(true)
-                                    .style(this.theme.switch_style())
-                                    .clip_rect(this.clip_rect);
+                                    .disabled(true);
                                 switch(this, state, layout_params, spec_builder)
                             };
                             state.switch_states[2] = info.state;
@@ -1552,10 +1477,7 @@ pub fn draw_spec_page(
                                 {
                                     let this = &mut *this;
                                     let spec_builder = SwitchSpecBuilder::new()
-                                        .on(state.on)
-                                        .disabled(false)
-                                        .style(this.theme.switch_style())
-                                        .clip_rect(this.clip_rect);
+                                        .on(state.on);
                                     switch(this, state, layout_params, spec_builder)
                                 }
                             };
@@ -1568,9 +1490,7 @@ pub fn draw_spec_page(
                         let size = t.text_md;
                         let spec_builder = LabelSpecBuilder::new(switch_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(label_color)
-                            .rule(false);
+                            .text_color(label_color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -1597,11 +1517,7 @@ pub fn draw_spec_page(
                         .max(1.0)
                         .page_step(step)
                         .step(step)
-                        .orientation(orientation)
-                        .thumb_size_ratio(None)
-                        .style(this.theme.slider_style())
-                        .clip_rect(this.clip_rect)
-                        .claim_scroll_at_ends(true);
+                        .orientation(orientation);
                     slider(
                         this,
                         &mut state.slider1_state,
@@ -1618,9 +1534,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(text.to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 y += t.h_md + row_gap;
@@ -1635,11 +1549,7 @@ pub fn draw_spec_page(
                         .max(1.0)
                         .page_step(step)
                         .step(step)
-                        .orientation(orientation)
-                        .thumb_size_ratio(None)
-                        .style(this.theme.slider_style())
-                        .clip_rect(this.clip_rect)
-                        .claim_scroll_at_ends(true);
+                        .orientation(orientation);
                     slider(
                         this,
                         &mut state.slider2_state,
@@ -1656,9 +1566,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(text.to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 y += t.h_md + row_gap;
@@ -1673,11 +1581,7 @@ pub fn draw_spec_page(
                         .max(1.0)
                         .page_step(step)
                         .step(step)
-                        .orientation(orientation)
-                        .thumb_size_ratio(None)
-                        .style(this.theme.slider_style())
-                        .clip_rect(this.clip_rect)
-                        .claim_scroll_at_ends(true);
+                        .orientation(orientation);
                     slider(
                         this,
                         &mut state.slider3_state,
@@ -1694,9 +1598,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(text.to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 y += t.h_md + row_gap;
@@ -1712,11 +1614,7 @@ pub fn draw_spec_page(
                         .max(9.0)
                         .page_step(step)
                         .step(step)
-                        .orientation(orientation)
-                        .thumb_size_ratio(None)
-                        .style(this.theme.slider_style())
-                        .clip_rect(this.clip_rect)
-                        .claim_scroll_at_ends(true);
+                        .orientation(orientation);
                     slider(
                         this,
                         &mut state.slider4_state,
@@ -1733,9 +1631,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(text.to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 // tick marks below track
@@ -1821,9 +1717,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(".24–.76".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
             }
@@ -1840,13 +1734,9 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("X")
-                        .font(this.theme.sans_font)
                         .value(state.value)
                         .min(0.0)
-                        .max(800.0)
-                        .disabled(false)
-                        .style(this.theme.drag_number_style())
-                        .clip_rect(this.clip_rect);
+                        .max(800.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
                 state.dn_showcase[0] = info.state;
@@ -1858,13 +1748,9 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("Y")
-                        .font(this.theme.sans_font)
                         .value(state.value)
                         .min(0.0)
-                        .max(600.0)
-                        .disabled(false)
-                        .style(this.theme.drag_number_style())
-                        .clip_rect(this.clip_rect);
+                        .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
                 state.dn_showcase[1] = info.state;
@@ -1888,13 +1774,9 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("H")
-                        .font(this.theme.sans_font)
                         .value(state.value)
                         .min(0.0)
-                        .max(600.0)
-                        .disabled(false)
-                        .style(this.theme.drag_number_style())
-                        .clip_rect(this.clip_rect);
+                        .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
                 state.dn_showcase[2] = info.state;
@@ -1930,9 +1812,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("padding".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -1959,9 +1839,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("12".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2009,9 +1887,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("−".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -2021,9 +1897,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("12".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -2033,9 +1907,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("+".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2058,9 +1930,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new(hex.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     bx += 86.0;
@@ -2112,11 +1982,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(SEGS1)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.segmented_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
                 state.seg1_state = seg1_info.state;
@@ -2127,11 +1993,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(SEGS2)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.segmented_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
                 state.seg2_state = seg2_info.state;
@@ -2149,10 +2011,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
                         let spec_builder = ChipSpecBuilder::new()
                             .label(label)
-                            .font(this.theme.sans_font)
-                            .disabled(false)
-                            .style(this.theme.chip_style())
-                            .clip_rect(this.clip_rect);
+                            .font(this.theme.sans_font);
                         chip(this, state, layout_params, spec_builder)
                     };
                     state.chip_states[i] = chip_info.state;
@@ -2168,10 +2027,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
                     let spec_builder = ChipSpecBuilder::new()
                         .label("+ add backend")
-                        .font(this.theme.sans_font)
-                        .disabled(false)
-                        .style(this.theme.chip_style())
-                        .clip_rect(this.clip_rect);
+                        .font(this.theme.sans_font);
                     chip(this, state, layout_params, spec_builder)
                 };
                 state.chip_states[4] = add_info.state;
@@ -2333,9 +2189,7 @@ pub fn draw_spec_page(
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new(line.to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(color)
-                                .rule(false);
+                                .text_color(color);
                             label(this, layout_params, spec_builder)
                         };
                     }
@@ -2348,9 +2202,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("vertical · idle".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2391,9 +2243,7 @@ pub fn draw_spec_page(
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new(text.to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(color)
-                                .rule(false);
+                                .text_color(color);
                             label(this, layout_params, spec_builder)
                         };
                     }
@@ -2407,9 +2257,7 @@ pub fn draw_spec_page(
                     let spec_builder =
                         LabelSpecBuilder::new("vertical · dragging (rust)".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2448,9 +2296,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )".to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(color)
-                                .rule(false);
+                                .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     sa.finish();
@@ -2462,9 +2308,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("horizontal".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2503,9 +2347,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new("scroll surface with".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     {
@@ -2515,9 +2357,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new("both bars + corner".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     sa.finish();
@@ -2529,9 +2369,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("both axes".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2550,11 +2388,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
                         .items(TABS1)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.tabs_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
                 state.tabs1_state = t1_info.state;
@@ -2567,11 +2401,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
                         .items(TABS2)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.tabs_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
                 state.tabs2_state = t2_info.state;
@@ -2608,9 +2438,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(bar_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     y += 22.0;
@@ -2635,9 +2463,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(meter_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     bx += 40.0;
@@ -2649,9 +2475,7 @@ pub fn draw_spec_page(
                             let color = t.ink;
                             let spec_builder = LabelSpecBuilder::new("2.4 ms".to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(color)
-                                .rule(false);
+                                .text_color(color);
                             label(this, layout_params, spec_builder)
                         };
                         bx += 70.0;
@@ -2681,9 +2505,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("loading".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2699,9 +2521,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("large".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -2931,9 +2751,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(desc.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     y += 28.0;
@@ -2977,13 +2795,9 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
                             .label(label)
-                            .font(this.theme.sans_font)
                             .value(state.value)
                             .min(min)
-                            .max(max)
-                            .disabled(false)
-                            .style(this.theme.drag_number_style())
-                            .clip_rect(this.clip_rect);
+                            .max(max);
                         drag_number(this, state, layout_params, spec_builder)
                     };
                     state.win11_drags[i] = info.state;
@@ -3003,13 +2817,9 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
                             .label(label)
-                            .font(this.theme.sans_font)
                             .value(state.value)
                             .min(min)
-                            .max(max)
-                            .disabled(false)
-                            .style(this.theme.drag_number_style())
-                            .clip_rect(this.clip_rect);
+                            .max(max);
                         drag_number(this, state, layout_params, spec_builder)
                     };
                     state.win11_drags[2 + i] = info.state;
@@ -3019,7 +2829,7 @@ pub fn draw_spec_page(
                 {
                     let this = &mut win;
                     let layout_params = Rect::new(0.0, iy, cr_w, 1.0);
-                    let spec_builder = DividerSpecBuilder::new().color(this.theme.line).width(1.0);
+                    let spec_builder = DividerSpecBuilder::new();
                     divider(this, layout_params, spec_builder)
                 };
                 iy += 10.0;
@@ -3029,10 +2839,7 @@ pub fn draw_spec_page(
                         let this = &mut win;
                         let state = std::mem::take(&mut state.win11_cbs[i]);
                         let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
-                        let spec_builder = CheckboxSpecBuilder::new(state.check)
-                            .disabled(false)
-                            .style(this.theme.checkbox_style())
-                            .clip_rect(this.clip_rect);
+                        let spec_builder = CheckboxSpecBuilder::new(state.check);
                         checkbox(this, state, layout_params, spec_builder)
                     };
                     state.win11_cbs[i] = cb_info.state;
@@ -3043,9 +2850,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new(check_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     iy += 22.0;
@@ -3086,9 +2891,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("FRAMEWISE · DARK".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(light)
-                        .rule(false);
+                        .text_color(light);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -3097,9 +2900,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("✕".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(light)
-                        .rule(false);
+                        .text_color(light);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -3138,9 +2939,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("⌘".to_string())
                         .size(size)
-                        .font(b.theme.sans_font)
-                        .text_color(light)
-                        .rule(false);
+                        .text_color(light);
                     label(b, layout_params, spec_builder)
                 };
                 {
@@ -3148,9 +2947,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("K".to_string())
                         .size(size)
-                        .font(b.theme.sans_font)
-                        .text_color(light)
-                        .rule(false);
+                        .text_color(light);
                     label(b, layout_params, spec_builder)
                 };
                 {
@@ -3158,9 +2955,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("search everything".to_string())
                         .size(size)
-                        .font(b.theme.sans_font)
-                        .text_color(muted_l)
-                        .rule(false);
+                        .text_color(muted_l);
                     label(b, layout_params, spec_builder)
                 };
 
@@ -3189,9 +2984,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new("type a command…".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(muted_l)
-                        .rule(false);
+                        .text_color(muted_l);
                     label(this, layout_params, spec_builder)
                 };
 
@@ -3219,9 +3012,7 @@ pub fn draw_spec_page(
                         let color = if i == 0 { light } else { muted_l };
                         let spec_builder = LabelSpecBuilder::new(item.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     if i == 0 {
@@ -3250,9 +3041,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let spec_builder = LabelSpecBuilder::new(file.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(muted_l)
-                            .rule(false);
+                            .text_color(muted_l);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -3293,11 +3082,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, 0.0, cr_w, 28.0);
                     let spec_builder = TabsSpecBuilder::new()
                         .items(items)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.tabs_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
                 state.iu_tabs = tabs_info.state;
@@ -3319,9 +3104,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("BACKEND".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
@@ -3332,11 +3115,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(items)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.segmented_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
                 state.iu_backend = backend_info.state;
@@ -3350,9 +3129,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("TARGET FPS".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 {
@@ -3365,11 +3142,7 @@ pub fn draw_spec_page(
                         .max(240.0)
                         .page_step(step)
                         .step(step)
-                        .orientation(orientation)
-                        .thumb_size_ratio(None)
-                        .style(this.theme.slider_style())
-                        .clip_rect(this.clip_rect)
-                        .claim_scroll_at_ends(true);
+                        .orientation(orientation);
                     slider(
                         this,
                         &mut state.iu_fps_slider,
@@ -3386,9 +3159,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new(text.to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 fy += row_h + row_gap;
@@ -3401,9 +3172,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("VSYNC".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let switch_res = {
@@ -3413,10 +3182,7 @@ pub fn draw_spec_page(
                     {
                         let this = &mut *this;
                         let spec_builder = SwitchSpecBuilder::new()
-                            .on(state.on)
-                            .disabled(false)
-                            .style(this.theme.switch_style())
-                            .clip_rect(this.clip_rect);
+                            .on(state.on);
                         switch(this, state, layout_params, spec_builder)
                     }
                 };
@@ -3428,9 +3194,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("match display".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 fy += row_h + row_gap;
@@ -3443,9 +3207,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("MSAA".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let msaa_opts = ["off", "2×", "4×", "8×"];
@@ -3456,11 +3218,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(items)
-                        .font(this.theme.sans_font)
-                        .active_index(state.active_index)
-                        .disabled(false)
-                        .style(this.theme.segmented_style())
-                        .clip_rect(this.clip_rect);
+                        .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
                 state.iu_msaa = seg_res.state;
@@ -3474,9 +3232,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("VIEWPORT".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let w_res = {
@@ -3485,13 +3241,9 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("W")
-                        .font(this.theme.sans_font)
                         .value(state.value)
                         .min(0.0)
-                        .max(7680.0)
-                        .disabled(false)
-                        .style(this.theme.drag_number_style())
-                        .clip_rect(this.clip_rect);
+                        .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
                 state.iu_vp_w = w_res.state;
@@ -3507,13 +3259,9 @@ pub fn draw_spec_page(
                     );
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("H")
-                        .font(this.theme.sans_font)
                         .value(state.value)
                         .min(0.0)
-                        .max(7680.0)
-                        .disabled(false)
-                        .style(this.theme.drag_number_style())
-                        .clip_rect(this.clip_rect);
+                        .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
                 state.iu_vp_h = h_res.state;
@@ -3527,9 +3275,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("ACCENT".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 color_swatch(
@@ -3546,9 +3292,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new("#c25a2c".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 fy += row_h + row_gap;
@@ -3561,9 +3305,7 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new("OPTIONS".to_string())
                         .size(size)
-                        .font(this.theme.sans_font)
-                        .text_color(color)
-                        .rule(false);
+                        .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
                 let opt_labels = [
@@ -3577,10 +3319,7 @@ pub fn draw_spec_page(
                         let this = &mut win;
                         let state = std::mem::take(&mut state.iu_options[i]);
                         let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
-                        let spec_builder = CheckboxSpecBuilder::new(state.check)
-                            .disabled(false)
-                            .style(this.theme.checkbox_style())
-                            .clip_rect(this.clip_rect);
+                        let spec_builder = CheckboxSpecBuilder::new(state.check);
                         checkbox(this, state, layout_params, spec_builder)
                     };
                     state.iu_options[i] = cb_res.state;
@@ -3593,9 +3332,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new(opt_label.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                 }
@@ -3604,7 +3341,7 @@ pub fn draw_spec_page(
                 {
                     let this = &mut win;
                     let layout_params = Rect::new(0.0, fy, cr_w, 1.0);
-                    let spec_builder = DividerSpecBuilder::new().color(this.theme.line).width(1.0);
+                    let spec_builder = DividerSpecBuilder::new();
                     divider(this, layout_params, spec_builder)
                 };
                 fy += 10.0;
@@ -3626,8 +3363,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder = ButtonSpecBuilder::new(text.to_string())
-                            .style(style)
-                            .disabled(false);
+                            .style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     state.iu_btns[i] = btn.state;
@@ -3703,9 +3439,7 @@ pub fn draw_spec_page(
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new(ts_str.to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(color)
-                                .rule(false);
+                                .text_color(color);
                             label(this, layout_params, spec_builder)
                         };
                         let msg_color = if *highlight { t.rust } else { t.ink };
@@ -3720,9 +3454,7 @@ pub fn draw_spec_page(
                             let size = t.text_sm;
                             let spec_builder = LabelSpecBuilder::new(msg.to_string())
                                 .size(size)
-                                .font(this.theme.sans_font)
-                                .text_color(msg_color)
-                                .rule(false);
+                                .text_color(msg_color);
                             label(this, layout_params, spec_builder)
                         };
                     }
@@ -3787,7 +3519,7 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(lx, y, content_w, 1.0);
-                    let spec_builder = DividerSpecBuilder::new().color(this.theme.line).width(1.0);
+                    let spec_builder = DividerSpecBuilder::new();
                     divider(this, layout_params, spec_builder)
                 };
                 y += 10.0;
@@ -3807,9 +3539,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new(key.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     let kw = key.len() as f32 * 7.0 + 8.0;
@@ -3820,9 +3550,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new(val.to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                         label(this, layout_params, spec_builder)
                     };
                     fx += kw + val.len() as f32 * 6.5 + 24.0;
@@ -3835,9 +3563,7 @@ pub fn draw_spec_page(
                     let spec_builder =
                         LabelSpecBuilder::new("FRAMEWISE · WIDGET SPECIFICATION".to_string())
                             .size(size)
-                            .font(this.theme.sans_font)
-                            .text_color(color)
-                            .rule(false);
+                            .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
             }

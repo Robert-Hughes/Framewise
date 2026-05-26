@@ -14,7 +14,7 @@ use framewise::{
         label::label,
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollbarVisibility},
         slider::{
-            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderStyle,
+            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState,
         },
         text_edit::{text_edit, TextEditSpecBuilder},
         ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder,
@@ -261,11 +261,7 @@ impl App {
 
                 {
                     let layout_params = Vec2::new(200.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new("NAVIGATION".to_string())
-                        .size(sidebar_col.theme.text_md)
-                        .font(sidebar_col.theme.sans_font)
-                        .text_color(sidebar_col.theme.ink)
-                        .rule(false);
+                    let spec_builder = LabelSpecBuilder::new("NAVIGATION".to_string());
                     label(&mut sidebar_col, layout_params, spec_builder)
                 };
 
@@ -290,8 +286,7 @@ impl App {
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(button_style)
-                            .disabled(false);
+                            .style(button_style);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
@@ -335,11 +330,7 @@ impl App {
                     let info = {
                         let state = std::mem::take(&mut self.text_edit_state);
                         let layout_params = Vec2::new(300.0, 40.0);
-                        let spec_builder = TextEditSpecBuilder::new()
-                            .style(header_row.theme.text_edit_style())
-                            .clip_rect(header_row.clip_rect)
-                            .error(false)
-                            .disabled(false);
+                        let spec_builder = TextEditSpecBuilder::new();
                         text_edit(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.text_edit_state = info.state;
@@ -362,8 +353,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(button_style)
-                            .disabled(false);
+                            .style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn1.state = btn1.state;
@@ -373,8 +363,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings".to_string();
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(button_style)
-                            .disabled(false);
+                            .style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn2.state = btn2.state;
@@ -397,11 +386,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(400.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("DASHBOARD GRID".to_string())
-                            .size(grid_col.theme.text_md)
-                            .font(grid_col.theme.sans_font)
-                            .text_color(grid_col.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new("DASHBOARD GRID".to_string());
                         label(&mut grid_col, layout_params, spec_builder)
                     };
 
@@ -427,8 +412,7 @@ impl App {
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder = ButtonSpecBuilder::new(text)
-                                        .style(button_style)
-                                        .disabled(false);
+                                        .style(button_style);
                                     button(&mut grid_row, state, layout_params, spec_builder)
                                 };
                                 self.grid_btns[idx].state = btn.state;
@@ -452,11 +436,7 @@ impl App {
                         let layout_params = Vec2::new(150.0, 20.0);
                         let text: &str =
                             &format!("Slider Value: {:.1}", self.standalone_slider_val);
-                        let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(slider_row.theme.text_md)
-                            .font(slider_row.theme.sans_font)
-                            .text_color(slider_row.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new(text.to_string());
                         label(&mut slider_row, layout_params, spec_builder)
                     };
 
@@ -464,18 +444,11 @@ impl App {
                         let state: &mut SliderState = &mut self.standalone_slider_state;
                         let value: &mut f32 = &mut self.standalone_slider_val;
                         let step = 20.0;
-                        let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, 100.0);
                         let spec_builder = SliderSpecBuilder::new()
-                            .orientation(orientation)
-                            .min(0.0)
-                            .max(100.0)
+                            .orientation(SliderOrientation::Vertical)
                             .page_step(step)
-                            .step(step)
-                            .thumb_size_ratio(None)
-                            .style(SliderStyle::default())
-                            .clip_rect(slider_row.clip_rect)
-                            .claim_scroll_at_ends(true);
+                            .step(step);
                         slider(&mut slider_row, state, value, layout_params, spec_builder);
                     };
 
@@ -485,11 +458,7 @@ impl App {
                 // Main Scroll Area
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new("MAIN FEED".to_string())
-                        .size(content_col.theme.text_md)
-                        .font(content_col.theme.sans_font)
-                        .text_color(content_col.theme.ink)
-                        .rule(false);
+                    let spec_builder = LabelSpecBuilder::new("MAIN FEED".to_string());
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let content_height = 30.0 * 50.0 + 30.0 * 10.0;
@@ -517,8 +486,7 @@ impl App {
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(button_style)
-                            .disabled(false);
+                            .style(button_style);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
@@ -532,12 +500,7 @@ impl App {
                 // Nested Scroll Area Demo
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks".to_string())
-                        .size(content_col.theme.text_md)
-                        .font(content_col.theme.sans_font)
-                        .text_color(content_col.theme.ink)
-                        .rule(false)
-                    ;
+                    let spec_builder = LabelSpecBuilder::new("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks".to_string());
                     label(&mut content_col, layout_params, spec_builder)
                 };
 
@@ -581,8 +544,7 @@ impl App {
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
                         let spec_builder = ButtonSpecBuilder::new(text)
-                            .style(button_style)
-                            .disabled(false);
+                            .style(button_style);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.clicked();
@@ -617,8 +579,7 @@ impl App {
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -656,8 +617,7 @@ impl App {
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -699,8 +659,7 @@ impl App {
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -716,18 +675,11 @@ impl App {
                         let state: &mut SliderState = &mut row_state.slider_state;
                         let value: &mut f32 = &mut row_state.slider_val;
                         let step = 20.0;
-                        let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, row_h);
                         let spec_builder = SliderSpecBuilder::new()
-                            .orientation(orientation)
-                            .min(0.0)
-                            .max(100.0)
+                            .orientation(SliderOrientation::Vertical)
                             .page_step(step)
-                            .step(step)
-                            .thumb_size_ratio(None)
-                            .style(SliderStyle::default())
-                            .clip_rect(row_builder.clip_rect)
-                            .claim_scroll_at_ends(true);
+                            .step(step);
                         slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
@@ -736,18 +688,10 @@ impl App {
                         let state: &mut SliderState = &mut row_state.horiz_slider_state;
                         let value: &mut f32 = &mut row_state.horiz_slider_val;
                         let step = 20.0;
-                        let orientation = SliderOrientation::Horizontal;
                         let layout_params = Vec2::new(100.0, 30.0);
                         let spec_builder = SliderSpecBuilder::new()
-                            .orientation(orientation)
-                            .min(0.0)
-                            .max(100.0)
                             .page_step(step)
-                            .step(step)
-                            .thumb_size_ratio(None)
-                            .style(SliderStyle::default())
-                            .clip_rect(row_builder.clip_rect)
-                            .claim_scroll_at_ends(true);
+                            .step(step);
                         slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
@@ -759,11 +703,7 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder =
-                        LabelSpecBuilder::new("DOUBLE HORIZONTAL SCROLL DEMO".to_string())
-                            .size(content_col.theme.text_md)
-                            .font(content_col.theme.sans_font)
-                            .text_color(content_col.theme.ink)
-                            .rule(false);
+                        LabelSpecBuilder::new("DOUBLE HORIZONTAL SCROLL DEMO".to_string());
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let mut d_outer_scroll = begin_scroll_area(
@@ -782,7 +722,7 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(100.0, 100.0);
                     let text = "Outer L".to_string();
-                    let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
+                    let spec_builder = ButtonSpecBuilder::new(text);
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
@@ -803,7 +743,7 @@ impl App {
                         let state = std::mem::take(&mut self.double_horiz_btns[j].state);
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
+                        let spec_builder = ButtonSpecBuilder::new(text);
                         button(&mut d_inner_scroll, state, layout_params, spec_builder)
                     };
                     self.double_horiz_btns[j].state = btn.state;
@@ -815,7 +755,7 @@ impl App {
                     let state = Default::default();
                     let layout_params = Vec2::new(300.0, 100.0);
                     let text = "Outer R".to_string();
-                    let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
+                    let spec_builder = ButtonSpecBuilder::new(text);
                     button(&mut d_outer_scroll, state, layout_params, spec_builder)
                 };
 
@@ -830,12 +770,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently".to_string())
-                            .size(content_col.theme.text_md)
-                            .font(content_col.theme.sans_font)
-                            .text_color(content_col.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder = LabelSpecBuilder::new("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently".to_string());
                         label(&mut content_col, layout_params, spec_builder)
                     };
 
@@ -858,11 +793,7 @@ impl App {
                             "OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}",
                             outer_ox, outer_oy, inner_ox, inner_oy
                         );
-                        let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(outer.theme.text_md)
-                            .font(outer.theme.sans_font)
-                            .text_color(outer.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new(text.to_string());
                         label(&mut outer, layout_params, spec_builder)
                     };
 
@@ -882,7 +813,7 @@ impl App {
                             let state = std::mem::take(&mut self.nested_2d_outer_btns[k].state);
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label.to_string();
-                            let spec_builder = ButtonSpecBuilder::new(text).disabled(false);
+                            let spec_builder = ButtonSpecBuilder::new(text);
                             button(&mut outer, state, layout_params, spec_builder)
                         };
                         self.nested_2d_outer_btns[k].state = btn.state;
@@ -919,8 +850,7 @@ impl App {
                             );
                             let text = format!("2D {:02}", j + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -943,12 +873,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
-                        let spec_builder = LabelSpecBuilder::new("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation".to_string())
-                            .size(content_col.theme.text_md)
-                            .font(content_col.theme.sans_font)
-                            .text_color(content_col.theme.ink)
-                            .rule(false)
-                        ;
+                        let spec_builder = LabelSpecBuilder::new("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation".to_string());
                         label(&mut content_col, layout_params, spec_builder)
                     };
 
@@ -970,11 +895,7 @@ impl App {
                                             "OUTER[V]: {:.0}  |  MIDDLE[H]: {:.0}  |  INNER[V]: {:.0}  |  INNERMOST[H]: {:.0}",
                                             outer_y, middle_x, inner_y, innermost_x,
                                         );
-                        let spec_builder = LabelSpecBuilder::new(text.to_string())
-                            .size(outer_scroll.theme.text_md)
-                            .font(outer_scroll.theme.sans_font)
-                            .text_color(outer_scroll.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new(text.to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 
@@ -992,11 +913,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string())
-                            .size(middle_scroll.theme.text_md)
-                            .font(middle_scroll.theme.sans_font)
-                            .text_color(middle_scroll.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string());
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -1025,8 +942,7 @@ impl App {
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -1059,8 +975,7 @@ impl App {
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
                             let spec_builder = ButtonSpecBuilder::new(text)
-                                .style(button_style)
-                                .disabled(false);
+                                .style(button_style);
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -1078,18 +993,11 @@ impl App {
                         let state: &mut SliderState = &mut self.triple_inner_slider_state;
                         let value: &mut f32 = &mut self.triple_inner_slider_val;
                         let step = 20.0;
-                        let orientation = SliderOrientation::Vertical;
                         let layout_params = Vec2::new(30.0, 130.0);
                         let spec_builder = SliderSpecBuilder::new()
-                            .orientation(orientation)
-                            .min(0.0)
-                            .max(100.0)
+                            .orientation(SliderOrientation::Vertical)
                             .page_step(step)
-                            .step(step)
-                            .thumb_size_ratio(None)
-                            .style(SliderStyle::default())
-                            .clip_rect(middle_scroll.clip_rect)
-                            .claim_scroll_at_ends(true);
+                            .step(step);
                         slider(
                             &mut middle_scroll,
                             state,
@@ -1101,11 +1009,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string())
-                            .size(middle_scroll.theme.text_md)
-                            .font(middle_scroll.theme.sans_font)
-                            .text_color(middle_scroll.theme.ink)
-                            .rule(false);
+                        let spec_builder = LabelSpecBuilder::new("[ horiz padding ]".to_string());
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -1114,51 +1018,31 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                                .size(outer_scroll.theme.text_md)
-                                .font(outer_scroll.theme.sans_font)
-                                .text_color(outer_scroll.theme.ink)
-                                .rule(false);
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                                .size(outer_scroll.theme.text_md)
-                                .font(outer_scroll.theme.sans_font)
-                                .text_color(outer_scroll.theme.ink)
-                                .rule(false);
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                                .size(outer_scroll.theme.text_md)
-                                .font(outer_scroll.theme.sans_font)
-                                .text_color(outer_scroll.theme.ink)
-                                .rule(false);
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                                .size(outer_scroll.theme.text_md)
-                                .font(outer_scroll.theme.sans_font)
-                                .text_color(outer_scroll.theme.ink)
-                                .rule(false);
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string())
-                                .size(outer_scroll.theme.text_md)
-                                .font(outer_scroll.theme.sans_font)
-                                .text_color(outer_scroll.theme.ink)
-                                .rule(false);
+                            LabelSpecBuilder::new("[ outer vert padding row ]".to_string());
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 

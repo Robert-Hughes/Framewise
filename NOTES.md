@@ -5,14 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Update DESIGN.md with the defaults_from_theme approach (if not already clear), include rationale (e.g. for low-level API use)
-* Test defaults_from_theme works as expected
-  * If field isn't set, it comes from theme
-  * If field is set, do nothing
-  * Add two tests to each *SpecBuilder struct - one with default struct (no fields set, assert than defaults_from_theme sets all fields from theme), one with fully specified fields (assert that defaults_from_theme does not change anything)
+* Check for consistency in Spec and SpecBuilder traits like Default, Clone, PartialEq etc., across all widget types. And for Default, how do they set their defaults
+  * Once added default, we can probably simplify a bunch of places that don't care and can use defaults (like test setup code)
 
-* In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
-* Figure out relationship between (Info, Spec, Style, Result, Builder etc.) structs, Theme, Font etc.
+* Figure out relationship between Widget structs like (Info, Spec, Style, Result, Builder etc.) and their relationship to other non-widget structs like Theme, Font etc.
+  * Do we still need Result/Info split. I think the plan was to have common reusable structs like LayoutInfo, ValueInfo<T> - check DESIGN.md
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
 
