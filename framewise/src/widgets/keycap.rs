@@ -174,11 +174,15 @@ impl<'a> KeycapSpecBuilder<'a> {
 }
 
 impl<'a> KeycapSpecBuilder<'a> {
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

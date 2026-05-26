@@ -293,6 +293,9 @@ impl<'a> ChipSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
+    /// Overrides the clip rectangle. High-level context functions supply this from
+    /// the surrounding clip region — only needed when using the raw API directly, or
+    /// to clip tighter than the context default.
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
         self.clip_rect = clip_rect;
         self
@@ -300,11 +303,15 @@ impl<'a> ChipSpecBuilder<'a> {
 }
 
 impl<'a> ChipSpecBuilder<'a> {
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(theme.chip_style());

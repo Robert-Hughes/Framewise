@@ -88,7 +88,7 @@ Each widget function returns a concrete struct composed of the parts it actually
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`) called when the context is finished; root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)). 
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`) called when the context is finished; root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
@@ -131,7 +131,15 @@ This pattern cleanly separates concerns:
 > **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `with_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
-> **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset. Builders that use internal spec structs should fully initialize the spec with defaults in their `new()` constructor.
+> **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset.
+
+### SpecBuilder Field Visibility
+
+`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction (`ButtonSpecBuilder { style: Some(s), ..Default::default() }`). The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard. Also you can read the values back.
+
+The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the "framework manages this" contract self-enforcing for `rect` and `clip_rect`; all operations are already covered by the existing setter methods.
+
+For now, fields remain `pub` and the framework-managed setter methods (`rect`, `clip_rect`, `defaults_from_theme`) carry doc comments explaining when to call them. Those struct fields may also warrant the same doc comments directly on their field declarations for the same reason.
 
 ### Style Structs
 

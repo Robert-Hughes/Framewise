@@ -124,11 +124,15 @@ impl ColorSwatchSpecBuilder {
 }
 
 impl ColorSwatchSpecBuilder {
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(self, _theme: &crate::theme::Theme) -> Self {
         self
     }
