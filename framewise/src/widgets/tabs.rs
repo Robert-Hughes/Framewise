@@ -159,6 +159,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TabsSpec<'a> {
     /// Bounding rect; only x/y/w used — height is fixed at 36.
     pub rect: Rect,
@@ -292,6 +293,7 @@ pub fn tabs<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TabsSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,

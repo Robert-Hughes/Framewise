@@ -63,6 +63,7 @@ pub enum StatusVariant {
     Live,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct StatusSpec<'a> {
     pub rect: Rect,
     pub label: &'a str,
@@ -132,6 +133,7 @@ pub fn status<
     ctx.append_cmds(result.draw.0);
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct StatusSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,

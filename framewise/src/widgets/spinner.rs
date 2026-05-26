@@ -101,6 +101,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpec {
     /// Top-left. Size is either 16 or 24 (use `large` flag).
     pub rect: Rect,
@@ -136,6 +137,7 @@ impl Default for SpinnerStyle {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpecBuilder {
     pub large: bool,
     pub color: Option<Color>,

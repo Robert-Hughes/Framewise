@@ -425,6 +425,7 @@ impl Default for ScrollState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollAreaSpec {
     pub rect: Rect,
     pub content_size: Vec2,
@@ -433,6 +434,7 @@ pub struct ScrollAreaSpec {
     pub clip_rect: Option<Rect>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
     pub content_size: Option<Vec2>,

@@ -170,6 +170,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SegmentedSpec<'a> {
     /// Top-left origin. Height is fixed at h_md (28).
     pub rect: Rect,
@@ -303,6 +304,7 @@ pub fn segmented<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,

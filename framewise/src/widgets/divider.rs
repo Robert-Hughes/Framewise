@@ -28,6 +28,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DividerSpec {
     pub rect: Rect,
     pub color: Color,
@@ -56,6 +57,7 @@ impl DividerResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DividerSpecBuilder {
     pub color: Option<Color>,
     pub width: Option<f32>,

@@ -118,6 +118,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct RadioSpec {
     /// Top-left of the 14×14 bounding area.
     pub rect: Rect,
@@ -166,6 +167,7 @@ impl Default for RadioStyle {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct RadioSpecBuilder {
     pub selected: bool,
     pub disabled: bool,

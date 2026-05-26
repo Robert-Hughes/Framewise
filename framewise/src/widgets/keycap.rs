@@ -60,6 +60,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeycapSpec<'a> {
     pub rect: Rect,
     pub label: &'a str,
@@ -118,6 +119,7 @@ pub fn keycap<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub bg: Option<Color>,

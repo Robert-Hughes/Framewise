@@ -43,6 +43,7 @@ pub mod raw {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct LabelSpec {
     pub rect: Rect,
     pub text: String,
@@ -77,6 +78,7 @@ impl LabelResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct LabelSpecBuilder {
     pub text: String,
     pub size: Option<f32>,

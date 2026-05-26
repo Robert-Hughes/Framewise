@@ -116,6 +116,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChipSpec<'a> {
     /// Top-left origin. Height is fixed at 22.
     pub rect: Rect,
@@ -250,6 +251,7 @@ pub fn chip<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChipSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,

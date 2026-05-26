@@ -118,6 +118,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SwitchSpec {
     /// Top-left of the 30×16 bounding area.
     pub rect: Rect,
@@ -170,6 +171,7 @@ impl Default for SwitchStyle {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SwitchSpecBuilder {
     pub on: bool,
     pub disabled: bool,

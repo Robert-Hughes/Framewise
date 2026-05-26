@@ -169,6 +169,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberSpec<'a> {
     /// Full bounding rect (height typically h_md = 28).
     pub rect: Rect,
@@ -321,6 +322,7 @@ pub fn drag_number<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,

@@ -30,6 +30,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColorSwatchSpec {
     pub rect: Rect,
     pub color: Color,
@@ -91,6 +92,7 @@ pub fn color_swatch<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColorSwatchSpecBuilder {
     pub rect: Option<Rect>,
     pub color: Option<Color>,

@@ -589,6 +589,7 @@ pub fn slider<
     ctx.append_cmds(cmds);
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SliderSpecBuilder {
     pub min: Option<f32>,
     pub max: Option<f32>,

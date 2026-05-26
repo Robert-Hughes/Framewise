@@ -137,7 +137,7 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MenuItem<'a> {
     Item {
         label: &'a str,
@@ -149,6 +149,7 @@ pub enum MenuItem<'a> {
     Group(&'a str),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MenuSpec<'a> {
     /// Top-left origin; width is at least 200.
     pub rect: Rect,
@@ -227,6 +228,7 @@ pub fn menu<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MenuSpecBuilder<'a> {
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,

@@ -399,7 +399,7 @@ pub mod raw {
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextEditStyle {
     pub background: Color,
     pub border: Color,
@@ -481,6 +481,7 @@ impl TextEditState {
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextEditSpec {
     pub rect: Rect,
     pub style: TextEditStyle,
@@ -670,6 +671,7 @@ pub fn text_edit<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,

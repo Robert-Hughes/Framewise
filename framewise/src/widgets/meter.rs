@@ -55,6 +55,7 @@ const BAR_W: f32 = 6.0;
 const BAR_H: f32 = 14.0;
 const BAR_GAP: f32 = 2.0;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MeterSpec {
     pub rect: Rect,
     /// 0.0 – 1.0 fill level.
@@ -120,6 +121,7 @@ pub fn meter<
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
     pub value: Option<f32>,

@@ -70,6 +70,7 @@ pub enum TooltipVariant {
     Rust,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TooltipSpec<'a> {
     pub rect: Rect,
     pub text: &'a str,
@@ -147,6 +148,7 @@ pub fn tooltip<
     ctx.append_cmds(result.draw.0);
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TooltipSpecBuilder<'a> {
     pub text: Option<&'a str>,
     pub font: Option<FontId>,

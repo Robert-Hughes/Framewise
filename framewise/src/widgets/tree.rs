@@ -116,6 +116,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TreeRow<'a> {
     pub indent: u32,
     /// None = leaf, true = expanded, false = collapsed.
@@ -126,6 +127,7 @@ pub struct TreeRow<'a> {
     pub selected: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TreeSpec<'a> {
     pub rect: Rect,
     pub rows: &'a [TreeRow<'a>],
@@ -184,6 +186,7 @@ pub fn tree<
     ctx.append_cmds(result.draw.0);
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TreeSpecBuilder<'a> {
     pub rows: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,

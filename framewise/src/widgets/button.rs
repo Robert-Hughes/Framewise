@@ -165,7 +165,7 @@ pub mod raw {
 // ── Style ─────────────────────────────────────────────────────────────────────
 
 /// Visual configuration for a button.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ButtonStyle {
     pub background: Color,
     pub hovered: Color,
@@ -234,6 +234,7 @@ impl ButtonStyle {
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ButtonSpec {
     pub rect: Rect,
     pub text: String,
@@ -302,6 +303,7 @@ impl ButtonResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ButtonSpecBuilder {
     pub text: String,
     pub style: Option<ButtonStyle>,

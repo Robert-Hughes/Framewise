@@ -150,6 +150,7 @@ pub enum CheckState {
     Indeterminate,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxSpec {
     /// Top-left of the 14×14 box.
     pub rect: Rect,
@@ -211,6 +212,7 @@ impl Default for CheckboxStyle {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxSpecBuilder {
     pub state: CheckState,
     pub disabled: bool,

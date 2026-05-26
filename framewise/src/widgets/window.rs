@@ -119,10 +119,12 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowButton {
     pub symbol: &'static str,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowSpec<'a> {
     pub rect: Rect,
     pub title: &'a str,
@@ -234,6 +236,7 @@ pub fn begin_window<
     child
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct WindowSpecBuilder<'a> {
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,

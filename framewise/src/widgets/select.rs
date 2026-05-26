@@ -269,6 +269,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SelectSpec<'a> {
     /// Bounding rect for the closed box (height h_md = 28).
     pub rect: Rect,
@@ -423,6 +424,7 @@ pub fn select<
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SelectSpecBuilder<'a> {
     pub value: Option<&'a str>,
     pub font: Option<FontId>,

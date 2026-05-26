@@ -63,6 +63,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpec {
     pub rect: Rect,
     /// 0.0–1.0. Pass `f32::NAN` for indeterminate (renders partial fill at `phase`).
@@ -95,6 +96,7 @@ impl Default for ProgressBarStyle {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpecBuilder {
     pub value: f32,
     pub phase: f32,

@@ -41,7 +41,7 @@ pub mod raw {
 // ── Style ─────────────────────────────────────────────────────────────────────
 
 /// Visual configuration for a frame (bordered background rectangle).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FrameStyle {
     pub background: Color,
     pub border: Color,
@@ -52,6 +52,7 @@ pub struct FrameStyle {
 
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FrameSpec {
     pub rect: Rect,
     pub style: FrameStyle,
@@ -88,6 +89,7 @@ impl FrameResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FrameSpecBuilder {
     pub style: Option<FrameStyle>,
     pub rect: Option<Rect>,
