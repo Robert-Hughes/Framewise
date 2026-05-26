@@ -171,7 +171,11 @@ impl Default for SwitchStyle {
 }
 
 pub struct SwitchSpecBuilder {
-    spec: SwitchSpec,
+    pub on: bool,
+    pub disabled: bool,
+    pub style: Option<SwitchStyle>,
+    pub rect: Option<Rect>,
+    pub clip_rect: Option<Rect>,
 }
 
 impl Default for SwitchSpecBuilder {
@@ -183,61 +187,54 @@ impl Default for SwitchSpecBuilder {
 impl SwitchSpecBuilder {
     pub fn new() -> Self {
         Self {
-            spec: SwitchSpec {
-                rect: Rect::ZERO,
-                on: false,
-                disabled: false,
-                style: SwitchStyle {
-                    size: (30.0, 16.0),
-                    thumb_size: 10.0,
-                    off_fill: Color::WHITE,
-                    on_fill: Color::BLACK,
-                    border: Color::BLACK,
-                    off_thumb: Color::BLACK,
-                    on_thumb: Color::WHITE,
-                    focus: Color::BLACK,
-                    border_width: 1.5,
-                    focus_width: 2.0,
-                    focus_offset: 2.0,
-                    disabled_alpha: 0.35,
-                },
-                clip_rect: None,
-            },
+            on: false,
+            disabled: false,
+            style: None,
+            rect: None,
+            clip_rect: None,
         }
     }
 
     pub fn on(mut self, on: bool) -> Self {
-        self.spec.on = on;
+        self.on = on;
         self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.spec.disabled = disabled;
+        self.disabled = disabled;
         self
     }
 
     pub fn style(mut self, style: SwitchStyle) -> Self {
-        self.spec.style = style;
+        self.style = Some(style);
         self
     }
 
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.spec.clip_rect = clip_rect;
+        self.clip_rect = clip_rect;
         self
     }
 
     pub fn rect(mut self, rect: Rect) -> Self {
-        self.spec.rect = rect;
+        self.rect = Some(rect);
         self
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.spec.style = theme.switch_style();
+        if self.style.is_none() {
+            self.style = Some(theme.switch_style());
+        }
         self
     }
 
     pub fn build(self) -> SwitchSpec {
-        self.spec
+        SwitchSpec {
+            rect: self.rect.unwrap_or_default(),
+            on: self.on,
+            disabled: self.disabled,
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+        }
     }
 }
 
@@ -301,7 +298,7 @@ pub fn switch<
     builder: SwitchSpecBuilder,
 ) -> SwitchInfo {
     let rect = ctx.layout(layout_params);
-    let clip = builder.spec.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)

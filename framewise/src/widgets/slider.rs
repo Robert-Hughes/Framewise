@@ -667,13 +667,7 @@ impl SliderSpecBuilder {
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if let Some(style) = &self.style {
-            if style.scrollbar_mode {
-                self.style = Some(theme.scrollbar_style());
-            } else {
-                self.style = Some(theme.slider_style());
-            }
-        } else {
+        if self.style.is_none() {
             self.style = Some(theme.slider_style());
         }
         self

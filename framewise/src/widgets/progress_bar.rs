@@ -96,55 +96,59 @@ impl Default for ProgressBarStyle {
 }
 
 pub struct ProgressBarSpecBuilder {
-    spec: ProgressBarSpec,
+    pub value: f32,
+    pub phase: f32,
+    pub active: bool,
+    pub style: Option<ProgressBarStyle>,
+    pub rect: Option<Rect>,
 }
 
 impl ProgressBarSpecBuilder {
     pub fn new(value: f32) -> Self {
         Self {
-            spec: ProgressBarSpec {
-                rect: Rect::ZERO,
-                value,
-                phase: 0.0,
-                active: false,
-                style: ProgressBarStyle {
-                    track_color: Color::WHITE,
-                    fill_color: Color::BLACK,
-                    active_fill_color: Color::BLACK,
-                    track_height: 3.0,
-                    indeterminate_fraction: 0.3,
-                },
-            },
+            value,
+            phase: 0.0,
+            active: false,
+            style: None,
+            rect: None,
         }
     }
 
     pub fn phase(mut self, phase: f32) -> Self {
-        self.spec.phase = phase;
+        self.phase = phase;
         self
     }
 
     pub fn active(mut self, active: bool) -> Self {
-        self.spec.active = active;
+        self.active = active;
         self
     }
 
     pub fn style(mut self, style: ProgressBarStyle) -> Self {
-        self.spec.style = style;
+        self.style = Some(style);
         self
     }
 
     pub fn rect(mut self, rect: Rect) -> Self {
-        self.spec.rect = rect;
+        self.rect = Some(rect);
         self
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.spec.style = theme.progress_bar_style();
+        if self.style.is_none() {
+            self.style = Some(theme.progress_bar_style());
+        }
         self
     }
 
     pub fn build(self) -> ProgressBarSpec {
-        self.spec
+        ProgressBarSpec {
+            rect: self.rect.unwrap_or_default(),
+            value: self.value,
+            phase: self.phase,
+            active: self.active,
+            style: self.style.unwrap_or_default(),
+        }
     }
 }
 

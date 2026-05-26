@@ -277,7 +277,9 @@ impl<'a> MenuSpecBuilder<'a> {
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.style = Some(theme.menu_style());
+        if self.style.is_none() {
+            self.style = Some(theme.menu_style());
+        }
         if self.label_font.is_none() {
             self.label_font = Some(theme.sans_font);
         }

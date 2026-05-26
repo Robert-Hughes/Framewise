@@ -5,9 +5,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* SpecBuilders could have explicit things set on them like colours, but then the high-level widget funcs would override this from the theme. The theme should be a fallback? Make this explicit in DESIGN.md and check the code. Add tests for fallback?
+* Doc on SpecBuilder fields which high-level API user don't need to set (defaults_from_theme, rect etc.)
+* Update DESIGN.md with the defaults_from_theme approach (if not already clear), include rationale (e.g. for low-level API use)
+* Test defaults_from_theme works as expected
+  * If field isn't set, it comes from theme
+  * If field is set, do nothing
+  * Add two tests to each *SpecBuilder struct - one with default struct (no fields set, assert than defaults_from_theme sets all fields from theme), one with fully specified fields (assert that defaults_from_theme does not change anything)
+
 * In sample app, we're setting a lot of stuff on the spec builder that should be coming automatically from the WidgetContext! (e.g. time, style)
-* Figure out relationship between (Info, Spec, Style, Result, etc.) structs, Theme, Font etc.
+* Figure out relationship between (Info, Spec, Style, Result, Builder etc.) structs, Theme, Font etc.
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
 

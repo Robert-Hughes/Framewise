@@ -212,60 +212,58 @@ impl Default for CheckboxStyle {
 }
 
 pub struct CheckboxSpecBuilder {
-    spec: CheckboxSpec,
+    pub state: CheckState,
+    pub disabled: bool,
+    pub style: Option<CheckboxStyle>,
+    pub rect: Option<Rect>,
+    pub clip_rect: Option<Rect>,
 }
 impl CheckboxSpecBuilder {
     pub fn new(state: CheckState) -> Self {
         Self {
-            spec: CheckboxSpec {
-                rect: Rect::ZERO,
-                state,
-                disabled: false,
-                style: CheckboxStyle {
-                    size: 14.0,
-                    background: Color::WHITE,
-                    selected_fill: Color::BLACK,
-                    border: Color::BLACK,
-                    mark: Color::WHITE,
-                    focus: Color::BLACK,
-                    border_width: 1.5,
-                    mark_width: 1.5,
-                    focus_width: 2.0,
-                    focus_offset: 2.0,
-                    disabled_alpha: 0.35,
-                },
-                clip_rect: None,
-            },
+            state,
+            disabled: false,
+            style: None,
+            rect: None,
+            clip_rect: None,
         }
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.spec.disabled = disabled;
+        self.disabled = disabled;
         self
     }
 
     pub fn style(mut self, style: CheckboxStyle) -> Self {
-        self.spec.style = style;
+        self.style = Some(style);
         self
     }
 
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.spec.clip_rect = clip_rect;
+        self.clip_rect = clip_rect;
         self
     }
 
     pub fn rect(mut self, rect: Rect) -> Self {
-        self.spec.rect = rect;
+        self.rect = Some(rect);
         self
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.spec.style = theme.checkbox_style();
+        if self.style.is_none() {
+            self.style = Some(theme.checkbox_style());
+        }
         self
     }
 
     pub fn build(self) -> CheckboxSpec {
-        self.spec
+        CheckboxSpec {
+            rect: self.rect.unwrap_or_default(),
+            state: self.state,
+            disabled: self.disabled,
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+        }
     }
 }
 
@@ -329,7 +327,7 @@ pub fn checkbox<
     builder: CheckboxSpecBuilder,
 ) -> CheckboxInfo {
     let rect = ctx.layout(layout_params);
-    let clip = builder.spec.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)

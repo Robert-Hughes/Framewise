@@ -182,7 +182,9 @@ impl<'a> StatusSpecBuilder<'a> {
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.style = Some(theme.status_style());
+        if self.style.is_none() {
+            self.style = Some(theme.status_style());
+        }
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
         }

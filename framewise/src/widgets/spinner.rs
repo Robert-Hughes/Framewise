@@ -137,7 +137,10 @@ impl Default for SpinnerStyle {
 }
 
 pub struct SpinnerSpecBuilder {
-    spec: SpinnerSpec,
+    pub large: bool,
+    pub color: Option<Color>,
+    pub style: Option<SpinnerStyle>,
+    pub rect: Option<Rect>,
 }
 
 impl Default for SpinnerSpecBuilder {
@@ -149,51 +152,47 @@ impl Default for SpinnerSpecBuilder {
 impl SpinnerSpecBuilder {
     pub fn new() -> Self {
         Self {
-            spec: SpinnerSpec {
-                rect: Rect::ZERO,
-                large: false,
-                color: None,
-                style: SpinnerStyle {
-                    color: Color::BLACK,
-                    highlight: Color::BLACK,
-                    small_size: 16.0,
-                    large_size: 24.0,
-                    small_arm: 5.0,
-                    large_arm: 7.0,
-                    width: 1.5,
-                    highlight_fraction: 0.4,
-                },
-            },
+            large: false,
+            color: None,
+            style: None,
+            rect: None,
         }
     }
 
     pub fn large(mut self, large: bool) -> Self {
-        self.spec.large = large;
+        self.large = large;
         self
     }
 
     pub fn color(mut self, color: Color) -> Self {
-        self.spec.color = Some(color);
+        self.color = Some(color);
         self
     }
 
     pub fn style(mut self, style: SpinnerStyle) -> Self {
-        self.spec.style = style;
+        self.style = Some(style);
         self
     }
 
     pub fn rect(mut self, rect: Rect) -> Self {
-        self.spec.rect = rect;
+        self.rect = Some(rect);
         self
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.spec.style = theme.spinner_style();
+        if self.style.is_none() {
+            self.style = Some(theme.spinner_style());
+        }
         self
     }
 
     pub fn build(self) -> SpinnerSpec {
-        self.spec
+        SpinnerSpec {
+            rect: self.rect.unwrap_or_default(),
+            large: self.large,
+            color: self.color,
+            style: self.style.unwrap_or_default(),
+        }
     }
 }
 

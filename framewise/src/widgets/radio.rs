@@ -167,8 +167,13 @@ impl Default for RadioStyle {
 }
 
 pub struct RadioSpecBuilder {
-    spec: RadioSpec,
+    pub selected: bool,
+    pub disabled: bool,
+    pub style: Option<RadioStyle>,
+    pub rect: Option<Rect>,
+    pub clip_rect: Option<Rect>,
 }
+
 impl Default for RadioSpecBuilder {
     fn default() -> Self {
         Self::new()
@@ -178,59 +183,54 @@ impl Default for RadioSpecBuilder {
 impl RadioSpecBuilder {
     pub fn new() -> Self {
         Self {
-            spec: RadioSpec {
-                rect: Rect::ZERO,
-                selected: false,
-                disabled: false,
-                style: RadioStyle {
-                    radius: 7.0,
-                    dot_radius: 3.0,
-                    background: Color::WHITE,
-                    border: Color::BLACK,
-                    dot: Color::BLACK,
-                    focus: Color::BLACK,
-                    border_width: 1.5,
-                    focus_width: 2.0,
-                    focus_offset: 2.0,
-                    disabled_alpha: 0.35,
-                },
-                clip_rect: None,
-            },
+            selected: false,
+            disabled: false,
+            style: None,
+            rect: None,
+            clip_rect: None,
         }
     }
 
     pub fn selected(mut self, selected: bool) -> Self {
-        self.spec.selected = selected;
+        self.selected = selected;
         self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.spec.disabled = disabled;
+        self.disabled = disabled;
         self
     }
 
     pub fn style(mut self, style: RadioStyle) -> Self {
-        self.spec.style = style;
+        self.style = Some(style);
         self
     }
 
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.spec.clip_rect = clip_rect;
+        self.clip_rect = clip_rect;
         self
     }
 
     pub fn rect(mut self, rect: Rect) -> Self {
-        self.spec.rect = rect;
+        self.rect = Some(rect);
         self
     }
 
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.spec.style = theme.radio_style();
+        if self.style.is_none() {
+            self.style = Some(theme.radio_style());
+        }
         self
     }
 
     pub fn build(self) -> RadioSpec {
-        self.spec
+        RadioSpec {
+            rect: self.rect.unwrap_or_default(),
+            selected: self.selected,
+            disabled: self.disabled,
+            style: self.style.unwrap_or_default(),
+            clip_rect: self.clip_rect,
+        }
     }
 }
 
@@ -294,7 +294,7 @@ pub fn radio<
     builder: RadioSpecBuilder,
 ) -> RadioInfo {
     let rect = ctx.layout(layout_params);
-    let clip = builder.spec.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
