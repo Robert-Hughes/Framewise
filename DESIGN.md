@@ -116,7 +116,7 @@ Every widget type follows a consistent two-struct pattern for configuration:
 - **`*Spec`**: A fully resolved specification struct used by low-level raw widget functions. All fields are concrete values (colors, fonts, rectangles, etc.) with no optional or unresolved state. The low-level function receives this spec and produces draw commands and interaction info.
 
 - **`*SpecBuilder`**: A builder struct used by high-level widget functions to construct the `*Spec`. The builder holds optional fields and provides ergonomic setter methods. The high-level function uses the builder to:
-  1. Apply defaults from the `WidgetContext` (via `with_theme()` and `with_rect()`)
+  1. Apply defaults from the `WidgetContext` (via `.defaults_from_theme()` and `.rect()`)
   2. Allow the app to override specific parameters (via setter methods like `.text()`, `.style()`, etc.)
   3. Call `.build()` to produce the fully resolved `*Spec` for the low-level function
 
@@ -128,10 +128,37 @@ This pattern cleanly separates concerns:
 > **Spec and SpecBuilder Value-Type Rule:** `*Spec` and `*SpecBuilder` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
 
 > [!IMPORTANT]
-> **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `with_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+> **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
 > **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset.
+
+### `defaults_from_theme` — Theme as Fallback
+
+Every `*SpecBuilder` exposes a `defaults_from_theme(theme: &Theme)` method. It fills only the fields that are **not already set** — theme values are fallbacks, not overrides. Explicitly set fields always win:
+
+```rust
+// custom style is preserved — defaults_from_theme sees style.is_some() and skips it
+let spec = ButtonSpecBuilder::new("Save".into())
+    .style(my_brand_style)
+    .rect(rect)
+    .defaults_from_theme(&theme)
+    .build();
+```
+
+This is the only correct behaviour given the call order: the app sets fields on the builder before passing it to the high-level function, which then calls `defaults_from_theme` internally. If `defaults_from_theme` unconditionally overwrote fields, every explicit customisation would be silently discarded.
+
+**High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
+
+**Raw API callers** must call it manually if they want themed defaults — or skip it entirely and specify every field explicitly. Both are valid:
+
+```rust
+// themed defaults for unset fields
+let spec = builder.rect(rect).defaults_from_theme(&theme).build();
+
+// fully explicit — no theme involvement
+let spec = builder.rect(rect).style(my_style).build();
+```
 
 ### SpecBuilder Field Visibility
 
@@ -163,10 +190,10 @@ pub fn button<T, S>(
     builder: ButtonSpecBuilder,
 ) -> ButtonInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder
-        .with_rect(rect)
-        .with_theme(&ctx.theme);  // Apply theme defaults
-    let spec = builder.build();   // Produce fully resolved spec
+    let spec = builder
+        .rect(rect)
+        .defaults_from_theme(&ctx.theme)
+        .build();
     let result = raw::button(state, spec, ctx.input, ctx.focus_sys);
     ctx.append_cmds(result.draw.0);
     // ...

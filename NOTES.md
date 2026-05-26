@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Doc on SpecBuilder fields which high-level API user don't need to set (defaults_from_theme, rect etc.)
 * Update DESIGN.md with the defaults_from_theme approach (if not already clear), include rationale (e.g. for low-level API use)
 * Test defaults_from_theme works as expected
   * If field isn't set, it comes from theme
