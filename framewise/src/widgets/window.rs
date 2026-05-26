@@ -221,7 +221,7 @@ pub fn begin_window<
 ) -> WidgetContext<'b, T, L::State, WindowScope> {
     let bounds = parent.layout(layout_params);
 
-    let mut resolved_builder = builder.with_rect(bounds).with_theme(&parent.theme);
+    let mut resolved_builder = builder.rect(bounds).apply_theme(&parent.theme);
 
     if resolved_builder.status_bar.is_none() {
         resolved_builder.status_bar = Some(false);
@@ -319,12 +319,12 @@ impl<'a> WindowSpecBuilder<'a> {
 }
 
 impl<'a> WindowSpecBuilder<'a> {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.window_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

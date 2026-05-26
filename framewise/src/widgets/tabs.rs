@@ -268,7 +268,8 @@ pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: TabsSpecBuilder<'a>,
 ) -> TabsInfo {
     let rect = ctx.layout(layout_params);
-    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
+    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
     let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
@@ -337,12 +338,12 @@ impl<'a> TabsSpecBuilder<'a> {
 }
 
 impl<'a> TabsSpecBuilder<'a> {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tabs_style());
         if self.font.is_none() {
             self.font = Some(theme.sans_font);

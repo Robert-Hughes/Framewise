@@ -226,11 +226,8 @@ pub fn chip<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: ChipSpecBuilder<'a>,
 ) -> ChipInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
-    if builder.clip_rect.is_none() {
-        builder.clip_rect = ctx.clip_rect;
-    }
-    let spec = builder.build();
+    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
     let result = raw::chip(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
@@ -293,12 +290,12 @@ impl<'a> ChipSpecBuilder<'a> {
 }
 
 impl<'a> ChipSpecBuilder<'a> {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.chip_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

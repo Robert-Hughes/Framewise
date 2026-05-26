@@ -106,7 +106,7 @@ pub fn meter<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: W
     builder: MeterSpecBuilder,
 ) -> MeterInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
+    let builder = builder.rect(rect).apply_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::meter(spec);
     ctx.append_cmds(result.draw.0);
@@ -155,12 +155,12 @@ impl MeterSpecBuilder {
 }
 
 impl MeterSpecBuilder {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(self, _theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(self, _theme: &crate::theme::Theme) -> Self {
         self
     }
 

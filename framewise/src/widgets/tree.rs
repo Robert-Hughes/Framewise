@@ -172,7 +172,7 @@ pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: TreeSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
+    let builder = builder.rect(rect).apply_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -216,12 +216,12 @@ impl<'a> TreeSpecBuilder<'a> {
 }
 
 impl<'a> TreeSpecBuilder<'a> {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tree_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

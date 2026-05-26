@@ -575,11 +575,8 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
     builder: SliderSpecBuilder,
 ) {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
-    if builder.clip_rect.is_none() {
-        builder.clip_rect = ctx.clip_rect;
-    }
-    let spec = builder.build();
+    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
     let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(cmds);
 }
@@ -656,12 +653,12 @@ impl SliderSpecBuilder {
         self
     }
 
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if let Some(style) = &self.style {
             if style.scrollbar_mode {
                 self.style = Some(theme.scrollbar_style());

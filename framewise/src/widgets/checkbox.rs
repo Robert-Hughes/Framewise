@@ -253,12 +253,12 @@ impl CheckboxSpecBuilder {
         self
     }
 
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.checkbox_style();
         self
     }
@@ -324,11 +324,8 @@ pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: CheckboxSpecBuilder,
 ) -> CheckboxInfo {
     let rect = ctx.layout(layout_params);
-    let mut builder = builder.with_rect(rect).with_theme(&ctx.theme);
-    if builder.spec.clip_rect.is_none() {
-        builder.spec.clip_rect = ctx.clip_rect;
-    }
-    let spec = builder.build();
+    let clip = builder.spec.clip_rect.or(ctx.clip_rect);
+    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
     let result = raw::checkbox(state, spec, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw.0);

@@ -128,7 +128,19 @@ This pattern cleanly separates concerns:
 > **Spec and SpecBuilder Value-Type Rule:** `*Spec` and `*SpecBuilder` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
 
 > [!IMPORTANT]
+> **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `with_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+
+> [!IMPORTANT]
 > **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset. Builders that use internal spec structs should fully initialize the spec with defaults in their `new()` constructor.
+
+### Style Structs
+
+Some widget types group their styling fields into a dedicated `*Style` struct embedded inside `*Spec` and `*SpecBuilder`. The decision rule:
+
+- **Use a `*Style` struct** when the widget has interaction states (hover, press, focus, disabled) or several coordinated color/dimension roles. The style struct keeps the spec readable and lets callers pass a single `ButtonStyle` override rather than setting a dozen fields individually.
+- **Embed styling fields directly in `*Spec`** when the widget is purely display-only and has only a small number (roughly ≤ 3) of styling fields. A dedicated struct would be ceremony with no benefit for these simple cases.
+
+The practical dividing line is interaction states: as soon as a widget needs distinct visuals for hover, focus, or disabled, the coordinated color roles naturally belong in a `*Style` struct. Pure display widgets without those states may keep their styling inline.
 
 Example:
 ```rust

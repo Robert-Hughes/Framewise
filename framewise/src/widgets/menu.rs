@@ -212,7 +212,7 @@ pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope
     builder: MenuSpecBuilder<'a>,
 ) -> MenuInfo {
     let rect = ctx.layout(layout_params);
-    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
+    let builder = builder.rect(rect).apply_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::menu(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -265,12 +265,12 @@ impl<'a> MenuSpecBuilder<'a> {
 }
 
 impl<'a> MenuSpecBuilder<'a> {
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.menu_style());
         if self.label_font.is_none() {
             self.label_font = Some(theme.sans_font);

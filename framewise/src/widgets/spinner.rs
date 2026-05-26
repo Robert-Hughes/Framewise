@@ -181,12 +181,12 @@ impl SpinnerSpecBuilder {
         self
     }
 
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.spec.rect = rect;
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.spec.style = theme.spinner_style();
         self
     }
@@ -217,7 +217,7 @@ pub fn spinner<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope:
     builder: SpinnerSpecBuilder,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder.with_rect(rect).with_theme(&ctx.theme);
+    let builder = builder.rect(rect).apply_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw.0);

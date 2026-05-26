@@ -112,11 +112,11 @@ impl LabelSpecBuilder {
         self.rule = rule;
         self
     }
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.size.is_none() {
             self.size = Some(theme.text_md);
         }
@@ -152,7 +152,7 @@ pub fn label<T: TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
     builder: LabelSpecBuilder,
 ) -> LabelInfo {
     let rect = ctx.layout(layout_params);
-    let spec = builder.with_rect(rect).with_theme(&ctx.theme).build();
+    let spec = builder.rect(rect).apply_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
