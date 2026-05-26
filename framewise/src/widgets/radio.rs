@@ -539,4 +539,23 @@ mod tests {
             "Spacebar release must toggle radio state to selected"
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_style() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = RadioSpecBuilder::new();
+        assert!(builder.style.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style, Some(theme.radio_style()));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
+        let theme = crate::theme::Theme::framewise();
+        let mut custom_style = theme.radio_style();
+        custom_style.radius = 99.0;
+        let builder = RadioSpecBuilder::new().style(custom_style);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().radius, 99.0);
+    }
 }

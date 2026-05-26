@@ -389,4 +389,23 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_style() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = SpinnerSpecBuilder::new();
+        assert!(builder.style.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style, Some(theme.spinner_style()));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
+        let theme = crate::theme::Theme::framewise();
+        let mut custom_style = theme.spinner_style();
+        custom_style.width = 99.0;
+        let builder = SpinnerSpecBuilder::new().style(custom_style);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().width, 99.0);
+    }
 }

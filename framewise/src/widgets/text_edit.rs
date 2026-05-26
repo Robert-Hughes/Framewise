@@ -748,6 +748,26 @@ mod tests {
 
     use crate::test_utils::DummyTextSys;
 
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_style() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = TextEditSpecBuilder::new();
+        assert!(builder.style.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert!(builder.style.is_some());
+        assert_eq!(builder.style.unwrap().font, theme.text_edit_style().font);
+        assert_eq!(builder.style.unwrap().text_size, theme.text_edit_style().text_size);
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
+        let theme = crate::theme::Theme::framewise();
+        let custom_style = TextEditStyle { font: FontId(99), ..TextEditStyle::default() };
+        let builder = TextEditSpecBuilder::new().style(custom_style);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().font, FontId(99));
+    }
+
     fn spec() -> TextEditSpec {
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),

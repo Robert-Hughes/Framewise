@@ -272,4 +272,30 @@ mod tests {
 
         assert_eq!(sys.font, Some(expected));
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = LabelSpecBuilder::new("test".to_string());
+        assert!(builder.size.is_none());
+        assert!(builder.font.is_none());
+        assert!(builder.text_color.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.size, Some(theme.text_md));
+        assert_eq!(builder.font, Some(theme.sans_font));
+        assert_eq!(builder.text_color, Some(theme.ink));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = LabelSpecBuilder::new("test".to_string())
+            .size(99.0)
+            .font(FontId(99))
+            .text_color(Color::from_srgb_u8(1, 2, 3, 255));
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.size, Some(99.0));
+        assert_eq!(builder.font, Some(FontId(99)));
+        assert_eq!(builder.text_color, Some(Color::from_srgb_u8(1, 2, 3, 255)));
+    }
 }

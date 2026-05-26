@@ -837,4 +837,28 @@ mod tests {
         assert!(!res.state.open);
         assert_eq!(res.state.selected_index, 2);
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = SelectSpecBuilder::new();
+        assert!(builder.style.is_none());
+        assert!(builder.font.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style, Some(theme.select_style()));
+        assert_eq!(builder.font, Some(theme.sans_font));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let mut custom_style = theme.select_style();
+        custom_style.text_size = 99.0;
+        let builder = SelectSpecBuilder::new()
+            .style(custom_style)
+            .font(FontId(99));
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.font, Some(FontId(99)));
+    }
 }

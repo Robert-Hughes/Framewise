@@ -156,4 +156,22 @@ mod tests {
             }])
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_color() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = DividerSpecBuilder::new();
+        assert!(builder.color.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.color, Some(theme.line));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_color() {
+        let theme = crate::theme::Theme::framewise();
+        let sentinel = Color::from_srgb_u8(1, 2, 3, 255);
+        let builder = DividerSpecBuilder::new().color(sentinel);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.color, Some(sentinel));
+    }
 }

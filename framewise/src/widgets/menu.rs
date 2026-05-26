@@ -307,3 +307,36 @@ impl<'a> MenuSpecBuilder<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = MenuSpecBuilder::new();
+        assert!(builder.style.is_none());
+        assert!(builder.label_font.is_none());
+        assert!(builder.meta_font.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style, Some(theme.menu_style()));
+        assert_eq!(builder.label_font, Some(theme.sans_font));
+        assert_eq!(builder.meta_font, Some(theme.mono_font));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+        let theme = crate::theme::Theme::framewise();
+        let mut custom_style = theme.menu_style();
+        custom_style.label_size = 99.0;
+        let builder = MenuSpecBuilder::new()
+            .style(custom_style)
+            .label_font(FontId(99))
+            .meta_font(FontId(98));
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().label_size, 99.0);
+        assert_eq!(builder.label_font, Some(FontId(99)));
+        assert_eq!(builder.meta_font, Some(FontId(98)));
+    }
+}

@@ -1198,4 +1198,25 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_style() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = ButtonSpecBuilder::new("test".to_string());
+        assert!(builder.style.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert!(builder.style.is_some());
+        let expected = theme.button_secondary_style();
+        assert_eq!(builder.style.unwrap().font, expected.font);
+        assert_eq!(builder.style.unwrap().text_size, expected.text_size);
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
+        let theme = crate::theme::Theme::framewise();
+        let custom_style = ButtonStyle { text_size: 99.0, ..ButtonStyle::default() };
+        let builder = ButtonSpecBuilder::new("test".to_string()).style(custom_style);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().text_size, 99.0);
+    }
 }

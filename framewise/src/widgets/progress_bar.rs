@@ -284,4 +284,23 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_style() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = ProgressBarSpecBuilder::new(0.5);
+        assert!(builder.style.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style, Some(theme.progress_bar_style()));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
+        let theme = crate::theme::Theme::framewise();
+        let mut custom_style = theme.progress_bar_style();
+        custom_style.track_height = 99.0;
+        let builder = ProgressBarSpecBuilder::new(0.5).style(custom_style);
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.style.unwrap().track_height, 99.0);
+    }
 }

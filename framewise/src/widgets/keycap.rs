@@ -251,4 +251,21 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_builder_defaults_from_theme_fills_unset_font() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = KeycapSpecBuilder::new();
+        assert!(builder.font.is_none());
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.font, Some(theme.mono_font));
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_preserves_explicit_font() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = KeycapSpecBuilder::new().font(FontId(99));
+        let builder = builder.defaults_from_theme(&theme);
+        assert_eq!(builder.font, Some(FontId(99)));
+    }
 }
