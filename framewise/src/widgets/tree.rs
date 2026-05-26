@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     text::FontId,
     types::{Color, Rect},
-    widget::{WidgetContext, WidgetScope},
+    widget::WidgetContext,
 };
 
 pub mod raw {
@@ -166,8 +167,13 @@ impl TreeResult {
 /// High-level tree widget function using WidgetContext.
 ///
 /// This function accepts a TreeSpec and calls the low-level raw::tree function.
-pub fn tree<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn tree<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: TreeSpecBuilder<'a>,
 ) {

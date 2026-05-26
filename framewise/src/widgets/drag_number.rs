@@ -1,9 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -294,16 +295,20 @@ pub fn drag_number<
     'a,
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
-    Scope: WidgetScope,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 >(
-    ctx: &mut WidgetContext<T, S, Scope>,
+    ctx: &mut WidgetContext<T, S, CF>,
     state: DragNumberState,
     layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,
 ) -> DragNumberInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

@@ -638,16 +638,20 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 pub fn text_edit<
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
-    Scope: crate::widget::WidgetScope,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 >(
-    ctx: &mut WidgetContext<T, S, Scope>,
+    ctx: &mut WidgetContext<T, S, CF>,
     state: TextEditState,
     layout_params: S::Params,
     builder: TextEditSpecBuilder,
 ) -> TextEditInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::text_edit(
         state,
         spec,

@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{WidgetContext, WidgetScope},
+    widget::WidgetContext,
 };
 
 pub mod raw {
@@ -133,14 +134,14 @@ pub fn tooltip<
     'a,
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
-    Scope: WidgetScope,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 >(
-    ctx: &mut WidgetContext<T, S, Scope>,
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
 ) {
     let rect = ctx.layout(layout_params);
-    let builder = builder.rect(rect).apply_theme(&ctx.theme);
+    let builder = builder.rect(rect).with_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -195,7 +196,7 @@ impl<'a> TooltipSpecBuilder<'a> {
         self
     }
 
-    pub fn apply_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tooltip_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);

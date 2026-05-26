@@ -51,7 +51,7 @@ pub use progress_bar::{
 pub use radio::{
     radio, RadioInfo, RadioResult, RadioSpec, RadioSpecBuilder, RadioState, RadioStyle,
 };
-pub use scroll_area::{begin_scroll_area, ScrollAreaScope, ScrollState, ScrollbarVisibility};
+pub use scroll_area::{begin_scroll_area, ScrollAreaToken, ScrollState, ScrollbarVisibility};
 pub use segmented::{
     segmented, SegmentedInfo, SegmentedResult, SegmentedSpec, SegmentedSpecBuilder, SegmentedState,
     SegmentedStyle,
@@ -75,5 +75,5 @@ pub use tooltip::{
 };
 pub use tree::{tree, TreeResult, TreeRow, TreeSpec, TreeSpecBuilder, TreeStyle};
 pub use window::{
-    begin_window, WindowButton, WindowInfo, WindowScope, WindowSpec, WindowSpecBuilder, WindowStyle,
+    begin_window, WindowButton, WindowInfo, WindowSpec, WindowSpecBuilder, WindowStyle,
 };

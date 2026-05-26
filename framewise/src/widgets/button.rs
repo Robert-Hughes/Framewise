@@ -1,9 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -358,8 +359,12 @@ impl ButtonSpecBuilder {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn button<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,

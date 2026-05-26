@@ -88,7 +88,7 @@ Each widget function returns a concrete struct composed of the parts it actually
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). 
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`) called when the context is finished; root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)). 
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
@@ -278,10 +278,16 @@ The semantic work (layout, interaction, hit-testing) happens entirely in the fir
 Design decisions around how complex container widgets (Scroll Areas and Windows) interact with layout, clipping, and nested inputs.
 
 - **Decorator Layouts**: Layouts like `OffsetLayout<L>` are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
-- **Freestanding Lifecycle Scopes**: Symmetrical container widgets are initiated via `begin_...` freestanding calls and finalized via `end_...` freestanding calls:
-  - `begin_scroll_area` / `end_scroll_area`
-  - `begin_window` / `end_window`
-- **Strict Borrow-Checker Decoupling**: To construct nested scopes without violating Rust's single-mutable-borrow rule, the child `WidgetContext` is created, completely populated with widgets, and then finished using `child.finish()`. This consumes the child context and returns its accumulated draw commands as a `Vec<DrawCmd>`. Once the child is consumed, its borrow on the parent context is released, allowing the parent context to be mutably borrowed again to finalize the container via `end_scroll_area` or `end_window`.
-- **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because scopes are finished bottom-up, innermost scroll areas always get first pick of the claim.
+
+- **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`) return a child `WidgetContext` with their cleanup logic already embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. This returns the child's accumulated draw commands (including any post-commands like `PopClip`) and runs the cleanup automatically — no explicit high-level `end_*` call is needed. The raw layer still exposes `raw::end_scroll_area(token, focus_sys)` and `raw::end_window()` for callers that bypass the context system.
+
+- **`ScrollAreaToken` — Dumb State Holder**: `begin_scroll_area` internally produces a `ScrollAreaToken`, a plain struct with private fields holding the scroll area's `FocusId` and scroll-limit flags needed to make focus claims at cleanup time. It has no `Drop` impl and no `finish()` method. The high-level `begin_scroll_area` captures this token in a move closure stored on the child `WidgetContext`; the raw API passes the token explicitly to `raw::end_scroll_area`. This design was chosen over a RAII-style `Drop` cleanup because `Drop` cannot receive `&mut FocusSystem` — borrowing it for the token's full lifetime would make the widget API impractical.
+
+- **`on_finish` in `WidgetContext`**: Every `WidgetContext` carries `on_finish: CF` where `CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`. Root contexts use a no-op function pointer (`fn(&mut FocusSystem) -> Vec<DrawCmd>`). Container widgets construct a child context via `child_with_layout_and_on_finish(layout, closure)`, passing a move closure that captures the container's token and calls the appropriate raw end function. `WidgetContext::finish()` calls `(self.on_finish)(self.focus_sys)` and appends the returned commands after the child's own accumulated commands.
+
+- **Strict Borrow-Checker Decoupling**: To construct nested scopes without violating Rust's single-mutable-borrow rule, the child `WidgetContext` is created, completely populated with widgets, and then consumed by `child.finish()`. This returns a `Vec<DrawCmd>` (child content + on_finish post-commands). Once the child is consumed, its borrow on the parent context is released, allowing the parent to be mutably borrowed again to append the child's draw commands.
+
+- **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because contexts are finished bottom-up, innermost scroll areas always get first pick of the claim.
+
 - **Standalone Widget Participation**: Standalone widgets like standalone sliders actively participate in this claim system (using `claim_scroll_at_ends`). When hovered or focused, they block scroll inputs from propagating up to outer scroll areas, acting as "hard stops" instead of allowing the parent to suddenly start scrolling when the slider hits its boundary.
 

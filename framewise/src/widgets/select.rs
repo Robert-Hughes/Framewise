@@ -1,9 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     text::FontId,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -390,15 +391,24 @@ impl SelectResult {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<'a, S: crate::layout::LayoutState, T: crate::text::TextSystem, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn select<
+    'a,
+    S: crate::layout::LayoutState,
+    T: crate::text::TextSystem,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: SelectState,
     layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,
 ) -> SelectInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::select(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

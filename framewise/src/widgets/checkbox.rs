@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -317,15 +318,23 @@ impl CheckboxResult {
 /// High-level checkbox widget function using WidgetContext.
 ///
 /// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
-pub fn checkbox<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn checkbox<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: CheckboxState,
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,
 ) -> CheckboxInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.spec.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::checkbox(state, spec, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw.0);

@@ -1,7 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext, WidgetScope},
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -100,8 +101,12 @@ impl MeterResult {
 /// High-level meter widget function using WidgetContext.
 ///
 /// This function accepts a MeterSpec and calls the low-level raw::meter function.
-pub fn meter<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn meter<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: MeterSpecBuilder,
 ) -> MeterInfo {

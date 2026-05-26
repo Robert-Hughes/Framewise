@@ -1,9 +1,10 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -261,15 +262,24 @@ impl TabsResult {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpec and calls the low-level raw::tabs function.
-pub fn tabs<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn tabs<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: TabsState,
     layout_params: S::Params,
     builder: TabsSpecBuilder<'a>,
 ) -> TabsInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);

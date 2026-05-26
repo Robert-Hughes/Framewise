@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext, WidgetScope},
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -206,8 +207,13 @@ impl MenuResult {
 /// High-level menu widget function using WidgetContext.
 ///
 /// This function accepts a MenuSpec and calls the low-level raw::menu function.
-pub fn menu<'a, T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn menu<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: MenuSpecBuilder<'a>,
 ) -> MenuInfo {

@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext, WidgetScope},
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -16,7 +16,7 @@ pub mod raw {
     pub fn begin_window<'a, T: crate::text::TextSystem>(
         spec: WindowSpec<'a>,
         text_system: &mut T,
-    ) -> (Vec<DrawCmd>, WindowScope, Rect) {
+    ) -> (Vec<DrawCmd>, Rect) {
         let mut draw = Vec::new();
         let s = spec.style;
 
@@ -107,17 +107,16 @@ pub mod raw {
 
         draw.push(DrawCmd::PushClip { rect: content });
 
-        let scope = WindowScope { is_finished: false };
-        (draw, scope, content)
+        (draw, content)
     }
 
     // Low-level window end function.
     //
     // This is the raw implementation that takes all parameters explicitly.
     // High-level wrappers should use this internally.
-    // pub fn end_window(scope: WindowScope) -> Vec<DrawCmd> {
-    //     scope.finish()
-    // }
+    pub fn end_window() -> Vec<DrawCmd> {
+        vec![DrawCmd::PopClip]
+    }
 }
 
 pub struct WindowButton {
@@ -180,31 +179,14 @@ impl WindowResult {
     }
 }
 
-pub struct WindowScope {
-    pub is_finished: bool,
-}
-
-impl Drop for WindowScope {
-    fn drop(&mut self) {
-        if !self.is_finished && !std::thread::panicking() {
-            panic!("WindowScope dropped without calling finish()! This leaks clip rects.");
-        }
-    }
-}
-
-impl WidgetScope for WindowScope {
-    fn finish(mut self, _focus_sys: &mut FocusSystem) -> Vec<DrawCmd> {
-        self.is_finished = true;
-        vec![DrawCmd::PopClip]
-    }
-}
-
 // ── High-level widget functions ───────────────────────────────────────────────────
 
 /// High-level window begin function using WidgetContext.
 ///
 /// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
-/// and returns a child WidgetContext and the window scope.
+/// and returns a child WidgetContext.
+///
+/// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
 pub fn begin_window<
     'a,
     'b,
@@ -212,13 +194,13 @@ pub fn begin_window<
     T: crate::text::TextSystem,
     LS: crate::layout::LayoutState,
     L: crate::layout::Layout,
-    Scope: WidgetScope,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 >(
-    parent: &'b mut WidgetContext<'a, T, LS, Scope>,
+    parent: &'b mut WidgetContext<'a, T, LS, CF>,
     layout_params: LS::Params,
     builder: WindowSpecBuilder<'c>,
     inner_layout: L,
-) -> WidgetContext<'b, T, L::State, WindowScope> {
+) -> WidgetContext<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
     let bounds = parent.layout(layout_params);
 
     let mut resolved_builder = builder.rect(bounds).apply_theme(&parent.theme);
@@ -234,7 +216,7 @@ pub fn begin_window<
     }
 
     let spec = resolved_builder.build();
-    let (pre_cmds, scope, content) = raw::begin_window(spec, parent.text_system);
+    let (pre_cmds, content) = raw::begin_window(spec, parent.text_system);
     parent.append_cmds(pre_cmds);
 
     let new_clip = Some(
@@ -243,25 +225,14 @@ pub fn begin_window<
             .map_or(content, |pc| pc.intersect(&content)),
     );
 
-    let mut child = parent.child_with_layout(inner_layout.begin(content), scope);
+    let on_finish = move |_: &mut FocusSystem| raw::end_window();
+
+    let mut child = parent.child_with_layout_and_on_finish(inner_layout.begin(content), on_finish);
 
     child.clip_rect = new_clip;
 
     child
 }
-
-// High-level window end function using WidgetContext.
-//
-// This function accepts finished child commands and completes the window on the parent context.
-// pub fn end_window<T: crate::text::TextSystem, S: crate::layout::LayoutState>(
-//     parent: &mut WidgetContext<T, S>,
-//     cmds: Vec<crate::draw::DrawCmd>,
-//     scope: WindowScope,
-// ) {
-//     parent.append_cmds(cmds);
-//     let post_cmds = raw::end_window(scope);
-//     parent.append_cmds(post_cmds);
-// }
 
 pub struct WindowSpecBuilder<'a> {
     pub title: Option<&'a str>,

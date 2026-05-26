@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     types::{Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -282,15 +283,23 @@ impl RadioResult {
 /// High-level radio widget function using WidgetContext.
 ///
 /// This function accepts a RadioSpec and calls the low-level raw::radio function.
-pub fn radio<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn radio<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: RadioState,
     layout_params: S::Params,
     builder: RadioSpecBuilder,
 ) -> RadioInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.spec.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::radio(state, spec, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw.0);

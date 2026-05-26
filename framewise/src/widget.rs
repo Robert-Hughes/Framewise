@@ -45,24 +45,19 @@ pub struct InputInfo {
     pub clicked: bool,
 }
 
-pub trait WidgetScope {
-    /// Finish the scope, returning any draw commands that need to be emitted after the caller's own commands.
-    fn finish(self, focus_sys: &mut FocusSystem) -> Vec<DrawCmd>;
-}
-impl WidgetScope for () {
-    fn finish(self, _focus_sys: &mut FocusSystem) -> Vec<DrawCmd> {
-        vec![]
-    }
-}
-
 // ── WidgetContext ───────────────────────────────────────────────────────────
 
 /// Context struct providing theme, input, focus, text system, and draw command
 /// accumulation for high-level widget functions. This replaces the old `Builder`
 /// pattern with freestanding functions.
-/// Can be associated with a 'scope' value, which allows widget cleanup code to be run
+/// Can be associated with a 'on_finish' closure, which allows widget cleanup code to be run
 /// when this context is finished (e.g. for nested windows)
-pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> {
+pub struct WidgetContext<
+    'a,
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+> {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
     pub time: f64,
@@ -76,11 +71,12 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope>
     pub layout_state: LS,
     cmds: Vec<DrawCmd>,
 
-    pub scope: Scope, // May be ()
+    on_finish: CF,
 }
 
-impl<'a, T: TextSystem, LS: LayoutState> WidgetContext<'a, T, LS, ()> {
-    // root() is only valid on a scope-less context.
+impl<'a, T: TextSystem, LS: LayoutState>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem) -> Vec<DrawCmd>>
+{
     pub fn root(
         theme: Theme,
         text_system: &'a mut T,
@@ -97,17 +93,23 @@ impl<'a, T: TextSystem, LS: LayoutState> WidgetContext<'a, T, LS, ()> {
             input,
             layout_state,
             cmds: Vec::new(),
-            scope: (),
+            on_finish: |_| vec![], // No cleanup for root context
         }
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T, LS, Scope> {
-    pub fn child_with_layout<'c, LS2: LayoutState, Scope2: WidgetScope>(
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>
+    WidgetContext<'a, T, LS, CF>
+{
+    pub fn child_with_layout_and_on_finish<
+        'c,
+        LS2: LayoutState,
+        CF2: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    >(
         &'c mut self,
         inner_layout_state: LS2,
-        inner_scope: Scope2,
-    ) -> WidgetContext<'c, T, LS2, Scope2> {
+        inner_on_finish: CF2,
+    ) -> WidgetContext<'c, T, LS2, CF2> {
         WidgetContext {
             theme: self.theme,
             time: self.time,
@@ -117,8 +119,15 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
             input: self.input,
             layout_state: inner_layout_state,
             cmds: vec![],
-            scope: inner_scope, // The original scope is not copied - correct as the original context will still own it.
+            on_finish: inner_on_finish, // The original on_finish is not copied - correct as the original context will still own it.
         }
+    }
+
+    pub fn child_with_layout<'c, LS2: LayoutState>(
+        &'c mut self,
+        inner_layout_state: LS2,
+    ) -> WidgetContext<'c, T, LS2, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
+        self.child_with_layout_and_on_finish(inner_layout_state, |_| vec![])
     }
 
     /// Append draw commands to the context's accumulated list.
@@ -128,7 +137,7 @@ impl<'a, T: TextSystem, LS: LayoutState, Scope: WidgetScope> WidgetContext<'a, T
 
     /// Consume the context and return all accumulated draw commands.
     pub fn finish(self) -> Vec<DrawCmd> {
-        let mut post_cmds = self.scope.finish(self.focus_sys);
+        let mut post_cmds = (self.on_finish)(self.focus_sys);
         let mut cmds = self.cmds;
         cmds.append(&mut post_cmds);
         cmds

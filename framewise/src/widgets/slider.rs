@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     types::{Color, Rect, Vec2},
-    widget::{WidgetContext, WidgetScope},
+    widget::WidgetContext,
 };
 
 pub mod raw {
@@ -567,8 +567,12 @@ impl Default for SliderState {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpec and calls the low-level raw::slider function.
-pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn slider<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: &mut SliderState,
     value: &mut f32,
     layout_params: S::Params,
@@ -576,7 +580,11 @@ pub fn slider<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: 
 ) {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(cmds);
 }

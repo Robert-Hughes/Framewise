@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     input::Input,
     types::{Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext, WidgetScope},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -289,15 +290,23 @@ impl SwitchResult {
 /// High-level switch widget function using WidgetContext.
 ///
 /// This function accepts a SwitchSpec and calls the low-level raw::switch function.
-pub fn switch<T: crate::text::TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn switch<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: SwitchState,
     layout_params: S::Params,
     builder: SwitchSpecBuilder,
 ) -> SwitchInfo {
     let rect = ctx.layout(layout_params);
     let clip = builder.spec.clip_rect.or(ctx.clip_rect);
-    let spec = builder.rect(rect).apply_theme(&ctx.theme).clip_rect(clip).build();
+    let spec = builder
+        .rect(rect)
+        .apply_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
     let result = raw::switch(state, spec, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw.0);

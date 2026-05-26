@@ -1,6 +1,5 @@
 use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
-use framewise::widget::WidgetScope;
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
 use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
@@ -44,8 +43,12 @@ use framewise::{
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
-fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_checkbox_fake_state<
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     state_val: CheckState,
     is_focused: bool,
@@ -84,8 +87,12 @@ fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     };
 }
 
-fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_radio_fake_state<
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     selected: bool,
     is_focused: bool,
@@ -120,8 +127,12 @@ fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     };
 }
 
-fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_switch_fake_state<
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     on: bool,
     is_focused: bool,
@@ -156,8 +167,13 @@ fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
     };
 }
 
-fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_select_fake_state<
+    's,
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     value: &'s str,
     options: &'s [&'s str],
@@ -203,8 +219,12 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, Scope: WidgetScope
     };
 }
 
-fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_drag_number_fake_state<
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     label: &str,
     val: f32,
@@ -247,8 +267,12 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScop
     };
 }
 
-fn draw_button_fake_state<T: TextSystem, LS: LayoutState, Scope: WidgetScope>(
-    b: &mut WidgetContext<T, LS, Scope>,
+fn draw_button_fake_state<
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     text: &str,
     style: ButtonStyle,
@@ -602,8 +626,8 @@ pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
-fn static_badge<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
-    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
+fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     x: f32,
     y: f32,
@@ -622,8 +646,8 @@ fn static_badge<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
     };
 }
 
-fn sec_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
-    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
+fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
     y: f32,
@@ -663,8 +687,8 @@ fn sec_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
     };
 }
 
-fn group_y<LS: LayoutState<Params = Rect>, Scope: WidgetScope>(
-    b: &mut WidgetContext<SampleTextSystem, LS, Scope>,
+fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
     y: f32,

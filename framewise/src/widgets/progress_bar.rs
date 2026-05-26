@@ -1,7 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     types::{Color, Rect},
-    widget::{LayoutInfo, WidgetContext, WidgetScope},
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -175,9 +176,9 @@ impl ProgressBarResult {
 pub fn progress_bar<
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
-    Scope: WidgetScope,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 >(
-    ctx: &mut WidgetContext<T, S, Scope>,
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: ProgressBarSpecBuilder,
 ) -> ProgressBarInfo {

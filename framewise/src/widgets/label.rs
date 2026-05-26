@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
     text::{FontId, TextSystem},
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext, WidgetScope},
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -146,8 +147,12 @@ impl LabelSpecBuilder {
 ///
 /// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::label function.
-pub fn label<T: TextSystem, S: crate::layout::LayoutState, Scope: WidgetScope>(
-    ctx: &mut WidgetContext<T, S, Scope>,
+pub fn label<
+    T: TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: LabelSpecBuilder,
 ) -> LabelInfo {
