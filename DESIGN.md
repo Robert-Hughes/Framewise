@@ -76,15 +76,15 @@ Framewise has two layers:
 
 ### Low-Level: Raw Widget Functions
 
-Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button` or `button_raw`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct and return a concrete typed result containing raw draw commands and interaction/layout info. Every input is explicit; the cost is strictly local.
+Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct and return a `raw::*Result` containing draw commands and interaction info. Every input is explicit; the cost is strictly local.
 
 ```rust
-pub fn button(spec: ButtonSpec, input: &Input) -> ButtonResult;
-pub fn label(spec: LabelSpec) -> LabelResult;
-pub fn text_edit(spec: TextEditSpec, state: TextEditState, input: &Input) -> TextEditResult;
+pub fn button(spec: ButtonSpec, input: &Input) -> raw::ButtonResult;
+pub fn label(spec: LabelSpec) -> raw::LabelResult;
+pub fn text_edit(spec: TextEditSpec, state: TextEditState, input: &Input) -> raw::TextEditResult;
 ```
 
-Each widget function returns a concrete struct composed of the parts it actually provides (e.g., `DrawCommands`, `ButtonInfo`, `TextEditInfo`). There are no traits, no metadata maps, and no dynamic type slots.
+Each `raw::*Result` is a concrete struct with no traits, no metadata maps, and no dynamic type slots.
 
 ### High-Level Freestanding API: Context Integration
 
@@ -97,9 +97,8 @@ pub fn button<T, S>(
     ctx: &mut WidgetContext<T, S>,
     state: ButtonState,
     layout_params: S::Params,
-    text: String,
-    input: &Input,
-) -> ButtonInfo;
+    builder: ButtonSpecBuilder,
+) -> ButtonResult;
 ```
 
 These freestanding functions automatically:
@@ -107,7 +106,24 @@ These freestanding functions automatically:
 2. Resolve styling parameters from the context's current settings.
 3. Call the low-level `raw` widget functions.
 4. Accumulate the returned draw commands inside the `WidgetContext`'s internal buffer.
-5. Return the high-level semantic info to the caller.
+5. Return a `*Result` to the caller.
+
+### Output Types: `raw::*Result` and `*Result`
+
+Each widget defines two result structs reflecting the two API layers.
+
+**`raw::*Result`** is returned by the low-level raw function. It contains:
+- `draw: DrawCommands` — the caller manages command accumulation directly
+- Interaction and state outputs (`InputInfo`, updated `*State`, `focused`, etc.)
+- `content_bounds: Rect` when the widget computes an inner area distinct from the input rect (e.g. a widget with a border or padding). The raw function is the authoritative place to compute this, since it has the spec in hand.
+- **Not** the input `Rect` itself — the caller supplied it explicitly, echoing it back is redundant
+
+**`*Result`** is returned by the high-level context function. It contains:
+- `layout: LayoutInfo` — includes `bounds` (the rect resolved by the layout engine, which the caller did not know before calling) and `content_bounds`
+- The same interaction and state outputs as `raw::*Result`
+- **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
+
+The high-level function maps between them: it calls `ctx.layout()` to resolve geometry, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
 
 ### Spec and SpecBuilder Pattern
 
@@ -208,7 +224,7 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button(spec: ButtonSpec, input: &Input) -> ButtonResult;
+pub fn button(spec: ButtonSpec, input: &Input) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
 pub fn button<T, S>(
@@ -216,15 +232,20 @@ pub fn button<T, S>(
     state: ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
-) -> ButtonInfo {
+) -> ButtonResult {
     let rect = ctx.layout(layout_params);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .build();
-    let result = raw::button(state, spec, ctx.input, ctx.focus_sys);
-    ctx.append_cmds(result.draw.0);
-    // ...
+    let r = raw::button(state, spec, ctx.input, ctx.focus_sys);
+    ctx.append_cmds(r.draw.0);
+    ButtonResult {
+        layout: LayoutInfo::new(rect, r.content_bounds),
+        input: r.input,
+        state: r.state,
+        focused: r.focused,
+    }
 }
 ```
 

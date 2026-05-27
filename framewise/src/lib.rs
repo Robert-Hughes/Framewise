@@ -43,6 +43,6 @@ pub use types::{Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, WidgetContext};
 
 // Widget functions (low-level API)
-pub use widgets::button::{button, ButtonInfo, ButtonResult, ButtonStyle};
+pub use widgets::button::{button, ButtonResult, ButtonStyle};
 pub use widgets::frame::{frame, FrameInfo, FrameResult, FrameStyle};
 pub use widgets::label::{label, LabelInfo, LabelResult};

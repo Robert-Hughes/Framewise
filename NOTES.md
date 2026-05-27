@@ -9,6 +9,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - idea: have a raw::*Result with low-level results (inc. draw cmds etc.), and a *Result high-level result without the draw cmds, without scroll offset amount etc. Just useful stuff for high-level, possibly adding some extra things in as well?
 
 * Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
+* Remove shorthand accessors on *Results structs (like ButtonResult::clicked())?
+* DrawCommands vs. Vec<DrawCmd>
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
   - Default handling in SpecBuilders?

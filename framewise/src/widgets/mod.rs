@@ -25,7 +25,7 @@ pub mod tree;
 pub mod window;
 
 pub use button::{
-    button, ButtonInfo, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle,
+    button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle,
 };
 pub use checkbox::{
     checkbox, CheckState, CheckboxInfo, CheckboxResult, CheckboxSpecBuilder,
