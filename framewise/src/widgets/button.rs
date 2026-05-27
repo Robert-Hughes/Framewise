@@ -178,50 +178,6 @@ pub struct ButtonStyle {
     pub text_color: Color,
 }
 
-impl ButtonStyle {
-    pub fn primary() -> Self {
-        Self {
-            background: Color::from_srgb_u8(21, 19, 15, 255),
-            hovered: Color::BLACK,
-            pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            border_width: 1.0,
-            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
-            text_size: 13.0,
-            font: FontId(1),
-            text_color: Color::from_srgb_u8(244, 241, 234, 255),
-        }
-    }
-
-    pub fn accent() -> Self {
-        Self {
-            background: Color::from_srgb_u8(194, 90, 44, 255),
-            hovered: Color::from_srgb_u8(176, 79, 35, 255),
-            pressed: Color::from_srgb_u8(156, 69, 32, 255),
-            border: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.0,
-            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
-            text_size: 13.0,
-            font: FontId(1),
-            text_color: Color::WHITE,
-        }
-    }
-
-    pub fn ghost() -> Self {
-        Self {
-            background: Color::from_srgb_u8(21, 19, 15, 255),
-            hovered: Color::BLACK,
-            pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: Color::TRANSPARENT,
-            border_width: 0.0,
-            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
-            text_size: 13.0,
-            font: FontId(1),
-            text_color: Color::from_srgb_u8(244, 241, 234, 255),
-        }
-    }
-}
-
 // ── Spec ──────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -399,12 +355,13 @@ mod tests {
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;
     use crate::text::TextHandle;
-    use crate::types::Vec2;
+    use crate::theme;
+use crate::types::Vec2;
     fn btn_spec(y: f32) -> ButtonSpec {
         ButtonSpec {
             rect: Rect::new(0.0, y, 100.0, 30.0),
             text: "B".into(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         }
@@ -514,14 +471,14 @@ mod tests {
         let btn1_spec = || ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Click Me".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
         let btn2_spec = || ButtonSpec {
             rect: Rect::new(0.0, 100.0, 100.0, 50.0),
             text: "Btn2".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -621,7 +578,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -661,7 +618,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -691,7 +648,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -722,7 +679,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -780,7 +737,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -835,7 +792,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -892,7 +849,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -907,7 +864,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = ButtonStyle::primary();
+        } = theme::Theme::default().button_primary_style();
 
         assert_eq!(
             res.draw,
@@ -940,7 +897,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -955,7 +912,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = ButtonStyle::primary();
+        } = theme::Theme::default().button_primary_style();
 
         assert_eq!(
             res.draw,
@@ -991,7 +948,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -1006,7 +963,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = ButtonStyle::primary();
+        } = theme::Theme::default().button_primary_style();
 
         assert_eq!(
             res.draw,
@@ -1037,7 +994,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
         };
@@ -1061,7 +1018,7 @@ mod tests {
             text_color,
             focus_border,
             ..
-        } = ButtonStyle::primary();
+        } = theme::Theme::default().button_primary_style();
 
         let expected_focus_rect = Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + 2.0));
 
@@ -1099,7 +1056,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::primary(),
+            style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: true,
         };
@@ -1117,10 +1074,10 @@ mod tests {
         let alpha = 0.32_f32;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let expected_bg = tint(ButtonStyle::primary().background);
-        let expected_border = tint(ButtonStyle::primary().border);
-        let expected_text = tint(ButtonStyle::primary().text_color);
-        let border_width = ButtonStyle::primary().border_width;
+        let expected_bg = tint(theme::Theme::default().button_primary_style().background);
+        let expected_border = tint(theme::Theme::default().button_primary_style().border);
+        let expected_text = tint(theme::Theme::default().button_primary_style().text_color);
+        let border_width = theme::Theme::default().button_primary_style().border_width;
 
         assert_eq!(
             res.draw,
@@ -1210,7 +1167,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = ButtonStyle { text_size: 99.0, ..ButtonStyle::primary() };
+        let custom_style = ButtonStyle { text_size: 99.0, ..theme::Theme::default().button_primary_style() };
         let builder = ButtonSpecBuilder::new().text("test".to_string()).style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);

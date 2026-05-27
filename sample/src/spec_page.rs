@@ -901,10 +901,10 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let styles: &[(&str, ButtonStyle, bool)] = &[
-                    ("Apply changes", ButtonStyle::primary(), false),
-                    ("Cancel", ButtonStyle::primary(), false),
-                    ("Reset", ButtonStyle::ghost(), false),
-                    ("Publish v0.2", ButtonStyle::accent(), false),
+                    ("Apply changes", t.button_primary_style(), false),
+                    ("Cancel", t.button_primary_style(), false),
+                    ("Reset", t.button_ghost_style(), false),
+                    ("Publish v0.2", t.button_accent_style(), false),
                 ];
                 let mut bx = lx;
                 for (i, (label, style, _)) in styles.iter().enumerate() {
@@ -935,10 +935,10 @@ pub fn draw_spec_page(
                 let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
                 let row_labels = ["secondary", "primary", "accent", "ghost"];
                 let row_styles: &[ButtonStyle] = &[
-                    ButtonStyle::primary(),
-                    ButtonStyle::primary(),
-                    ButtonStyle::accent(),
-                    ButtonStyle::ghost(),
+                    t.button_primary_style(),
+                    t.button_primary_style(),
+                    t.button_accent_style(),
+                    t.button_ghost_style(),
                 ];
                 let label_w = 80.0_f32;
                 let cell_w = 88.0_f32;
@@ -1031,9 +1031,9 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let size_defs: &[(&str, f32, ButtonStyle)] = &[
-                    ("22 px", t.h_sm, ButtonStyle::primary()),
-                    ("28 px", t.h_md, ButtonStyle::primary()),
-                    ("36 px", t.h_lg, ButtonStyle::primary()),
+                    ("22 px", t.h_sm, t.button_primary_style()),
+                    ("28 px", t.h_md, t.button_primary_style()),
+                    ("36 px", t.h_lg, t.button_primary_style()),
                 ];
                 let mut bx = lx;
                 for (i, (label, h, style)) in size_defs.iter().enumerate() {
@@ -1055,9 +1055,9 @@ pub fn draw_spec_page(
 
                 // button group 1: ← | Frame 248 | →
                 let grp1: &[(&str, ButtonStyle)] = &[
-                    ("←", ButtonStyle::primary()),
-                    ("Frame 248", ButtonStyle::primary()),
-                    ("→", ButtonStyle::primary()),
+                    ("←", t.button_primary_style()),
+                    ("Frame 248", t.button_primary_style()),
+                    ("→", t.button_primary_style()),
                 ];
                 // draw group border
                 for (i, (label, style)) in grp1.iter().enumerate() {
@@ -1079,9 +1079,9 @@ pub fn draw_spec_page(
 
                 // button group 2: Build | Run | Ship
                 let grp2: &[(&str, ButtonStyle)] = &[
-                    ("Build", ButtonStyle::primary()),
-                    ("Run", ButtonStyle::primary()),
-                    ("Ship", ButtonStyle::primary()),
+                    ("Build", t.button_primary_style()),
+                    ("Run", t.button_primary_style()),
+                    ("Ship", t.button_primary_style()),
                 ];
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
@@ -3346,9 +3346,9 @@ pub fn draw_spec_page(
                 // button row
                 let mut btn_x = cr_w;
                 let btns: &[(&str, ButtonStyle)] = &[
-                    ("Apply", ButtonStyle::primary()),
-                    ("Cancel", ButtonStyle::primary()),
-                    ("Reset", ButtonStyle::ghost()),
+                    ("Apply", t.button_primary_style()),
+                    ("Cancel", t.button_primary_style()),
+                    ("Reset", t.button_ghost_style()),
                 ];
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;

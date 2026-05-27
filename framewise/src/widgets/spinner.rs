@@ -22,7 +22,6 @@ pub mod raw {
         } else {
             spec.style.small_size
         };
-        let color = spec.color.unwrap_or(spec.style.color);
 
         let x = spec.rect.x;
         let y = spec.rect.y;
@@ -39,52 +38,52 @@ pub mod raw {
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x, y + arm),
             p1: Vec2::new(x, y),
-            color,
+            color: spec.style.color,
             width: w,
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x, y),
             p1: Vec2::new(x + arm, y),
-            color,
+            color: spec.style.color,
             width: w,
         });
         // Top-right bracket.
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size - arm, y),
             p1: Vec2::new(x + size, y),
-            color,
+            color: spec.style.color,
             width: w,
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size, y),
             p1: Vec2::new(x + size, y + arm),
-            color,
+            color: spec.style.color,
             width: w,
         });
         // Bottom-right bracket.
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size, y + size - arm),
             p1: Vec2::new(x + size, y + size),
-            color,
+            color: spec.style.color,
             width: w,
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size, y + size),
             p1: Vec2::new(x + size - arm, y + size),
-            color,
+            color: spec.style.color,
             width: w,
         });
         // Bottom-left bracket.
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + arm, y + size),
             p1: Vec2::new(x, y + size),
-            color,
+            color: spec.style.color,
             width: w,
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x, y + size),
             p1: Vec2::new(x, y + size - arm),
-            color,
+            color: spec.style.color,
             width: w,
         });
 
@@ -106,7 +105,6 @@ pub struct SpinnerSpec {
     /// Top-left. Size is either 16 or 24 (use `large` flag).
     pub rect: Rect,
     pub large: bool,
-    pub color: Option<Color>,
     pub style: SpinnerStyle,
 }
 
@@ -127,7 +125,6 @@ pub struct SpinnerStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpecBuilder {
     pub large: bool,
-    pub color: Option<Color>,
     pub style: Option<SpinnerStyle>,
     pub rect: Option<Rect>,
 }
@@ -136,7 +133,6 @@ impl SpinnerSpecBuilder {
     pub fn new() -> Self {
         Self {
             large: false,
-            color: None,
             style: None,
             rect: None,
         }
@@ -144,11 +140,6 @@ impl SpinnerSpecBuilder {
 
     pub fn large(mut self, large: bool) -> Self {
         self.large = large;
-        self
-    }
-
-    pub fn color(mut self, color: Color) -> Self {
-        self.color = Some(color);
         self
     }
 
@@ -177,7 +168,6 @@ impl SpinnerSpecBuilder {
         SpinnerSpec {
             rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
             large: self.large,
-            color: self.color,
             style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
@@ -223,7 +213,6 @@ mod tests {
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             large: false,
-            color: None,
             style: crate::theme::Theme::framewise().spinner_style(),
         };
         let style = spec.style;
@@ -296,16 +285,14 @@ mod tests {
     }
 
     #[test]
-    fn test_spinner_visual_large_custom_color() {
-        let custom_color = Color::from_srgb_f32(0.1, 0.2, 0.3, 1.0);
+    fn test_spinner_visual_large() {
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 24.0, 24.0),
             large: true,
-            color: Some(custom_color),
             style: crate::theme::Theme::framewise().spinner_style(),
         };
         let style = spec.style;
-        let res = raw::spinner(spec);
+        let res = raw::spinner(spec.clone());
 
         assert_eq!(
             res.draw,
@@ -314,52 +301,52 @@ mod tests {
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 7.0),
                     p1: Vec2::new(0.0, 0.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(7.0, 0.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(17.0, 0.0),
                     p1: Vec2::new(24.0, 0.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 0.0),
                     p1: Vec2::new(24.0, 7.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 17.0),
                     p1: Vec2::new(24.0, 24.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 24.0),
                     p1: Vec2::new(17.0, 24.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(7.0, 24.0),
                     p1: Vec2::new(0.0, 24.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 24.0),
                     p1: Vec2::new(0.0, 17.0),
-                    color: custom_color,
+                    color: spec.style.color,
                     width: style.width
                 },
                 // Highlight

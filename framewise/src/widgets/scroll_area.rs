@@ -611,6 +611,7 @@ mod tests {
     use super::*;
     use crate::layout::ManualLayout;
     use crate::test_utils::DummyTextSys;
+use crate::theme;
 
     // Helper to keep test calls the same
     fn scroll_area(
@@ -764,7 +765,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -815,7 +816,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -856,7 +857,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1329,7 +1330,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1347,7 +1348,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1365,7 +1366,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1435,7 +1436,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1453,7 +1454,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1581,7 +1582,7 @@ mod tests {
 #[cfg(test)]
 mod nested_bubbling_tests {
     use crate::input::Input;
-    use crate::types::*;
+    use crate::{theme, types::*};
     use crate::widgets::scroll_area::raw::begin_scroll_area;
     use crate::widgets::scroll_area::*;
 
@@ -1798,7 +1799,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1856,7 +1857,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2149,7 +2150,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2444,7 +2445,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2760,7 +2761,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3298,7 +3299,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary(),
+                    style: theme::Theme::default().button_primary_style(),
                     clip_rect: None,
                     disabled: false,
                 },
