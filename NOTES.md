@@ -12,7 +12,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * DrawCommands vs. Vec<DrawCmd>
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
-  - Default handling in SpecBuilders?
+  - Default handling in SpecBuilders is different to other fields, e.g. for rect the builder overrides it
+  - Tests for clicks on clipped widgets (menu and tree, and window should fail)
+  - "only needed when using the raw API directly, or to clip tighter than the context default". - WRONG COMMENT NOT IMPLEMENTED LIKE THIS
 
 * Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Parameter naming or ordering or return types. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters. The kinds of fields contained in structs passed into and out of methods (e.g. if one widget returns a layout rect but another doesn't). Anything that a reader of the library might be surprised by, or wonder 'why does widget X do it like this but widget Y does it like that'.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.

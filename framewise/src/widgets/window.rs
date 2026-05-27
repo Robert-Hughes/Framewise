@@ -198,11 +198,11 @@ pub fn begin_window<
 
     let on_finish = move |_: &mut FocusSystem| raw::end_window();
 
-    let mut child = parent.child_with_layout_and_on_finish(inner_layout.begin(content), on_finish);
-
-    child.clip_rect = new_clip;
-
-    child
+    parent.child_with_layout_and_on_finish_and_clip_rect(
+        inner_layout.begin(content),
+        on_finish,
+        new_clip,
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
@@ -581,12 +581,11 @@ pub fn begin_scroll_area<
 
     let on_finish = move |focus_sys: &mut FocusSystem| raw::end_scroll_area(token, focus_sys);
 
-    let mut child =
-        parent.child_with_layout_and_on_finish(offset_layout.begin(content_bounds), on_finish);
-
-    child.clip_rect = new_clip;
-
-    child
+    parent.child_with_layout_and_on_finish_and_clip_rect(
+        offset_layout.begin(content_bounds),
+        on_finish,
+        new_clip,
+    )
 }
 
 #[cfg(test)]

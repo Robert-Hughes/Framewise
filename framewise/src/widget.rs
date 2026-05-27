@@ -102,7 +102,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
 impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>
     WidgetContext<'a, T, LS, CF>
 {
-    pub fn child_with_layout_and_on_finish<
+    pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
         CF2: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
@@ -110,11 +110,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
         &'c mut self,
         inner_layout_state: LS2,
         inner_on_finish: CF2,
+        inner_clip_rect: Option<Rect>,
     ) -> WidgetContext<'c, T, LS2, CF2> {
         WidgetContext {
             theme: self.theme,
             time: self.time,
-            clip_rect: self.clip_rect,
+            clip_rect: inner_clip_rect,
             text_system: self.text_system,
             focus_sys: self.focus_sys,
             input: self.input,
@@ -124,11 +125,31 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
         }
     }
 
+    pub fn child_with_layout_and_on_finish<
+        'c,
+        LS2: LayoutState,
+        CF2: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    >(
+        &'c mut self,
+        inner_layout_state: LS2,
+        inner_on_finish: CF2,
+    ) -> WidgetContext<'c, T, LS2, CF2> {
+        self.child_with_layout_and_on_finish_and_clip_rect(
+            inner_layout_state,
+            inner_on_finish,
+            self.clip_rect, // Clip rect is inherited by default
+        )
+    }
+
     pub fn child_with_layout<'c, LS2: LayoutState>(
         &'c mut self,
         inner_layout_state: LS2,
     ) -> WidgetContext<'c, T, LS2, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
-        self.child_with_layout_and_on_finish(inner_layout_state, |_| vec![])
+        self.child_with_layout_and_on_finish_and_clip_rect(
+            inner_layout_state,
+            |_| vec![],
+            self.clip_rect, // Clip rect is inherited by default
+        )
     }
 
     /// Append draw commands to the context's accumulated list.

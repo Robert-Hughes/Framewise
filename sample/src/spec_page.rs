@@ -1,4 +1,4 @@
-use crate::text::SampleTextSystem;
+﻿use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
@@ -726,8 +726,6 @@ pub fn draw_spec_page(
         let layout_state = ManualLayout.begin(win_rect);
         let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state, &mut cmds);
         w_ctx.theme.sans_font = t.mono_font;
-        w_ctx.time = 0.0;
-        w_ctx.clip_rect = None;
         w_ctx
     };
 
