@@ -8,6 +8,12 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FrameSpec {
+        pub rect: Rect,
+        pub style: super::FrameStyle,
+    }
+
     /// Low-level frame widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -48,14 +54,6 @@ pub struct FrameStyle {
     pub border_width: f32,
     /// Padding between the border and the content area.
     pub padding: f32,
-}
-
-// ── Spec ──────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct FrameSpec {
-    pub rect: Rect,
-    pub style: FrameStyle,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -120,8 +118,8 @@ impl FrameSpecBuilder {
         }
         self
     }
-    pub fn build(self) -> FrameSpec {
-        FrameSpec {
+    pub fn build(self) -> raw::FrameSpec {
+        raw::FrameSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -161,6 +159,7 @@ pub fn frame<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::FrameSpec;
 
     #[test]
     fn test_frame_layout_and_draw() {

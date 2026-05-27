@@ -9,6 +9,15 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StatusSpec<'a> {
+        pub rect: Rect,
+        pub label: &'a str,
+        pub font: FontId,
+        pub variant: super::StatusVariant,
+        pub style: super::StatusStyle,
+    }
+
     /// Low-level status widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -61,15 +70,6 @@ pub enum StatusVariant {
     Warn,
     Err,
     Live,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct StatusSpec<'a> {
-    pub rect: Rect,
-    pub label: &'a str,
-    pub font: FontId,
-    pub variant: StatusVariant,
-    pub style: StatusStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -175,8 +175,8 @@ impl<'a> StatusSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> StatusSpec<'a> {
-        StatusSpec {
+    pub fn build(self) -> raw::StatusSpec<'a> {
+        raw::StatusSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -195,6 +195,7 @@ impl<'a> StatusSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::StatusSpec;
     use crate::test_utils::DummyTextSys;
 
     #[test]

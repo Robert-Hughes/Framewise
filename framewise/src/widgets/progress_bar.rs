@@ -8,6 +8,18 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ProgressBarSpec {
+        pub rect: Rect,
+        /// 0.0–1.0. Pass `f32::NAN` for indeterminate (renders partial fill at `phase`).
+        pub value: f32,
+        /// Indeterminate sweep offset in 0.0–1.0 range (caller animates over time).
+        pub phase: f32,
+        /// When true, fill uses rust instead of ink (active/in-progress state).
+        pub active: bool,
+        pub style: super::ProgressBarStyle,
+    }
+
     /// Low-level progress bar widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -61,18 +73,6 @@ pub mod raw {
             layout: LayoutInfo::tight(spec.rect),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ProgressBarSpec {
-    pub rect: Rect,
-    /// 0.0–1.0. Pass `f32::NAN` for indeterminate (renders partial fill at `phase`).
-    pub value: f32,
-    /// Indeterminate sweep offset in 0.0–1.0 range (caller animates over time).
-    pub phase: f32,
-    /// When true, fill uses rust instead of ink (active/in-progress state).
-    pub active: bool,
-    pub style: ProgressBarStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -139,8 +139,8 @@ impl ProgressBarSpecBuilder {
         self
     }
 
-    pub fn build(self) -> ProgressBarSpec {
-        ProgressBarSpec {
+    pub fn build(self) -> raw::ProgressBarSpec {
+        raw::ProgressBarSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -201,6 +201,7 @@ pub fn progress_bar<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::ProgressBarSpec;
 
     #[test]
     fn test_progress_bar_visual_normal() {

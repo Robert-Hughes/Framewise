@@ -10,6 +10,18 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectSpec<'a> {
+        /// Bounding rect for the closed box (height h_md = 28).
+        pub rect: Rect,
+        pub value: &'a str,
+        pub font: FontId,
+        pub options: &'a [&'a str],
+        pub disabled: bool,
+        pub style: super::SelectStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level select widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -269,18 +281,6 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SelectSpec<'a> {
-    /// Bounding rect for the closed box (height h_md = 28).
-    pub rect: Rect,
-    pub value: &'a str,
-    pub font: FontId,
-    pub options: &'a [&'a str],
-    pub disabled: bool,
-    pub style: SelectStyle,
-    pub clip_rect: Option<Rect>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SelectStyle {
     pub min_width: f32,
@@ -469,8 +469,8 @@ impl<'a> SelectSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> SelectSpec<'a> {
-        SelectSpec {
+    pub fn build(self) -> raw::SelectSpec<'a> {
+        raw::SelectSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -491,6 +491,7 @@ impl<'a> SelectSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::SelectSpec;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 

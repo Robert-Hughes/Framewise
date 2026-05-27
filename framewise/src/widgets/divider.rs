@@ -8,6 +8,13 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DividerSpec {
+        pub rect: Rect,
+        pub color: Color,
+        pub width: f32,
+    }
+
     /// Low-level divider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -26,13 +33,6 @@ pub mod raw {
             layout: LayoutInfo::new(spec.rect, spec.rect),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DividerSpec {
-    pub rect: Rect,
-    pub color: Color,
-    pub width: f32,
 }
 
 pub struct DividerResult {
@@ -94,8 +94,8 @@ impl DividerSpecBuilder {
         }
         self
     }
-    pub fn build(self) -> DividerSpec {
-        DividerSpec {
+    pub fn build(self) -> raw::DividerSpec {
+        raw::DividerSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -136,6 +136,7 @@ pub fn divider<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::DividerSpec;
 
     #[test]
     fn test_divider_visual() {

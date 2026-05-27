@@ -10,6 +10,17 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ChipSpec<'a> {
+        /// Top-left origin. Height is fixed at 22.
+        pub rect: Rect,
+        pub label: &'a str,
+        pub font: FontId,
+        pub disabled: bool,
+        pub style: super::ChipStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level chip widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -114,17 +125,6 @@ pub mod raw {
             focused,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChipSpec<'a> {
-    /// Top-left origin. Height is fixed at 22.
-    pub rect: Rect,
-    pub label: &'a str,
-    pub font: FontId,
-    pub disabled: bool,
-    pub style: ChipStyle,
-    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -298,8 +298,8 @@ impl<'a> ChipSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> ChipSpec<'a> {
-        ChipSpec {
+    pub fn build(self) -> raw::ChipSpec<'a> {
+        raw::ChipSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -319,6 +319,7 @@ impl<'a> ChipSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::ChipSpec;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 

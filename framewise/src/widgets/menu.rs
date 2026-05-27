@@ -9,6 +9,16 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MenuSpec<'a> {
+        /// Top-left origin; width is at least 200.
+        pub rect: Rect,
+        pub items: &'a [super::MenuItem<'a>],
+        pub label_font: FontId,
+        pub meta_font: FontId,
+        pub style: super::MenuStyle,
+    }
+
     /// Low-level menu widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -149,16 +159,6 @@ pub enum MenuItem<'a> {
     Group(&'a str),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct MenuSpec<'a> {
-    /// Top-left origin; width is at least 200.
-    pub rect: Rect,
-    pub items: &'a [MenuItem<'a>],
-    pub label_font: FontId,
-    pub meta_font: FontId,
-    pub style: MenuStyle,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MenuStyle {
     pub row_height: f32,
@@ -289,8 +289,8 @@ impl<'a> MenuSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> MenuSpec<'a> {
-        MenuSpec {
+    pub fn build(self) -> raw::MenuSpec<'a> {
+        raw::MenuSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),

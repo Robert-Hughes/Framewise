@@ -10,6 +10,18 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TabsSpec<'a> {
+        /// Bounding rect; only x/y/w used — height is fixed at 36.
+        pub rect: Rect,
+        pub items: &'a [&'a str],
+        pub font: FontId,
+        pub active_index: usize,
+        pub disabled: bool,
+        pub style: super::TabsStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level tabs widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -157,18 +169,6 @@ pub mod raw {
             focused,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TabsSpec<'a> {
-    /// Bounding rect; only x/y/w used — height is fixed at 36.
-    pub rect: Rect,
-    pub items: &'a [&'a str],
-    pub font: FontId,
-    pub active_index: usize,
-    pub disabled: bool,
-    pub style: TabsStyle,
-    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -346,8 +346,8 @@ impl<'a> TabsSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> TabsSpec<'a> {
-        TabsSpec {
+    pub fn build(self) -> raw::TabsSpec<'a> {
+        raw::TabsSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -368,6 +368,7 @@ impl<'a> TabsSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::TabsSpec;
     use crate::test_utils::DummyTextSys;
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> TabsResult {

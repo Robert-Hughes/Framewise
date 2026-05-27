@@ -9,6 +9,27 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SliderSpec {
+        pub rect: Rect,
+        pub min: f32,
+        pub max: f32,
+        pub page_step: f32,
+        pub step: f32,
+        pub orientation: super::Orientation,
+        pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
+        pub style: super::SliderStyle,
+        pub clip_rect: Option<Rect>,
+        /// When `true` (default for standalone sliders), the slider always claims
+        /// both scroll directions from the hover system — even at its limits —
+        /// preventing scroll events from propagating to any parent scroll area.
+        ///
+        /// Set to `false` for the internal scrollbar slider inside `ScrollArea`,
+        /// so that when the content is fully scrolled the parent can hand off
+        /// the event to an outer scroll area.
+        pub claim_scroll_at_ends: bool,
+    }
+
     /// Low-level slider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -499,27 +520,6 @@ pub enum Orientation {
     Horizontal,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SliderSpec {
-    pub rect: Rect,
-    pub min: f32,
-    pub max: f32,
-    pub page_step: f32,
-    pub step: f32,
-    pub orientation: Orientation,
-    pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
-    pub style: SliderStyle,
-    pub clip_rect: Option<Rect>,
-    /// When `true` (default for standalone sliders), the slider always claims
-    /// both scroll directions from the hover system — even at its limits —
-    /// preventing scroll events from propagating to any parent scroll area.
-    ///
-    /// Set to `false` for the internal scrollbar slider inside `ScrollArea`,
-    /// so that when the content is fully scrolled the parent can hand off
-    /// the event to an outer scroll area.
-    pub claim_scroll_at_ends: bool,
-}
-
 #[derive(Debug, Clone)]
 pub struct SliderState {
     pub focus_id: FocusId,
@@ -658,8 +658,8 @@ impl SliderSpecBuilder {
         self
     }
 
-    pub fn build(self) -> SliderSpec {
-        SliderSpec {
+    pub fn build(self) -> raw::SliderSpec {
+        raw::SliderSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -681,6 +681,7 @@ impl SliderSpecBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::SliderSpec;
 
     #[test]
     fn test_slider_page_up_down_keyboard() {

@@ -10,6 +10,24 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ScrollAreaSpec {
+        pub rect: Rect,
+        pub content_size: Vec2,
+        pub h_vis: super::ScrollbarVisibility,
+        pub v_vis: super::ScrollbarVisibility,
+        pub clip_rect: Option<Rect>,
+    }
+
+    pub struct ScrollAreaToken {
+        pub(super) id: crate::focus::FocusId,
+        pub(super) at_top: bool,
+        pub(super) at_bottom: bool,
+        pub(super) at_left: bool,
+        pub(super) at_right: bool,
+        pub(super) mode: super::ScrollMode,
+    }
+
     /// Low-level scroll area begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -126,7 +144,7 @@ pub mod raw {
                 content_bounds.h,
             );
 
-            let slider_spec = crate::widgets::slider::SliderSpec {
+            let slider_spec = crate::widgets::slider::raw::SliderSpec {
                 orientation: crate::widgets::slider::Orientation::Vertical,
                 rect: track_rect,
                 min: 0.0,
@@ -163,7 +181,7 @@ pub mod raw {
                 scrollbar_w,
             );
 
-            let slider_spec = crate::widgets::slider::SliderSpec {
+            let slider_spec = crate::widgets::slider::raw::SliderSpec {
                 orientation: crate::widgets::slider::Orientation::Horizontal,
                 rect: track_rect,
                 min: 0.0,
@@ -426,15 +444,6 @@ impl Default for ScrollState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ScrollAreaSpec {
-    pub rect: Rect,
-    pub content_size: Vec2,
-    pub h_vis: ScrollbarVisibility,
-    pub v_vis: ScrollbarVisibility,
-    pub clip_rect: Option<Rect>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
     pub content_size: Option<Vec2>,
@@ -476,8 +485,8 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
-    pub fn build(self) -> ScrollAreaSpec {
-        ScrollAreaSpec {
+    pub fn build(self) -> raw::ScrollAreaSpec {
+        raw::ScrollAreaSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .with_rect() or use the high-level API"),
@@ -522,15 +531,6 @@ impl ScrollMode {
             (true, true) => ScrollMode::Both,
         }
     }
-}
-
-pub struct ScrollAreaToken {
-    id: crate::focus::FocusId,
-    at_top: bool,
-    at_bottom: bool,
-    at_left: bool,
-    at_right: bool,
-    mode: ScrollMode,
 }
 
 // ── High-level widget functions ───────────────────────────────────────────────────
@@ -610,7 +610,7 @@ mod test_helpers {
 
 #[cfg(test)]
 mod tests {
-    use super::raw::begin_scroll_area;
+    use super::raw::{begin_scroll_area, ScrollAreaSpec};
     use super::test_helpers::frames;
     use super::*;
     use crate::layout::ManualLayout;
@@ -766,7 +766,7 @@ mod tests {
 
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -817,7 +817,7 @@ mod tests {
                 raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -858,7 +858,7 @@ mod tests {
             // Button rendered OUTSIDE the scroll area's begin/finish.
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1331,7 +1331,7 @@ mod tests {
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
             let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_visible_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1349,7 +1349,7 @@ mod tests {
             // axial score from btn_start = 80, beating btn_visible's 180.
             let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_clipped_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1367,7 +1367,7 @@ mod tests {
             // btn_start: below the scroll area, no clip.
             let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_start_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1437,7 +1437,7 @@ mod tests {
             // 30px overlap → must be included in spatial nav.
             let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_partial_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1455,7 +1455,7 @@ mod tests {
             // btn_start: below the scroll area.
             let res = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_start_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1586,7 +1586,7 @@ mod tests {
 #[cfg(test)]
 mod nested_bubbling_tests {
     use crate::input::Input;
-    use crate::widgets::scroll_area::raw::begin_scroll_area;
+    use crate::widgets::scroll_area::raw::{begin_scroll_area, ScrollAreaSpec};
     use crate::widgets::scroll_area::*;
     use crate::{theme, types::*};
 
@@ -1800,7 +1800,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -1858,7 +1858,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -2151,7 +2151,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -2446,7 +2446,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -2762,7 +2762,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),
@@ -3300,7 +3300,7 @@ mod nested_bubbling_tests {
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
-                crate::widgets::button::ButtonSpec {
+                crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: theme::Theme::default().button_primary_style(),

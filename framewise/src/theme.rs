@@ -2,7 +2,7 @@ use crate::{
     text::{FontId, FontRole},
     types::Color,
     widgets::{
-        button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle, divider::DividerSpec,
+        button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle,
         drag_number::DragNumberStyle, frame::FrameStyle, menu::MenuStyle,
         progress_bar::ProgressBarStyle, radio::RadioStyle, segmented::SegmentedStyle,
         select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle, status::StatusStyle,
@@ -192,14 +192,6 @@ impl Theme {
             thickness: 1.5,
             thumb_size: 12.0,
             scrollbar_mode: true,
-        }
-    }
-
-    pub fn divider_spec(&self, rect: crate::types::Rect) -> DividerSpec {
-        DividerSpec {
-            rect,
-            color: self.line,
-            width: self.border,
         }
     }
 

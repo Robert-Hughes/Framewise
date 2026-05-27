@@ -10,6 +10,15 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TextEditSpec {
+        pub rect: Rect,
+        pub style: super::TextEditStyle,
+        pub clip_rect: Option<Rect>,
+        pub error: bool,
+        pub disabled: bool,
+    }
+
     /// Low-level text edit widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -462,17 +471,6 @@ impl TextEditState {
     }
 }
 
-// ── Spec ──────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextEditSpec {
-    pub rect: Rect,
-    pub style: TextEditStyle,
-    pub clip_rect: Option<Rect>,
-    pub error: bool,
-    pub disabled: bool,
-}
-
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub enum ClipboardAction {
@@ -710,8 +708,8 @@ impl TextEditSpecBuilder {
         self
     }
 
-    pub fn build(self) -> TextEditSpec {
-        TextEditSpec {
+    pub fn build(self) -> raw::TextEditSpec {
+        raw::TextEditSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -728,6 +726,7 @@ impl TextEditSpecBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::TextEditSpec;
 
     use crate::test_utils::DummyTextSys;
 

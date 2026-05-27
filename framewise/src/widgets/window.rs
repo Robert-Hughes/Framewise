@@ -9,6 +9,17 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct WindowSpec<'a> {
+        pub rect: Rect,
+        pub title: &'a str,
+        pub buttons: &'a [super::WindowButton],
+        pub font: FontId,
+        pub status_bar: bool,
+        pub status_text: Option<&'a str>,
+        pub style: super::WindowStyle,
+    }
+
     /// Low-level window begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -123,17 +134,6 @@ pub mod raw {
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowButton {
     pub symbol: &'static str,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct WindowSpec<'a> {
-    pub rect: Rect,
-    pub title: &'a str,
-    pub buttons: &'a [WindowButton],
-    pub font: FontId,
-    pub status_bar: bool,
-    pub status_text: Option<&'a str>,
-    pub style: WindowStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -301,8 +301,8 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> WindowSpec<'a> {
-        WindowSpec {
+    pub fn build(self) -> raw::WindowSpec<'a> {
+        raw::WindowSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),

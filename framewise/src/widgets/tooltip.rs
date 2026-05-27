@@ -9,6 +9,15 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TooltipSpec<'a> {
+        pub rect: Rect,
+        pub text: &'a str,
+        pub font: FontId,
+        pub variant: super::TooltipVariant,
+        pub style: super::TooltipStyle,
+    }
+
     /// Low-level tooltip widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -68,15 +77,6 @@ pub mod raw {
 pub enum TooltipVariant {
     Dark,
     Rust,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TooltipSpec<'a> {
-    pub rect: Rect,
-    pub text: &'a str,
-    pub font: FontId,
-    pub variant: TooltipVariant,
-    pub style: TooltipStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -180,8 +180,8 @@ impl<'a> TooltipSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> TooltipSpec<'a> {
-        TooltipSpec {
+    pub fn build(self) -> raw::TooltipSpec<'a> {
+        raw::TooltipSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -200,6 +200,7 @@ impl<'a> TooltipSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::TooltipSpec;
     use crate::test_utils::DummyTextSys;
 
     #[test]

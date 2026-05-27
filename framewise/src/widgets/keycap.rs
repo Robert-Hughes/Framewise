@@ -9,6 +9,20 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct KeycapSpec<'a> {
+        pub rect: Rect,
+        pub label: &'a str,
+        /// Background fill (default: paper_elev).
+        pub bg: Color,
+        /// Border color.
+        pub border: Color,
+        /// Label text color.
+        pub text_color: Color,
+        pub text_size: f32,
+        pub font: FontId,
+    }
+
     /// Low-level keycap widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -58,20 +72,6 @@ pub mod raw {
             layout: LayoutInfo::tight(spec.rect),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct KeycapSpec<'a> {
-    pub rect: Rect,
-    pub label: &'a str,
-    /// Background fill (default: paper_elev).
-    pub bg: Color,
-    /// Border color.
-    pub border: Color,
-    /// Label text color.
-    pub text_color: Color,
-    pub text_size: f32,
-    pub font: FontId,
 }
 
 pub struct KeycapResult {
@@ -186,8 +186,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> KeycapSpec<'a> {
-        KeycapSpec {
+    pub fn build(self) -> raw::KeycapSpec<'a> {
+        raw::KeycapSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -210,6 +210,7 @@ impl<'a> KeycapSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::KeycapSpec;
     use crate::test_utils::DummyTextSys;
 
     #[test]

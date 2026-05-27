@@ -10,6 +10,20 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DragNumberSpec<'a> {
+        /// Full bounding rect (height typically h_md = 28).
+        pub rect: Rect,
+        pub label: &'a str,
+        pub font: FontId,
+        pub value: f32,
+        pub min: f32,
+        pub max: f32,
+        pub disabled: bool,
+        pub style: super::DragNumberStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level drag number widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -167,20 +181,6 @@ pub mod raw {
             focused,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DragNumberSpec<'a> {
-    /// Full bounding rect (height typically h_md = 28).
-    pub rect: Rect,
-    pub label: &'a str,
-    pub font: FontId,
-    pub value: f32,
-    pub min: f32,
-    pub max: f32,
-    pub disabled: bool,
-    pub style: DragNumberStyle,
-    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -386,8 +386,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> DragNumberSpec<'a> {
-        DragNumberSpec {
+    pub fn build(self) -> raw::DragNumberSpec<'a> {
+        raw::DragNumberSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -410,6 +410,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::DragNumberSpec;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 

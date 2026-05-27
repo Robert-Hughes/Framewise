@@ -8,6 +8,24 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ColorSwatchSpec {
+        pub rect: Rect,
+        pub color: Color,
+        /// Border color drawn around the swatch. Transparent by default.
+        pub border: Color,
+    }
+
+    impl Default for ColorSwatchSpec {
+        fn default() -> Self {
+            Self {
+                rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+                color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
+                border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
+            }
+        }
+    }
+
     /// Low-level color swatch widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -26,24 +44,6 @@ pub mod raw {
         ColorSwatchResult {
             draw,
             layout: LayoutInfo::tight(spec.rect),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ColorSwatchSpec {
-    pub rect: Rect,
-    pub color: Color,
-    /// Border color drawn around the swatch. Transparent by default.
-    pub border: Color,
-}
-
-impl Default for ColorSwatchSpec {
-    fn default() -> Self {
-        Self {
-            rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-            color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
-            border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
         }
     }
 }
@@ -133,8 +133,8 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
-    pub fn build(self) -> ColorSwatchSpec {
-        let mut spec = ColorSwatchSpec::default();
+    pub fn build(self) -> raw::ColorSwatchSpec {
+        let mut spec = raw::ColorSwatchSpec::default();
         if let Some(r) = self.rect {
             spec.rect = r;
         }
@@ -151,6 +151,7 @@ impl ColorSwatchSpecBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::ColorSwatchSpec;
 
     #[test]
     fn test_color_swatch_visual_normal() {

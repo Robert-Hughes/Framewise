@@ -10,6 +10,18 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SegmentedSpec<'a> {
+        /// Top-left origin. Height is fixed at h_md (28).
+        pub rect: Rect,
+        pub items: &'a [&'a str],
+        pub font: FontId,
+        pub active_index: usize,
+        pub disabled: bool,
+        pub style: super::SegmentedStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level segmented widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -168,18 +180,6 @@ pub mod raw {
             focused,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct SegmentedSpec<'a> {
-    /// Top-left origin. Height is fixed at h_md (28).
-    pub rect: Rect,
-    pub items: &'a [&'a str],
-    pub font: FontId,
-    pub active_index: usize,
-    pub disabled: bool,
-    pub style: SegmentedStyle,
-    pub clip_rect: Option<Rect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -357,8 +357,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> SegmentedSpec<'a> {
-        SegmentedSpec {
+    pub fn build(self) -> raw::SegmentedSpec<'a> {
+        raw::SegmentedSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -379,6 +379,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::SegmentedSpec;
     use crate::test_utils::DummyTextSys;
 
     fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> SegmentedResult {

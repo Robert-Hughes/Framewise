@@ -25,55 +25,55 @@ pub mod tree;
 pub mod window;
 
 pub use button::{
-    button, ButtonInfo, ButtonResult, ButtonSpec, ButtonSpecBuilder, ButtonState, ButtonStyle,
+    button, ButtonInfo, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle,
 };
 pub use checkbox::{
-    checkbox, CheckState, CheckboxInfo, CheckboxResult, CheckboxSpec, CheckboxSpecBuilder,
+    checkbox, CheckState, CheckboxInfo, CheckboxResult, CheckboxSpecBuilder,
     CheckboxState, CheckboxStyle,
 };
-pub use chip::{chip, ChipInfo, ChipResult, ChipSpec, ChipSpecBuilder, ChipState, ChipStyle};
+pub use chip::{chip, ChipInfo, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
 pub use color_swatch::{
-    color_swatch, ColorSwatchInfo, ColorSwatchResult, ColorSwatchSpec, ColorSwatchSpecBuilder,
+    color_swatch, ColorSwatchInfo, ColorSwatchResult, ColorSwatchSpecBuilder,
 };
-pub use divider::{divider, DividerInfo, DividerResult, DividerSpec, DividerSpecBuilder};
+pub use divider::{divider, DividerInfo, DividerResult, DividerSpecBuilder};
 pub use drag_number::{
-    drag_number, DragNumberInfo, DragNumberResult, DragNumberSpec, DragNumberSpecBuilder,
+    drag_number, DragNumberInfo, DragNumberResult, DragNumberSpecBuilder,
     DragNumberState, DragNumberStyle,
 };
-pub use frame::{frame, FrameInfo, FrameResult, FrameSpec, FrameSpecBuilder, FrameStyle};
-pub use keycap::{keycap, KeycapInfo, KeycapResult, KeycapSpec, KeycapSpecBuilder};
-pub use label::{label, LabelInfo, LabelResult, LabelSpec, LabelSpecBuilder};
-pub use menu::{menu, MenuItem, MenuResult, MenuSpec, MenuSpecBuilder, MenuStyle};
-pub use meter::{meter, MeterInfo, MeterResult, MeterSpec, MeterSpecBuilder};
+pub use frame::{frame, FrameInfo, FrameResult, FrameSpecBuilder, FrameStyle};
+pub use keycap::{keycap, KeycapInfo, KeycapResult, KeycapSpecBuilder};
+pub use label::{label, LabelInfo, LabelResult, LabelSpecBuilder};
+pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
+pub use meter::{meter, MeterInfo, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{
-    progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarSpecBuilder, ProgressBarStyle,
+    progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle,
 };
 pub use radio::{
-    radio, RadioInfo, RadioResult, RadioSpec, RadioSpecBuilder, RadioState, RadioStyle,
+    radio, RadioInfo, RadioResult, RadioSpecBuilder, RadioState, RadioStyle,
 };
-pub use scroll_area::{begin_scroll_area, ScrollAreaToken, ScrollState, ScrollbarVisibility};
+pub use scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility};
 pub use segmented::{
-    segmented, SegmentedInfo, SegmentedResult, SegmentedSpec, SegmentedSpecBuilder, SegmentedState,
+    segmented, SegmentedInfo, SegmentedResult, SegmentedSpecBuilder, SegmentedState,
     SegmentedStyle,
 };
 pub use select::{
-    select, SelectInfo, SelectResult, SelectSpec, SelectSpecBuilder, SelectState, SelectStyle,
+    select, SelectInfo, SelectResult, SelectSpecBuilder, SelectState, SelectStyle,
 };
-pub use slider::{slider, Orientation, SliderSpec, SliderState, SliderStyle};
-pub use spinner::{spinner, SpinnerResult, SpinnerSpec, SpinnerSpecBuilder, SpinnerStyle};
-pub use status::{status, StatusResult, StatusSpec, StatusSpecBuilder, StatusStyle, StatusVariant};
+pub use slider::{slider, Orientation, SliderState, SliderStyle};
+pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
+pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
 pub use switch::{
-    switch, SwitchInfo, SwitchResult, SwitchSpec, SwitchSpecBuilder, SwitchState, SwitchStyle,
+    switch, SwitchInfo, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,
 };
-pub use tabs::{tabs, TabsInfo, TabsResult, TabsSpec, TabsSpecBuilder, TabsState, TabsStyle};
+pub use tabs::{tabs, TabsInfo, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 pub use text_edit::{
     find_word_boundary, raw, text_edit, word_bounds, ClipboardAction, TextEditInfo, TextEditResult,
-    TextEditSpec, TextEditState, TextEditStyle,
+    TextEditState, TextEditStyle,
 };
 pub use tooltip::{
-    tooltip, TooltipResult, TooltipSpec, TooltipSpecBuilder, TooltipStyle, TooltipVariant,
+    tooltip, TooltipResult, TooltipSpecBuilder, TooltipStyle, TooltipVariant,
 };
-pub use tree::{tree, TreeResult, TreeRow, TreeSpec, TreeSpecBuilder, TreeStyle};
+pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
 pub use window::{
-    begin_window, WindowButton, WindowInfo, WindowSpec, WindowSpecBuilder, WindowStyle,
+    begin_window, WindowButton, WindowInfo, WindowSpecBuilder, WindowStyle,
 };

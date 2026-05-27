@@ -9,6 +9,14 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TreeSpec<'a> {
+        pub rect: Rect,
+        pub rows: &'a [super::TreeRow<'a>],
+        pub font: FontId,
+        pub style: super::TreeStyle,
+    }
+
     /// Low-level tree widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -127,14 +135,6 @@ pub struct TreeRow<'a> {
     pub selected: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct TreeSpec<'a> {
-    pub rect: Rect,
-    pub rows: &'a [TreeRow<'a>],
-    pub font: FontId,
-    pub style: TreeStyle,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TreeStyle {
     pub row_height: f32,
@@ -238,8 +238,8 @@ impl<'a> TreeSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> TreeSpec<'a> {
-        TreeSpec {
+    pub fn build(self) -> raw::TreeSpec<'a> {
+        raw::TreeSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),

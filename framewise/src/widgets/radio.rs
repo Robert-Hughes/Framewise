@@ -9,6 +9,16 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioSpec {
+        /// Top-left of the 14×14 bounding area.
+        pub rect: Rect,
+        pub selected: bool,
+        pub disabled: bool,
+        pub style: super::RadioStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level radio widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -118,16 +128,6 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct RadioSpec {
-    /// Top-left of the 14×14 bounding area.
-    pub rect: Rect,
-    pub selected: bool,
-    pub disabled: bool,
-    pub style: RadioStyle,
-    pub clip_rect: Option<Rect>,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct RadioState {
     pub selected: bool,
@@ -209,8 +209,8 @@ impl RadioSpecBuilder {
         self
     }
 
-    pub fn build(self) -> RadioSpec {
-        RadioSpec {
+    pub fn build(self) -> raw::RadioSpec {
+        raw::RadioSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -305,6 +305,7 @@ pub fn radio<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::RadioSpec;
 
     fn rad_io(spec: RadioSpec) -> RadioResult {
         raw::radio(

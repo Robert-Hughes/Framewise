@@ -9,6 +9,16 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxSpec {
+        /// Top-left of the 14×14 box.
+        pub rect: Rect,
+        pub state: super::CheckState,
+        pub disabled: bool,
+        pub style: super::CheckboxStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level checkbox widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -150,16 +160,6 @@ pub enum CheckState {
     Indeterminate,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct CheckboxSpec {
-    /// Top-left of the 14×14 box.
-    pub rect: Rect,
-    pub state: CheckState,
-    pub disabled: bool,
-    pub style: CheckboxStyle,
-    pub clip_rect: Option<Rect>,
-}
-
 #[derive(Debug, Clone)]
 pub struct CheckboxState {
     pub check: CheckState,
@@ -252,8 +252,8 @@ impl CheckboxSpecBuilder {
         self
     }
 
-    pub fn build(self) -> CheckboxSpec {
-        CheckboxSpec {
+    pub fn build(self) -> raw::CheckboxSpec {
+        raw::CheckboxSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -348,6 +348,7 @@ pub fn checkbox<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::CheckboxSpec;
 
     fn checkbox_dummy(spec: CheckboxSpec) -> CheckboxResult {
         raw::checkbox(

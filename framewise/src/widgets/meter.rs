@@ -8,6 +8,28 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MeterSpec {
+        pub rect: Rect,
+        /// 0.0 – 1.0 fill level.
+        pub value: f32,
+        /// 0.0 – 1.0 peak marker position (draw a rust bar at this level; None to skip).
+        pub peak: Option<f32>,
+        /// Number of bars to display.
+        pub bars: usize,
+    }
+
+    impl Default for MeterSpec {
+        fn default() -> Self {
+            Self {
+                rect: Rect::new(0.0, 0.0, 80.0, 14.0),
+                value: 0.5,
+                peak: None,
+                bars: 10,
+            }
+        }
+    }
+
     /// Low-level meter widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -54,28 +76,6 @@ pub mod raw {
 const BAR_W: f32 = 6.0;
 const BAR_H: f32 = 14.0;
 const BAR_GAP: f32 = 2.0;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct MeterSpec {
-    pub rect: Rect,
-    /// 0.0 – 1.0 fill level.
-    pub value: f32,
-    /// 0.0 – 1.0 peak marker position (draw a rust bar at this level; None to skip).
-    pub peak: Option<f32>,
-    /// Number of bars to display.
-    pub bars: usize,
-}
-
-impl Default for MeterSpec {
-    fn default() -> Self {
-        Self {
-            rect: Rect::new(0.0, 0.0, 80.0, 14.0),
-            value: 0.5,
-            peak: None,
-            bars: 10,
-        }
-    }
-}
 
 pub struct MeterResult {
     pub draw: DrawCommands,
@@ -169,8 +169,8 @@ impl MeterSpecBuilder {
         self
     }
 
-    pub fn build(self) -> MeterSpec {
-        let mut spec = MeterSpec::default();
+    pub fn build(self) -> raw::MeterSpec {
+        let mut spec = raw::MeterSpec::default();
         if let Some(r) = self.rect {
             spec.rect = r;
         }
@@ -190,6 +190,7 @@ impl MeterSpecBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::MeterSpec;
 
     #[test]
     fn test_meter_visual_normal() {

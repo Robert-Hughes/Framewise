@@ -8,6 +8,14 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SpinnerSpec {
+        /// Top-left. Size is either 16 or 24 (use `large` flag).
+        pub rect: Rect,
+        pub large: bool,
+        pub style: super::SpinnerStyle,
+    }
+
     /// Low-level spinner widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -100,14 +108,6 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SpinnerSpec {
-    /// Top-left. Size is either 16 or 24 (use `large` flag).
-    pub rect: Rect,
-    pub large: bool,
-    pub style: SpinnerStyle,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SpinnerStyle {
     pub color: Color,
@@ -162,8 +162,8 @@ impl SpinnerSpecBuilder {
         self
     }
 
-    pub fn build(self) -> SpinnerSpec {
-        SpinnerSpec {
+    pub fn build(self) -> raw::SpinnerSpec {
+        raw::SpinnerSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -209,6 +209,7 @@ pub fn spinner<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::SpinnerSpec;
 
     #[test]
     fn test_spinner_visual_normal() {

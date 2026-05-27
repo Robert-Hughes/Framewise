@@ -9,6 +9,16 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SwitchSpec {
+        /// Top-left of the 30×16 bounding area.
+        pub rect: Rect,
+        pub on: bool,
+        pub disabled: bool,
+        pub style: super::SwitchStyle,
+        pub clip_rect: Option<Rect>,
+    }
+
     /// Low-level switch widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -118,16 +128,6 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SwitchSpec {
-    /// Top-left of the 30×16 bounding area.
-    pub rect: Rect,
-    pub on: bool,
-    pub disabled: bool,
-    pub style: SwitchStyle,
-    pub clip_rect: Option<Rect>,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct SwitchState {
     pub on: bool,
@@ -211,8 +211,8 @@ impl SwitchSpecBuilder {
         self
     }
 
-    pub fn build(self) -> SwitchSpec {
-        SwitchSpec {
+    pub fn build(self) -> raw::SwitchSpec {
+        raw::SwitchSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -307,6 +307,7 @@ pub fn switch<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::SwitchSpec;
     use crate::types::Vec2;
 
     fn swi_tch(spec: SwitchSpec) -> SwitchResult {

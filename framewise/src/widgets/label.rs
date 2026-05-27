@@ -9,6 +9,17 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LabelSpec {
+        pub rect: Rect,
+        pub text: String,
+        pub size: f32,
+        pub font: FontId,
+        pub text_color: Color,
+        /// Draw a hairline rule at the bottom of the rect.
+        pub rule: bool,
+    }
+
     /// Low-level label widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -39,19 +50,6 @@ pub mod raw {
             layout: LayoutInfo::tight(spec.rect),
         }
     }
-}
-
-// ── Spec ─────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LabelSpec {
-    pub rect: Rect,
-    pub text: String,
-    pub size: f32,
-    pub font: FontId,
-    pub text_color: Color,
-    /// Draw a hairline rule at the bottom of the rect.
-    pub rule: bool,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -139,8 +137,8 @@ impl LabelSpecBuilder {
         }
         self
     }
-    pub fn build(self) -> LabelSpec {
-        LabelSpec {
+    pub fn build(self) -> raw::LabelSpec {
+        raw::LabelSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -188,6 +186,7 @@ pub fn label<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::LabelSpec;
     use crate::{test_utils::DummyTextSys, text::TextHandle};
 
     struct RecordingTextSys {

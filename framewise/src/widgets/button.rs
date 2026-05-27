@@ -10,6 +10,15 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ButtonSpec {
+        pub rect: Rect,
+        pub text: String,
+        pub style: super::ButtonStyle,
+        pub clip_rect: Option<Rect>,
+        pub disabled: bool,
+    }
+
     /// Low-level button widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -178,17 +187,6 @@ pub struct ButtonStyle {
     pub text_color: Color,
 }
 
-// ── Spec ──────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ButtonSpec {
-    pub rect: Rect,
-    pub text: String,
-    pub style: ButtonStyle,
-    pub clip_rect: Option<Rect>,
-    pub disabled: bool,
-}
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Default)]
@@ -301,8 +299,8 @@ impl ButtonSpecBuilder {
         self.clip_rect = clip_rect;
         self
     }
-    pub fn build(self) -> ButtonSpec {
-        ButtonSpec {
+    pub fn build(self) -> raw::ButtonSpec {
+        raw::ButtonSpec {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
@@ -355,6 +353,7 @@ pub fn button<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::raw::ButtonSpec;
 
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;
