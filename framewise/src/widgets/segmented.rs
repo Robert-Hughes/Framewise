@@ -273,8 +273,8 @@ pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
     pub style: Option<SegmentedStyle>,
-    pub active_index: usize,
-    pub disabled: bool,
+    pub active_index: Option<usize>,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
@@ -285,8 +285,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
             items: None,
             font: None,
             style: None,
-            active_index: 0,
-            disabled: false,
+            active_index: None,
+            disabled: None,
             rect: None,
             clip_rect: None,
         }
@@ -305,11 +305,11 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
-        self.active_index = active_index;
+        self.active_index = Some(active_index);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
     /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
@@ -351,8 +351,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            active_index: self.active_index,
-            disabled: self.disabled,
+            active_index: self.active_index.unwrap_or(0),
+            disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),

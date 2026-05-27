@@ -159,8 +159,8 @@ pub struct RadioStyle {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RadioSpecBuilder {
-    pub selected: bool,
-    pub disabled: bool,
+    pub selected: Option<bool>,
+    pub disabled: Option<bool>,
     pub style: Option<RadioStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
@@ -169,8 +169,8 @@ pub struct RadioSpecBuilder {
 impl RadioSpecBuilder {
     pub fn new() -> Self {
         Self {
-            selected: false,
-            disabled: false,
+            selected: None,
+            disabled: None,
             style: None,
             rect: None,
             clip_rect: None,
@@ -178,12 +178,12 @@ impl RadioSpecBuilder {
     }
 
     pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
+        self.selected = Some(selected);
         self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
 
@@ -219,8 +219,8 @@ impl RadioSpecBuilder {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
-            selected: self.selected,
-            disabled: self.disabled,
+            selected: self.selected.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

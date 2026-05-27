@@ -147,7 +147,7 @@ This pattern cleanly separates concerns:
 > **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
-> **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — every required field is `Option<T>`, starts as `None`, and must be set explicitly before `build()`. Non-`Option` bool fields (e.g. `disabled`, `large`) are set to `false` in `new()` — their unambiguous normal state, not a theme-dependent value. `build()` panics with a clear message if any `Option<T>` field is still `None`; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*, *"rect not set — call .rect() or use the high-level API"*).
+> **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — **every field, including bool flags like `disabled` and `large`, is `Option<T>`** and starts as `None`. `build()` applies defaults for fields that have an obvious, context-independent value (e.g. `disabled` → `unwrap_or(false)`) and panics with a clear message for fields with no sensible default; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*, *"rect not set — call .rect() or use the high-level API"*). Making every field `Option<T>` is essential: `None` means "the user did not set this", which lets both `defaults_from_theme` and the high-level widget function inject context-aware defaults — something impossible if bools silently default to `false` in `new()`.
 
 ### `defaults_from_theme` — Theme as Fallback
 
@@ -206,7 +206,13 @@ Builders are constructed via `new()`, which already returns an all-`None` builde
 
 **The asymmetry between `*Spec` and `*SpecBuilder` is intentional**
 
-`*Spec` is fully resolved — no partial state, no `Option<>`, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: `Option<>` fields represent "not yet set". Non-`Option` bool fields (`disabled`, `large`, etc.) default to `false` in `new()` — their unambiguous normal state. This is the only category of default value appropriate in a builder: state-flag semantics where `false` means "off", independent of any theme.
+`*Spec` is fully resolved — no partial state, no `Option<>`, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: every field is `Option<T>` and `None` means "not yet set". This distinction enables a three-stage default precedence chain:
+
+1. **User-specified** — fields set by the caller via builder setter methods. Always win.
+2. **High-level widget function default** — if a field is still `None` when the high-level function runs, it may inject a context-aware default before calling `build()`. Examples: `clip_rect` is always set here from the context's current clip; a container widget might set `disabled = true` on all children while it is loading.
+3. **`build()` default or panic** — fields still `None` at `build()` time either get a context-independent default (`disabled` → `false`, `large` → `false`) via `unwrap_or`, or cause a panic with a descriptive message if no sensible default exists (`rect`, `style`).
+
+This means defaults are applied **as late as possible**, giving higher layers the opportunity to provide sensible context-aware values rather than being silently pre-empted by a `false` baked in at construction time.
 
 **Exception**
 

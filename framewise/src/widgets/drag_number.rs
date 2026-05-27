@@ -292,9 +292,9 @@ pub struct DragNumberSpecBuilder<'a> {
     pub font: Option<FontId>,
     pub style: Option<DragNumberStyle>,
     pub value: Option<f32>,
-    pub min: f32,
-    pub max: f32,
-    pub disabled: bool,
+    pub min: Option<f32>,
+    pub max: Option<f32>,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
@@ -306,9 +306,9 @@ impl<'a> DragNumberSpecBuilder<'a> {
             font: None,
             style: None,
             value: None,
-            min: 0.0,
-            max: 100.0,
-            disabled: false,
+            min: None,
+            max: None,
+            disabled: None,
             rect: None,
             clip_rect: None,
         }
@@ -331,15 +331,15 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self
     }
     pub fn min(mut self, min: f32) -> Self {
-        self.min = min;
+        self.min = Some(min);
         self
     }
     pub fn max(mut self, max: f32) -> Self {
-        self.max = max;
+        self.max = Some(max);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
     /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
@@ -382,9 +382,9 @@ impl<'a> DragNumberSpecBuilder<'a> {
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             value: self.value.expect("value not set — call .value()"),
-            min: self.min,
-            max: self.max,
-            disabled: self.disabled,
+            min: self.min.unwrap_or(0.0),
+            max: self.max.unwrap_or(100.0),
+            disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),

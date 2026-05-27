@@ -203,8 +203,8 @@ pub struct CheckboxStyle {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxSpecBuilder {
-    pub state: CheckState,
-    pub disabled: bool,
+    pub state: Option<CheckState>,
+    pub disabled: Option<bool>,
     pub style: Option<CheckboxStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
@@ -212,8 +212,8 @@ pub struct CheckboxSpecBuilder {
 impl CheckboxSpecBuilder {
     pub fn new() -> Self {
         Self {
-            state: CheckState::Off,
-            disabled: false,
+            state: None,
+            disabled: None,
             style: None,
             rect: None,
             clip_rect: None,
@@ -221,12 +221,12 @@ impl CheckboxSpecBuilder {
     }
 
     pub fn check_state(mut self, state: CheckState) -> Self {
-        self.state = state;
+        self.state = Some(state);
         self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
 
@@ -262,8 +262,8 @@ impl CheckboxSpecBuilder {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
-            state: self.state,
-            disabled: self.disabled,
+            state: self.state.unwrap_or(CheckState::Off),
+            disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

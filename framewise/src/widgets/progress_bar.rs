@@ -91,8 +91,8 @@ pub struct ProgressBarStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpecBuilder {
     pub value: Option<f32>,
-    pub phase: f32,
-    pub active: bool,
+    pub phase: Option<f32>,
+    pub active: Option<bool>,
     pub style: Option<ProgressBarStyle>,
     pub rect: Option<Rect>,
 }
@@ -101,8 +101,8 @@ impl ProgressBarSpecBuilder {
     pub fn new() -> Self {
         Self {
             value: None,
-            phase: 0.0,
-            active: false,
+            phase: None,
+            active: None,
             style: None,
             rect: None,
         }
@@ -113,12 +113,12 @@ impl ProgressBarSpecBuilder {
     }
 
     pub fn phase(mut self, phase: f32) -> Self {
-        self.phase = phase;
+        self.phase = Some(phase);
         self
     }
 
     pub fn active(mut self, active: bool) -> Self {
-        self.active = active;
+        self.active = Some(active);
         self
     }
 
@@ -149,8 +149,8 @@ impl ProgressBarSpecBuilder {
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
             value: self.value.expect("value not set — call .value()"),
-            phase: self.phase,
-            active: self.active,
+            phase: self.phase.unwrap_or(0.0),
+            active: self.active.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

@@ -239,7 +239,7 @@ pub struct ButtonSpecBuilder {
     pub style: Option<ButtonStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
-    pub disabled: bool,
+    pub disabled: Option<bool>,
 }
 
 impl ButtonSpecBuilder {
@@ -249,7 +249,7 @@ impl ButtonSpecBuilder {
             style: None,
             rect: None,
             clip_rect: None,
-            disabled: false,
+            disabled: None,
         }
     }
     pub fn text(mut self, text: String) -> Self {
@@ -261,7 +261,7 @@ impl ButtonSpecBuilder {
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
     /// Sets the bounding rectangle. Called automatically by high-level context
@@ -295,7 +295,7 @@ impl ButtonSpecBuilder {
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
-            disabled: self.disabled,
+            disabled: self.disabled.unwrap_or(false),
         }
     }
 }

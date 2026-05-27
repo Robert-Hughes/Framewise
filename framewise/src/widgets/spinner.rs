@@ -122,7 +122,7 @@ pub struct SpinnerStyle {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpecBuilder {
-    pub large: bool,
+    pub large: Option<bool>,
     pub style: Option<SpinnerStyle>,
     pub rect: Option<Rect>,
 }
@@ -130,14 +130,14 @@ pub struct SpinnerSpecBuilder {
 impl SpinnerSpecBuilder {
     pub fn new() -> Self {
         Self {
-            large: false,
+            large: None,
             style: None,
             rect: None,
         }
     }
 
     pub fn large(mut self, large: bool) -> Self {
-        self.large = large;
+        self.large = Some(large);
         self
     }
 
@@ -167,7 +167,7 @@ impl SpinnerSpecBuilder {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
-            large: self.large,
+            large: self.large.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

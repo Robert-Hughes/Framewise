@@ -211,7 +211,7 @@ pub struct WindowSpecBuilder<'a> {
     pub buttons: Option<&'a [WindowButton]>,
     pub font: Option<FontId>,
     pub style: Option<WindowStyle>,
-    pub status_bar: bool,
+    pub status_bar: Option<bool>,
     pub status_text: Option<&'a str>,
     pub rect: Option<Rect>,
 }
@@ -223,7 +223,7 @@ impl<'a> WindowSpecBuilder<'a> {
             buttons: None,
             font: None,
             style: None,
-            status_bar: false,
+            status_bar: None,
             status_text: None,
             rect: None,
         }
@@ -246,7 +246,7 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
     pub fn status_bar(mut self, status_bar: bool) -> Self {
-        self.status_bar = status_bar;
+        self.status_bar = Some(status_bar);
         self
     }
     pub fn status_text(mut self, status_text: &'a str) -> Self {
@@ -288,7 +288,7 @@ impl<'a> WindowSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            status_bar: self.status_bar,
+            status_bar: self.status_bar.unwrap_or(false),
             status_text: self.status_text,
         }
     }

@@ -387,7 +387,7 @@ pub struct SelectSpecBuilder<'a> {
     pub font: Option<FontId>,
     pub style: Option<SelectStyle>,
     pub options: Option<&'a [&'a str]>,
-    pub disabled: bool,
+    pub disabled: Option<bool>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
@@ -399,7 +399,7 @@ impl<'a> SelectSpecBuilder<'a> {
             font: None,
             style: None,
             options: None,
-            disabled: false,
+            disabled: None,
             rect: None,
             clip_rect: None,
         }
@@ -422,7 +422,7 @@ impl<'a> SelectSpecBuilder<'a> {
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
     /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
@@ -465,7 +465,7 @@ impl<'a> SelectSpecBuilder<'a> {
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             options: self.options.expect("options not set — call .options()"),
-            disabled: self.disabled,
+            disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),

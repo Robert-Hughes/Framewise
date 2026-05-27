@@ -575,52 +575,52 @@ pub fn slider<
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderSpecBuilder {
-    pub min: f32,
-    pub max: f32,
-    pub page_step: f32,
-    pub step: f32,
-    pub orientation: Orientation,
+    pub min: Option<f32>,
+    pub max: Option<f32>,
+    pub page_step: Option<f32>,
+    pub step: Option<f32>,
+    pub orientation: Option<Orientation>,
     pub thumb_size_ratio: Option<f32>,
     pub style: Option<SliderStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
-    pub claim_scroll_at_ends: bool,
+    pub claim_scroll_at_ends: Option<bool>,
 }
 
 impl SliderSpecBuilder {
     pub fn new() -> Self {
         Self {
-            min: 0.0,
-            max: 100.0,
-            page_step: 10.0,
-            step: 1.0,
-            orientation: Orientation::Horizontal,
+            min: None,
+            max: None,
+            page_step: None,
+            step: None,
+            orientation: None,
             thumb_size_ratio: None,
             style: None,
             rect: None,
             clip_rect: None,
-            claim_scroll_at_ends: true,
+            claim_scroll_at_ends: None,
         }
     }
 
     pub fn min(mut self, min: f32) -> Self {
-        self.min = min;
+        self.min = Some(min);
         self
     }
     pub fn max(mut self, max: f32) -> Self {
-        self.max = max;
+        self.max = Some(max);
         self
     }
     pub fn page_step(mut self, page_step: f32) -> Self {
-        self.page_step = page_step;
+        self.page_step = Some(page_step);
         self
     }
     pub fn step(mut self, step: f32) -> Self {
-        self.step = step;
+        self.step = Some(step);
         self
     }
     pub fn orientation(mut self, orientation: Orientation) -> Self {
-        self.orientation = orientation;
+        self.orientation = Some(orientation);
         self
     }
     pub fn thumb_size_ratio(mut self, thumb_size_ratio: Option<f32>) -> Self {
@@ -637,7 +637,7 @@ impl SliderSpecBuilder {
         self
     }
     pub fn claim_scroll_at_ends(mut self, claim_scroll_at_ends: bool) -> Self {
-        self.claim_scroll_at_ends = claim_scroll_at_ends;
+        self.claim_scroll_at_ends = Some(claim_scroll_at_ends);
         self
     }
 
@@ -662,11 +662,11 @@ impl SliderSpecBuilder {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
-            min: self.min,
-            max: self.max,
-            page_step: self.page_step,
-            step: self.step,
-            orientation: self.orientation,
+            min: self.min.unwrap_or(0.0),
+            max: self.max.unwrap_or(100.0),
+            page_step: self.page_step.unwrap_or(10.0),
+            step: self.step.unwrap_or(1.0),
+            orientation: self.orientation.unwrap_or(Orientation::Horizontal),
             thumb_size_ratio: self.thumb_size_ratio,
             style: self
                 .style
@@ -674,7 +674,7 @@ impl SliderSpecBuilder {
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
-            claim_scroll_at_ends: self.claim_scroll_at_ends,
+            claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
         }
     }
 }

@@ -447,8 +447,8 @@ impl Default for ScrollState {
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
     pub content_size: Option<Vec2>,
-    pub h_vis: ScrollbarVisibility,
-    pub v_vis: ScrollbarVisibility,
+    pub h_vis: Option<ScrollbarVisibility>,
+    pub v_vis: Option<ScrollbarVisibility>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -457,8 +457,8 @@ impl ScrollAreaSpecBuilder {
         Self {
             rect: None,
             content_size: None,
-            h_vis: ScrollbarVisibility::Auto,
-            v_vis: ScrollbarVisibility::Auto,
+            h_vis: None,
+            v_vis: None,
             clip_rect: None,
         }
     }
@@ -468,11 +468,11 @@ impl ScrollAreaSpecBuilder {
         self
     }
     pub fn h_vis(mut self, h_vis: ScrollbarVisibility) -> Self {
-        self.h_vis = h_vis;
+        self.h_vis = Some(h_vis);
         self
     }
     pub fn v_vis(mut self, v_vis: ScrollbarVisibility) -> Self {
-        self.v_vis = v_vis;
+        self.v_vis = Some(v_vis);
         self
     }
     pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
@@ -493,8 +493,8 @@ impl ScrollAreaSpecBuilder {
             content_size: self
                 .content_size
                 .expect("content_size not set — call .content_size()"),
-            h_vis: self.h_vis,
-            v_vis: self.v_vis,
+            h_vis: self.h_vis.unwrap_or(ScrollbarVisibility::Auto),
+            v_vis: self.v_vis.unwrap_or(ScrollbarVisibility::Auto),
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),

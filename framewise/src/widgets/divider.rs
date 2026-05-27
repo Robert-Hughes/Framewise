@@ -48,7 +48,7 @@ pub struct DividerResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DividerSpecBuilder {
     pub color: Option<Color>,
-    pub width: f32,
+    pub width: Option<f32>,
     pub rect: Option<Rect>,
 }
 
@@ -56,7 +56,7 @@ impl DividerSpecBuilder {
     pub fn new() -> Self {
         Self {
             color: None,
-            width: 1.0,
+            width: None,
             rect: None,
         }
     }
@@ -65,7 +65,7 @@ impl DividerSpecBuilder {
         self
     }
     pub fn width(mut self, width: f32) -> Self {
-        self.width = width;
+        self.width = Some(width);
         self
     }
     /// Sets the bounding rectangle. Called automatically by high-level context
@@ -90,7 +90,7 @@ impl DividerSpecBuilder {
             color: self
                 .color
                 .expect("color not set — call .color() or defaults_from_theme()"),
-            width: self.width,
+            width: self.width.unwrap_or(1.0),
         }
     }
 }

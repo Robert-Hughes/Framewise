@@ -161,8 +161,8 @@ pub struct SwitchStyle {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchSpecBuilder {
-    pub on: bool,
-    pub disabled: bool,
+    pub on: Option<bool>,
+    pub disabled: Option<bool>,
     pub style: Option<SwitchStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
@@ -171,8 +171,8 @@ pub struct SwitchSpecBuilder {
 impl SwitchSpecBuilder {
     pub fn new() -> Self {
         Self {
-            on: false,
-            disabled: false,
+            on: None,
+            disabled: None,
             style: None,
             rect: None,
             clip_rect: None,
@@ -180,12 +180,12 @@ impl SwitchSpecBuilder {
     }
 
     pub fn on(mut self, on: bool) -> Self {
-        self.on = on;
+        self.on = Some(on);
         self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
 
@@ -221,8 +221,8 @@ impl SwitchSpecBuilder {
             rect: self
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
-            on: self.on,
-            disabled: self.disabled,
+            on: self.on.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

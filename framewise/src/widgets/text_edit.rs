@@ -646,8 +646,8 @@ pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
     pub clip_rect: Option<ClipRect>,
-    pub error: bool,
-    pub disabled: bool,
+    pub error: Option<bool>,
+    pub disabled: Option<bool>,
 }
 
 impl TextEditSpecBuilder {
@@ -656,8 +656,8 @@ impl TextEditSpecBuilder {
             rect: None,
             style: None,
             clip_rect: None,
-            error: false,
-            disabled: false,
+            error: None,
+            disabled: None,
         }
     }
 
@@ -671,11 +671,11 @@ impl TextEditSpecBuilder {
         self
     }
     pub fn error(mut self, error: bool) -> Self {
-        self.error = error;
+        self.error = Some(error);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
+        self.disabled = Some(disabled);
         self
     }
 
@@ -706,8 +706,8 @@ impl TextEditSpecBuilder {
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
-            error: self.error,
-            disabled: self.disabled,
+            error: self.error.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
         }
     }
 }

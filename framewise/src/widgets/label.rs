@@ -71,7 +71,7 @@ pub struct LabelSpecBuilder {
     pub font: Option<FontId>,
     pub text_color: Option<Color>,
     pub rect: Option<Rect>,
-    pub rule: bool,
+    pub rule: Option<bool>,
 }
 
 impl LabelSpecBuilder {
@@ -82,7 +82,7 @@ impl LabelSpecBuilder {
             font: None,
             text_color: None,
             rect: None,
-            rule: false,
+            rule: None,
         }
     }
     pub fn text(mut self, text: String) -> Self {
@@ -102,7 +102,7 @@ impl LabelSpecBuilder {
         self
     }
     pub fn rule(mut self, rule: bool) -> Self {
-        self.rule = rule;
+        self.rule = Some(rule);
         self
     }
     /// Sets the bounding rectangle. Called automatically by high-level context
@@ -140,7 +140,7 @@ impl LabelSpecBuilder {
             text_color: self
                 .text_color
                 .expect("text_color not set — call .text_color() or defaults_from_theme()"),
-            rule: self.rule,
+            rule: self.rule.unwrap_or(false),
         }
     }
 }
