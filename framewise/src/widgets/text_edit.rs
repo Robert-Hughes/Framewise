@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
@@ -665,9 +665,7 @@ impl TextEditSpecBuilder {
         self.style = Some(style);
         self
     }
-    /// Overrides the clip rectangle. High-level context functions supply this from
-    /// the surrounding clip region — only needed when using the raw API directly, or
-    /// to clip tighter than the context default.
+    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
     pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
         self.clip_rect = Some(clip_rect);
         self

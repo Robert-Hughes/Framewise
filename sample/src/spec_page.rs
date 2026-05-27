@@ -1,4 +1,4 @@
-﻿use crate::text::SampleTextSystem;
+use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
@@ -14,7 +14,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::{button, ButtonState, ButtonStyle},
-        checkbox::{checkbox, CheckState, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState},
+        checkbox::{checkbox, raw::CheckboxSpec, CheckState, CheckboxSpecBuilder, CheckboxState},
         chip::{chip, ChipSpecBuilder, ChipState},
         color_swatch::color_swatch,
         divider::divider,
@@ -28,11 +28,11 @@ use framewise::{
         radio::{radio, raw::RadioSpec, RadioSpecBuilder, RadioState},
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility},
         segmented::{segmented, SegmentedSpecBuilder, SegmentedState},
-        select::{select, raw::SelectSpec, SelectSpecBuilder, SelectState},
+        select::{raw::SelectSpec, select, SelectSpecBuilder, SelectState},
         slider::{slider, SliderState},
         spinner::{spinner, SpinnerSpecBuilder},
         status::{status, StatusVariant},
-        switch::{switch, raw::SwitchSpec, SwitchSpecBuilder, SwitchState},
+        switch::{raw::SwitchSpec, switch, SwitchSpecBuilder, SwitchState},
         tabs::{tabs, TabsSpecBuilder, TabsState},
         text_edit::{text_edit, TextEditState},
         tooltip::{tooltip, TooltipVariant},
@@ -1525,10 +1525,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .max(1.0)
-                        .page_step(step)
-                        .step(step);
+                    let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
                     slider(
                         this,
                         &mut state.slider1_state,
@@ -1555,10 +1552,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .max(1.0)
-                        .page_step(step)
-                        .step(step);
+                    let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
                     slider(
                         this,
                         &mut state.slider2_state,
@@ -1585,10 +1579,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .max(1.0)
-                        .page_step(step)
-                        .step(step);
+                    let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
                     slider(
                         this,
                         &mut state.slider3_state,
@@ -1616,9 +1607,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let step = 1.0;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .max(9.0)
-                        .page_step(step);
+                    let spec_builder = SliderSpecBuilder::new().max(9.0).page_step(step);
                     slider(
                         this,
                         &mut state.slider4_state,
