@@ -61,7 +61,7 @@ pub mod raw {
             }
             return TextEditResult {
                 draw,
-                layout: LayoutInfo::new(spec.rect, content_rect),
+                content_bounds: content_rect,
                 state,
                 clipboard_action: None,
             };
@@ -399,10 +399,18 @@ pub mod raw {
 
         TextEditResult {
             draw,
-            layout: LayoutInfo::new(spec.rect, content_rect),
+            content_bounds: content_rect,
             state,
             clipboard_action,
         }
+    }
+
+    #[derive(Debug)]
+    pub struct TextEditResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
+        pub state: TextEditState,
+        pub clipboard_action: Option<ClipboardAction>,
     }
 }
 
@@ -473,35 +481,16 @@ impl TextEditState {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+#[derive(Debug)]
 pub enum ClipboardAction {
     Copy(String),
     Cut(String),
 }
 
 pub struct TextEditResult {
-    pub draw: DrawCommands,
-    pub layout: LayoutInfo,
-    pub state: TextEditState,
-    pub clipboard_action: Option<ClipboardAction>,
-}
-
-pub struct TextEditInfo {
     pub layout: LayoutInfo,
     pub clipboard_action: Option<ClipboardAction>,
     pub state: TextEditState,
-}
-
-impl TextEditResult {
-    pub fn into_parts(self) -> (DrawCommands, TextEditInfo) {
-        (
-            self.draw,
-            TextEditInfo {
-                layout: self.layout,
-                clipboard_action: self.clipboard_action,
-                state: self.state,
-            },
-        )
-    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -626,7 +615,7 @@ pub fn text_edit<
     state: TextEditState,
     layout_params: S::Params,
     builder: TextEditSpecBuilder,
-) -> TextEditInfo {
+) -> TextEditResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -645,8 +634,8 @@ pub fn text_edit<
 
     ctx.append_cmds(result.draw.0);
 
-    TextEditInfo {
-        layout: result.layout,
+    TextEditResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
         clipboard_action: result.clipboard_action,
         state: result.state,
     }

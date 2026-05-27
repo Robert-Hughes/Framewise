@@ -142,8 +142,14 @@ pub mod raw {
 
         MenuResult {
             draw: cmds,
-            layout: LayoutInfo::tight(outer),
+            outer,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MenuResult {
+        pub draw: DrawCommands,
+        pub outer: Rect,
     }
 }
 
@@ -184,23 +190,7 @@ pub struct MenuStyle {
 }
 
 pub struct MenuResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct MenuInfo {
-    pub layout: LayoutInfo,
-}
-
-impl MenuResult {
-    pub fn into_parts(self) -> (DrawCommands, MenuInfo) {
-        (
-            self.draw,
-            MenuInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -217,14 +207,14 @@ pub fn menu<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: MenuSpecBuilder<'a>,
-) -> MenuInfo {
+) -> MenuResult {
     let rect = ctx.layout(layout_params);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::menu(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
-    MenuInfo {
-        layout: result.layout,
+    MenuResult {
+        layout: LayoutInfo::tight(result.outer),
     }
 }
 

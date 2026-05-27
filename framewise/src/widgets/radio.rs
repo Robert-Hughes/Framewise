@@ -115,7 +115,6 @@ pub mod raw {
 
         RadioResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -126,9 +125,17 @@ pub mod raw {
             focused,
         }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: RadioState,
+        pub focused: bool,
+    }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct RadioState {
     pub selected: bool,
     pub is_active: bool,
@@ -225,21 +232,13 @@ impl RadioSpecBuilder {
 }
 
 pub struct RadioResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: RadioState,
     pub focused: bool,
 }
 
-pub struct RadioInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: RadioState,
-    pub focused: bool,
-}
-
-impl RadioInfo {
+impl RadioResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -251,20 +250,6 @@ impl RadioInfo {
     }
     pub fn selected(&self) -> bool {
         self.state.selected
-    }
-}
-
-impl RadioResult {
-    pub fn into_parts(self) -> (DrawCommands, RadioInfo) {
-        (
-            self.draw,
-            RadioInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -282,7 +267,7 @@ pub fn radio<
     state: RadioState,
     layout_params: S::Params,
     builder: RadioSpecBuilder,
-) -> RadioInfo {
+) -> RadioResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -294,8 +279,8 @@ pub fn radio<
 
     ctx.append_cmds(result.draw.0);
 
-    RadioInfo {
-        layout: result.layout,
+    RadioResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -307,7 +292,7 @@ mod tests {
     use super::*;
     use super::raw::RadioSpec;
 
-    fn rad_io(spec: RadioSpec) -> RadioResult {
+    fn rad_io(spec: RadioSpec) -> raw::RadioResult {
         raw::radio(
             RadioState::default(),
             spec,

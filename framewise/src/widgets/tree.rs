@@ -158,11 +158,6 @@ pub struct TreeResult {
     pub draw: DrawCommands,
 }
 
-impl TreeResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

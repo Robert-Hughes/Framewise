@@ -28,46 +28,46 @@ pub use button::{
     button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle,
 };
 pub use checkbox::{
-    checkbox, CheckState, CheckboxInfo, CheckboxResult, CheckboxSpecBuilder,
+    checkbox, CheckState, CheckboxResult, CheckboxSpecBuilder,
     CheckboxState, CheckboxStyle,
 };
-pub use chip::{chip, ChipInfo, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
+pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
 pub use color_swatch::{
-    color_swatch, ColorSwatchInfo, ColorSwatchResult, ColorSwatchSpecBuilder,
+    color_swatch, ColorSwatchResult, ColorSwatchSpecBuilder,
 };
-pub use divider::{divider, DividerInfo, DividerResult, DividerSpecBuilder};
+pub use divider::{divider, DividerResult, DividerSpecBuilder};
 pub use drag_number::{
-    drag_number, DragNumberInfo, DragNumberResult, DragNumberSpecBuilder,
+    drag_number, DragNumberResult, DragNumberSpecBuilder,
     DragNumberState, DragNumberStyle,
 };
-pub use frame::{frame, FrameInfo, FrameResult, FrameSpecBuilder, FrameStyle};
-pub use keycap::{keycap, KeycapInfo, KeycapResult, KeycapSpecBuilder};
-pub use label::{label, LabelInfo, LabelResult, LabelSpecBuilder};
+pub use frame::{frame, FrameResult, FrameSpecBuilder, FrameStyle};
+pub use keycap::{keycap, KeycapResult, KeycapSpecBuilder};
+pub use label::{label, LabelResult, LabelSpecBuilder};
 pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
-pub use meter::{meter, MeterInfo, MeterResult, MeterSpecBuilder};
+pub use meter::{meter, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{
     progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle,
 };
 pub use radio::{
-    radio, RadioInfo, RadioResult, RadioSpecBuilder, RadioState, RadioStyle,
+    radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle,
 };
 pub use scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility};
 pub use segmented::{
-    segmented, SegmentedInfo, SegmentedResult, SegmentedSpecBuilder, SegmentedState,
+    segmented, SegmentedResult, SegmentedSpecBuilder, SegmentedState,
     SegmentedStyle,
 };
 pub use select::{
-    select, SelectInfo, SelectResult, SelectSpecBuilder, SelectState, SelectStyle,
+    select, SelectResult, SelectSpecBuilder, SelectState, SelectStyle,
 };
 pub use slider::{slider, Orientation, SliderState, SliderStyle};
 pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
 pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
 pub use switch::{
-    switch, SwitchInfo, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,
+    switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,
 };
-pub use tabs::{tabs, TabsInfo, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
+pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 pub use text_edit::{
-    find_word_boundary, raw, text_edit, word_bounds, ClipboardAction, TextEditInfo, TextEditResult,
+    find_word_boundary, raw, text_edit, word_bounds, ClipboardAction, TextEditResult,
     TextEditState, TextEditStyle,
 };
 pub use tooltip::{
@@ -75,5 +75,5 @@ pub use tooltip::{
 };
 pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
 pub use window::{
-    begin_window, WindowButton, WindowInfo, WindowSpecBuilder, WindowStyle,
+    begin_window, WindowButton, WindowSpecBuilder, WindowStyle,
 };

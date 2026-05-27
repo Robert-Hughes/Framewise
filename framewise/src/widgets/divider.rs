@@ -30,29 +30,17 @@ pub mod raw {
         });
         DividerResult {
             draw,
-            layout: LayoutInfo::new(spec.rect, spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DividerResult {
+        pub draw: DrawCommands,
     }
 }
 
 pub struct DividerResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct DividerInfo {
-    pub layout: LayoutInfo,
-}
-
-impl DividerResult {
-    pub fn into_parts(self) -> (DrawCommands, DividerInfo) {
-        (
-            self.draw,
-            DividerInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
@@ -121,15 +109,15 @@ pub fn divider<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: DividerSpecBuilder,
-) -> DividerInfo {
+) -> DividerResult {
     let rect = ctx.layout(layout_params);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::divider(spec);
 
     ctx.append_cmds(result.draw.0);
 
-    DividerInfo {
-        layout: result.layout,
+    DividerResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

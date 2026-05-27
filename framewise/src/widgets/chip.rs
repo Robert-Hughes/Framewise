@@ -114,7 +114,6 @@ pub mod raw {
 
         ChipResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -125,9 +124,17 @@ pub mod raw {
             focused,
         }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ChipResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: ChipState,
+        pub focused: bool,
+    }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChipState {
     pub active: bool,
     pub is_active: bool,
@@ -153,21 +160,13 @@ pub struct ChipStyle {
 }
 
 pub struct ChipResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: ChipState,
     pub focused: bool,
 }
 
-pub struct ChipInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: ChipState,
-    pub focused: bool,
-}
-
-impl ChipInfo {
+impl ChipResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -179,20 +178,6 @@ impl ChipInfo {
     }
     pub fn active(&self) -> bool {
         self.state.active
-    }
-}
-
-impl ChipResult {
-    pub fn into_parts(self) -> (DrawCommands, ChipInfo) {
-        (
-            self.draw,
-            ChipInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -211,7 +196,7 @@ pub fn chip<
     state: ChipState,
     layout_params: S::Params,
     builder: ChipSpecBuilder<'a>,
-) -> ChipInfo {
+) -> ChipResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -223,8 +208,8 @@ pub fn chip<
 
     ctx.append_cmds(result.draw.0);
 
-    ChipInfo {
-        layout: result.layout,
+    ChipResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -323,7 +308,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn chip_raw<'a>(spec: ChipSpec<'a>) -> ChipResult {
+    fn chip_raw<'a>(spec: ChipSpec<'a>) -> raw::ChipResult {
         raw::chip(
             ChipState::default(),
             spec,

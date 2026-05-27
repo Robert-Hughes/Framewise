@@ -70,8 +70,12 @@ pub mod raw {
 
         ProgressBarResult {
             draw: cmds,
-            layout: LayoutInfo::tight(spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ProgressBarResult {
+        pub draw: DrawCommands,
     }
 }
 
@@ -155,23 +159,7 @@ impl ProgressBarSpecBuilder {
 }
 
 pub struct ProgressBarResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct ProgressBarInfo {
-    pub layout: LayoutInfo,
-}
-
-impl ProgressBarResult {
-    pub fn into_parts(self) -> (DrawCommands, ProgressBarInfo) {
-        (
-            self.draw,
-            ProgressBarInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -187,14 +175,14 @@ pub fn progress_bar<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: ProgressBarSpecBuilder,
-) -> ProgressBarInfo {
+) -> ProgressBarResult {
     let rect = ctx.layout(layout_params);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::progress_bar(spec);
     ctx.append_cmds(result.draw.0);
-    ProgressBarInfo {
-        layout: result.layout,
+    ProgressBarResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

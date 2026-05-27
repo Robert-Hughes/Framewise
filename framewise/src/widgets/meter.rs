@@ -67,8 +67,12 @@ pub mod raw {
 
         MeterResult {
             draw,
-            layout: LayoutInfo::tight(spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MeterResult {
+        pub draw: DrawCommands,
     }
 }
 
@@ -78,23 +82,7 @@ const BAR_H: f32 = 14.0;
 const BAR_GAP: f32 = 2.0;
 
 pub struct MeterResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct MeterInfo {
-    pub layout: LayoutInfo,
-}
-
-impl MeterResult {
-    pub fn into_parts(self) -> (DrawCommands, MeterInfo) {
-        (
-            self.draw,
-            MeterInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -110,14 +98,14 @@ pub fn meter<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: MeterSpecBuilder,
-) -> MeterInfo {
+) -> MeterResult {
     let rect = ctx.layout(layout_params);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::meter(spec);
     ctx.append_cmds(result.draw.0);
-    MeterInfo {
-        layout: result.layout,
+    MeterResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

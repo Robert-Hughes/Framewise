@@ -89,11 +89,6 @@ pub struct StatusResult {
     pub draw: DrawCommands,
 }
 
-impl StatusResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

@@ -44,5 +44,5 @@ pub use widget::{InputInfo, LayoutInfo, WidgetContext};
 
 // Widget functions (low-level API)
 pub use widgets::button::{button, ButtonResult, ButtonStyle};
-pub use widgets::frame::{frame, FrameInfo, FrameResult, FrameStyle};
-pub use widgets::label::{label, LabelInfo, LabelResult};
+pub use widgets::frame::{frame, FrameResult, FrameStyle};
+pub use widgets::label::{label, LabelResult};

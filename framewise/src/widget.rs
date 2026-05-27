@@ -35,7 +35,7 @@ impl LayoutInfo {
 }
 
 /// Pointer interaction state returned by interactive widgets.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct InputInfo {
     /// True while the cursor is over the widget's bounds this frame.
     pub hovered: bool,

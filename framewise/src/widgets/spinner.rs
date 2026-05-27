@@ -179,11 +179,6 @@ pub struct SpinnerResult {
     pub draw: DrawCommands,
 }
 
-impl SpinnerResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

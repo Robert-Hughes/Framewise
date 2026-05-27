@@ -69,29 +69,17 @@ pub mod raw {
 
         KeycapResult {
             draw,
-            layout: LayoutInfo::tight(spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct KeycapResult {
+        pub draw: DrawCommands,
     }
 }
 
 pub struct KeycapResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct KeycapInfo {
-    pub layout: LayoutInfo,
-}
-
-impl KeycapResult {
-    pub fn into_parts(self) -> (DrawCommands, KeycapInfo) {
-        (
-            self.draw,
-            KeycapInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -108,14 +96,14 @@ pub fn keycap<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: KeycapSpecBuilder<'a>,
-) -> KeycapInfo {
+) -> KeycapResult {
     let rect = ctx.layout(layout_params);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::keycap(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
-    KeycapInfo {
-        layout: result.layout,
+    KeycapResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

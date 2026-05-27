@@ -170,7 +170,6 @@ pub mod raw {
 
         DragNumberResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -180,6 +179,14 @@ pub mod raw {
             state,
             focused,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DragNumberResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: DragNumberState,
+        pub focused: bool,
     }
 }
 
@@ -201,7 +208,7 @@ pub struct DragNumberStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberState {
     pub value: f32,
     pub is_dragging: bool,
@@ -223,21 +230,13 @@ impl Default for DragNumberState {
 }
 
 pub struct DragNumberResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: DragNumberState,
     pub focused: bool,
 }
 
-pub struct DragNumberInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: DragNumberState,
-    pub focused: bool,
-}
-
-impl DragNumberInfo {
+impl DragNumberResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -249,20 +248,6 @@ impl DragNumberInfo {
     }
     pub fn value(&self) -> f32 {
         self.state.value
-    }
-}
-
-impl DragNumberResult {
-    pub fn into_parts(self) -> (DrawCommands, DragNumberInfo) {
-        (
-            self.draw,
-            DragNumberInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -281,7 +266,7 @@ pub fn drag_number<
     state: DragNumberState,
     layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,
-) -> DragNumberInfo {
+) -> DragNumberResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -293,8 +278,8 @@ pub fn drag_number<
 
     ctx.append_cmds(result.draw.0);
 
-    DragNumberInfo {
-        layout: result.layout,
+    DragNumberResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -414,7 +399,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn drag_num<'a>(spec: DragNumberSpec<'a>) -> DragNumberResult {
+    fn drag_num<'a>(spec: DragNumberSpec<'a>) -> raw::DragNumberResult {
         raw::drag_number(
             DragNumberState::default(),
             spec,

@@ -39,7 +39,6 @@ pub mod raw {
         if spec.items.is_empty() {
             return SegmentedResult {
                 draw: cmds,
-                layout: LayoutInfo::new(spec.rect, spec.rect),
                 input: InputInfo {
                     hovered: false,
                     pressed: false,
@@ -169,7 +168,6 @@ pub mod raw {
 
         SegmentedResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: outer.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -179,6 +177,14 @@ pub mod raw {
             state,
             focused,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SegmentedResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: SegmentedState,
+        pub focused: bool,
     }
 }
 
@@ -199,28 +205,20 @@ pub struct SegmentedStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SegmentedState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
 
 pub struct SegmentedResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: SegmentedState,
     pub focused: bool,
 }
 
-pub struct SegmentedInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: SegmentedState,
-    pub focused: bool,
-}
-
-impl SegmentedInfo {
+impl SegmentedResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -232,20 +230,6 @@ impl SegmentedInfo {
     }
     pub fn active_index(&self) -> usize {
         self.state.active_index
-    }
-}
-
-impl SegmentedResult {
-    pub fn into_parts(self) -> (DrawCommands, SegmentedInfo) {
-        (
-            self.draw,
-            SegmentedInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -264,7 +248,7 @@ pub fn segmented<
     state: SegmentedState,
     layout_params: S::Params,
     builder: SegmentedSpecBuilder<'a>,
-) -> SegmentedInfo {
+) -> SegmentedResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -276,8 +260,8 @@ pub fn segmented<
 
     ctx.append_cmds(result.draw.0);
 
-    SegmentedInfo {
-        layout: result.layout,
+    SegmentedResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -382,7 +366,7 @@ mod tests {
     use super::raw::SegmentedSpec;
     use crate::test_utils::DummyTextSys;
 
-    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> SegmentedResult {
+    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> raw::SegmentedResult {
         raw::segmented(
             SegmentedState::default(),
             spec,

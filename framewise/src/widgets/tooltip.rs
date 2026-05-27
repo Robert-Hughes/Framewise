@@ -100,11 +100,6 @@ pub struct TooltipResult {
     pub draw: DrawCommands,
 }
 
-impl TooltipResult {
-    pub fn into_parts(self) -> (DrawCommands, ()) {
-        (self.draw, ())
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

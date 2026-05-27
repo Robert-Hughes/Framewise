@@ -43,29 +43,17 @@ pub mod raw {
         });
         ColorSwatchResult {
             draw,
-            layout: LayoutInfo::tight(spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ColorSwatchResult {
+        pub draw: DrawCommands,
     }
 }
 
 pub struct ColorSwatchResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct ColorSwatchInfo {
-    pub layout: LayoutInfo,
-}
-
-impl ColorSwatchResult {
-    pub fn into_parts(self) -> (DrawCommands, ColorSwatchInfo) {
-        (
-            self.draw,
-            ColorSwatchInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -81,14 +69,14 @@ pub fn color_swatch<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: ColorSwatchSpecBuilder,
-) -> ColorSwatchInfo {
+) -> ColorSwatchResult {
     let rect = ctx.layout(layout_params);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::color_swatch(spec);
     ctx.append_cmds(result.draw.0);
-    ColorSwatchInfo {
-        layout: result.layout,
+    ColorSwatchResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

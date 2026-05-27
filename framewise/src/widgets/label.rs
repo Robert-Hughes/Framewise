@@ -47,31 +47,19 @@ pub mod raw {
 
         LabelResult {
             draw,
-            layout: LayoutInfo::tight(spec.rect),
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LabelResult {
+        pub draw: DrawCommands,
     }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct LabelResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct LabelInfo {
-    pub layout: LayoutInfo,
-}
-
-impl LabelResult {
-    pub fn into_parts(self) -> (DrawCommands, LabelInfo) {
-        (
-            self.draw,
-            LabelInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
@@ -171,15 +159,15 @@ pub fn label<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: LabelSpecBuilder,
-) -> LabelInfo {
+) -> LabelResult {
     let rect = ctx.layout(layout_params);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
     ctx.append_cmds(result.draw.0);
 
-    LabelInfo {
-        layout: result.layout,
+    LabelResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 
@@ -224,11 +212,8 @@ mod tests {
         };
         let res = raw::label(spec, &mut sys);
 
-        let (draw, info) = res.into_parts();
-        assert_eq!(info.layout.bounds.w, 100.0);
-
         assert_eq!(
-            draw,
+            res.draw,
             DrawCommands(vec![DrawCmd::Text {
                 rect: Rect::new(0.0, 0.0, 100.0, 50.0),
                 color: Color::WHITE,
@@ -249,9 +234,8 @@ mod tests {
             rule: true,
         };
         let res = raw::label(spec, &mut sys);
-        let (draw, _) = res.into_parts();
         assert_eq!(
-            draw,
+            res.draw,
             DrawCommands(vec![
                 DrawCmd::Text {
                     rect: Rect::new(0.0, 0.0, 100.0, 20.0),

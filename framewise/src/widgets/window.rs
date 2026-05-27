@@ -1,9 +1,9 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCmd,
     focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    widget::WidgetContext,
 };
 
 pub mod raw {
@@ -154,32 +154,6 @@ pub struct WindowStyle {
     pub status_text: Color,
     pub status_border: Color,
     pub border_width: f32,
-}
-
-pub struct WindowResult {
-    pub draw: DrawCommands,
-    pub layout: LayoutInfo,
-}
-
-pub struct WindowInfo {
-    pub layout: LayoutInfo,
-}
-
-impl WindowInfo {
-    pub fn content_rect(&self) -> Rect {
-        self.layout.content_bounds
-    }
-}
-
-impl WindowResult {
-    pub fn into_parts(self) -> (DrawCommands, WindowInfo) {
-        (
-            self.draw,
-            WindowInfo {
-                layout: self.layout,
-            },
-        )
-    }
 }
 
 // ── High-level widget functions ───────────────────────────────────────────────────

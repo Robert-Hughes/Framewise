@@ -115,7 +115,6 @@ pub mod raw {
 
         SwitchResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -126,9 +125,17 @@ pub mod raw {
             focused,
         }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SwitchResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: SwitchState,
+        pub focused: bool,
+    }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchState {
     pub on: bool,
     pub is_active: bool,
@@ -227,21 +234,13 @@ impl SwitchSpecBuilder {
 }
 
 pub struct SwitchResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: SwitchState,
     pub focused: bool,
 }
 
-pub struct SwitchInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: SwitchState,
-    pub focused: bool,
-}
-
-impl SwitchInfo {
+impl SwitchResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -253,20 +252,6 @@ impl SwitchInfo {
     }
     pub fn on(&self) -> bool {
         self.state.on
-    }
-}
-
-impl SwitchResult {
-    pub fn into_parts(self) -> (DrawCommands, SwitchInfo) {
-        (
-            self.draw,
-            SwitchInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -284,7 +269,7 @@ pub fn switch<
     state: SwitchState,
     layout_params: S::Params,
     builder: SwitchSpecBuilder,
-) -> SwitchInfo {
+) -> SwitchResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -296,8 +281,8 @@ pub fn switch<
 
     ctx.append_cmds(result.draw.0);
 
-    SwitchInfo {
-        layout: result.layout,
+    SwitchResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -310,7 +295,7 @@ mod tests {
     use super::raw::SwitchSpec;
     use crate::types::Vec2;
 
-    fn swi_tch(spec: SwitchSpec) -> SwitchResult {
+    fn swi_tch(spec: SwitchSpec) -> raw::SwitchResult {
         raw::switch(
             SwitchState::default(),
             spec,

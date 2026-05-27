@@ -140,7 +140,6 @@ pub mod raw {
 
         CheckboxResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -151,6 +150,14 @@ pub mod raw {
             focused,
         }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: CheckboxState,
+        pub focused: bool,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -160,7 +167,7 @@ pub enum CheckState {
     Indeterminate,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxState {
     pub check: CheckState,
     pub is_active: bool,
@@ -268,21 +275,13 @@ impl CheckboxSpecBuilder {
 }
 
 pub struct CheckboxResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: CheckboxState,
     pub focused: bool,
 }
 
-pub struct CheckboxInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: CheckboxState,
-    pub focused: bool,
-}
-
-impl CheckboxInfo {
+impl CheckboxResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -294,20 +293,6 @@ impl CheckboxInfo {
     }
     pub fn state(&self) -> CheckState {
         self.state.check
-    }
-}
-
-impl CheckboxResult {
-    pub fn into_parts(self) -> (DrawCommands, CheckboxInfo) {
-        (
-            self.draw,
-            CheckboxInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -325,7 +310,7 @@ pub fn checkbox<
     state: CheckboxState,
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,
-) -> CheckboxInfo {
+) -> CheckboxResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -337,8 +322,8 @@ pub fn checkbox<
 
     ctx.append_cmds(result.draw.0);
 
-    CheckboxInfo {
-        layout: result.layout,
+    CheckboxResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -350,7 +335,7 @@ mod tests {
     use super::*;
     use super::raw::CheckboxSpec;
 
-    fn checkbox_dummy(spec: CheckboxSpec) -> CheckboxResult {
+    fn checkbox_dummy(spec: CheckboxSpec) -> raw::CheckboxResult {
         raw::checkbox(
             CheckboxState::default(),
             spec,

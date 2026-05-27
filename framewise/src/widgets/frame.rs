@@ -39,8 +39,14 @@ pub mod raw {
 
         FrameResult {
             draw,
-            layout: LayoutInfo::new(spec.rect, content),
+            content_bounds: content,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FrameResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
     }
 }
 
@@ -59,29 +65,13 @@ pub struct FrameStyle {
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct FrameResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
-}
-
-pub struct FrameInfo {
-    pub layout: LayoutInfo,
-}
-
-impl FrameInfo {
-    /// The content area inside the frame's border and padding.
-    pub fn content_rect(&self) -> Rect {
-        self.layout.content_bounds
-    }
 }
 
 impl FrameResult {
-    pub fn into_parts(self) -> (DrawCommands, FrameInfo) {
-        (
-            self.draw,
-            FrameInfo {
-                layout: self.layout,
-            },
-        )
+    /// The content area inside the frame's border and padding.
+    pub fn content_rect(&self) -> Rect {
+        self.layout.content_bounds
     }
 }
 
@@ -144,15 +134,15 @@ pub fn frame<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: FrameSpecBuilder,
-) -> FrameInfo {
+) -> FrameResult {
     let rect = ctx.layout(layout_params);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::frame(spec);
 
     ctx.append_cmds(result.draw.0);
 
-    FrameInfo {
-        layout: result.layout,
+    FrameResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
     }
 }
 
@@ -174,16 +164,9 @@ mod tests {
         };
 
         let res = raw::frame(spec);
-        let (draw, info) = res.into_parts();
-
-        // Bounds should be exactly the requested rect
-        assert_eq!(info.layout.bounds.x, 10.0);
-        assert_eq!(info.layout.bounds.y, 10.0);
-        assert_eq!(info.layout.bounds.w, 100.0);
-        assert_eq!(info.layout.bounds.h, 50.0);
 
         // Content rect should be inset by border_width + padding = 5.0
-        let content = info.content_rect();
+        let content = res.content_bounds;
         assert_eq!(content.x, 15.0);
         assert_eq!(content.y, 15.0);
         assert_eq!(content.w, 90.0);
@@ -191,7 +174,7 @@ mod tests {
 
         // Should draw background and border
         assert_eq!(
-            draw,
+            res.draw,
             DrawCommands(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 50.0),

@@ -268,7 +268,6 @@ pub mod raw {
 
         SelectResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -278,6 +277,14 @@ pub mod raw {
             state,
             focused,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: SelectState,
+        pub focused: bool,
     }
 }
 
@@ -306,7 +313,7 @@ pub struct SelectStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SelectState {
     pub selected_index: usize,
     pub open: bool,
@@ -316,21 +323,13 @@ pub struct SelectState {
 }
 
 pub struct SelectResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: SelectState,
     pub focused: bool,
 }
 
-pub struct SelectInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: SelectState,
-    pub focused: bool,
-}
-
-impl SelectInfo {
+impl SelectResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -348,20 +347,6 @@ impl SelectInfo {
     }
 }
 
-impl SelectResult {
-    pub fn into_parts(self) -> (DrawCommands, SelectInfo) {
-        (
-            self.draw,
-            SelectInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
-    }
-}
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 pub fn select<
@@ -374,7 +359,7 @@ pub fn select<
     state: SelectState,
     layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,
-) -> SelectInfo {
+) -> SelectResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -386,8 +371,8 @@ pub fn select<
 
     ctx.append_cmds(result.draw.0);
 
-    SelectInfo {
-        layout: result.layout,
+    SelectResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -495,7 +480,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn select_dummy<'a>(spec: SelectSpec<'a>) -> SelectResult {
+    fn select_dummy<'a>(spec: SelectSpec<'a>) -> raw::SelectResult {
         raw::select(
             SelectState::default(),
             spec,

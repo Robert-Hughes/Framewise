@@ -157,7 +157,6 @@ pub mod raw {
 
         TabsResult {
             draw: cmds,
-            layout: LayoutInfo::new(spec.rect, spec.rect.inset(s.border_width)),
             input: InputInfo {
                 hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h)
                     .contains(input.mouse_pos)
@@ -168,6 +167,14 @@ pub mod raw {
             state,
             focused,
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TabsResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub state: TabsState,
+        pub focused: bool,
     }
 }
 
@@ -188,28 +195,20 @@ pub struct TabsStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TabsState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
 
 pub struct TabsResult {
-    pub draw: DrawCommands,
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub state: TabsState,
     pub focused: bool,
 }
 
-pub struct TabsInfo {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub state: TabsState,
-    pub focused: bool,
-}
-
-impl TabsInfo {
+impl TabsResult {
     pub fn clicked(&self) -> bool {
         self.input.clicked
     }
@@ -221,20 +220,6 @@ impl TabsInfo {
     }
     pub fn active_index(&self) -> usize {
         self.state.active_index
-    }
-}
-
-impl TabsResult {
-    pub fn into_parts(self) -> (DrawCommands, TabsInfo) {
-        (
-            self.draw,
-            TabsInfo {
-                layout: self.layout,
-                input: self.input,
-                state: self.state,
-                focused: self.focused,
-            },
-        )
     }
 }
 
@@ -253,7 +238,7 @@ pub fn tabs<
     state: TabsState,
     layout_params: S::Params,
     builder: TabsSpecBuilder<'a>,
-) -> TabsInfo {
+) -> TabsResult {
     let rect = ctx.layout(layout_params);
     let clip = builder.clip_rect.or(ctx.clip_rect);
     let spec = builder
@@ -265,8 +250,8 @@ pub fn tabs<
 
     ctx.append_cmds(result.draw.0);
 
-    TabsInfo {
-        layout: result.layout,
+    TabsResult {
+        layout: LayoutInfo::tight(rect),
         input: result.input,
         state: result.state,
         focused: result.focused,
@@ -371,7 +356,7 @@ mod tests {
     use super::raw::TabsSpec;
     use crate::test_utils::DummyTextSys;
 
-    fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> TabsResult {
+    fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> raw::TabsResult {
         raw::tabs(
             TabsState::default(),
             spec,
