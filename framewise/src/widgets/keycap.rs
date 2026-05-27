@@ -188,13 +188,21 @@ impl<'a> KeycapSpecBuilder<'a> {
 
     pub fn build(self) -> KeycapSpec<'a> {
         KeycapSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             label: self.label.expect("label not set — call .label()"),
             bg: self.bg.expect("bg not set — call .bg()"),
             border: self.border.expect("border not set — call .border()"),
-            text_color: self.text_color.expect("text_color not set — call .text_color()"),
-            text_size: self.text_size.expect("text_size not set — call .text_size()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            text_color: self
+                .text_color
+                .expect("text_color not set — call .text_color()"),
+            text_size: self
+                .text_size
+                .expect("text_size not set — call .text_size()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
         }
     }
 }

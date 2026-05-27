@@ -141,11 +141,19 @@ impl LabelSpecBuilder {
     }
     pub fn build(self) -> LabelSpec {
         LabelSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             text: self.text.expect("text not set — call .text()"),
-            size: self.size.expect("size not set — call .size() or defaults_from_theme()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            text_color: self.text_color.expect("text_color not set — call .text_color() or defaults_from_theme()"),
+            size: self
+                .size
+                .expect("size not set — call .size() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            text_color: self
+                .text_color
+                .expect("text_color not set — call .text_color() or defaults_from_theme()"),
             rule: self.rule,
         }
     }
@@ -295,7 +303,8 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let builder = LabelSpecBuilder::new().text("test".to_string())
+        let builder = LabelSpecBuilder::new()
+            .text("test".to_string())
             .size(99.0)
             .font(FontId(99))
             .text_color(Color::from_srgb_u8(1, 2, 3, 255));

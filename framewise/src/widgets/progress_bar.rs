@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     types::{Color, Rect},
@@ -84,8 +84,6 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpecBuilder {
     pub value: Option<f32>,
@@ -143,11 +141,15 @@ impl ProgressBarSpecBuilder {
 
     pub fn build(self) -> ProgressBarSpec {
         ProgressBarSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             value: self.value.expect("value not set — call .value()"),
             phase: self.phase,
             active: self.active,
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }

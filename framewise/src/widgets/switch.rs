@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -152,8 +152,6 @@ pub struct SwitchStyle {
     pub disabled_alpha: f32,
 }
 
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchSpecBuilder {
     pub on: bool,
@@ -215,10 +213,14 @@ impl SwitchSpecBuilder {
 
     pub fn build(self) -> SwitchSpec {
         SwitchSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             on: self.on,
             disabled: self.disabled,
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
         }
     }

@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -188,8 +188,6 @@ pub struct TabsStyle {
     pub disabled_alpha: f32,
 }
 
-
-
 #[derive(Debug, Clone, Default)]
 pub struct TabsState {
     pub active_index: usize,
@@ -350,10 +348,16 @@ impl<'a> TabsSpecBuilder<'a> {
 
     pub fn build(self) -> TabsSpec<'a> {
         TabsSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             items: self.items.expect("items not set — call .items()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             active_index: self.active_index,
             disabled: self.disabled,
             clip_rect: self.clip_rect,
@@ -598,9 +602,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.tabs_style();
         custom_style.text_size = 99.0;
-        let builder = TabsSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = TabsSpecBuilder::new().style(custom_style).font(FontId(99));
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
         assert_eq!(builder.font, Some(FontId(99)));

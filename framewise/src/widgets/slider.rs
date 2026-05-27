@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
@@ -660,14 +660,18 @@ impl SliderSpecBuilder {
 
     pub fn build(self) -> SliderSpec {
         SliderSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             min: self.min,
             max: self.max,
             page_step: self.page_step,
             step: self.step,
             orientation: self.orientation,
             thumb_size_ratio: self.thumb_size_ratio,
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
             claim_scroll_at_ends: self.claim_scroll_at_ends,
         }

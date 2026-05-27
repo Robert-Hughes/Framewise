@@ -82,7 +82,8 @@ pub mod raw {
                 color: s.status_border,
                 width: s.border_width,
             });
-            let status_layout = text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.font);
+            let status_layout =
+                text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.font);
             let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -302,11 +303,17 @@ impl<'a> WindowSpecBuilder<'a> {
 
     pub fn build(self) -> WindowSpec<'a> {
         WindowSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             status_bar: self.status_bar,
             status_text: self.status_text,
         }

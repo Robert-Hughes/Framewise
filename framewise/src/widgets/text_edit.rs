@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
@@ -413,8 +413,6 @@ pub struct TextEditStyle {
     pub select_color: Color,
 }
 
-
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
@@ -714,8 +712,12 @@ impl TextEditSpecBuilder {
 
     pub fn build(self) -> TextEditSpec {
         TextEditSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
             error: self.error,
             disabled: self.disabled,
@@ -737,13 +739,19 @@ mod tests {
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
         assert_eq!(builder.style.unwrap().font, theme.text_edit_style().font);
-        assert_eq!(builder.style.unwrap().text_size, theme.text_edit_style().text_size);
+        assert_eq!(
+            builder.style.unwrap().text_size,
+            theme.text_edit_style().text_size
+        );
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = TextEditStyle { font: FontId(99), ..crate::theme::Theme::framewise().text_edit_style() };
+        let custom_style = TextEditStyle {
+            font: FontId(99),
+            ..crate::theme::Theme::framewise().text_edit_style()
+        };
         let builder = TextEditSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().font, FontId(99));

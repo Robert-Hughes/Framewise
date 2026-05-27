@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -306,8 +306,6 @@ pub struct SelectStyle {
     pub disabled_alpha: f32,
 }
 
-
-
 #[derive(Debug, Clone, Default)]
 pub struct SelectState {
     pub selected_index: usize,
@@ -473,10 +471,16 @@ impl<'a> SelectSpecBuilder<'a> {
 
     pub fn build(self) -> SelectSpec<'a> {
         SelectSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             value: self.value.expect("value not set — call .value()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             options: self.options.expect("options not set — call .options()"),
             disabled: self.disabled,
             clip_rect: self.clip_rect,

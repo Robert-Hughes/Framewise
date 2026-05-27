@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -201,7 +201,6 @@ pub struct DragNumberStyle {
     pub disabled_alpha: f32,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct DragNumberState {
     pub value: f32,
@@ -389,10 +388,16 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
     pub fn build(self) -> DragNumberSpec<'a> {
         DragNumberSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             label: self.label.expect("label not set — call .label()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             value: self.value.expect("value not set — call .value()"),
             min: self.min,
             max: self.max,

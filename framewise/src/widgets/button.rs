@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -303,9 +303,13 @@ impl ButtonSpecBuilder {
     }
     pub fn build(self) -> ButtonSpec {
         ButtonSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             text: self.text.expect("text not set — call .text()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
             disabled: self.disabled,
         }
@@ -356,7 +360,7 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::text::TextHandle;
     use crate::theme;
-use crate::types::Vec2;
+    use crate::types::Vec2;
     fn btn_spec(y: f32) -> ButtonSpec {
         ButtonSpec {
             rect: Rect::new(0.0, y, 100.0, 30.0),
@@ -1167,8 +1171,13 @@ use crate::types::Vec2;
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = ButtonStyle { text_size: 99.0, ..theme::Theme::default().button_primary_style() };
-        let builder = ButtonSpecBuilder::new().text("test".to_string()).style(custom_style);
+        let custom_style = ButtonStyle {
+            text_size: 99.0,
+            ..theme::Theme::default().button_primary_style()
+        };
+        let builder = ButtonSpecBuilder::new()
+            .text("test".to_string())
+            .style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
     }

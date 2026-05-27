@@ -1,4 +1,4 @@
-﻿mod renderer;
+mod renderer;
 mod spec_page;
 mod text;
 
@@ -13,9 +13,7 @@ use framewise::{
         frame::frame,
         label::label,
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollbarVisibility},
-        slider::{
-            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState,
-        },
+        slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
         text_edit::{text_edit, TextEditSpecBuilder},
         ButtonSpecBuilder, FrameSpecBuilder, LabelSpecBuilder,
     },
@@ -285,8 +283,7 @@ impl App {
                         let state = std::mem::take(&mut self.sidebar_btns[i].state);
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text)
-                            .style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
@@ -352,8 +349,7 @@ impl App {
                         let state = std::mem::take(&mut self.top_btn1.state);
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile".to_string();
-                        let spec_builder = ButtonSpecBuilder::new().text(text)
-                            .style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn1.state = btn1.state;
@@ -362,8 +358,7 @@ impl App {
                         let state = std::mem::take(&mut self.top_btn2.state);
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings".to_string();
-                        let spec_builder = ButtonSpecBuilder::new().text(text)
-                            .style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
                     self.top_btn2.state = btn2.state;
@@ -386,7 +381,8 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(400.0, 20.0);
-                        let spec_builder = LabelSpecBuilder::new().text("DASHBOARD GRID".to_string());
+                        let spec_builder =
+                            LabelSpecBuilder::new().text("DASHBOARD GRID".to_string());
                         label(&mut grid_col, layout_params, spec_builder)
                     };
 
@@ -411,8 +407,8 @@ impl App {
                                     let state = std::mem::take(&mut self.grid_btns[idx].state);
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
-                                    let spec_builder = ButtonSpecBuilder::new().text(text)
-                                        .style(button_style);
+                                    let spec_builder =
+                                        ButtonSpecBuilder::new().text(text).style(button_style);
                                     button(&mut grid_row, state, layout_params, spec_builder)
                                 };
                                 self.grid_btns[idx].state = btn.state;
@@ -485,8 +481,7 @@ impl App {
                         let state = std::mem::take(&mut self.main_btns[i].state);
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text)
-                            .style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.clicked();
@@ -543,8 +538,7 @@ impl App {
                         let state = std::mem::take(&mut row_state.btn1.state);
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text)
-                            .style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.clicked();
@@ -578,8 +572,8 @@ impl App {
                             let state = std::mem::take(&mut row_state.inner_btns[j].state);
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -616,8 +610,8 @@ impl App {
                             let state = std::mem::take(&mut row_state.horiz_btns[j].state);
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -658,8 +652,8 @@ impl App {
                             let state = std::mem::take(&mut row_state.both_btns[j].state);
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -689,9 +683,7 @@ impl App {
                         let value: &mut f32 = &mut row_state.horiz_slider_val;
                         let step = 20.0;
                         let layout_params = Vec2::new(100.0, 30.0);
-                        let spec_builder = SliderSpecBuilder::new()
-                            .page_step(step)
-                            .step(step);
+                        let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
                         slider(&mut row_builder, state, value, layout_params, spec_builder);
                     };
 
@@ -849,8 +841,8 @@ impl App {
                                 48.0,
                             );
                             let text = format!("2D {:02}", j + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -913,7 +905,8 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder = LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
+                        let spec_builder =
+                            LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -941,8 +934,8 @@ impl App {
                             let state = std::mem::take(&mut self.triple_inner_btns[j].state);
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -974,8 +967,8 @@ impl App {
                             let state = std::mem::take(&mut self.triple_innermost_btns[k].state);
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
-                            let spec_builder = ButtonSpecBuilder::new().text(text)
-                                .style(button_style);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.clicked();
@@ -1009,7 +1002,8 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder = LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
+                        let spec_builder =
+                            LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 

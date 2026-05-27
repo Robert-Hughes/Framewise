@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     types::{Color, Rect, Vec2},
@@ -120,8 +120,6 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpecBuilder {
     pub large: bool,
@@ -166,9 +164,13 @@ impl SpinnerSpecBuilder {
 
     pub fn build(self) -> SpinnerSpec {
         SpinnerSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             large: self.large,
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }

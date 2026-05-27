@@ -96,8 +96,12 @@ impl DividerSpecBuilder {
     }
     pub fn build(self) -> DividerSpec {
         DividerSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
-            color: self.color.expect("color not set — call .color() or defaults_from_theme()"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
+            color: self
+                .color
+                .expect("color not set — call .color() or defaults_from_theme()"),
             width: self.width,
         }
     }

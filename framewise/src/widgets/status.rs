@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     text::FontId,
@@ -84,8 +84,6 @@ pub struct StatusStyle {
     pub live: Color,
     pub text: Color,
 }
-
-
 
 pub struct StatusResult {
     pub draw: DrawCommands,
@@ -179,10 +177,16 @@ impl<'a> StatusSpecBuilder<'a> {
 
     pub fn build(self) -> StatusSpec<'a> {
         StatusSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             label: self.label.expect("label not set — call .label()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             variant: self.variant.expect("variant not set — call .variant()"),
         }
     }

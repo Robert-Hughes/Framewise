@@ -291,7 +291,9 @@ impl<'a> MenuSpecBuilder<'a> {
 
     pub fn build(self) -> MenuSpec<'a> {
         MenuSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             items: self.items.expect("items not set — call .items()"),
             label_font: self
                 .label_font

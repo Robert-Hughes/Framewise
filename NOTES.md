@@ -6,7 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * Default updates (in progress)
-  * What's ButtonStyle::primary/accent/ghost - shouldn't these be in theme?
   * We can now probably simplify a bunch of places that don't care about most values and can use defaults (like test setup code). Maybe better to just define defaults for test re-use, not in the API?
 
 * Move structs that are only needed for low-level API into the raw:: sub-module.

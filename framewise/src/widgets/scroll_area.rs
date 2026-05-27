@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
@@ -478,8 +478,12 @@ impl ScrollAreaSpecBuilder {
 
     pub fn build(self) -> ScrollAreaSpec {
         ScrollAreaSpec {
-            rect: self.rect.expect("rect not set — call .with_rect() or use the high-level API"),
-            content_size: self.content_size.expect("content_size not set — call .content_size()"),
+            rect: self
+                .rect
+                .expect("rect not set — call .with_rect() or use the high-level API"),
+            content_size: self
+                .content_size
+                .expect("content_size not set — call .content_size()"),
             h_vis: self.h_vis,
             v_vis: self.v_vis,
             clip_rect: self.clip_rect,
@@ -611,7 +615,7 @@ mod tests {
     use super::*;
     use crate::layout::ManualLayout;
     use crate::test_utils::DummyTextSys;
-use crate::theme;
+    use crate::theme;
 
     // Helper to keep test calls the same
     fn scroll_area(
@@ -1582,9 +1586,9 @@ use crate::theme;
 #[cfg(test)]
 mod nested_bubbling_tests {
     use crate::input::Input;
-    use crate::{theme, types::*};
     use crate::widgets::scroll_area::raw::begin_scroll_area;
     use crate::widgets::scroll_area::*;
+    use crate::{theme, types::*};
 
     use crate::focus::*;
 

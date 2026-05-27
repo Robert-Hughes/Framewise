@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     text::FontId,
@@ -96,8 +96,6 @@ pub struct TooltipStyle {
     pub arrow_width: f32,
 }
 
-
-
 pub struct TooltipResult {
     pub draw: DrawCommands,
 }
@@ -184,10 +182,16 @@ impl<'a> TooltipSpecBuilder<'a> {
 
     pub fn build(self) -> TooltipSpec<'a> {
         TooltipSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             text: self.text.expect("text not set — call .text()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or with_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or with_theme()"),
             variant: self.variant.expect("variant not set — call .variant()"),
         }
     }

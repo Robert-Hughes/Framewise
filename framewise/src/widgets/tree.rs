@@ -240,10 +240,16 @@ impl<'a> TreeSpecBuilder<'a> {
 
     pub fn build(self) -> TreeSpec<'a> {
         TreeSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             rows: self.rows.expect("rows not set — call .rows()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }
@@ -268,9 +274,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.tree_style();
         custom_style.text_size = 99.0;
-        let builder = TreeSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = TreeSpecBuilder::new().style(custom_style).font(FontId(99));
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
         assert_eq!(builder.font, Some(FontId(99)));

@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -152,8 +152,6 @@ pub struct ChipStyle {
     pub disabled_alpha: f32,
 }
 
-
-
 pub struct ChipResult {
     pub draw: DrawCommands,
     pub layout: LayoutInfo,
@@ -302,10 +300,16 @@ impl<'a> ChipSpecBuilder<'a> {
 
     pub fn build(self) -> ChipSpec<'a> {
         ChipSpec {
-            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
             label: self.label.expect("label not set — call .label()"),
-            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
-            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             disabled: self.disabled,
             clip_rect: self.clip_rect,
         }
@@ -575,9 +579,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.chip_style();
         custom_style.text_size = 99.0;
-        let builder = ChipSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = ChipSpecBuilder::new().style(custom_style).font(FontId(99));
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
         assert_eq!(builder.font, Some(FontId(99)));
