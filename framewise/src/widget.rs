@@ -3,7 +3,7 @@ use crate::focus::FocusSystem;
 use crate::layout::LayoutState;
 use crate::text::TextSystem;
 use crate::theme::Theme;
-use crate::types::Rect;
+use crate::types::{ClipRect, Rect};
 use crate::Input;
 
 // ── Common result fragments ───────────────────────────────────────────────────
@@ -62,7 +62,7 @@ pub struct WidgetContext<
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
     pub time: f64,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: ClipRect,
 
     // System resources
     pub text_system: &'a mut T,

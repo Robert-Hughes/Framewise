@@ -3,6 +3,16 @@
 /// These are plain data structs with no dependencies. All coordinates are in
 /// logical pixels (f32) with the origin at the top-left of the window.
 
+// ── ClipRect ─────────────────────────────────────────────────────────────────
+
+/// The clipping region passed to a widget spec or builder.
+///
+/// `None` means **no clipping** — the widget is fully visible and all of its
+/// area participates in hit-testing. `Some(rect)` means the widget is clipped
+/// to `rect`: only the intersection is visible and only mouse positions inside
+/// `rect` count as hover/click events.
+pub type ClipRect = Option<Rect>;
+
 // ── Vec2 ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]

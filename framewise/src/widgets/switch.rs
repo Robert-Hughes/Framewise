@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    types::{Color, Rect},
+    types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -16,7 +16,7 @@ pub mod raw {
         pub on: bool,
         pub disabled: bool,
         pub style: super::SwitchStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
     }
 
     /// Low-level switch widget function.
@@ -165,7 +165,7 @@ pub struct SwitchSpecBuilder {
     pub disabled: bool,
     pub style: Option<SwitchStyle>,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
 }
 
 impl SwitchSpecBuilder {
@@ -197,8 +197,8 @@ impl SwitchSpecBuilder {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
 
@@ -228,7 +228,9 @@ impl SwitchSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
 }
@@ -271,7 +273,7 @@ pub fn switch<
     builder: SwitchSpecBuilder,
 ) -> SwitchResult {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)

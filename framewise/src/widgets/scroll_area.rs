@@ -3,7 +3,7 @@
     focus::FocusSystem,
     input::Input,
     layout::Layout,
-    types::{Rect, Vec2},
+    types::{ClipRect, Rect, Vec2},
     widget::WidgetContext,
 };
 
@@ -16,7 +16,7 @@ pub mod raw {
         pub content_size: Vec2,
         pub h_vis: super::ScrollbarVisibility,
         pub v_vis: super::ScrollbarVisibility,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
     }
 
     pub struct ScrollAreaToken {
@@ -449,7 +449,7 @@ pub struct ScrollAreaSpecBuilder {
     pub content_size: Option<Vec2>,
     pub h_vis: ScrollbarVisibility,
     pub v_vis: ScrollbarVisibility,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
 }
 
 impl ScrollAreaSpecBuilder {
@@ -475,8 +475,8 @@ impl ScrollAreaSpecBuilder {
         self.v_vis = v_vis;
         self
     }
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
 
@@ -495,7 +495,9 @@ impl ScrollAreaSpecBuilder {
                 .expect("content_size not set — call .content_size()"),
             h_vis: self.h_vis,
             v_vis: self.v_vis,
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
 }
@@ -563,7 +565,7 @@ pub fn begin_scroll_area<
     let bounds = parent.layout(layout_params);
     let mut builder = builder.with_rect(bounds);
     if builder.clip_rect.is_none() {
-        builder.clip_rect = parent.clip_rect;
+        builder.clip_rect = Some(parent.clip_rect);
     }
     let spec = builder.build();
     let (pre_cmds, token, content_bounds, offset) =
@@ -623,7 +625,7 @@ mod tests {
         state: &mut ScrollState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
-        clip_rect: Option<Rect>,
+        clip_rect: ClipRect,
         time: f64,
     ) -> (
         Vec<DrawCmd>,

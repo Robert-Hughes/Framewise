@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     input::Input,
     text::FontId,
-    types::{Color, Rect, Vec2},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -19,7 +19,7 @@ pub mod raw {
         pub active_index: usize,
         pub disabled: bool,
         pub style: super::SegmentedStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
     }
 
     /// Low-level segmented widget function.
@@ -250,7 +250,7 @@ pub fn segmented<
     builder: SegmentedSpecBuilder<'a>,
 ) -> SegmentedResult {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
@@ -276,7 +276,7 @@ pub struct SegmentedSpecBuilder<'a> {
     pub active_index: usize,
     pub disabled: bool,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> SegmentedSpecBuilder<'a> {
@@ -315,8 +315,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
 }
@@ -355,7 +355,9 @@ impl<'a> SegmentedSpecBuilder<'a> {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             active_index: self.active_index,
             disabled: self.disabled,
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
 }

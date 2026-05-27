@@ -7,20 +7,23 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * How do widget Result structs work with container widgets like Window or ScrollArea - they currently return a child WidgetContext instead!
   * slider
-  * scroll_area
   * spinner, status, tooltip, tree
+  * scroll_area
   * window
 
 * Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
 * Remove shorthand accessors on *Results structs (like ButtonResult::clicked())?
 * DrawCommands vs. Vec<DrawCmd>
 
+* High-level widget funcs override explicitly set fields on builders (apart from theme, we did this correct, but doesn't work for rect and possibly others?). What does DESIGN.md say about this?
+
+* Revisit DESIGN.md decision about builders having non-option types for obvious-default things like disabled=false. THis means we can't distinguish between "user explicitly set value" and "no value was set so uses default". This might matter if hte high-level API wants to choose a default only if user didn't set something e.g. like auto-disable every widget, or clip-rect! Instead, defaults should be set in build() as unwrap_or, unless there's no sensible default in which case panic like we currently do. Update DESIGN.md!
+
 * clip_rect
   - Default handling in SpecBuilders is different to other fields, e.g. for rect the builder overrides it
-  - Tests for clicks on clipped widgets (menu and tree, and window should fail)
   - "only needed when using the raw API directly, or to clip tighter than the context default". - WRONG COMMENT NOT IMPLEMENTED LIKE THIS
 
-* Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Parameter naming or ordering or return types. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters. The kinds of fields contained in structs passed into and out of methods (e.g. if one widget returns a layout rect but another doesn't). Anything that a reader of the library might be surprised by, or wonder 'why does widget X do it like this but widget Y does it like that'.
+* Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions/sections within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Parameter naming or ordering or return types. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters. The kinds of fields contained in structs passed into and out of methods (e.g. if one widget returns a layout rect but another doesn't). Anything that a reader of the library might be surprised by, or wonder 'why does widget X do it like this but widget Y does it like that'.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go

@@ -2,7 +2,7 @@ use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
-    types::{Color, Rect, Vec2},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::WidgetContext,
 };
 
@@ -19,7 +19,7 @@ pub mod raw {
         pub orientation: super::Orientation,
         pub thumb_size_ratio: Option<f32>, // 0.0 to 1.0 (for scrollbars)
         pub style: super::SliderStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
         /// When `true` (default for standalone sliders), the slider always claims
         /// both scroll directions from the hover system — even at its limits —
         /// preventing scroll events from propagating to any parent scroll area.
@@ -563,7 +563,7 @@ pub fn slider<
     builder: SliderSpecBuilder,
 ) {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
@@ -583,7 +583,7 @@ pub struct SliderSpecBuilder {
     pub thumb_size_ratio: Option<f32>,
     pub style: Option<SliderStyle>,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: bool,
 }
 
@@ -634,8 +634,8 @@ impl SliderSpecBuilder {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
     pub fn claim_scroll_at_ends(mut self, claim_scroll_at_ends: bool) -> Self {
@@ -673,7 +673,9 @@ impl SliderSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             claim_scroll_at_ends: self.claim_scroll_at_ends,
         }
     }

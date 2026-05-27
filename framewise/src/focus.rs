@@ -1,5 +1,5 @@
 use crate::input::Input;
-use crate::types::Rect;
+use crate::types::{ClipRect, Rect};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -183,7 +183,7 @@ impl FocusSystem {
     /// Register a widget in the current frame's focus order.
     /// `rect` is the widget's bounding box in window space; it is used for
     /// spatial arrow-key navigation. Returns true if this widget currently has focus.
-    pub fn register(&mut self, id: FocusId, rect: Rect, clip_rect: Option<Rect>) -> bool {
+    pub fn register(&mut self, id: FocusId, rect: Rect, clip_rect: ClipRect) -> bool {
         #[cfg(debug_assertions)]
         {
             if !self.seen_ids.insert(id) && !cfg!(test) {
@@ -428,7 +428,7 @@ impl FocusSystem {
 pub fn handle_widget_focus(
     focus_id: FocusId,
     rect: Rect,
-    clip_rect: Option<Rect>,
+    clip_rect: ClipRect,
     input: &Input,
     focus_sys: &mut FocusSystem,
     keys: FocusTraversalKeys,

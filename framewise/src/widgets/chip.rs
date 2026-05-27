@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     input::Input,
     text::FontId,
-    types::{Color, Rect},
+    types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -18,7 +18,7 @@ pub mod raw {
         pub font: FontId,
         pub disabled: bool,
         pub style: super::ChipStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
     }
 
     /// Low-level chip widget function.
@@ -198,7 +198,7 @@ pub fn chip<
     builder: ChipSpecBuilder<'a>,
 ) -> ChipResult {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
@@ -223,7 +223,7 @@ pub struct ChipSpecBuilder<'a> {
     pub style: Option<ChipStyle>,
     pub disabled: bool,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> ChipSpecBuilder<'a> {
@@ -257,8 +257,8 @@ impl<'a> ChipSpecBuilder<'a> {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
 }
@@ -296,7 +296,9 @@ impl<'a> ChipSpecBuilder<'a> {
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             disabled: self.disabled,
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
 }

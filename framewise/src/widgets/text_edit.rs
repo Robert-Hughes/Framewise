@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     text::{FontId, TextSystem},
-    types::{Color, Rect},
+    types::{ClipRect, Color, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -14,7 +14,7 @@ pub mod raw {
     pub struct TextEditSpec {
         pub rect: Rect,
         pub style: super::TextEditStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
         pub error: bool,
         pub disabled: bool,
     }
@@ -617,7 +617,7 @@ pub fn text_edit<
     builder: TextEditSpecBuilder,
 ) -> TextEditResult {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
@@ -645,7 +645,7 @@ pub fn text_edit<
 pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
     pub error: bool,
     pub disabled: bool,
 }
@@ -668,8 +668,8 @@ impl TextEditSpecBuilder {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
     pub fn error(mut self, error: bool) -> Self {
@@ -705,7 +705,9 @@ impl TextEditSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             error: self.error,
             disabled: self.disabled,
         }

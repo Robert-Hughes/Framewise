@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    types::{Color, Rect, Vec2},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -16,7 +16,7 @@ pub mod raw {
         pub state: super::CheckState,
         pub disabled: bool,
         pub style: super::CheckboxStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
     }
 
     /// Low-level checkbox widget function.
@@ -207,7 +207,7 @@ pub struct CheckboxSpecBuilder {
     pub disabled: bool,
     pub style: Option<CheckboxStyle>,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
 }
 impl CheckboxSpecBuilder {
     pub fn new() -> Self {
@@ -238,8 +238,8 @@ impl CheckboxSpecBuilder {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
 
@@ -269,7 +269,9 @@ impl CheckboxSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
 }
@@ -312,7 +314,7 @@ pub fn checkbox<
     builder: CheckboxSpecBuilder,
 ) -> CheckboxResult {
     let rect = ctx.layout(layout_params);
-    let clip = builder.clip_rect.or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)

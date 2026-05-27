@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     input::Input,
     text::FontId,
-    types::{Color, Rect},
+    types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -15,7 +15,7 @@ pub mod raw {
         pub rect: Rect,
         pub text: String,
         pub style: super::ButtonStyle,
-        pub clip_rect: Option<Rect>,
+        pub clip_rect: ClipRect,
         pub disabled: bool,
     }
 
@@ -238,7 +238,7 @@ pub struct ButtonSpecBuilder {
     pub text: Option<String>,
     pub style: Option<ButtonStyle>,
     pub rect: Option<Rect>,
-    pub clip_rect: Option<Rect>,
+    pub clip_rect: Option<ClipRect>,
     pub disabled: bool,
 }
 
@@ -281,8 +281,8 @@ impl ButtonSpecBuilder {
     /// Overrides the clip rectangle. High-level context functions supply this from
     /// the surrounding clip region — only needed when using the raw API directly, or
     /// to clip tighter than the context default.
-    pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
-        self.clip_rect = clip_rect;
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
         self
     }
     pub fn build(self) -> raw::ButtonSpec {
@@ -294,7 +294,9 @@ impl ButtonSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self.clip_rect,
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             disabled: self.disabled,
         }
     }
@@ -317,7 +319,7 @@ pub fn button<
     builder: ButtonSpecBuilder,
 ) -> ButtonResult {
     let rect = ctx.layout(layout_params);
-    let clip_rect = builder.clip_rect.or(ctx.clip_rect);
+    let clip_rect = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
