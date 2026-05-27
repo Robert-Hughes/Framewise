@@ -112,7 +112,7 @@ pub fn status<
     ctx.append_cmds(result.draw.0);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct StatusSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -123,13 +123,7 @@ pub struct StatusSpecBuilder<'a> {
 
 impl<'a> StatusSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            label: None,
-            font: None,
-            style: None,
-            variant: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn label(mut self, label: &'a str) -> Self {

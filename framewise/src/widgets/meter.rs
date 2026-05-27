@@ -109,7 +109,7 @@ pub fn meter<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
     pub value: Option<f32>,
@@ -119,12 +119,7 @@ pub struct MeterSpecBuilder {
 
 impl MeterSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            rect: None,
-            value: None,
-            peak: None,
-            bars: None,
-        }
+        Self::default()
     }
 
     pub fn value(mut self, value: f32) -> Self {

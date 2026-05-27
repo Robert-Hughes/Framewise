@@ -205,7 +205,7 @@ pub fn begin_window<
     )
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct WindowSpecBuilder<'a> {
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
@@ -218,15 +218,7 @@ pub struct WindowSpecBuilder<'a> {
 
 impl<'a> WindowSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            title: None,
-            buttons: None,
-            font: None,
-            style: None,
-            status_bar: None,
-            status_text: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn title(mut self, title: &'a str) -> Self {

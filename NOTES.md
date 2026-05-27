@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Revisit DESIGN.md decision about builders having non-option types for obvious-default things like disabled=false. THis means we can't distinguish between "user explicitly set value" and "no value was set so uses default". This might matter if hte high-level API wants to choose a default only if user didn't set something e.g. like auto-disable every widget, or clip-rect! Instead, defaults should be set in build() as unwrap_or, unless there's no sensible default in which case panic like we currently do. Update DESIGN.md!
-* Now that Builders are all option<T>, we can get rid of the explicit new() functions and just use derive(default)? Or is that bad practice - new is easier to type than default? Maybe new forwards to default? Update DESIGN.md!
 * High-level widget funcs override explicitly set fields on builders (apart from theme, we did this correct, but doesn't work for rect and possibly others?). Fix rect, check for other cases of override user's value.
 
 * not all *Builder structs have the same set of comments for low-level-only field setters ,telling the user they don't need to set manually.

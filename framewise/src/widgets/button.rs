@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -233,7 +233,7 @@ impl ButtonResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ButtonSpecBuilder {
     pub text: Option<String>,
     pub style: Option<ButtonStyle>,
@@ -244,13 +244,7 @@ pub struct ButtonSpecBuilder {
 
 impl ButtonSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            text: None,
-            style: None,
-            rect: None,
-            clip_rect: None,
-            disabled: None,
-        }
+        Self::default()
     }
     pub fn text(mut self, text: String) -> Self {
         self.text = Some(text);

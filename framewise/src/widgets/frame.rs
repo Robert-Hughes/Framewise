@@ -77,7 +77,7 @@ impl FrameResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct FrameSpecBuilder {
     pub style: Option<FrameStyle>,
     pub rect: Option<Rect>,
@@ -85,10 +85,7 @@ pub struct FrameSpecBuilder {
 
 impl FrameSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            style: None,
-            rect: None,
-        }
+        Self::default()
     }
     pub fn style(mut self, style: FrameStyle) -> Self {
         self.style = Some(style);

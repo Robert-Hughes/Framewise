@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -157,7 +157,7 @@ pub struct RadioStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RadioSpecBuilder {
     pub selected: Option<bool>,
     pub disabled: Option<bool>,
@@ -168,13 +168,7 @@ pub struct RadioSpecBuilder {
 
 impl RadioSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            selected: None,
-            disabled: None,
-            style: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn selected(mut self, selected: bool) -> Self {

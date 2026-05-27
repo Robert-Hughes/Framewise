@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -268,7 +268,7 @@ pub fn segmented<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
@@ -281,15 +281,7 @@ pub struct SegmentedSpecBuilder<'a> {
 
 impl<'a> SegmentedSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            items: None,
-            font: None,
-            style: None,
-            active_index: None,
-            disabled: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {

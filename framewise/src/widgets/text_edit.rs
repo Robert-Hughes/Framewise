@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
@@ -641,7 +641,7 @@ pub fn text_edit<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
@@ -652,13 +652,7 @@ pub struct TextEditSpecBuilder {
 
 impl TextEditSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            rect: None,
-            style: None,
-            clip_rect: None,
-            error: None,
-            disabled: None,
-        }
+        Self::default()
     }
 
     pub fn style(mut self, style: TextEditStyle) -> Self {

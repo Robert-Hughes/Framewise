@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
@@ -443,7 +443,7 @@ impl Default for ScrollState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
     pub content_size: Option<Vec2>,
@@ -454,13 +454,7 @@ pub struct ScrollAreaSpecBuilder {
 
 impl ScrollAreaSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            rect: None,
-            content_size: None,
-            h_vis: None,
-            v_vis: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn content_size(mut self, content_size: Vec2) -> Self {

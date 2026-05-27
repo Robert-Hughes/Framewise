@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -286,7 +286,7 @@ pub fn drag_number<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -301,17 +301,7 @@ pub struct DragNumberSpecBuilder<'a> {
 
 impl<'a> DragNumberSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            label: None,
-            font: None,
-            style: None,
-            value: None,
-            min: None,
-            max: None,
-            disabled: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn label(mut self, label: &'a str) -> Self {

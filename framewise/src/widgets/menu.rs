@@ -218,7 +218,7 @@ pub fn menu<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MenuSpecBuilder<'a> {
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,
@@ -229,13 +229,7 @@ pub struct MenuSpecBuilder<'a> {
 
 impl<'a> MenuSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            items: None,
-            label_font: None,
-            meta_font: None,
-            style: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn items(mut self, items: &'a [MenuItem<'a>]) -> Self {

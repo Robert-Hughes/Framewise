@@ -120,7 +120,7 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpinnerSpecBuilder {
     pub large: Option<bool>,
     pub style: Option<SpinnerStyle>,
@@ -129,11 +129,7 @@ pub struct SpinnerSpecBuilder {
 
 impl SpinnerSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            large: None,
-            style: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn large(mut self, large: bool) -> Self {

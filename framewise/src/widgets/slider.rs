@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::DrawCmd,
     focus::{FocusId, FocusSystem},
     input::Input,
@@ -573,7 +573,7 @@ pub fn slider<
     ctx.append_cmds(cmds);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliderSpecBuilder {
     pub min: Option<f32>,
     pub max: Option<f32>,
@@ -589,18 +589,7 @@ pub struct SliderSpecBuilder {
 
 impl SliderSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            min: None,
-            max: None,
-            page_step: None,
-            step: None,
-            orientation: None,
-            thumb_size_ratio: None,
-            style: None,
-            rect: None,
-            clip_rect: None,
-            claim_scroll_at_ends: None,
-        }
+        Self::default()
     }
 
     pub fn min(mut self, min: f32) -> Self {

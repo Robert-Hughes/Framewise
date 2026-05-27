@@ -45,7 +45,7 @@ pub struct DividerResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DividerSpecBuilder {
     pub color: Option<Color>,
     pub width: Option<f32>,
@@ -54,11 +54,7 @@ pub struct DividerSpecBuilder {
 
 impl DividerSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            color: None,
-            width: None,
-            rect: None,
-        }
+        Self::default()
     }
     pub fn color(mut self, color: Color) -> Self {
         self.color = Some(color);

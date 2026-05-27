@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -216,7 +216,7 @@ pub fn chip<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChipSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
@@ -228,14 +228,7 @@ pub struct ChipSpecBuilder<'a> {
 
 impl<'a> ChipSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            label: None,
-            font: None,
-            style: None,
-            disabled: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn label(mut self, label: &'a str) -> Self {

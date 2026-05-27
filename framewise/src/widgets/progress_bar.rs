@@ -88,7 +88,7 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ProgressBarSpecBuilder {
     pub value: Option<f32>,
     pub phase: Option<f32>,
@@ -99,13 +99,7 @@ pub struct ProgressBarSpecBuilder {
 
 impl ProgressBarSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            value: None,
-            phase: None,
-            active: None,
-            style: None,
-            rect: None,
-        }
+        Self::default()
     }
     pub fn value(mut self, value: f32) -> Self {
         self.value = Some(value);

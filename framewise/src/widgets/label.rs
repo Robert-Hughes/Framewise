@@ -64,7 +64,7 @@ pub struct LabelResult {
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct LabelSpecBuilder {
     pub text: Option<String>,
     pub size: Option<f32>,
@@ -76,14 +76,7 @@ pub struct LabelSpecBuilder {
 
 impl LabelSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            text: None,
-            size: None,
-            font: None,
-            text_color: None,
-            rect: None,
-            rule: None,
-        }
+        Self::default()
     }
     pub fn text(mut self, text: String) -> Self {
         self.text = Some(text);

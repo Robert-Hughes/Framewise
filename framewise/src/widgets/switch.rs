@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -159,7 +159,7 @@ pub struct SwitchStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SwitchSpecBuilder {
     pub on: Option<bool>,
     pub disabled: Option<bool>,
@@ -170,13 +170,7 @@ pub struct SwitchSpecBuilder {
 
 impl SwitchSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            on: None,
-            disabled: None,
-            style: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn on(mut self, on: bool) -> Self {

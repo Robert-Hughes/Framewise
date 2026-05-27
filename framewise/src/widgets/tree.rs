@@ -181,7 +181,7 @@ pub fn tree<
     ctx.append_cmds(result.draw.0);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
     pub rows: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,
@@ -191,12 +191,7 @@ pub struct TreeSpecBuilder<'a> {
 
 impl<'a> TreeSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            rows: None,
-            font: None,
-            style: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn rows(mut self, rows: &'a [TreeRow<'a>]) -> Self {

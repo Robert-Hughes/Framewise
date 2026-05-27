@@ -107,7 +107,7 @@ pub fn keycap<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub bg: Option<Color>,
@@ -120,15 +120,7 @@ pub struct KeycapSpecBuilder<'a> {
 
 impl<'a> KeycapSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            label: None,
-            bg: None,
-            border: None,
-            text_color: None,
-            text_size: None,
-            font: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn label(mut self, label: &'a str) -> Self {

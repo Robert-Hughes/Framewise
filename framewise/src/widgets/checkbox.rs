@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -201,7 +201,7 @@ pub struct CheckboxStyle {
     pub disabled_alpha: f32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxSpecBuilder {
     pub state: Option<CheckState>,
     pub disabled: Option<bool>,
@@ -211,13 +211,7 @@ pub struct CheckboxSpecBuilder {
 }
 impl CheckboxSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            state: None,
-            disabled: None,
-            style: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn check_state(mut self, state: CheckState) -> Self {

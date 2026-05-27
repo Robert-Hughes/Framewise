@@ -80,7 +80,7 @@ pub fn color_swatch<
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ColorSwatchSpecBuilder {
     pub rect: Option<Rect>,
     pub color: Option<Color>,
@@ -89,11 +89,7 @@ pub struct ColorSwatchSpecBuilder {
 
 impl ColorSwatchSpecBuilder {
     pub fn new() -> Self {
-        Self {
-            rect: None,
-            color: None,
-            border: None,
-        }
+        Self::default()
     }
 
     pub fn color(mut self, color: Color) -> Self {

@@ -1,4 +1,4 @@
-﻿use crate::{
+use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -381,7 +381,7 @@ pub fn select<
 
 // ── Re-export raw function for direct use ───────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SelectSpecBuilder<'a> {
     pub value: Option<&'a str>,
     pub font: Option<FontId>,
@@ -394,15 +394,7 @@ pub struct SelectSpecBuilder<'a> {
 
 impl<'a> SelectSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            value: None,
-            font: None,
-            style: None,
-            options: None,
-            disabled: None,
-            rect: None,
-            clip_rect: None,
-        }
+        Self::default()
     }
 
     pub fn value(mut self, value: &'a str) -> Self {

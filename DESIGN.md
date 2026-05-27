@@ -200,9 +200,9 @@ Specs are fully resolved; every field is a concrete value with no `Option<>`. A 
 
 The only authoritative source of style defaults is `Theme::xxx_style()` methods. A `*Style` struct is always either caller-supplied or theme-derived; there is no meaningful style independent of the theme. Hardcoded defaults on style structs duplicate the theme, diverge silently when the theme changes, and mask missing `defaults_from_theme()` calls with plausible-looking but wrong colors.
 
-**`*SpecBuilder` structs — no `Default`**
+**`*SpecBuilder` structs — `derive(Default)` + `new()` forwarding**
 
-Builders are constructed via `new()`, which already returns an all-`None` builder (plus bool flags set to `false`). A `Default` impl would just be an alias for `new()` — an extra indirection that adds no value and creates another callsite to keep in sync if fields change.
+Because every builder field is `Option<T>`, `derive(Default)` produces exactly an all-`None` struct — identical to a hand-written `new()`. All builder structs therefore `#[derive(Default)]` and keep a `new()` constructor that forwards to `Self::default()`. This gives callers both spellings (`ButtonSpecBuilder::new()` and `ButtonSpecBuilder::default()`) with zero drift risk: there is only one source of truth.
 
 **The asymmetry between `*Spec` and `*SpecBuilder` is intentional**
 

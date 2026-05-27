@@ -123,7 +123,7 @@ pub fn tooltip<
     ctx.append_cmds(result.draw.0);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TooltipSpecBuilder<'a> {
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
@@ -134,13 +134,7 @@ pub struct TooltipSpecBuilder<'a> {
 
 impl<'a> TooltipSpecBuilder<'a> {
     pub fn new() -> Self {
-        Self {
-            text: None,
-            font: None,
-            style: None,
-            variant: None,
-            rect: None,
-        }
+        Self::default()
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
