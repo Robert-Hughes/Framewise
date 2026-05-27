@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -178,22 +178,6 @@ pub struct ButtonStyle {
     pub text_color: Color,
 }
 
-impl Default for ButtonStyle {
-    fn default() -> Self {
-        Self {
-            background: Color::TRANSPARENT,
-            hovered: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.06),
-            pressed: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.14),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            border_width: 1.0,
-            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
-            text_size: 13.0,
-            font: FontId(1),
-            text_color: Color::from_srgb_u8(21, 19, 15, 255),
-        }
-    }
-}
-
 impl ButtonStyle {
     pub fn primary() -> Self {
         Self {
@@ -225,9 +209,15 @@ impl ButtonStyle {
 
     pub fn ghost() -> Self {
         Self {
+            background: Color::from_srgb_u8(21, 19, 15, 255),
+            hovered: Color::BLACK,
+            pressed: Color::from_srgb_u8(42, 37, 32, 255),
             border: Color::TRANSPARENT,
             border_width: 0.0,
-            ..Self::default()
+            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
+            text_size: 13.0,
+            font: FontId(1),
+            text_color: Color::from_srgb_u8(244, 241, 234, 255),
         }
     }
 }
@@ -305,7 +295,7 @@ impl ButtonResult {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ButtonSpecBuilder {
-    pub text: String,
+    pub text: Option<String>,
     pub style: Option<ButtonStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
@@ -313,14 +303,18 @@ pub struct ButtonSpecBuilder {
 }
 
 impl ButtonSpecBuilder {
-    pub fn new(text: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            text,
+            text: None,
             style: None,
             rect: None,
             clip_rect: None,
             disabled: false,
         }
+    }
+    pub fn text(mut self, text: String) -> Self {
+        self.text = Some(text);
+        self
     }
     pub fn style(mut self, style: ButtonStyle) -> Self {
         self.style = Some(style);
@@ -353,9 +347,9 @@ impl ButtonSpecBuilder {
     }
     pub fn build(self) -> ButtonSpec {
         ButtonSpec {
-            rect: self.rect.unwrap_or_default(),
-            text: self.text,
-            style: self.style.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            text: self.text.expect("text not set — call .text()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
             disabled: self.disabled,
         }
@@ -410,7 +404,7 @@ mod tests {
         ButtonSpec {
             rect: Rect::new(0.0, y, 100.0, 30.0),
             text: "B".into(),
-            style: Default::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         }
@@ -520,14 +514,14 @@ mod tests {
         let btn1_spec = || ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Click Me".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
         let btn2_spec = || ButtonSpec {
             rect: Rect::new(0.0, 100.0, 100.0, 50.0),
             text: "Btn2".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -627,7 +621,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -667,7 +661,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -697,7 +691,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -728,7 +722,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -786,7 +780,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -841,7 +835,7 @@ mod tests {
         let spec = || ButtonSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Btn".to_string(),
-            style: ButtonStyle::default(),
+            style: ButtonStyle::primary(),
             clip_rect: None,
             disabled: false,
         };
@@ -1204,7 +1198,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
         let theme = crate::theme::Theme::framewise();
-        let builder = ButtonSpecBuilder::new("test".to_string());
+        let builder = ButtonSpecBuilder::new().text("test".to_string());
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
@@ -1216,8 +1210,8 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = ButtonStyle { text_size: 99.0, ..ButtonStyle::default() };
-        let builder = ButtonSpecBuilder::new("test".to_string()).style(custom_style);
+        let custom_style = ButtonStyle { text_size: 99.0, ..ButtonStyle::primary() };
+        let builder = ButtonSpecBuilder::new().text("test".to_string()).style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
     }

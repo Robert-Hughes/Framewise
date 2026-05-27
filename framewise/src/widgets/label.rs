@@ -80,7 +80,7 @@ impl LabelResult {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LabelSpecBuilder {
-    pub text: String,
+    pub text: Option<String>,
     pub size: Option<f32>,
     pub font: Option<FontId>,
     pub text_color: Option<Color>,
@@ -89,15 +89,19 @@ pub struct LabelSpecBuilder {
 }
 
 impl LabelSpecBuilder {
-    pub fn new(text: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            text,
+            text: None,
             size: None,
             font: None,
             text_color: None,
             rect: None,
             rule: false,
         }
+    }
+    pub fn text(mut self, text: String) -> Self {
+        self.text = Some(text);
+        self
     }
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
@@ -137,11 +141,11 @@ impl LabelSpecBuilder {
     }
     pub fn build(self) -> LabelSpec {
         LabelSpec {
-            rect: self.rect.unwrap_or_default(),
-            text: self.text,
-            size: self.size.unwrap_or(14.0),
-            font: self.font.unwrap_or_default(),
-            text_color: self.text_color.unwrap_or(Color::WHITE),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            text: self.text.expect("text not set — call .text()"),
+            size: self.size.expect("size not set — call .size() or defaults_from_theme()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            text_color: self.text_color.expect("text_color not set — call .text_color() or defaults_from_theme()"),
             rule: self.rule,
         }
     }
@@ -278,7 +282,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_fields() {
         let theme = crate::theme::Theme::framewise();
-        let builder = LabelSpecBuilder::new("test".to_string());
+        let builder = LabelSpecBuilder::new().text("test".to_string());
         assert!(builder.size.is_none());
         assert!(builder.font.is_none());
         assert!(builder.text_color.is_none());
@@ -291,7 +295,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let builder = LabelSpecBuilder::new("test".to_string())
+        let builder = LabelSpecBuilder::new().text("test".to_string())
             .size(99.0)
             .font(FontId(99))
             .text_color(Color::from_srgb_u8(1, 2, 3, 255));

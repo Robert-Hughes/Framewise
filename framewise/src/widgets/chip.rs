@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -152,25 +152,7 @@ pub struct ChipStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for ChipStyle {
-    fn default() -> Self {
-        Self {
-            height: 22.0,
-            pad_x: 8.0,
-            text_size: 11.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            active_bg: Color::from_srgb_u8(21, 19, 15, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            text: Color::from_srgb_u8(21, 19, 15, 255),
-            active_text: Color::from_srgb_u8(244, 241, 234, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.0,
-            focus_width: 2.0,
-            focus_offset: 2.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
+
 
 pub struct ChipResult {
     pub draw: DrawCommands,
@@ -256,15 +238,9 @@ pub struct ChipSpecBuilder<'a> {
     pub label: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<ChipStyle>,
-    pub disabled: Option<bool>,
+    pub disabled: bool,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl<'a> Default for ChipSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> ChipSpecBuilder<'a> {
@@ -273,7 +249,7 @@ impl<'a> ChipSpecBuilder<'a> {
             label: None,
             font: None,
             style: None,
-            disabled: None,
+            disabled: false,
             rect: None,
             clip_rect: None,
         }
@@ -292,7 +268,7 @@ impl<'a> ChipSpecBuilder<'a> {
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
     /// Overrides the clip rectangle. High-level context functions supply this from
@@ -326,13 +302,11 @@ impl<'a> ChipSpecBuilder<'a> {
 
     pub fn build(self) -> ChipSpec<'a> {
         ChipSpec {
-            rect: self.rect.unwrap_or_default(),
-            label: self.label.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("ChipStyle is required"),
-            disabled: self.disabled.unwrap_or(false),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            label: self.label.expect("label not set — call .label()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            disabled: self.disabled,
             clip_rect: self.clip_rect,
         }
     }
@@ -361,7 +335,7 @@ mod tests {
             label: "Tag",
             font: FontId(0),
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
         };
         let style = spec.style;
@@ -398,7 +372,7 @@ mod tests {
             label: "Tag",
             font: FontId(0),
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
         };
         let style = spec.style;
@@ -443,7 +417,7 @@ mod tests {
             label: "Tag",
             font: FontId(0),
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
         };
         let style = spec.style;
@@ -498,7 +472,7 @@ mod tests {
             label: "Tag",
             font: FontId(0),
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
         };
 
@@ -530,7 +504,7 @@ mod tests {
                 label: "Tag",
                 font: FontId(0),
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
             },
             &input,
@@ -551,7 +525,7 @@ mod tests {
                 label: "Tag",
                 font: FontId(0),
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
             },
             &input,
@@ -573,7 +547,7 @@ mod tests {
                 label: "Tag",
                 font: FontId(0),
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
             },
             &input,

@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -199,25 +199,7 @@ pub struct SegmentedStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for SegmentedStyle {
-    fn default() -> Self {
-        Self {
-            height: 28.0,
-            pad_x: 14.0,
-            text_size: 13.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            active_bg: Color::from_srgb_u8(21, 19, 15, 255),
-            text: Color::from_srgb_u8(21, 19, 15, 255),
-            active_text: Color::from_srgb_u8(244, 241, 234, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.0,
-            focus_width: 2.0,
-            focus_inset: 2.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, Default)]
 pub struct SegmentedState {
@@ -309,16 +291,10 @@ pub struct SegmentedSpecBuilder<'a> {
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
     pub style: Option<SegmentedStyle>,
-    pub active_index: Option<usize>,
-    pub disabled: Option<bool>,
+    pub active_index: usize,
+    pub disabled: bool,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl<'a> Default for SegmentedSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> SegmentedSpecBuilder<'a> {
@@ -327,8 +303,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
             items: None,
             font: None,
             style: None,
-            active_index: None,
-            disabled: None,
+            active_index: 0,
+            disabled: false,
             rect: None,
             clip_rect: None,
         }
@@ -347,11 +323,11 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self
     }
     pub fn active_index(mut self, active_index: usize) -> Self {
-        self.active_index = Some(active_index);
+        self.active_index = active_index;
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
     /// Overrides the clip rectangle. High-level context functions supply this from
@@ -385,14 +361,12 @@ impl<'a> SegmentedSpecBuilder<'a> {
 
     pub fn build(self) -> SegmentedSpec<'a> {
         SegmentedSpec {
-            rect: self.rect.unwrap_or_default(),
-            items: self.items.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("SegmentedStyle is required"),
-            active_index: self.active_index.unwrap_or(0),
-            disabled: self.disabled.unwrap_or(false),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            items: self.items.expect("items not set — call .items()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            active_index: self.active_index,
+            disabled: self.disabled,
             clip_rect: self.clip_rect,
         }
     }
@@ -422,7 +396,7 @@ mod tests {
             font: FontId(1),
             active_index: 0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
         };
         let style = spec.style;
@@ -478,7 +452,7 @@ mod tests {
             font: FontId(1),
             active_index: 1,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
         };
         let style = spec.style;
@@ -548,7 +522,7 @@ mod tests {
             font: FontId(1),
             active_index: 0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
         };
 
@@ -585,7 +559,7 @@ mod tests {
                 font: FontId(1),
                 active_index: 0,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
             },
             &input,
@@ -609,7 +583,7 @@ mod tests {
                 font: FontId(1),
                 active_index: 0,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
             },
             &input,

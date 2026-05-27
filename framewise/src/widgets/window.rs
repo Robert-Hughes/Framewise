@@ -82,7 +82,7 @@ pub mod raw {
                 color: s.status_border,
                 width: s.border_width,
             });
-            let status_layout = text_system.prepare(spec.status_text, s.text_size, spec.font);
+            let status_layout = text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.font);
             let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -131,7 +131,7 @@ pub struct WindowSpec<'a> {
     pub buttons: &'a [WindowButton],
     pub font: FontId,
     pub status_bar: bool,
-    pub status_text: &'a str,
+    pub status_text: Option<&'a str>,
     pub style: WindowStyle,
 }
 
@@ -207,12 +207,6 @@ pub fn begin_window<
 
     let mut resolved_builder = builder.rect(bounds).defaults_from_theme(&parent.theme);
 
-    if resolved_builder.status_bar.is_none() {
-        resolved_builder.status_bar = Some(false);
-    }
-    if resolved_builder.status_text.is_none() {
-        resolved_builder.status_text = Some("");
-    }
     if resolved_builder.buttons.is_none() {
         resolved_builder.buttons = Some(&[]);
     }
@@ -242,15 +236,9 @@ pub struct WindowSpecBuilder<'a> {
     pub buttons: Option<&'a [WindowButton]>,
     pub font: Option<FontId>,
     pub style: Option<WindowStyle>,
-    pub status_bar: Option<bool>,
+    pub status_bar: bool,
     pub status_text: Option<&'a str>,
     pub rect: Option<Rect>,
-}
-
-impl<'a> Default for WindowSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> WindowSpecBuilder<'a> {
@@ -260,7 +248,7 @@ impl<'a> WindowSpecBuilder<'a> {
             buttons: None,
             font: None,
             style: None,
-            status_bar: None,
+            status_bar: false,
             status_text: None,
             rect: None,
         }
@@ -283,7 +271,7 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
     pub fn status_bar(mut self, status_bar: bool) -> Self {
-        self.status_bar = Some(status_bar);
+        self.status_bar = status_bar;
         self
     }
     pub fn status_text(mut self, status_text: &'a str) -> Self {
@@ -314,15 +302,13 @@ impl<'a> WindowSpecBuilder<'a> {
 
     pub fn build(self) -> WindowSpec<'a> {
         WindowSpec {
-            rect: self.rect.unwrap_or_default(),
-            title: self.title.unwrap(),
-            buttons: self.buttons.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("WindowStyle is required"),
-            status_bar: self.status_bar.unwrap(),
-            status_text: self.status_text.unwrap(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            title: self.title.expect("title not set — call .title()"),
+            buttons: self.buttons.expect("buttons not set — call .buttons()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            status_bar: self.status_bar,
+            status_text: self.status_text,
         }
     }
 }

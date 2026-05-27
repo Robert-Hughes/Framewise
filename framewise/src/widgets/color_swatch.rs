@@ -99,12 +99,6 @@ pub struct ColorSwatchSpecBuilder {
     pub border: Option<Color>,
 }
 
-impl Default for ColorSwatchSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ColorSwatchSpecBuilder {
     pub fn new() -> Self {
         Self {

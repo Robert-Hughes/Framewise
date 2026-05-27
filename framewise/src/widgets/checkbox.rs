@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -194,23 +194,6 @@ pub struct CheckboxStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for CheckboxStyle {
-    fn default() -> Self {
-        Self {
-            size: 14.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            selected_fill: Color::from_srgb_u8(21, 19, 15, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            mark: Color::from_srgb_u8(244, 241, 234, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.5,
-            mark_width: 1.5,
-            focus_width: 2.0,
-            focus_offset: 2.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxSpecBuilder {
@@ -221,14 +204,19 @@ pub struct CheckboxSpecBuilder {
     pub clip_rect: Option<Rect>,
 }
 impl CheckboxSpecBuilder {
-    pub fn new(state: CheckState) -> Self {
+    pub fn new() -> Self {
         Self {
-            state,
+            state: CheckState::Off,
             disabled: false,
             style: None,
             rect: None,
             clip_rect: None,
         }
+    }
+
+    pub fn check_state(mut self, state: CheckState) -> Self {
+        self.state = state;
+        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -267,10 +255,10 @@ impl CheckboxSpecBuilder {
 
     pub fn build(self) -> CheckboxSpec {
         CheckboxSpec {
-            rect: self.rect.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
             state: self.state,
             disabled: self.disabled,
-            style: self.style.unwrap_or_default(),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
         }
     }
@@ -373,7 +361,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -400,7 +388,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::On,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -443,7 +431,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Indeterminate,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -479,7 +467,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -513,7 +501,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
             disabled: true,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -549,7 +537,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
 
@@ -574,7 +562,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             state: CheckState::Off,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().checkbox_style(),
             clip_rect: None,
         };
 
@@ -611,7 +599,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
         let theme = crate::theme::Theme::framewise();
-        let builder = CheckboxSpecBuilder::new(CheckState::Off);
+        let builder = CheckboxSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.checkbox_style()));
@@ -622,7 +610,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.checkbox_style();
         custom_style.size = 99.0;
-        let builder = CheckboxSpecBuilder::new(CheckState::Off).style(custom_style);
+        let builder = CheckboxSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().size, 99.0);
     }

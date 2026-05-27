@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     text::FontId,
@@ -96,25 +96,7 @@ pub struct TooltipStyle {
     pub arrow_width: f32,
 }
 
-impl Default for TooltipStyle {
-    fn default() -> Self {
-        Self {
-            text_size: 11.0,
-            pad_x: 8.0,
-            pad_y_top: 5.0,
-            pad_y_bot: 6.0,
-            arrow_h: 4.0,
-            arrow_w: 8.0,
-            arrow_x: 14.0,
-            max_width: 240.0,
-            dark_bg: Color::from_srgb_u8(21, 19, 15, 255),
-            dark_text: Color::from_srgb_u8(244, 241, 234, 255),
-            rust_bg: Color::from_srgb_u8(194, 90, 44, 255),
-            rust_text: Color::WHITE,
-            arrow_width: 1.5,
-        }
-    }
-}
+
 
 pub struct TooltipResult {
     pub draw: DrawCommands,
@@ -155,12 +137,6 @@ pub struct TooltipSpecBuilder<'a> {
     pub style: Option<TooltipStyle>,
     pub variant: Option<TooltipVariant>,
     pub rect: Option<Rect>,
-}
-
-impl<'a> Default for TooltipSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> TooltipSpecBuilder<'a> {
@@ -208,13 +184,11 @@ impl<'a> TooltipSpecBuilder<'a> {
 
     pub fn build(self) -> TooltipSpec<'a> {
         TooltipSpec {
-            rect: self.rect.unwrap_or_default(),
-            text: self.text.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("TooltipStyle is required"),
-            variant: self.variant.unwrap(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            text: self.text.expect("text not set — call .text()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or with_theme()"),
+            variant: self.variant.expect("variant not set — call .variant()"),
         }
     }
 }
@@ -232,7 +206,7 @@ mod tests {
             text: "Tooltip",
             font: FontId(0),
             variant: TooltipVariant::Dark,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().tooltip_style(),
         };
         let style = spec.style;
         let res = raw::tooltip(spec, &mut text_sys);
@@ -273,7 +247,7 @@ mod tests {
             text: "Tooltip",
             font: FontId(0),
             variant: TooltipVariant::Rust,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().tooltip_style(),
         };
         let style = spec.style;
         let res = raw::tooltip(spec, &mut text_sys);

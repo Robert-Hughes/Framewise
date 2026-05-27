@@ -194,12 +194,6 @@ pub struct TreeSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
-impl<'a> Default for TreeSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a> TreeSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
@@ -246,12 +240,10 @@ impl<'a> TreeSpecBuilder<'a> {
 
     pub fn build(self) -> TreeSpec<'a> {
         TreeSpec {
-            rect: self.rect.unwrap_or_default(),
-            rows: self.rows.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("TreeStyle is required"),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            rows: self.rows.expect("rows not set — call .rows()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }

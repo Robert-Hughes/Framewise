@@ -5,15 +5,25 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Check for consistency in Spec and SpecBuilder traits like Default, Clone, PartialEq, Debug etc., across all widget types. And for Default, how do they set their defaults
-  * Once added default, we can probably simplify a bunch of places that don't care and can use defaults (like test setup code)
-  * Maybe the Spec structs don't have default (they need rect, no sensible default),
-   but builder could? Options though? unwrap_or_default ends up making default rect anyway!
+* Default updates (in progress)
+  * What's ButtonStyle::primary/accent/ghost - shouldn't these be in theme?
+  * We can now probably simplify a bunch of places that don't care about most values and can use defaults (like test setup code). Maybe better to just define defaults for test re-use, not in the API?
+
+* Move structs that are only needed for low-level API into the raw:: sub-module.
+  - ScrollAreaToken
+  - all widget *Spec structs?
+  - anything else?
+  - rationale (add to DESIGN.md): don't clutter the normal module with stuff the user won't use
 
 * Do we still need Result/Info split. I think the plan was to have common reusable structs like LayoutInfo, ValueInfo<T> - check DESIGN.md
+  - idea: have a raw::*Result with low-level results (inc. draw cmds etc.), and a *Result high-level result without the draw cmds, without scroll offset amount etc. Just useful stuff for high-level, possibly adding some extra things in as well?
 * Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
 
 * FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
+  - Default handling in SpecBuilders?
+
+* Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters.
+Also compare with what's described in DESIGN.md - anything not matching?
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 

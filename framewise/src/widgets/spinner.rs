@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     types::{Color, Rect, Vec2},
@@ -122,20 +122,7 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
-impl Default for SpinnerStyle {
-    fn default() -> Self {
-        Self {
-            color: Color::from_srgb_u8(21, 19, 15, 255),
-            highlight: Color::from_srgb_u8(194, 90, 44, 255),
-            small_size: 16.0,
-            large_size: 24.0,
-            small_arm: 5.0,
-            large_arm: 7.0,
-            width: 1.5,
-            highlight_fraction: 0.4,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerSpecBuilder {
@@ -143,12 +130,6 @@ pub struct SpinnerSpecBuilder {
     pub color: Option<Color>,
     pub style: Option<SpinnerStyle>,
     pub rect: Option<Rect>,
-}
-
-impl Default for SpinnerSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl SpinnerSpecBuilder {
@@ -194,10 +175,10 @@ impl SpinnerSpecBuilder {
 
     pub fn build(self) -> SpinnerSpec {
         SpinnerSpec {
-            rect: self.rect.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
             large: self.large,
             color: self.color,
-            style: self.style.unwrap_or_default(),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }
@@ -243,7 +224,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             large: false,
             color: None,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().spinner_style(),
         };
         let style = spec.style;
         let res = raw::spinner(spec);
@@ -321,7 +302,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 24.0, 24.0),
             large: true,
             color: Some(custom_color),
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().spinner_style(),
         };
         let style = spec.style;
         let res = raw::spinner(spec);

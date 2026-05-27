@@ -95,12 +95,6 @@ pub struct FrameSpecBuilder {
     pub rect: Option<Rect>,
 }
 
-impl Default for FrameSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FrameSpecBuilder {
     pub fn new() -> Self {
         Self {
@@ -128,13 +122,8 @@ impl FrameSpecBuilder {
     }
     pub fn build(self) -> FrameSpec {
         FrameSpec {
-            rect: self.rect.unwrap_or_default(),
-            style: self.style.unwrap_or(FrameStyle {
-                background: Color::TRANSPARENT,
-                border: Color::TRANSPARENT,
-                border_width: 0.0,
-                padding: 0.0,
-            }),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }

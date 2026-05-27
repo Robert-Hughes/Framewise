@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -150,22 +150,7 @@ pub struct RadioStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for RadioStyle {
-    fn default() -> Self {
-        Self {
-            radius: 7.0,
-            dot_radius: 3.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            dot: Color::from_srgb_u8(21, 19, 15, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.5,
-            focus_width: 2.0,
-            focus_offset: 2.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RadioSpecBuilder {
@@ -174,12 +159,6 @@ pub struct RadioSpecBuilder {
     pub style: Option<RadioStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl Default for RadioSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl RadioSpecBuilder {
@@ -234,10 +213,10 @@ impl RadioSpecBuilder {
 
     pub fn build(self) -> RadioSpec {
         RadioSpec {
-            rect: self.rect.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
             selected: self.selected,
             disabled: self.disabled,
-            style: self.style.unwrap_or_default(),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
         }
     }
@@ -340,7 +319,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -370,7 +349,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: true,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -409,7 +388,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -446,7 +425,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
             disabled: true,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -484,7 +463,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
 
@@ -509,7 +488,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             selected: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
 

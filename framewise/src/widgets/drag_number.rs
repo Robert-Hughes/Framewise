@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -201,26 +201,6 @@ pub struct DragNumberStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for DragNumberStyle {
-    fn default() -> Self {
-        Self {
-            text_size: 13.0,
-            label_pad_x: 10.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            label_bg: Color::from_srgb_u8(21, 19, 15, 255),
-            active_label_bg: Color::from_srgb_u8(194, 90, 44, 255),
-            label_text: Color::from_srgb_u8(244, 241, 234, 255),
-            value_text: Color::from_srgb_u8(21, 19, 15, 255),
-            value_fill: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),
-            border_width: 1.0,
-            focus_width: 2.0,
-            focus_offset: 1.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct DragNumberState {
@@ -328,17 +308,11 @@ pub struct DragNumberSpecBuilder<'a> {
     pub font: Option<FontId>,
     pub style: Option<DragNumberStyle>,
     pub value: Option<f32>,
-    pub min: Option<f32>,
-    pub max: Option<f32>,
-    pub disabled: Option<bool>,
+    pub min: f32,
+    pub max: f32,
+    pub disabled: bool,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl<'a> Default for DragNumberSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> DragNumberSpecBuilder<'a> {
@@ -348,9 +322,9 @@ impl<'a> DragNumberSpecBuilder<'a> {
             font: None,
             style: None,
             value: None,
-            min: None,
-            max: None,
-            disabled: None,
+            min: 0.0,
+            max: 100.0,
+            disabled: false,
             rect: None,
             clip_rect: None,
         }
@@ -373,15 +347,15 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self
     }
     pub fn min(mut self, min: f32) -> Self {
-        self.min = Some(min);
+        self.min = min;
         self
     }
     pub fn max(mut self, max: f32) -> Self {
-        self.max = Some(max);
+        self.max = max;
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
     /// Overrides the clip rectangle. High-level context functions supply this from
@@ -415,16 +389,14 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
     pub fn build(self) -> DragNumberSpec<'a> {
         DragNumberSpec {
-            rect: self.rect.unwrap_or_default(),
-            label: self.label.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("DragNumberStyle is required"),
-            value: self.value.unwrap_or(0.0),
-            min: self.min.unwrap_or(0.0),
-            max: self.max.unwrap_or(100.0),
-            disabled: self.disabled.unwrap_or(false),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            label: self.label.expect("label not set — call .label()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            value: self.value.expect("value not set — call .value()"),
+            min: self.min,
+            max: self.max,
+            disabled: self.disabled,
             clip_rect: self.clip_rect,
         }
     }
@@ -456,7 +428,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().drag_number_style(),
             clip_rect: None,
         };
 
@@ -510,7 +482,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().drag_number_style(),
             clip_rect: None,
         };
 
@@ -575,7 +547,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().drag_number_style(),
             clip_rect: None,
         };
 
@@ -635,7 +607,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().drag_number_style(),
             clip_rect: None,
         };
 
@@ -673,7 +645,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().drag_number_style(),
                 clip_rect: None,
             },
             &input,
@@ -699,7 +671,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().drag_number_style(),
                 clip_rect: None,
             },
             &input,

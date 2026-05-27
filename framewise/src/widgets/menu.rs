@@ -237,12 +237,6 @@ pub struct MenuSpecBuilder<'a> {
     pub rect: Option<Rect>,
 }
 
-impl<'a> Default for MenuSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a> MenuSpecBuilder<'a> {
     pub fn new() -> Self {
         Self {
@@ -297,8 +291,8 @@ impl<'a> MenuSpecBuilder<'a> {
 
     pub fn build(self) -> MenuSpec<'a> {
         MenuSpec {
-            rect: self.rect.unwrap_or_default(),
-            items: self.items.unwrap(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            items: self.items.expect("items not set — call .items()"),
             label_font: self
                 .label_font
                 .expect("label_font must be specified or resolved from a theme"),

@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -306,33 +306,7 @@ pub struct SelectStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for SelectStyle {
-    fn default() -> Self {
-        Self {
-            min_width: 180.0,
-            height: 28.0,
-            row_height: 26.0,
-            popup_gap: 2.0,
-            popup_pad_y: 4.0,
-            pad_x: 10.0,
-            chevron_right: 18.0,
-            text_size: 13.0,
-            chevron_size: 11.0,
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            text: Color::from_srgb_u8(21, 19, 15, 255),
-            selected_bg: Color::from_srgb_u8(21, 19, 15, 255),
-            selected_text: Color::from_srgb_u8(244, 241, 234, 255),
-            hover: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.06),
-            muted: Color::from_srgb_u8(138, 131, 120, 255),
-            accent: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.0,
-            focus_width: 2.0,
-            focus_offset: 1.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, Default)]
 pub struct SelectState {
@@ -430,15 +404,9 @@ pub struct SelectSpecBuilder<'a> {
     pub font: Option<FontId>,
     pub style: Option<SelectStyle>,
     pub options: Option<&'a [&'a str]>,
-    pub disabled: Option<bool>,
+    pub disabled: bool,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl<'a> Default for SelectSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> SelectSpecBuilder<'a> {
@@ -448,7 +416,7 @@ impl<'a> SelectSpecBuilder<'a> {
             font: None,
             style: None,
             options: None,
-            disabled: None,
+            disabled: false,
             rect: None,
             clip_rect: None,
         }
@@ -471,7 +439,7 @@ impl<'a> SelectSpecBuilder<'a> {
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
     /// Overrides the clip rectangle. High-level context functions supply this from
@@ -505,14 +473,12 @@ impl<'a> SelectSpecBuilder<'a> {
 
     pub fn build(self) -> SelectSpec<'a> {
         SelectSpec {
-            rect: self.rect.unwrap_or_default(),
-            value: self.value.unwrap_or(""),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("SelectStyle is required"),
-            options: self.options.unwrap_or(&[]),
-            disabled: self.disabled.unwrap_or(false),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            value: self.value.expect("value not set — call .value()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            options: self.options.expect("options not set — call .options()"),
+            disabled: self.disabled,
             clip_rect: self.clip_rect,
         }
     }
@@ -543,7 +509,7 @@ mod tests {
             font: FontId(0),
             options: &options,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -585,7 +551,7 @@ mod tests {
             font: FontId(0),
             options: &options,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -689,7 +655,7 @@ mod tests {
             font: FontId(0),
             options: &options,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
         };
 
@@ -730,7 +696,7 @@ mod tests {
                 font: FontId(0),
                 options: &options,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
             &input,
@@ -756,7 +722,7 @@ mod tests {
                 font: FontId(0),
                 options: &options,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
             &input,
@@ -778,7 +744,7 @@ mod tests {
                 font: FontId(0),
                 options: &options,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
             &input,
@@ -803,7 +769,7 @@ mod tests {
                 font: FontId(0),
                 options: &options,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
             &input,
@@ -827,7 +793,7 @@ mod tests {
                 font: FontId(0),
                 options: &options,
                 disabled: false,
-                style: Default::default(),
+                style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
             &input,

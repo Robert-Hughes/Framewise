@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     types::{Color, Rect},
@@ -84,21 +84,11 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
-impl Default for ProgressBarStyle {
-    fn default() -> Self {
-        Self {
-            track_color: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.10),
-            fill_color: Color::from_srgb_u8(21, 19, 15, 255),
-            active_fill_color: Color::from_srgb_u8(194, 90, 44, 255),
-            track_height: 3.0,
-            indeterminate_fraction: 0.3,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpecBuilder {
-    pub value: f32,
+    pub value: Option<f32>,
     pub phase: f32,
     pub active: bool,
     pub style: Option<ProgressBarStyle>,
@@ -106,14 +96,18 @@ pub struct ProgressBarSpecBuilder {
 }
 
 impl ProgressBarSpecBuilder {
-    pub fn new(value: f32) -> Self {
+    pub fn new() -> Self {
         Self {
-            value,
+            value: None,
             phase: 0.0,
             active: false,
             style: None,
             rect: None,
         }
+    }
+    pub fn value(mut self, value: f32) -> Self {
+        self.value = Some(value);
+        self
     }
 
     pub fn phase(mut self, phase: f32) -> Self {
@@ -149,11 +143,11 @@ impl ProgressBarSpecBuilder {
 
     pub fn build(self) -> ProgressBarSpec {
         ProgressBarSpec {
-            rect: self.rect.unwrap_or_default(),
-            value: self.value,
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            value: self.value.expect("value not set — call .value()"),
             phase: self.phase,
             active: self.active,
-            style: self.style.unwrap_or_default(),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }
@@ -213,7 +207,7 @@ mod tests {
             value: 0.5,
             phase: 0.0,
             active: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().progress_bar_style(),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -240,7 +234,7 @@ mod tests {
             value: 0.5,
             phase: 0.0,
             active: true,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().progress_bar_style(),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -267,7 +261,7 @@ mod tests {
             value: f32::NAN,
             phase: 0.5,
             active: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().progress_bar_style(),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -290,7 +284,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
         let theme = crate::theme::Theme::framewise();
-        let builder = ProgressBarSpecBuilder::new(0.5);
+        let builder = ProgressBarSpecBuilder::new().value(0.5);
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.progress_bar_style()));
@@ -301,7 +295,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.progress_bar_style();
         custom_style.track_height = 99.0;
-        let builder = ProgressBarSpecBuilder::new(0.5).style(custom_style);
+        let builder = ProgressBarSpecBuilder::new().value(0.5).style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().track_height, 99.0);
     }

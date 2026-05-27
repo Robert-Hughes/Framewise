@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     text::FontId,
@@ -85,21 +85,7 @@ pub struct StatusStyle {
     pub text: Color,
 }
 
-impl Default for StatusStyle {
-    fn default() -> Self {
-        Self {
-            dot_size: 6.0,
-            gap: 8.0,
-            text_size: 11.0,
-            neutral: Color::from_srgb_u8(138, 131, 120, 255),
-            ok: Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
-            warn: Color::from_srgb_u8(194, 90, 44, 255),
-            err: Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
-            live: Color::from_srgb_u8(194, 90, 44, 255),
-            text: Color::from_srgb_u8(138, 131, 120, 255),
-        }
-    }
-}
+
 
 pub struct StatusResult {
     pub draw: DrawCommands,
@@ -140,12 +126,6 @@ pub struct StatusSpecBuilder<'a> {
     pub style: Option<StatusStyle>,
     pub variant: Option<StatusVariant>,
     pub rect: Option<Rect>,
-}
-
-impl<'a> Default for StatusSpecBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<'a> StatusSpecBuilder<'a> {
@@ -199,13 +179,11 @@ impl<'a> StatusSpecBuilder<'a> {
 
     pub fn build(self) -> StatusSpec<'a> {
         StatusSpec {
-            rect: self.rect.unwrap_or_default(),
-            label: self.label.unwrap(),
-            font: self
-                .font
-                .expect("font must be specified or resolved from a theme"),
-            style: self.style.expect("StatusStyle is required"),
-            variant: self.variant.unwrap(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            label: self.label.expect("label not set — call .label()"),
+            font: self.font.expect("font not set — call .font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
+            variant: self.variant.expect("variant not set — call .variant()"),
         }
     }
 }
@@ -223,7 +201,7 @@ mod tests {
             label: "Online",
             font: FontId(0),
             variant: StatusVariant::Ok,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().status_style(),
         };
         let style = spec.style;
         let res = raw::status(spec, &mut text_sys);
@@ -252,7 +230,7 @@ mod tests {
             label: "Warning",
             font: FontId(0),
             variant: StatusVariant::Warn,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().status_style(),
         };
         let style = spec.style;
         let res = raw::status(spec, &mut text_sys);

@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
@@ -413,22 +413,7 @@ pub struct TextEditStyle {
     pub select_color: Color,
 }
 
-impl Default for TextEditStyle {
-    fn default() -> Self {
-        Self {
-            background: Color::from_srgb_u8(251, 249, 244, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            focus_border: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.0,
-            padding: 4.0,
-            text_size: 12.0,
-            font: FontId(0),
-            text_color: Color::from_srgb_u8(21, 19, 15, 255),
-            caret_color: Color::from_srgb_u8(194, 90, 44, 255),
-            select_color: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),
-        }
-    }
-}
+
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -676,14 +661,8 @@ pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
     pub clip_rect: Option<Rect>,
-    pub error: Option<bool>,
-    pub disabled: Option<bool>,
-}
-
-impl Default for TextEditSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub error: bool,
+    pub disabled: bool,
 }
 
 impl TextEditSpecBuilder {
@@ -692,8 +671,8 @@ impl TextEditSpecBuilder {
             rect: None,
             style: None,
             clip_rect: None,
-            error: None,
-            disabled: None,
+            error: false,
+            disabled: false,
         }
     }
 
@@ -709,11 +688,11 @@ impl TextEditSpecBuilder {
         self
     }
     pub fn error(mut self, error: bool) -> Self {
-        self.error = Some(error);
+        self.error = error;
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
 
@@ -735,11 +714,11 @@ impl TextEditSpecBuilder {
 
     pub fn build(self) -> TextEditSpec {
         TextEditSpec {
-            rect: self.rect.unwrap_or_default(),
-            style: self.style.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
-            error: self.error.unwrap_or(false),
-            disabled: self.disabled.unwrap_or(false),
+            error: self.error,
+            disabled: self.disabled,
         }
     }
 }
@@ -764,7 +743,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = TextEditStyle { font: FontId(99), ..TextEditStyle::default() };
+        let custom_style = TextEditStyle { font: FontId(99), ..crate::theme::Theme::framewise().text_edit_style() };
         let builder = TextEditSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().font, FontId(99));
@@ -773,7 +752,7 @@ mod tests {
     fn spec() -> TextEditSpec {
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-            style: TextEditStyle::default(),
+            style: crate::theme::Theme::framewise().text_edit_style(),
             clip_rect: None,
             error: false,
             disabled: false,

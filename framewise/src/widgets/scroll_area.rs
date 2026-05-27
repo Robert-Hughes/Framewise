@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::DrawCmd,
     focus::FocusSystem,
     input::Input,
@@ -438,15 +438,9 @@ pub struct ScrollAreaSpec {
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
     pub content_size: Option<Vec2>,
-    pub h_vis: Option<ScrollbarVisibility>,
-    pub v_vis: Option<ScrollbarVisibility>,
+    pub h_vis: ScrollbarVisibility,
+    pub v_vis: ScrollbarVisibility,
     pub clip_rect: Option<Rect>,
-}
-
-impl Default for ScrollAreaSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl ScrollAreaSpecBuilder {
@@ -454,8 +448,8 @@ impl ScrollAreaSpecBuilder {
         Self {
             rect: None,
             content_size: None,
-            h_vis: None,
-            v_vis: None,
+            h_vis: ScrollbarVisibility::Auto,
+            v_vis: ScrollbarVisibility::Auto,
             clip_rect: None,
         }
     }
@@ -465,11 +459,11 @@ impl ScrollAreaSpecBuilder {
         self
     }
     pub fn h_vis(mut self, h_vis: ScrollbarVisibility) -> Self {
-        self.h_vis = Some(h_vis);
+        self.h_vis = h_vis;
         self
     }
     pub fn v_vis(mut self, v_vis: ScrollbarVisibility) -> Self {
-        self.v_vis = Some(v_vis);
+        self.v_vis = v_vis;
         self
     }
     pub fn clip_rect(mut self, clip_rect: Option<Rect>) -> Self {
@@ -484,10 +478,10 @@ impl ScrollAreaSpecBuilder {
 
     pub fn build(self) -> ScrollAreaSpec {
         ScrollAreaSpec {
-            rect: self.rect.unwrap_or_default(),
-            content_size: self.content_size.unwrap_or(Vec2::ZERO),
-            h_vis: self.h_vis.unwrap_or(ScrollbarVisibility::Auto),
-            v_vis: self.v_vis.unwrap_or(ScrollbarVisibility::Auto),
+            rect: self.rect.expect("rect not set — call .with_rect() or use the high-level API"),
+            content_size: self.content_size.expect("content_size not set — call .content_size()"),
+            h_vis: self.h_vis,
+            v_vis: self.v_vis,
             clip_rect: self.clip_rect,
         }
     }
@@ -770,7 +764,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
-                    style: crate::widgets::button::ButtonStyle::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -821,7 +815,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -862,7 +856,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1335,7 +1329,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1353,7 +1347,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1371,7 +1365,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1441,7 +1435,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1459,7 +1453,7 @@ mod tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1804,7 +1798,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1862,7 +1856,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2155,7 +2149,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2450,7 +2444,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2766,7 +2760,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3304,7 +3298,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: Default::default(),
+                    style: crate::widgets::button::ButtonStyle::primary(),
                     clip_rect: None,
                     disabled: false,
                 },

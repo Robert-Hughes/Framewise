@@ -131,7 +131,7 @@ This pattern cleanly separates concerns:
 > **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
-> **Builder Safety Rule:** Builders must not panic or error at runtime due to missing fields. If a builder has required fields, they must be specified up-front via constructor parameters (e.g., `ButtonSpecBuilder::new(text: String)`). Optional fields should use `Option<T>` and provide sensible defaults when unset.
+> **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — every required field is `Option<T>`, starts as `None`, and must be set explicitly before `build()`. Non-`Option` bool fields (e.g. `disabled`, `large`) are set to `false` in `new()` — their unambiguous normal state, not a theme-dependent value. `build()` panics with a clear message if any `Option<T>` field is still `None`; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*, *"rect not set — call .rect() or use the high-level API"*).
 
 ### `defaults_from_theme` — Theme as Fallback
 
@@ -139,7 +139,8 @@ Every `*SpecBuilder` exposes a `defaults_from_theme(theme: &Theme)` method. It f
 
 ```rust
 // custom style is preserved — defaults_from_theme sees style.is_some() and skips it
-let spec = ButtonSpecBuilder::new("Save".into())
+let spec = ButtonSpecBuilder::new()
+    .text("Save".into())
     .style(my_brand_style)
     .rect(rect)
     .defaults_from_theme(&theme)
@@ -150,7 +151,7 @@ This is the only correct behaviour given the call order: the app sets fields on 
 
 **High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
 
-**Raw API callers** must call it manually if they want themed defaults — or skip it entirely and specify every field explicitly. Both are valid:
+**Raw API callers** must either call `defaults_from_theme` manually or set every field explicitly. Skipping both will cause `build()` to panic on the first unset field:
 
 ```rust
 // themed defaults for unset fields
@@ -158,15 +159,42 @@ let spec = builder.rect(rect).defaults_from_theme(&theme).build();
 
 // fully explicit — no theme involvement
 let spec = builder.rect(rect).style(my_style).build();
+
+// panics at build() — style is unset
+let spec = builder.rect(rect).build();
 ```
 
 ### SpecBuilder Field Visibility
 
-`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction (`ButtonSpecBuilder { style: Some(s), ..Default::default() }`). The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard. Also you can read the values back.
+`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard.
 
 The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the "framework manages this" contract self-enforcing for `rect` and `clip_rect`; all operations are already covered by the existing setter methods.
 
 For now, fields remain `pub` and the framework-managed setter methods (`rect`, `clip_rect`, `defaults_from_theme`) carry doc comments explaining when to call them. Those struct fields may also warrant the same doc comments directly on their field declarations for the same reason.
+
+### Default Implementations — Spec, Style, and Builder
+
+None of `*Spec`, `*Style`, or `*SpecBuilder` structs implement `Default`. The reasons differ by type but share a common root: multiple sources of default values creates drift and obscures intent.
+
+**`*Spec` structs — no `Default`**
+
+Specs are fully resolved; every field is a concrete value with no `Option<>`. A `Default` impl must invent values for fields like `rect` (which has no `Default` of its own) and `style`, producing instances that compile but render broken — silent failure instead of an explicit signal. Lifetime-parameterised specs (`MenuSpec<'a>`, `TabsSpec<'a>`, etc.) add a further constraint: they cannot implement `Default` without `'static` bounds, which would be unacceptable. The builder is the correct layer for partial state; the spec is not.
+
+**`*Style` structs — no `Default`**
+
+The only authoritative source of style defaults is `Theme::xxx_style()` methods. A `*Style` struct is always either caller-supplied or theme-derived; there is no meaningful style independent of the theme. Hardcoded defaults on style structs duplicate the theme, diverge silently when the theme changes, and mask missing `defaults_from_theme()` calls with plausible-looking but wrong colors.
+
+**`*SpecBuilder` structs — no `Default`**
+
+Builders are constructed via `new()`, which already returns an all-`None` builder (plus bool flags set to `false`). A `Default` impl would just be an alias for `new()` — an extra indirection that adds no value and creates another callsite to keep in sync if fields change.
+
+**The asymmetry between `*Spec` and `*SpecBuilder` is intentional**
+
+`*Spec` is fully resolved — no partial state, no `Option<>`, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: `Option<>` fields represent "not yet set". Non-`Option` bool fields (`disabled`, `large`, etc.) default to `false` in `new()` — their unambiguous normal state. This is the only category of default value appropriate in a builder: state-flag semantics where `false` means "off", independent of any theme.
+
+**Exception**
+
+Purely numeric/visual specs with no required content (e.g. `MeterSpec`) may implement `Default` when a zero state has a genuinely reasonable rendering and there is no borrowed data. The bar is whether `Default::default()` produces something visually coherent and useful — not just something that compiles.
 
 ### Style Structs
 

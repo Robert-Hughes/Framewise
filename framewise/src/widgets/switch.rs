@@ -1,4 +1,4 @@
-use crate::{
+﻿use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
@@ -152,24 +152,7 @@ pub struct SwitchStyle {
     pub disabled_alpha: f32,
 }
 
-impl Default for SwitchStyle {
-    fn default() -> Self {
-        Self {
-            size: (30.0, 16.0),
-            thumb_size: 10.0,
-            off_fill: Color::from_srgb_u8(251, 249, 244, 255),
-            on_fill: Color::from_srgb_u8(21, 19, 15, 255),
-            border: Color::from_srgb_u8(21, 19, 15, 255),
-            off_thumb: Color::from_srgb_u8(21, 19, 15, 255),
-            on_thumb: Color::from_srgb_u8(244, 241, 234, 255),
-            focus: Color::from_srgb_u8(194, 90, 44, 255),
-            border_width: 1.5,
-            focus_width: 2.0,
-            focus_offset: 2.0,
-            disabled_alpha: 0.35,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchSpecBuilder {
@@ -178,12 +161,6 @@ pub struct SwitchSpecBuilder {
     pub style: Option<SwitchStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<Rect>,
-}
-
-impl Default for SwitchSpecBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl SwitchSpecBuilder {
@@ -238,10 +215,10 @@ impl SwitchSpecBuilder {
 
     pub fn build(self) -> SwitchSpec {
         SwitchSpec {
-            rect: self.rect.unwrap_or_default(),
+            rect: self.rect.expect("rect not set — call .rect() or use the high-level API"),
             on: self.on,
             disabled: self.disabled,
-            style: self.style.unwrap_or_default(),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self.clip_rect,
         }
     }
@@ -345,7 +322,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -377,7 +354,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: true,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -413,7 +390,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -451,7 +428,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
             disabled: true,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
@@ -491,7 +468,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
 
@@ -516,7 +493,7 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             on: false,
             disabled: false,
-            style: Default::default(),
+            style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
 
