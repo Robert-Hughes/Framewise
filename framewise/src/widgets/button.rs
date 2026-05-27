@@ -360,10 +360,10 @@ mod tests {
     use crate::text::TextHandle;
     use crate::theme;
     use crate::types::Vec2;
-    fn btn_spec(y: f32) -> ButtonSpec {
+    fn btn_spec(rect: Rect) -> ButtonSpec {
         ButtonSpec {
-            rect: Rect::new(0.0, y, 100.0, 30.0),
-            text: "B".into(),
+            rect,
+            text: "Btn".into(),
             style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
@@ -379,10 +379,10 @@ mod tests {
     ) -> (ButtonState, ButtonState) {
         let mut ts = DummyTextSys;
         focus_sys.begin_frame();
-        let r1 = raw::button(s1, btn_spec(0.0), input, &mut ts, focus_sys)
+        let r1 = raw::button(s1, btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)), input, &mut ts, focus_sys)
             .into_parts()
             .1;
-        let r2 = raw::button(s2, btn_spec(40.0), input, &mut ts, focus_sys)
+        let r2 = raw::button(s2, btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)), input, &mut ts, focus_sys)
             .into_parts()
             .1;
         focus_sys.end_frame();
@@ -472,18 +472,12 @@ mod tests {
         let mut state2 = ButtonState::default();
 
         let btn1_spec = || ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Click Me".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
+            ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
         };
         let btn2_spec = || ButtonSpec {
-            rect: Rect::new(0.0, 100.0, 100.0, 50.0),
             text: "Btn2".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
+            ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
         };
 
         // Frame 1: Mouse down on Btn1
@@ -578,13 +572,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
 
-        let spec = || ButtonSpec {
-            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Mouse pressed
         let mut focus_sys = crate::focus::FocusSystem::new();
@@ -618,13 +606,7 @@ mod tests {
         let state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0);
@@ -648,13 +630,7 @@ mod tests {
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        let spec = || ButtonSpec {
-            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Register and take focus explicitly
         let mut input = Input::default();
@@ -679,13 +655,7 @@ mod tests {
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        let spec = || ButtonSpec {
-            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Mouse outside
         let mut input = Input {
@@ -737,13 +707,7 @@ mod tests {
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        let spec = || ButtonSpec {
-            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Focus
         let mut input = Input::default();
@@ -792,13 +756,7 @@ mod tests {
         let mut state = ButtonState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
 
-        let spec = || ButtonSpec {
-            rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Focus
         let mut input = Input::default();
@@ -849,13 +807,7 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
-        let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         focus_sys.begin_frame();
         let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
@@ -897,13 +849,7 @@ mod tests {
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
-        let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         focus_sys.begin_frame();
         let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
@@ -948,13 +894,7 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         focus_sys.begin_frame();
         let res = raw::button(state, spec, &input, &mut text_sys, &mut focus_sys);
@@ -994,13 +934,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = crate::focus::FocusSystem::new();
         let state = ButtonState::default();
-        let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
-            disabled: false,
-        };
+        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         focus_sys.take_focus(state.focus_id);
 
@@ -1057,11 +991,8 @@ mod tests {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let state = ButtonState::default();
         let spec = ButtonSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".to_string(),
-            style: theme::Theme::default().button_primary_style(),
-            clip_rect: None,
             disabled: true,
+            ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
         };
 
         focus_sys.begin_frame();

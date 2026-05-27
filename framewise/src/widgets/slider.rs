@@ -687,18 +687,7 @@ mod tests {
     fn test_slider_page_up_down_keyboard() {
         let mut state = SliderState::default();
         let mut value = 50.0;
-        let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
-            min: 0.0,
-            max: 100.0,
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
-            style: crate::theme::Theme::framewise().slider_style(),
-            clip_rect: None,
-            claim_scroll_at_ends: true,
-        };
+        let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
@@ -777,19 +766,11 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 0.0;
         let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0), // track height 100
-            min: 0.0,
-            max: 100.0, // range 100
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
             style: SliderStyle {
                 thumb_size: 20.0,
                 ..crate::theme::Theme::framewise().slider_style()
             },
-            clip_rect: None,
-            claim_scroll_at_ends: true,
+            ..test_spec(0.0, 100.0, true)
         };
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
@@ -833,18 +814,7 @@ mod tests {
     fn test_slider_track_click_hold() {
         let mut state = SliderState::default();
         let mut value = 0.0;
-        let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0), // track height 100
-            min: 0.0,
-            max: 100.0,
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
-            style: crate::theme::Theme::framewise().slider_style(),
-            clip_rect: None,
-            claim_scroll_at_ends: true,
-        };
+        let spec = test_spec(0.0, 100.0, true);
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
 
@@ -918,18 +888,7 @@ mod tests {
     fn test_slider_arrow_keys() {
         let mut state = SliderState::default();
         let mut value = 50.0;
-        let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
-            min: 0.0,
-            max: 100.0,
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
-            style: crate::theme::Theme::framewise().slider_style(),
-            clip_rect: None,
-            claim_scroll_at_ends: true,
-        };
+        let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
@@ -1136,18 +1095,7 @@ mod tests {
     fn test_slider_mouse_wheel() {
         let mut state = SliderState::default();
         let mut value = 50.0;
-        let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
-            min: 0.0,
-            max: 100.0,
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
-            style: crate::theme::Theme::framewise().slider_style(),
-            clip_rect: None,
-            claim_scroll_at_ends: true,
-        };
+        let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
@@ -1196,19 +1144,11 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 0.0_f32;
         let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
-            min: 0.0,
-            max: 100.0,
-            page_step: 20.0,
-            step: 5.0,
-            thumb_size_ratio: None,
             style: SliderStyle {
                 thumb_size: 20.0,
                 ..crate::theme::Theme::framewise().slider_style()
             },
-            clip_rect: None,
-            claim_scroll_at_ends: true,
+            ..test_spec(0.0, 100.0, true)
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
@@ -1277,19 +1217,12 @@ mod tests {
         let mut state = SliderState::default();
         let mut value = 0.0_f32;
         let spec = SliderSpec {
-            orientation: Orientation::Vertical,
-            rect: Rect::new(0.0, 0.0, 20.0, 100.0),
-            min: 0.0,
-            max: 100.0,
             page_step: 60.0,
-            step: 5.0,
-            thumb_size_ratio: None,
             style: SliderStyle {
                 thumb_size: 20.0,
                 ..crate::theme::Theme::framewise().slider_style()
             },
-            clip_rect: None,
-            claim_scroll_at_ends: true,
+            ..test_spec(0.0, 100.0, true)
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();

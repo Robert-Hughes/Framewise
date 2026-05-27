@@ -13,7 +13,7 @@ use framewise::{
     types::{Color, Rect, Vec2},
     widget::WidgetContext,
     widgets::{
-        button::{button, raw::ButtonSpec, ButtonState, ButtonStyle},
+        button::{button, ButtonState, ButtonStyle},
         checkbox::{checkbox, CheckState, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState},
         chip::{chip, ChipSpecBuilder, ChipState},
         color_swatch::color_swatch,
@@ -29,7 +29,7 @@ use framewise::{
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility},
         segmented::{segmented, SegmentedSpecBuilder, SegmentedState},
         select::{select, raw::SelectSpec, SelectSpecBuilder, SelectState},
-        slider::{slider, Orientation as SliderOrientation, SliderState},
+        slider::{slider, SliderState},
         spinner::{spinner, SpinnerSpecBuilder},
         status::{status, StatusVariant},
         switch::{switch, raw::SwitchSpec, SwitchSpecBuilder, SwitchState},
@@ -303,13 +303,11 @@ fn draw_button_fake_state<
         Input::default()
     };
 
-    let spec = ButtonSpec {
-        rect,
-        text: text.to_string(),
-        style,
-        clip_rect: None,
-        disabled: false,
-    };
+    let spec = ButtonSpecBuilder::new()
+        .text(text.to_string())
+        .style(style)
+        .rect(rect)
+        .build();
 
     let result = framewise::widgets::button::raw::button(
         state,
@@ -1528,14 +1526,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let step = 0.1;
-                    let orientation = SliderOrientation::Horizontal;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new()
-                        .min(0.0)
                         .max(1.0)
                         .page_step(step)
-                        .step(step)
-                        .orientation(orientation);
+                        .step(step);
                     slider(
                         this,
                         &mut state.slider1_state,
@@ -1561,14 +1556,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let step = 0.1;
-                    let orientation = SliderOrientation::Horizontal;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new()
-                        .min(0.0)
                         .max(1.0)
                         .page_step(step)
-                        .step(step)
-                        .orientation(orientation);
+                        .step(step);
                     slider(
                         this,
                         &mut state.slider2_state,
@@ -1594,14 +1586,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let step = 0.1;
-                    let orientation = SliderOrientation::Horizontal;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new()
-                        .min(0.0)
                         .max(1.0)
                         .page_step(step)
-                        .step(step)
-                        .orientation(orientation);
+                        .step(step);
                     slider(
                         this,
                         &mut state.slider3_state,
@@ -1628,14 +1617,10 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let step = 1.0;
-                    let orientation = SliderOrientation::Horizontal;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new()
-                        .min(0.0)
                         .max(9.0)
-                        .page_step(step)
-                        .step(step)
-                        .orientation(orientation);
+                        .page_step(step);
                     slider(
                         this,
                         &mut state.slider4_state,
@@ -1758,7 +1743,6 @@ pub fn draw_spec_page(
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("X")
                         .value(state.value)
-                        .min(0.0)
                         .max(800.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
@@ -1772,7 +1756,6 @@ pub fn draw_spec_page(
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("Y")
                         .value(state.value)
-                        .min(0.0)
                         .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
@@ -1798,7 +1781,6 @@ pub fn draw_spec_page(
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("H")
                         .value(state.value)
-                        .min(0.0)
                         .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
@@ -3189,14 +3171,12 @@ pub fn draw_spec_page(
                 {
                     let this = &mut win;
                     let step = 10.0;
-                    let orientation = SliderOrientation::Horizontal;
                     let layout_params = Rect::new(widget_x, fy, widget_w - 40.0, row_h);
                     let spec_builder = SliderSpecBuilder::new()
                         .min(24.0)
                         .max(240.0)
                         .page_step(step)
-                        .step(step)
-                        .orientation(orientation);
+                        .step(step);
                     slider(
                         this,
                         &mut state.iu_fps_slider,
@@ -3300,7 +3280,6 @@ pub fn draw_spec_page(
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("W")
                         .value(state.value)
-                        .min(0.0)
                         .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
@@ -3318,7 +3297,6 @@ pub fn draw_spec_page(
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("H")
                         .value(state.value)
-                        .min(0.0)
                         .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
