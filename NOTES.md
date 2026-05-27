@@ -6,12 +6,16 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * How do widget Result structs work with container widgets like Window or ScrollArea - they currently return a child WidgetContext instead!
+  * slider
+  * scroll_area
+  * spinner, status, tooltip, tree
+  * window
 
 * Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
 * Remove shorthand accessors on *Results structs (like ButtonResult::clicked())?
 * DrawCommands vs. Vec<DrawCmd>
 
-* FIgure out if clip_rects are being handled properly. SHould these be associated with scopes, WidgetContexts etc? Seems to be too much manual handling atm.
+* clip_rect
   - Default handling in SpecBuilders is different to other fields, e.g. for rect the builder overrides it
   - Tests for clicks on clipped widgets (menu and tree, and window should fail)
   - "only needed when using the raw API directly, or to clip tighter than the context default". - WRONG COMMENT NOT IMPLEMENTED LIKE THIS

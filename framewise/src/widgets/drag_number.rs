@@ -614,6 +614,38 @@ mod tests {
     }
 
     #[test]
+    fn test_drag_number_clipped_click_does_not_take_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = DragNumberState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(15.0, 15.0);
+        input.mouse_pressed = true;
+
+        let mut text_sys = DummyTextSys;
+        let spec = DragNumberSpec {
+            rect: Rect::new(0.0, 0.0, 100.0, 28.0),
+            label: "X",
+            font: FontId(1),
+            value: 50.0,
+            min: 0.0,
+            max: 100.0,
+            disabled: false,
+            style: crate::theme::Theme::framewise().drag_number_style(),
+            clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
+        };
+
+        focus_sys.begin_frame();
+        raw::drag_number(state, spec, &input, &mut focus_sys, &mut text_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away drag number must not take focus"
+        );
+    }
+
+    #[test]
     fn test_drag_number_keyboard_navigation() {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut state = DragNumberState::default();

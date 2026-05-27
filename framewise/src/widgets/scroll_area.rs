@@ -1522,6 +1522,50 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_scrollbar_clipped_click_does_not_take_focus() {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let mut state = ScrollState::default();
+        let mut focus_sys = crate::focus::FocusSystem::new();
+
+        // Pre-render to materialise the vertical slider's focus_id.
+        focus_sys.begin_frame();
+        let spec = ScrollAreaSpec {
+            rect: bounds,
+            content_size: Vec2::new(200.0, 1000.0),
+            h_vis: ScrollbarVisibility::None,
+            v_vis: ScrollbarVisibility::Always,
+            clip_rect: None,
+        };
+        let (_, token, _, _) =
+            begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0);
+        raw::end_scroll_area(token, &mut focus_sys);
+        focus_sys.end_frame();
+
+        // Mouse is on the scrollbar track but the clip_rect is far away — widget is hidden.
+        let mut input = Input::new();
+        input.mouse_pos = Vec2::new(194.0, 10.0);
+        input.mouse_pressed = true;
+
+        focus_sys.begin_frame();
+        let spec = ScrollAreaSpec {
+            rect: bounds,
+            content_size: Vec2::new(200.0, 1000.0),
+            h_vis: ScrollbarVisibility::None,
+            v_vis: ScrollbarVisibility::Always,
+            clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
+        };
+        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        raw::end_scroll_area(token, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away scrollbar must not take focus"
+        );
+    }
+
     /// Home/End act when the scrollbar slider is focused (slider's own keyboard handler).
     /// They do not propagate from child widgets via the token — that's intentional.
     #[test]

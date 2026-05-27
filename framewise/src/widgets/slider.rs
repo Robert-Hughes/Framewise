@@ -234,7 +234,8 @@ pub mod raw {
         }
 
         // Track click (mouse down on track, not on thumb)
-        if input.mouse_pressed
+        if is_visible
+            && input.mouse_pressed
             && !thumb_rect.contains(input.mouse_pos)
             && track_rect.contains(input.mouse_pos)
         {
@@ -251,7 +252,7 @@ pub mod raw {
         }
 
         // Thumb drag start
-        if input.mouse_pressed && thumb_rect.contains(input.mouse_pos) {
+        if is_visible && input.mouse_pressed && thumb_rect.contains(input.mouse_pos) {
             focus_sys.take_focus(state.focus_id);
             state.is_dragging = true;
             state.drag_start_mouse_coord = mouse_coord;
@@ -1088,6 +1089,31 @@ mod tests {
             focus_sys.current_focus(),
             Some(state.focus_id),
             "Clicking slider must request focus"
+        );
+    }
+
+    #[test]
+    fn test_slider_clipped_click_does_not_take_focus() {
+        let mut state = SliderState::default();
+        let mut focus_sys = FocusSystem::new();
+        let mut value = 50.0_f32;
+
+        // Mouse is inside the widget rect but outside the clip_rect.
+        let mut spec = test_spec(0.0, 100.0, true);
+        spec.clip_rect = Some(Rect::new(500.0, 500.0, 20.0, 100.0));
+
+        let mut input = crate::input::Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
+        input.mouse_pressed = true;
+
+        focus_sys.begin_frame();
+        raw::slider(&mut state, &mut value, spec, &input, 0.0, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away slider must not take focus"
         );
     }
 

@@ -472,6 +472,33 @@ mod tests {
     }
 
     #[test]
+    fn test_switch_clipped_click_does_not_take_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = SwitchState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(15.0, 15.0);
+        input.mouse_pressed = true;
+
+        let spec = SwitchSpec {
+            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+            on: false,
+            disabled: false,
+            style: crate::theme::Theme::framewise().switch_style(),
+            clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
+        };
+
+        focus_sys.begin_frame();
+        raw::switch(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away switch must not take focus"
+        );
+    }
+
+    #[test]
     fn test_switch_keyboard_toggle() {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut state = SwitchState::default();

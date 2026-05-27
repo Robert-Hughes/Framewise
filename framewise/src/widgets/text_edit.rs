@@ -1127,6 +1127,56 @@ mod tests {
     }
 
     #[test]
+    fn test_text_edit_click_takes_focus() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let state = TextEditState::new("hello");
+
+        let mut input = Input::default();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 15.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        focus_sys.begin_frame();
+        let res = raw::text_edit(state, spec(), &input, 0.0, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            Some(res.state.focus_id),
+            "Clicking text edit must request focus"
+        );
+    }
+
+    #[test]
+    fn test_text_edit_clipped_click_does_not_take_focus() {
+        let mut text_sys = DummyTextSys;
+        let mut focus_sys = FocusSystem::new();
+        let state = TextEditState::new("hello");
+
+        // Mouse is inside the widget rect but outside the clip_rect.
+        let clipped_spec = TextEditSpec {
+            clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 30.0)),
+            ..spec()
+        };
+
+        let mut input = Input::default();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 15.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        focus_sys.begin_frame();
+        raw::text_edit(state, clipped_spec, &input, 0.0, &mut text_sys, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away text edit must not take focus"
+        );
+    }
+
+    #[test]
     fn test_clipboard_actions() {
         let mut text_sys = DummyTextSys;
         let mut focus_sys = FocusSystem::new();

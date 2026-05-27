@@ -515,6 +515,37 @@ mod tests {
     }
 
     #[test]
+    fn test_tabs_clipped_click_does_not_take_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = TabsState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(20.0, 10.0);
+        input.mouse_pressed = true;
+
+        let mut text_sys = DummyTextSys;
+        let items = ["Tab1", "Tab2"];
+        let spec = TabsSpec {
+            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+            items: &items,
+            font: FontId(1),
+            active_index: 0,
+            disabled: false,
+            style: crate::theme::Theme::framewise().tabs_style(),
+            clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
+        };
+
+        focus_sys.begin_frame();
+        raw::tabs(state, spec, &input, &mut focus_sys, &mut text_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away tabs widget must not take focus"
+        );
+    }
+
+    #[test]
     fn test_tabs_keyboard_navigation() {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut state = TabsState::default();

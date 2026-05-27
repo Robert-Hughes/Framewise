@@ -467,6 +467,33 @@ mod tests {
     }
 
     #[test]
+    fn test_radio_clipped_click_does_not_take_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = RadioState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(15.0, 15.0);
+        input.mouse_pressed = true;
+
+        let spec = RadioSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            selected: false,
+            disabled: false,
+            style: crate::theme::Theme::framewise().radio_style(),
+            clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
+        };
+
+        focus_sys.begin_frame();
+        raw::radio(state, spec, &input, &mut focus_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away radio must not take focus"
+        );
+    }
+
+    #[test]
     fn test_radio_keyboard_toggle() {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut state = RadioState::default();

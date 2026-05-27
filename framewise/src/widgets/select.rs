@@ -665,6 +665,37 @@ mod tests {
     }
 
     #[test]
+    fn test_select_clipped_click_does_not_take_focus() {
+        let mut focus_sys = crate::focus::FocusSystem::new();
+        let state = SelectState::default();
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(15.0, 15.0);
+        input.mouse_pressed = true;
+
+        let mut text_sys = DummyTextSys;
+        let options = vec!["Option 1", "Option 2"];
+        let spec = SelectSpec {
+            rect: Rect::new(0.0, 0.0, 180.0, 28.0),
+            value: "Option 1",
+            font: FontId(0),
+            options: &options,
+            disabled: false,
+            style: crate::theme::Theme::framewise().select_style(),
+            clip_rect: Some(Rect::new(500.0, 500.0, 180.0, 28.0)),
+        };
+
+        focus_sys.begin_frame();
+        raw::select(state, spec, &input, &mut focus_sys, &mut text_sys);
+        focus_sys.end_frame();
+
+        assert_eq!(
+            focus_sys.current_focus(),
+            None,
+            "Clicking a clipped-away select must not take focus"
+        );
+    }
+
+    #[test]
     fn test_select_keyboard_navigation() {
         let mut focus_sys = crate::focus::FocusSystem::new();
         let mut state = SelectState::default();
