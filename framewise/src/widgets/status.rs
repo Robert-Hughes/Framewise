@@ -3,11 +3,15 @@ use crate::{
     focus::FocusSystem,
     text::FontId,
     types::{Color, Rect},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
     use super::*;
+
+    pub struct StatusResult {
+        pub draw: DrawCommands,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct StatusSpec<'a> {
@@ -86,7 +90,7 @@ pub struct StatusStyle {
 }
 
 pub struct StatusResult {
-    pub draw: DrawCommands,
+    pub layout: LayoutInfo,
 }
 
 
@@ -104,13 +108,14 @@ pub fn status<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: StatusSpecBuilder<'a>,
-) {
+) -> StatusResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
+    StatusResult { layout: LayoutInfo::tight(rect) }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

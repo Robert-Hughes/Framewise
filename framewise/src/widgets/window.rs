@@ -1,9 +1,9 @@
 use crate::{
-    draw::DrawCmd,
+    draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -27,7 +27,7 @@ pub mod raw {
     pub fn begin_window<'a, T: crate::text::TextSystem>(
         spec: WindowSpec<'a>,
         text_system: &mut T,
-    ) -> (Vec<DrawCmd>, Rect) {
+    ) -> WindowResult {
         let mut draw = Vec::new();
         let s = spec.style;
 
@@ -119,7 +119,12 @@ pub mod raw {
 
         draw.push(DrawCmd::PushClip { rect: content });
 
-        (draw, content)
+        WindowResult { draw: DrawCommands(draw), content_bounds: content }
+    }
+
+    pub struct WindowResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
     }
 
     // Low-level window end function.
@@ -156,14 +161,24 @@ pub struct WindowStyle {
     pub border_width: f32,
 }
 
+pub struct WindowResult<
+    'b,
+    T: crate::text::TextSystem,
+    LS: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+> {
+    pub layout: LayoutInfo,
+    pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
 // ── High-level widget functions ───────────────────────────────────────────────────
 
 /// High-level window begin function using WidgetContext.
 ///
 /// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
-/// and returns a child WidgetContext.
+/// and returns a WindowResult containing the layout info and child WidgetContext.
 ///
-/// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
+/// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
 pub fn begin_window<
     'a,
     'b,
@@ -177,7 +192,7 @@ pub fn begin_window<
     layout_params: LS::Params,
     builder: WindowSpecBuilder<'c>,
     inner_layout: L,
-) -> WidgetContext<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
+) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
     let layout_bounds = parent.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
@@ -187,22 +202,24 @@ pub fn begin_window<
         .defaults_from_theme(&parent.theme)
         .buttons(buttons)
         .build();
-    let (pre_cmds, content) = raw::begin_window(spec, parent.text_system);
-    parent.append_cmds(pre_cmds);
+    let raw::WindowResult { draw, content_bounds } = raw::begin_window(spec, parent.text_system);
+    parent.append_cmds(draw.0);
 
     let new_clip = Some(
         parent
             .clip_rect
-            .map_or(content, |pc| pc.intersect(&content)),
+            .map_or(content_bounds, |pc| pc.intersect(&content_bounds)),
     );
 
     let on_finish = move |_: &mut FocusSystem| raw::end_window();
 
-    parent.child_with_layout_and_on_finish_and_clip_rect(
-        inner_layout.begin(content),
+    let ctx = parent.child_with_layout_and_on_finish_and_clip_rect(
+        inner_layout.begin(content_bounds),
         on_finish,
         new_clip,
-    )
+    );
+
+    WindowResult { layout: LayoutInfo::new(bounds, content_bounds), ctx }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -340,7 +357,7 @@ mod tests {
                 .rect(custom_rect),
             ManualLayout,
         );
-        child.finish();
+        child.ctx.finish();
         assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if *rect == custom_rect)));
     }
 }

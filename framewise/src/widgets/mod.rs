@@ -51,7 +51,7 @@ pub use progress_bar::{
 pub use radio::{
     radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle,
 };
-pub use scroll_area::{begin_scroll_area, ScrollState, ScrollbarVisibility};
+pub use scroll_area::{begin_scroll_area, ScrollAreaResult, ScrollState, ScrollbarVisibility};
 pub use segmented::{
     segmented, SegmentedResult, SegmentedSpecBuilder, SegmentedState,
     SegmentedStyle,
@@ -59,7 +59,7 @@ pub use segmented::{
 pub use select::{
     select, SelectResult, SelectSpecBuilder, SelectState, SelectStyle,
 };
-pub use slider::{slider, Orientation, SliderState, SliderStyle};
+pub use slider::{slider, Orientation, SliderResult, SliderState, SliderStyle};
 pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
 pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
 pub use switch::{
@@ -75,5 +75,5 @@ pub use tooltip::{
 };
 pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
 pub use window::{
-    begin_window, WindowButton, WindowSpecBuilder, WindowStyle,
+    begin_window, WindowButton, WindowResult, WindowSpecBuilder, WindowStyle,
 };

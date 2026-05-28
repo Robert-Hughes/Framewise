@@ -273,7 +273,7 @@ impl App {
                         .content_size(Vec2::new(200.0, content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
-                );
+                ).ctx;
 
                 for i in 0..20 {
                     let shade = (i % 2) as f32 * 0.15;
@@ -308,7 +308,7 @@ impl App {
                         .content_size(Vec2::new(win_size.0 - 240.0, 2000.0))
                         .h_vis(ScrollbarVisibility::None)
                         .v_vis(ScrollbarVisibility::Always),
-                );
+                ).ctx;
                 let inner_w = win_size.0 - 240.0 - 15.0;
 
                 // Top Header Row
@@ -467,7 +467,7 @@ impl App {
                         .content_size(Vec2::new(inner_w, content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
-                );
+                ).ctx;
                 let mut button_style = main_scroll.theme.button_secondary_style();
                 button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
                 button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
@@ -510,7 +510,7 @@ impl App {
                         .content_size(Vec2::new(800.0, outer_content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
-                );
+                ).ctx;
 
                 for i in 0..3 {
                     let row_state = &mut self.nested_rows[i];
@@ -558,7 +558,7 @@ impl App {
                             .content_size(Vec2::new(120.0, inner_content_height))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Auto),
-                    );
+                    ).ctx;
 
                     for j in 0..6 {
                         let shade = (j % 2) as f32 * 0.15;
@@ -595,7 +595,7 @@ impl App {
                             .content_size(Vec2::new(horiz_content_width, row_h))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                    );
+                    ).ctx;
 
                     for j in 0..10 {
                         let shade = (j % 2) as f32 * 0.15;
@@ -634,7 +634,7 @@ impl App {
                             .content_size(Vec2::new(both_width, both_height))
                             .h_vis(ScrollbarVisibility::Auto)
                             .v_vis(ScrollbarVisibility::Auto),
-                    );
+                    ).ctx;
 
                     for j in 0..48 {
                         let x = (j % 8) as f32 * 88.0;
@@ -707,7 +707,7 @@ impl App {
                         .content_size(Vec2::new(2000.0, 150.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
-                );
+                ).ctx;
 
                 // Left spacer/button
                 {
@@ -728,7 +728,7 @@ impl App {
                         .content_size(Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
-                );
+                ).ctx;
 
                 for j in 0..20 {
                     let btn = {
@@ -776,7 +776,7 @@ impl App {
                             .content_size(Vec2::new(840.0, 400.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::Always),
-                    );
+                    ).ctx;
 
                     // Status label at top-left of outer content
                     {
@@ -821,7 +821,7 @@ impl App {
                             .content_size(Vec2::new(500.0, 300.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::Always),
-                    );
+                    ).ctx;
 
                     for j in 0..20 {
                         let col = j % 4;
@@ -879,7 +879,7 @@ impl App {
                             .content_size(Vec2::new(inner_w, 500.0))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
-                    );
+                    ).ctx;
 
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
@@ -901,7 +901,7 @@ impl App {
                             .content_size(Vec2::new(1400.0, 160.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                    );
+                    ).ctx;
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
@@ -921,7 +921,7 @@ impl App {
                             .content_size(Vec2::new(200.0, inner_content_h))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
-                    );
+                    ).ctx;
 
                     for j in 0..12 {
                         let shade = (j % 2) as f32 * 0.12;
@@ -956,7 +956,7 @@ impl App {
                             .content_size(Vec2::new(innermost_content_w, 50.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
-                    );
+                    ).ctx;
                     for k in 0..5 {
                         let mut button_style = innermost_scroll.theme.button_secondary_style();
                         button_style.background =

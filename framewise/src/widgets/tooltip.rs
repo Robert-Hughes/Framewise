@@ -3,11 +3,15 @@ use crate::{
     focus::FocusSystem,
     text::FontId,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
     use super::*;
+
+    pub struct TooltipResult {
+        pub draw: DrawCommands,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TooltipSpec<'a> {
@@ -97,7 +101,7 @@ pub struct TooltipStyle {
 }
 
 pub struct TooltipResult {
-    pub draw: DrawCommands,
+    pub layout: LayoutInfo,
 }
 
 
@@ -115,13 +119,14 @@ pub fn tooltip<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
-) {
+) -> TooltipResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
+    TooltipResult { layout: LayoutInfo::tight(rect) }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

@@ -2,11 +2,15 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     types::{Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
     use super::*;
+
+    pub struct SpinnerResult {
+        pub draw: DrawCommands,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerSpec {
@@ -172,7 +176,7 @@ impl SpinnerSpecBuilder {
 }
 
 pub struct SpinnerResult {
-    pub draw: DrawCommands,
+    pub layout: LayoutInfo,
 }
 
 
@@ -189,13 +193,14 @@ pub fn spinner<
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
     builder: SpinnerSpecBuilder,
-) {
+) -> SpinnerResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw.0);
+    SpinnerResult { layout: LayoutInfo::tight(rect) }
 }
 
 #[cfg(test)]

@@ -1,9 +1,9 @@
 use crate::{
-    draw::DrawCmd,
+    draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     types::{ClipRect, Color, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -30,6 +30,10 @@ pub mod raw {
         pub claim_scroll_at_ends: bool,
     }
 
+    pub struct SliderResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level slider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -41,7 +45,7 @@ pub mod raw {
         input: &Input,
         _time: f64,
         focus_sys: &mut FocusSystem,
-    ) -> Vec<DrawCmd> {
+    ) -> SliderResult {
         let mut cmds = Vec::new();
 
         // Safety clamp min/max
@@ -474,7 +478,7 @@ pub mod raw {
             }
         }
 
-        cmds
+        SliderResult { draw: DrawCommands(cmds) }
     }
 }
 
@@ -546,6 +550,10 @@ impl Default for SliderState {
     }
 }
 
+pub struct SliderResult {
+    pub layout: LayoutInfo,
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level slider widget function using WidgetContext.
@@ -561,7 +569,7 @@ pub fn slider<
     value: &mut f32,
     layout_params: S::Params,
     builder: SliderSpecBuilder,
-) {
+) -> SliderResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
@@ -570,8 +578,9 @@ pub fn slider<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let cmds = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
-    ctx.append_cmds(cmds);
+    let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
+    ctx.append_cmds(result.draw.0);
+    SliderResult { layout: LayoutInfo::tight(rect) }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -1584,7 +1593,7 @@ mod tests {
 
         let input = Input::new();
         focus_sys.begin_frame();
-        let cmds = raw::slider(
+        let result = raw::slider(
             &mut state,
             &mut value,
             spec.clone(),
@@ -1595,7 +1604,7 @@ mod tests {
         focus_sys.end_frame();
 
         assert_eq!(
-            cmds,
+            result.draw.0,
             vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
@@ -1629,7 +1638,7 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
 
         focus_sys.begin_frame();
-        let cmds = raw::slider(
+        let result = raw::slider(
             &mut state,
             &mut value,
             spec.clone(),
@@ -1640,7 +1649,7 @@ mod tests {
         focus_sys.end_frame();
 
         assert_eq!(
-            cmds,
+            result.draw.0,
             vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
@@ -1674,7 +1683,7 @@ mod tests {
         let mut input = Input::new();
         input.mouse_down = true;
         focus_sys.begin_frame();
-        let cmds = raw::slider(
+        let result = raw::slider(
             &mut state,
             &mut value,
             spec.clone(),
@@ -1685,7 +1694,7 @@ mod tests {
         focus_sys.end_frame();
 
         assert_eq!(
-            cmds,
+            result.draw.0,
             vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
@@ -1719,7 +1728,7 @@ mod tests {
 
         let input = Input::new();
         focus_sys.begin_frame();
-        let cmds = raw::slider(
+        let result = raw::slider(
             &mut state,
             &mut value,
             spec.clone(),
@@ -1730,7 +1739,7 @@ mod tests {
         focus_sys.end_frame();
 
         assert_eq!(
-            cmds,
+            result.draw.0,
             vec![
                 DrawCmd::StrokeRect {
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),

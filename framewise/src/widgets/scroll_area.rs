@@ -1,10 +1,10 @@
 use crate::{
-    draw::DrawCmd,
+    draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
     layout::Layout,
     types::{ClipRect, Rect, Vec2},
-    widget::WidgetContext,
+    widget::{LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -28,6 +28,13 @@ pub mod raw {
         pub(super) mode: super::ScrollMode,
     }
 
+    pub struct ScrollAreaResult {
+        pub draw: DrawCommands,
+        pub token: ScrollAreaToken,
+        pub content_bounds: Rect,
+        pub offset: Vec2,
+    }
+
     /// Low-level scroll area begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -38,7 +45,7 @@ pub mod raw {
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
         time: f64,
-    ) -> (Vec<DrawCmd>, ScrollAreaToken, Rect, Vec2) {
+    ) -> ScrollAreaResult {
         let mut pre_cmds = Vec::new();
 
         focus_sys.push_keyboard_scroll_scope(state.id);
@@ -157,7 +164,7 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
-            let slider_cmds = crate::widgets::slider::raw::slider(
+            let slider_result = crate::widgets::slider::raw::slider(
                 &mut state.vert_slider_state,
                 &mut state.offset.y,
                 slider_spec,
@@ -165,7 +172,7 @@ pub mod raw {
                 time,
                 focus_sys,
             );
-            pre_cmds.extend(slider_cmds);
+            pre_cmds.extend(slider_result.draw.0);
         }
 
         if needs_h {
@@ -194,7 +201,7 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
-            let slider_cmds = crate::widgets::slider::raw::slider(
+            let slider_result = crate::widgets::slider::raw::slider(
                 &mut state.horiz_slider_state,
                 &mut state.offset.x,
                 slider_spec,
@@ -202,7 +209,7 @@ pub mod raw {
                 time,
                 focus_sys,
             );
-            pre_cmds.extend(slider_cmds);
+            pre_cmds.extend(slider_result.draw.0);
         }
 
         pre_cmds.push(DrawCmd::PushClip {
@@ -222,7 +229,12 @@ pub mod raw {
             mode,
         };
 
-        (pre_cmds, token, content_bounds, state.offset)
+        ScrollAreaResult {
+            draw: DrawCommands(pre_cmds),
+            token,
+            content_bounds,
+            offset: state.offset,
+        }
     }
 
     /// Low-level scroll area end function.
@@ -532,6 +544,16 @@ impl ScrollMode {
     }
 }
 
+pub struct ScrollAreaResult<
+    'b,
+    T: crate::text::TextSystem,
+    LS: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+> {
+    pub layout: LayoutInfo,
+    pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
 // ── High-level widget functions ───────────────────────────────────────────────────
 
 /// High-level scroll area begin function using WidgetContext.
@@ -553,7 +575,7 @@ pub fn begin_scroll_area<
     state: &'b mut ScrollState,
     inner_layout: L,
     builder: ScrollAreaSpecBuilder,
-) -> WidgetContext<
+) -> ScrollAreaResult<
     'b,
     T,
     crate::layout::OffsetState<L::State>,
@@ -563,10 +585,10 @@ pub fn begin_scroll_area<
     let bounds = builder.rect.unwrap_or(layout_bounds);
     let clip = builder.clip_rect.unwrap_or(parent.clip_rect);
     let spec = builder.rect(bounds).clip_rect(clip).build();
-    let (pre_cmds, token, content_bounds, offset) =
+    let raw::ScrollAreaResult { draw, token, content_bounds, offset } =
         raw::begin_scroll_area(spec, state, parent.input, parent.focus_sys, parent.time);
 
-    parent.append_cmds(pre_cmds);
+    parent.append_cmds(draw.0);
 
     let offset_layout = crate::layout::OffsetLayout {
         offset,
@@ -578,11 +600,15 @@ pub fn begin_scroll_area<
 
     let on_finish = move |focus_sys: &mut FocusSystem| raw::end_scroll_area(token, focus_sys);
 
-    parent.child_with_layout_and_on_finish_and_clip_rect(
+    let ctx = parent.child_with_layout_and_on_finish_and_clip_rect(
         offset_layout.begin(content_bounds),
         on_finish,
         new_clip,
-    )
+    );
+    ScrollAreaResult {
+        layout: LayoutInfo::new(bounds, content_bounds),
+        ctx,
+    }
 }
 
 #[cfg(test)]
@@ -634,15 +660,15 @@ mod tests {
             v_vis: ScrollbarVisibility::Auto,
             clip_rect,
         };
-        let (mut pre_cmds, token, cb, scroll_offset) =
-            raw::begin_scroll_area(spec, state, input, focus_sys, time);
-        let post_cmds = raw::end_scroll_area(token, focus_sys);
+        let r = raw::begin_scroll_area(spec, state, input, focus_sys, time);
+        let mut pre_cmds = r.draw.0;
+        let post_cmds = raw::end_scroll_area(r.token, focus_sys);
         pre_cmds.extend(post_cmds);
         let layout = crate::layout::OffsetLayout {
-            offset: scroll_offset,
+            offset: r.offset,
             inner: ManualLayout,
         };
-        (pre_cmds, cb, layout)
+        (pre_cmds, r.content_bounds, layout)
     }
 
     #[test]
@@ -690,7 +716,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
             };
-            let (_, outer_token, cb, _) =
+            let outer_r =
                 begin_scroll_area(outer_spec, outer_state, &input, &mut focus_sys, 0.0);
 
             let inner_spec = ScrollAreaSpec {
@@ -698,12 +724,12 @@ mod tests {
                 content_size: Vec2::new(inner_bounds.w, inner_content_h),
                 h_vis: ScrollbarVisibility::Auto,
                 v_vis: ScrollbarVisibility::Auto,
-                clip_rect: Some(cb),
+                clip_rect: Some(outer_r.content_bounds),
             };
-            let (_, inner_token, _, _) =
+            let inner_r =
                 begin_scroll_area(inner_spec, inner_state, &input, &mut focus_sys, 0.0);
-            raw::end_scroll_area(inner_token, &mut focus_sys);
-            raw::end_scroll_area(outer_token, &mut focus_sys);
+            raw::end_scroll_area(inner_r.token, &mut focus_sys);
+            raw::end_scroll_area(outer_r.token, &mut focus_sys);
             focus_sys.end_frame();
         }
     }
@@ -757,8 +783,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, token, _, _) =
-                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
 
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
@@ -809,8 +834,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) =
-                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -874,8 +898,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) =
-                raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(token, &mut focus_sys);
             focus_sys.end_frame();
         }
@@ -908,7 +931,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         assert!(state.vert_slider_state.is_dragging, "Drag must be active");
@@ -926,7 +949,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         // drag: usable_track = 200 - (200 * 200/1000).max(20) = 200-40=160. delta=45 → val_delta=(45/160)*800≈225.
@@ -962,8 +985,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0).token;
             // Inner Auto+fits — no scrollbar, no claim.
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
@@ -972,8 +994,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1006,8 +1027,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys, 0.0).token;
             // Inner Always+fits: scrollbars drawn, no scroll possible.
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
@@ -1016,8 +1036,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1047,7 +1066,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0).token;
             raw::end_scroll_area(token, fs);
         });
         assert_eq!(state.offset.y, 0.0, "Wheel outside bounds must not scroll");
@@ -1073,7 +1092,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token_a, _, _) = begin_scroll_area(spec_a, &mut a, &input, fs, 0.0);
+            let token_a = begin_scroll_area(spec_a, &mut a, &input, fs, 0.0).token;
             raw::end_scroll_area(token_a, fs);
 
             let spec_b = ScrollAreaSpec {
@@ -1083,7 +1102,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token_b, _, _) = begin_scroll_area(spec_b, &mut b, &input, fs, 0.0);
+            let token_b = begin_scroll_area(spec_b, &mut b, &input, fs, 0.0).token;
             raw::end_scroll_area(token_b, fs);
         });
         assert!(a.offset.y > 0.0, "Hovered sibling A should scroll");
@@ -1113,7 +1132,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0).token;
             raw::end_scroll_area(token, fs);
         });
         assert!(state.offset.x > 0.0, "dx should advance horizontal");
@@ -1141,7 +1160,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
@@ -1172,8 +1191,9 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, cb, _) =
-                begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+            let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+            let token = sa_r.token;
+            let cb = sa_r.content_bounds;
             // content_bounds origin must follow bounds origin.
             assert_eq!(cb.x, 100.0);
             assert_eq!(cb.y, 200.0);
@@ -1200,8 +1220,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) =
-                raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2, 0.0).token;
             raw::end_scroll_area(token, &mut focus_sys2);
             focus_sys2.end_frame();
         }
@@ -1232,7 +1251,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0).token;
             raw::end_scroll_area(token, fs);
         });
         assert_eq!(
@@ -1268,7 +1287,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: Some(clip),
             };
-            let (_, token, _, _) = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0);
+            let token = raw::begin_scroll_area(spec, &mut state, &input, fs, 0.0).token;
             raw::end_scroll_area(token, fs);
         });
         assert_eq!(state.offset.y, 0.0, "Wheel outside clip must not scroll");
@@ -1321,8 +1340,9 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, content_bounds, _) =
-                begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
+            let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
+            let token = sa_r.token;
+            let content_bounds = sa_r.content_bounds;
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
             let res = crate::widgets::button::raw::button(
@@ -1426,8 +1446,9 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, token, content_bounds, _) =
-                begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
+            let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys, 0.0);
+            let token = sa_r.token;
+            let content_bounds = sa_r.content_bounds;
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
             // 30px overlap → must be included in spatial nav.
@@ -1490,8 +1511,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) =
-            begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -1508,7 +1528,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -1534,8 +1554,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) =
-            begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -1552,7 +1571,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -1581,7 +1600,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(state.vert_slider_state.focus_id);
@@ -1597,7 +1616,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
@@ -1616,7 +1635,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, token, _, _) = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0);
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(token, &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(state.offset.y, 0.0, "Home on focused slider jumps to 0");
@@ -1655,8 +1674,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -1664,8 +1682,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1697,8 +1714,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -1706,8 +1722,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1739,8 +1754,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -1748,8 +1762,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1781,8 +1794,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -1790,8 +1802,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1827,8 +1838,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0), // max scroll = 100
@@ -1836,8 +1846,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -1885,8 +1894,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(300.0, 200.0),
@@ -1894,8 +1902,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -1935,8 +1942,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -1956,8 +1962,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -1965,8 +1970,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -1991,8 +1995,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -2012,8 +2015,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(300.0, 200.0),
@@ -2021,8 +2023,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -2068,8 +2069,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -2077,8 +2077,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -2126,8 +2125,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 400.0),
@@ -2135,8 +2133,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -2178,8 +2175,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -2187,8 +2183,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -2232,8 +2227,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -2253,8 +2247,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 content_size: Vec2::new(200.0, 300.0),
@@ -2262,8 +2255,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -2329,8 +2321,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2338,8 +2329,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2347,8 +2337,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2397,8 +2386,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2406,8 +2394,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2415,8 +2402,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2464,8 +2450,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2473,8 +2458,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2482,8 +2466,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -2537,8 +2520,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -2559,8 +2541,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 content_size: Vec2::new(800.0, 300.0),
@@ -2568,8 +2549,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 content_size: Vec2::new(200.0, 600.0),
@@ -2577,8 +2557,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2647,8 +2626,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2656,8 +2634,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2665,8 +2642,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2714,8 +2690,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2723,8 +2698,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2732,8 +2706,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2780,8 +2753,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2789,8 +2761,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2798,8 +2769,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -2851,8 +2821,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
 
@@ -2873,8 +2842,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 content_size: Vec2::new(400.0, 800.0),
@@ -2882,8 +2850,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, middle_token, _, _) =
-                begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0);
+            let middle_token = begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 content_size: Vec2::new(800.0, 200.0),
@@ -2891,8 +2858,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(middle_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
@@ -2950,8 +2916,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -2959,8 +2924,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3001,8 +2965,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3010,8 +2973,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3062,8 +3024,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3071,8 +3032,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3107,8 +3067,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3116,8 +3075,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3157,8 +3115,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3166,8 +3123,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3196,8 +3152,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(inner_state.vert_slider_state.focus_id);
@@ -3216,8 +3171,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3225,8 +3179,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3258,8 +3211,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
         };
-        let (_, inner_token, _, _) =
-            begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+        let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
         raw::end_scroll_area(inner_token, &mut focus_sys);
         focus_sys.end_frame();
         focus_sys.take_focus(inner_state.horiz_slider_state.focus_id);
@@ -3278,8 +3230,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3287,8 +3238,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3327,8 +3277,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3336,8 +3285,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             let info = crate::widgets::button::raw::button(
                 std::mem::take(&mut btn_state),
                 crate::widgets::button::raw::ButtonSpec {
@@ -3389,8 +3337,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, outer_token, _, _) =
-                begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0);
+            let outer_token = begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys, 0.0).token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 content_size: Vec2::new(400.0, 300.0),
@@ -3398,8 +3345,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
             };
-            let (_, inner_token, _, _) =
-                begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0);
+            let inner_token = begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys, 0.0).token;
             raw::end_scroll_area(inner_token, &mut focus_sys);
             raw::end_scroll_area(outer_token, &mut focus_sys);
             focus_sys.end_frame();
@@ -3444,7 +3390,7 @@ mod nested_bubbling_tests {
                 .h_vis(ScrollbarVisibility::None)
                 .rect(custom_rect),
         );
-        child.finish();
+        child.ctx.finish();
         // The vertical scrollbar track rect has y = custom_rect.y.
         // Its FillRect (scrollbar_mode track) has rect.y == custom_rect.y
         assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if rect.y == custom_rect.y)));

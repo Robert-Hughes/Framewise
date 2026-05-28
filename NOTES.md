@@ -10,12 +10,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
   * spinner, status, tooltip, tree
   * scroll_area
   * window
-
-* Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
 * Remove shorthand accessors on *Results structs (like ButtonResult::clicked())?
 * DrawCommands vs. Vec<DrawCmd>
+* Should state structs be moved in and out of widget funcs, or passed by mut ref and edited?
 
 * Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions/sections within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Parameter naming or ordering or return types. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters. The kinds of fields contained in structs passed into and out of methods (e.g. if one widget returns a layout rect but another doesn't). Anything that a reader of the library might be surprised by, or wonder 'why does widget X do it like this but widget Y does it like that'.
+  - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go

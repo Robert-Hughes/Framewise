@@ -760,7 +760,7 @@ pub fn draw_spec_page(
                     .content_size(content_size)
                     .h_vis(ScrollbarVisibility::None)
                     .v_vis(ScrollbarVisibility::Auto),
-            )
+            ).ctx
         };
         {
             let b = &mut page;
@@ -2163,7 +2163,7 @@ pub fn draw_spec_page(
                                 .content_size(b1_content)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Always),
-                        )
+                        ).ctx
                     };
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
@@ -2232,7 +2232,7 @@ pub fn draw_spec_page(
                                 .content_size(b2_content)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Always),
-                        )
+                        ).ctx
                     };
                     for i in 0..15 {
                         {
@@ -2288,7 +2288,7 @@ pub fn draw_spec_page(
                                 .content_size(b3_content)
                                 .h_vis(ScrollbarVisibility::Always)
                                 .v_vis(ScrollbarVisibility::None),
-                        )
+                        ).ctx
                     };
                     {
                         let this = &mut sa;
@@ -2340,7 +2340,7 @@ pub fn draw_spec_page(
                                 .content_size(b4_content)
                                 .h_vis(ScrollbarVisibility::Always)
                                 .v_vis(ScrollbarVisibility::Always),
-                        )
+                        ).ctx
                     };
                     {
                         let this = &mut sa;
@@ -2788,7 +2788,7 @@ pub fn draw_spec_page(
                         .buttons(&win_buttons)
                         .status_bar(true)
                         .status_text("RENDERING  frame #00248  2.4 ms");
-                    begin_window(b, win_rect, widget_spec_builder, ManualLayout)
+                    begin_window(b, win_rect, widget_spec_builder, ManualLayout).ctx
                 };
 
                 // Inner content: drag numbers + checkboxes
@@ -3090,7 +3090,7 @@ pub fn draw_spec_page(
                         .buttons(&win_buttons)
                         .status_bar(true)
                         .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa");
-                    begin_window(this, wr, widget_spec_builder, ManualLayout)
+                    begin_window(this, wr, widget_spec_builder, ManualLayout).ctx
                 };
                 let cr_w = win_w_left - 32.0;
 
@@ -3417,7 +3417,7 @@ pub fn draw_spec_page(
                         .buttons(&fl_buttons)
                         .status_bar(true)
                         .status_text("RECORDING  248 frames  2.6 ms avg");
-                    begin_window(this, fl_rect, widget_spec_builder, ManualLayout)
+                    begin_window(this, fl_rect, widget_spec_builder, ManualLayout).ctx
                 };
                 let fl_cr_w = rcol_w - 32.0;
                 let fl_cr_h = fl_h - 80.0; // 26 title + 22 status + 32 padding
@@ -3453,7 +3453,7 @@ pub fn draw_spec_page(
                                 .content_size(content_size)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Auto),
-                        )
+                        ).ctx
                     };
                     let loy = 4.0;
                     for (i, (ts_str, msg, highlight)) in log_lines.iter().enumerate() {
@@ -3502,7 +3502,7 @@ pub fn draw_spec_page(
                         .buttons(&qa_buttons)
                         .status_bar(false)
                         .status_text("");
-                    begin_window(this, qa_rect, widget_spec_builder, ManualLayout)
+                    begin_window(this, qa_rect, widget_spec_builder, ManualLayout).ctx
                 };
                 let qa_cr_w = rcol_w - 32.0;
 
