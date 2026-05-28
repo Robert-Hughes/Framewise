@@ -21,9 +21,9 @@ pub mod raw {
 
     pub struct ButtonResult {
         pub draw: DrawCommands,
-        pub content_bounds: Rect,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level button widget function.
