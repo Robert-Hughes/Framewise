@@ -65,9 +65,7 @@ pub mod raw {
             });
         }
 
-        MeterResult {
-            draw,
-        }
+        MeterResult { draw }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -173,8 +171,8 @@ impl MeterSpecBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::MeterSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

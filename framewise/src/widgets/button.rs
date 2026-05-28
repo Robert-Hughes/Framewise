@@ -312,8 +312,8 @@ pub fn button<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::ButtonSpec;
+    use super::*;
 
     use crate::focus::FocusId;
     use crate::test_utils::DummyTextSys;
@@ -339,8 +339,20 @@ mod tests {
     ) {
         let mut ts = DummyTextSys;
         focus_sys.begin_frame();
-        raw::button(s1, btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)), input, &mut ts, focus_sys);
-        raw::button(s2, btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)), input, &mut ts, focus_sys);
+        raw::button(
+            s1,
+            btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)),
+            input,
+            &mut ts,
+            focus_sys,
+        );
+        raw::button(
+            s2,
+            btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
+            input,
+            &mut ts,
+            focus_sys,
+        );
         focus_sys.end_frame();
     }
 
@@ -1069,9 +1081,7 @@ mod tests {
             &mut ctx,
             &mut btn_state,
             layout_rect,
-            ButtonSpecBuilder::new()
-                .text("X".into())
-                .rect(custom_rect),
+            ButtonSpecBuilder::new().text("X".into()).rect(custom_rect),
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

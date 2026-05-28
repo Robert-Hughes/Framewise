@@ -28,9 +28,7 @@ pub mod raw {
             color: spec.color,
             width: spec.width,
         });
-        DividerResult {
-            draw,
-        }
+        DividerResult { draw }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -120,8 +118,8 @@ pub fn divider<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::DividerSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

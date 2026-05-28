@@ -338,8 +338,8 @@ impl<'a> TabsSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::TabsSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> raw::TabsResult {

@@ -41,9 +41,7 @@ pub mod raw {
             color: spec.border,
             width: 1.0,
         });
-        ColorSwatchResult {
-            draw,
-        }
+        ColorSwatchResult { draw }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -135,8 +133,8 @@ impl ColorSwatchSpecBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::ColorSwatchSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

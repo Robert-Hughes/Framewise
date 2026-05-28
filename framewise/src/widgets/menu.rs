@@ -140,10 +140,7 @@ pub mod raw {
             }
         }
 
-        MenuResult {
-            draw: cmds,
-            outer,
-        }
+        MenuResult { draw: cmds, outer }
     }
 
     #[derive(Debug, Clone, PartialEq)]

@@ -45,9 +45,7 @@ pub mod raw {
             });
         }
 
-        LabelResult {
-            draw,
-        }
+        LabelResult { draw }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -167,8 +165,8 @@ pub fn label<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::LabelSpec;
+    use super::*;
     use crate::{test_utils::DummyTextSys, text::TextHandle};
 
     struct RecordingTextSys {

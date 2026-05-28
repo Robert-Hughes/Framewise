@@ -158,8 +158,12 @@ fn draw_switch_fake_state<
         clip_rect: b.clip_rect,
     };
 
-    let result =
-        framewise::widgets::switch::raw::switch(&mut state, spec, &dummy_input, &mut dummy_focus_sys);
+    let result = framewise::widgets::switch::raw::switch(
+        &mut state,
+        spec,
+        &dummy_input,
+        &mut dummy_focus_sys,
+    );
     {
         let this = &mut *b;
         let cmds = result.draw;
@@ -760,7 +764,8 @@ pub fn draw_spec_page(
                     .content_size(content_size)
                     .h_vis(ScrollbarVisibility::None)
                     .v_vis(ScrollbarVisibility::Auto),
-            ).ctx
+            )
+            .ctx
         };
         {
             let b = &mut page;
@@ -1015,7 +1020,7 @@ pub fn draw_spec_page(
                             _ => {
                                 let disabled = ci == 4;
                                 let idx = ri * 2 + ci / 4; // ci=0 → idx 0 (default), ci=4 → idx 1 (disabled)
-                                let btn = {
+                                let _btn = {
                                     let this = &mut *b;
                                     let state = &mut state.btn_matrix[idx];
                                     let style = row_styles[ri];
@@ -1045,7 +1050,7 @@ pub fn draw_spec_page(
                 let mut bx = lx;
                 for (i, (label, h, style)) in size_defs.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = {
+                    let _btn = {
                         let this = &mut *b;
                         let state = &mut state.btn_sizes[i];
                         let layout_params = Rect::new(bx, y, w, *h);
@@ -1068,7 +1073,7 @@ pub fn draw_spec_page(
                 // draw group border
                 for (i, (label, style)) in grp1.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = {
+                    let _btn = {
                         let this = &mut *b;
                         let state = &mut state.btn_grp1[i];
                         let layout_params = Rect::new(bx, y, w, t.h_md);
@@ -1090,7 +1095,7 @@ pub fn draw_spec_page(
                 ];
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
-                    let btn = {
+                    let _btn = {
                         let this = &mut *b;
                         let state = &mut state.btn_grp2[i];
                         let layout_params = Rect::new(bx, y, w, t.h_md);
@@ -1150,7 +1155,7 @@ pub fn draw_spec_page(
                         let idx = ri * 5 + ci;
                         let error = ci == 3;
                         let disabled = ci == 4;
-                        let info = {
+                        let _info = {
                             let this = &mut *b;
                             let state = &mut state.te_matrix[idx];
                             let layout_params = Rect::new(
@@ -1185,7 +1190,7 @@ pub fn draw_spec_page(
                         .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.te_labelled;
                     let layout_params = Rect::new(field_x, y + 18.0, 160.0, t.h_md);
@@ -1242,7 +1247,7 @@ pub fn draw_spec_page(
                         .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.te_prefixed;
                     let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md);
@@ -1274,7 +1279,7 @@ pub fn draw_spec_page(
                         .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.te_multiline;
                     let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
@@ -1344,7 +1349,7 @@ pub fn draw_spec_page(
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0);
                     if ci < 3 {
-                        let info = {
+                        let _info = {
                             let this = &mut *b;
                             let state = &mut state.cb_matrix[ci];
                             let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
@@ -1371,7 +1376,7 @@ pub fn draw_spec_page(
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let cx = lx + label_w + ci as f32 * cell_w;
                     if ci < 3 {
-                        let info = {
+                        let _info = {
                             let this = &mut *b;
                             let state = &mut state.cb_matrix[3 + ci];
                             let layout_params = Rect::new(cx, y, 14.0, 14.0);
@@ -1461,7 +1466,7 @@ pub fn draw_spec_page(
                             );
                         }
                         3 => {
-                            let info = {
+                            let _info = {
                                 let this = &mut *b;
                                 let state = &mut state.switch_states[2];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
@@ -1471,7 +1476,7 @@ pub fn draw_spec_page(
                             };
                         }
                         _ => {
-                            let info = {
+                            let _info = {
                                 let this = &mut *b;
                                 let state = &mut state.switch_states[i];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
@@ -1709,7 +1714,7 @@ pub fn draw_spec_page(
             {
                 let mut bx = lx;
                 // X — real
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.dn_showcase[0];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
@@ -1721,7 +1726,7 @@ pub fn draw_spec_page(
                 };
                 bx += 100.0 + 8.0;
                 // Y — real
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.dn_showcase[1];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
@@ -1745,7 +1750,7 @@ pub fn draw_spec_page(
                 );
                 bx += 100.0 + 8.0;
                 // H — real
-                let info = {
+                let _info = {
                     let this = &mut *b;
                     let state = &mut state.dn_showcase[2];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
@@ -1934,7 +1939,7 @@ pub fn draw_spec_page(
                     ""
                 };
                 let sel_state = &mut state.sel_state;
-                let sel_info = select(
+                let _sel_info = select(
                     b,
                     sel_state,
                     Rect::new(lx, y, 160.0, t.h_md),
@@ -1956,7 +1961,7 @@ pub fn draw_spec_page(
                 // Segmented controls
                 let seg_x = lx + 200.0;
                 const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
-                let seg1_info = {
+                let _seg1_info = {
                     let this = &mut *b;
                     let state = &mut state.seg1_state;
                     let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
@@ -1966,7 +1971,7 @@ pub fn draw_spec_page(
                     segmented(this, state, layout_params, spec_builder)
                 };
                 const SEGS2: &[&str] = &["start", "center", "end"];
-                let seg2_info = {
+                let _seg2_info = {
                     let this = &mut *b;
                     let state = &mut state.seg2_state;
                     let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
@@ -1983,7 +1988,7 @@ pub fn draw_spec_page(
                 for (i, label) in chip_labels.iter().enumerate() {
                     let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
                     let chip_w = (layout.size.x + 16.0).max(32.0);
-                    let chip_info = {
+                    let _chip_info = {
                         let this = &mut *b;
                         let state = &mut state.chip_states[i];
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
@@ -1998,7 +2003,7 @@ pub fn draw_spec_page(
                     .text_system
                     .prepare("+ add backend", t.text_sm, t.mono_font);
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
-                let add_info = {
+                let _add_info = {
                     let this = &mut *b;
                     let state = &mut state.chip_states[4];
                     let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
@@ -2141,7 +2146,8 @@ pub fn draw_spec_page(
                                 .content_size(b1_content)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Always),
-                        ).ctx
+                        )
+                        .ctx
                     };
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
@@ -2210,7 +2216,8 @@ pub fn draw_spec_page(
                                 .content_size(b2_content)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Always),
-                        ).ctx
+                        )
+                        .ctx
                     };
                     for i in 0..15 {
                         {
@@ -2266,7 +2273,8 @@ pub fn draw_spec_page(
                                 .content_size(b3_content)
                                 .h_vis(ScrollbarVisibility::Always)
                                 .v_vis(ScrollbarVisibility::None),
-                        ).ctx
+                        )
+                        .ctx
                     };
                     {
                         let this = &mut sa;
@@ -2318,7 +2326,8 @@ pub fn draw_spec_page(
                                 .content_size(b4_content)
                                 .h_vis(ScrollbarVisibility::Always)
                                 .v_vis(ScrollbarVisibility::Always),
-                        ).ctx
+                        )
+                        .ctx
                     };
                     {
                         let this = &mut sa;
@@ -2365,7 +2374,7 @@ pub fn draw_spec_page(
             y += 46.0;
             {
                 const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
-                let t1_info = {
+                let _t1_info = {
                     let this = &mut *b;
                     let state = &mut state.tabs1_state;
                     let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
@@ -2377,7 +2386,7 @@ pub fn draw_spec_page(
                 y += 36.0 + 20.0;
 
                 const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-                let t2_info = {
+                let _t2_info = {
                     let this = &mut *b;
                     let state = &mut state.tabs2_state;
                     let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
@@ -2775,7 +2784,7 @@ pub fn draw_spec_page(
                     .iter()
                     .enumerate()
                 {
-                    let info = {
+                    let _info = {
                         let this = &mut win;
                         let state = &mut state.win11_drags[i];
                         let min = *min;
@@ -2796,7 +2805,7 @@ pub fn draw_spec_page(
                     .iter()
                     .enumerate()
                 {
-                    let info = {
+                    let _info = {
                         let this = &mut win;
                         let state = &mut state.win11_drags[2 + i];
                         let min = *min;
@@ -2821,7 +2830,7 @@ pub fn draw_spec_page(
                 iy += 10.0;
                 let check_labels = ["clip to parent", "debug overlay"];
                 for (i, check_label) in check_labels.iter().enumerate() {
-                    let cb_info = {
+                    let _cb_info = {
                         let this = &mut win;
                         let state = &mut state.win11_cbs[i];
                         let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
@@ -3069,7 +3078,7 @@ pub fn draw_spec_page(
 
                 // Tabs inside window
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
-                let tabs_info = {
+                let _tabs_info = {
                     let this = &mut win;
                     let state = &mut state.iu_tabs;
                     let items: &[&str] = &tabs_items;
@@ -3102,7 +3111,7 @@ pub fn draw_spec_page(
                     label(this, layout_params, spec_builder)
                 };
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
-                let backend_info = {
+                let _backend_info = {
                     let this = &mut win;
                     let state = &mut state.iu_backend;
                     let items: &[&str] = &backends;
@@ -3169,7 +3178,7 @@ pub fn draw_spec_page(
                         .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
-                let switch_res = {
+                let _switch_res = {
                     let this = &mut win;
                     let state = &mut state.iu_vsync;
                     let layout_params = Rect::new(widget_x, fy + 6.0, 30.0, 16.0);
@@ -3205,7 +3214,7 @@ pub fn draw_spec_page(
                     label(this, layout_params, spec_builder)
                 };
                 let msaa_opts = ["off", "2×", "4×", "8×"];
-                let seg_res = {
+                let _seg_res = {
                     let this = &mut win;
                     let state = &mut state.iu_msaa;
                     let items: &[&str] = &msaa_opts;
@@ -3229,7 +3238,7 @@ pub fn draw_spec_page(
                         .text_color(color);
                     label(this, layout_params, spec_builder)
                 };
-                let w_res = {
+                let _w_res = {
                     let this = &mut win;
                     let state = &mut state.iu_vp_w;
                     let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
@@ -3240,7 +3249,7 @@ pub fn draw_spec_page(
                     drag_number(this, state, layout_params, spec_builder)
                 };
 
-                let h_res = {
+                let _h_res = {
                     let this = &mut win;
                     let state = &mut state.iu_vp_h;
                     let layout_params = Rect::new(
@@ -3308,7 +3317,7 @@ pub fn draw_spec_page(
                 ];
                 for (i, opt_label) in opt_labels.iter().enumerate() {
                     let opt_y = fy + i as f32 * 22.0;
-                    let cb_res = {
+                    let _cb_res = {
                         let this = &mut win;
                         let state = &mut state.iu_options[i];
                         let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
@@ -3349,7 +3358,7 @@ pub fn draw_spec_page(
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;
                     btn_x -= bw;
-                    let btn = {
+                    let _btn = {
                         let this = &mut win;
                         let state = &mut state.iu_btns[i];
                         let layout_params = Rect::new(btn_x, fy, bw, t.h_md);
@@ -3418,7 +3427,8 @@ pub fn draw_spec_page(
                                 .content_size(content_size)
                                 .h_vis(ScrollbarVisibility::None)
                                 .v_vis(ScrollbarVisibility::Auto),
-                        ).ctx
+                        )
+                        .ctx
                     };
                     let loy = 4.0;
                     for (i, (ts_str, msg, highlight)) in log_lines.iter().enumerate() {

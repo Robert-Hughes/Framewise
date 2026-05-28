@@ -1,7 +1,7 @@
-/// Core geometric and colour types.
-///
-/// These are plain data structs with no dependencies. All coordinates are in
-/// logical pixels (f32) with the origin at the top-left of the window.
+// Core geometric and colour types.
+//
+// These are plain data structs with no dependencies. All coordinates are in
+// logical pixels (f32) with the origin at the top-left of the window.
 
 // ── ClipRect ─────────────────────────────────────────────────────────────────
 

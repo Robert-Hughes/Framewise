@@ -162,7 +162,6 @@ pub struct TreeResult {
     pub layout: LayoutInfo,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level tree widget function using WidgetContext.
@@ -184,7 +183,9 @@ pub fn tree<
     let spec = builder.build();
     let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
-    TreeResult { layout: LayoutInfo::tight(rect) }
+    TreeResult {
+        layout: LayoutInfo::tight(rect),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

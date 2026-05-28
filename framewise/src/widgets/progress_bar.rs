@@ -68,9 +68,7 @@ pub mod raw {
             }
         }
 
-        ProgressBarResult {
-            draw: cmds,
-        }
+        ProgressBarResult { draw: cmds }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -183,8 +181,8 @@ pub fn progress_bar<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::ProgressBarSpec;
+    use super::*;
 
     #[test]
     fn test_progress_bar_visual_normal() {

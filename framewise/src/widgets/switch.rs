@@ -231,7 +231,6 @@ pub struct SwitchResult {
     pub focused: bool,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level switch widget function using WidgetContext.
@@ -268,8 +267,8 @@ pub fn switch<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::SwitchSpec;
+    use super::*;
     use crate::types::Vec2;
 
     fn swi_tch(spec: SwitchSpec) -> raw::SwitchResult {

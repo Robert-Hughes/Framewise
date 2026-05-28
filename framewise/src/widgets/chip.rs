@@ -163,7 +163,6 @@ pub struct ChipResult {
     pub focused: bool,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level chip widget function using WidgetContext.
@@ -279,8 +278,8 @@ impl<'a> ChipSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::ChipSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 

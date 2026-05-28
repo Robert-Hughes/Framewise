@@ -229,7 +229,6 @@ pub struct RadioResult {
     pub focused: bool,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level radio widget function using WidgetContext.
@@ -266,8 +265,8 @@ pub fn radio<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::RadioSpec;
+    use super::*;
 
     fn rad_io(spec: RadioSpec) -> raw::RadioResult {
         raw::radio(

@@ -458,8 +458,8 @@ impl<'a> SelectSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::SelectSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
@@ -643,10 +643,7 @@ mod tests {
             Some(state.focus_id),
             "Clicking select must request focus"
         );
-        assert!(
-            state.open,
-            "Clicking select must open the popup dropdown"
-        );
+        assert!(state.open, "Clicking select must open the popup dropdown");
     }
 
     #[test]
@@ -855,7 +852,10 @@ mod tests {
             &mut ctx,
             &mut sel_state,
             layout_rect,
-            SelectSpecBuilder::new().options(&[]).value("").rect(custom_rect),
+            SelectSpecBuilder::new()
+                .options(&[])
+                .value("")
+                .rect(custom_rect),
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

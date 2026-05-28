@@ -179,7 +179,6 @@ pub struct SpinnerResult {
     pub layout: LayoutInfo,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level spinner widget function using WidgetContext.
@@ -200,13 +199,15 @@ pub fn spinner<
     let spec = builder.build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw);
-    SpinnerResult { layout: LayoutInfo::tight(rect) }
+    SpinnerResult {
+        layout: LayoutInfo::tight(rect),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::SpinnerSpec;
+    use super::*;
 
     #[test]
     fn test_spinner_visual_normal() {

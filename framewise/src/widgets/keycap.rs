@@ -67,9 +67,7 @@ pub mod raw {
             });
         }
 
-        KeycapResult {
-            draw,
-        }
+        KeycapResult { draw }
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -190,8 +188,8 @@ impl<'a> KeycapSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::KeycapSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

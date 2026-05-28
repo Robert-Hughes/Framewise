@@ -378,8 +378,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::DragNumberSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
@@ -738,7 +738,10 @@ mod tests {
             &mut ctx,
             &mut dn_state,
             layout_rect,
-            DragNumberSpecBuilder::new().label("x").value(0.0).rect(custom_rect),
+            DragNumberSpecBuilder::new()
+                .label("x")
+                .value(0.0)
+                .rect(custom_rect),
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

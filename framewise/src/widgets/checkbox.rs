@@ -272,7 +272,6 @@ pub struct CheckboxResult {
     pub focused: bool,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level checkbox widget function using WidgetContext.
@@ -309,8 +308,8 @@ pub fn checkbox<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::CheckboxSpec;
+    use super::*;
 
     fn checkbox_dummy(spec: CheckboxSpec) -> raw::CheckboxResult {
         raw::checkbox(

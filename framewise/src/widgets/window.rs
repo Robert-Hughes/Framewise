@@ -119,7 +119,10 @@ pub mod raw {
 
         draw.push(DrawCmd::PushClip { rect: content });
 
-        WindowResult { draw: DrawCommands(draw), content_bounds: content }
+        WindowResult {
+            draw: DrawCommands(draw),
+            content_bounds: content,
+        }
     }
 
     pub struct WindowResult {
@@ -202,7 +205,10 @@ pub fn begin_window<
         .defaults_from_theme(&parent.theme)
         .buttons(buttons)
         .build();
-    let raw::WindowResult { draw, content_bounds } = raw::begin_window(spec, parent.text_system);
+    let raw::WindowResult {
+        draw,
+        content_bounds,
+    } = raw::begin_window(spec, parent.text_system);
     parent.append_cmds(draw);
 
     let new_clip = Some(
@@ -219,7 +225,10 @@ pub fn begin_window<
         new_clip,
     );
 
-    WindowResult { layout: LayoutInfo::new(bounds, content_bounds), ctx }
+    WindowResult {
+        layout: LayoutInfo::new(bounds, content_bounds),
+        ctx,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -352,12 +361,12 @@ mod tests {
         let child = super::begin_window(
             &mut ctx,
             layout_rect,
-            WindowSpecBuilder::new()
-                .title("T")
-                .rect(custom_rect),
+            WindowSpecBuilder::new().title("T").rect(custom_rect),
             ManualLayout,
         );
         child.ctx.finish();
-        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if *rect == custom_rect)));
+        assert!(cmds.iter().any(
+            |cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if *rect == custom_rect)
+        ));
     }
 }

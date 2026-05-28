@@ -104,7 +104,6 @@ pub struct TooltipResult {
     pub layout: LayoutInfo,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level tooltip widget function using WidgetContext.
@@ -126,7 +125,9 @@ pub fn tooltip<
     let spec = builder.build();
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
-    TooltipResult { layout: LayoutInfo::tight(rect) }
+    TooltipResult {
+        layout: LayoutInfo::tight(rect),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -198,8 +199,8 @@ impl<'a> TooltipSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::TooltipSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

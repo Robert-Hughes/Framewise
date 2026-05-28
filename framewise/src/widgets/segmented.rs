@@ -347,8 +347,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::SegmentedSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> raw::SegmentedResult {

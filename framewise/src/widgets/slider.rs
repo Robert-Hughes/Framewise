@@ -478,7 +478,9 @@ pub mod raw {
             }
         }
 
-        SliderResult { draw: DrawCommands(cmds) }
+        SliderResult {
+            draw: DrawCommands(cmds),
+        }
     }
 }
 
@@ -580,7 +582,9 @@ pub fn slider<
         .build();
     let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
     ctx.append_cmds(result.draw);
-    SliderResult { layout: LayoutInfo::tight(rect) }
+    SliderResult {
+        layout: LayoutInfo::tight(rect),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -680,8 +684,8 @@ impl SliderSpecBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::SliderSpec;
+    use super::*;
 
     #[test]
     fn test_slider_page_up_down_keyboard() {

@@ -93,7 +93,6 @@ pub struct StatusResult {
     pub layout: LayoutInfo,
 }
 
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level status widget function using WidgetContext.
@@ -115,7 +114,9 @@ pub fn status<
     let spec = builder.build();
     let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
-    StatusResult { layout: LayoutInfo::tight(rect) }
+    StatusResult {
+        layout: LayoutInfo::tight(rect),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -189,8 +190,8 @@ impl<'a> StatusSpecBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::StatusSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]

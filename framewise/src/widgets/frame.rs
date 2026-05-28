@@ -146,8 +146,8 @@ pub fn frame<
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::raw::FrameSpec;
+    use super::*;
     use crate::test_utils::DummyTextSys;
 
     #[test]
