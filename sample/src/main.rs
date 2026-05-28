@@ -194,7 +194,7 @@ impl App {
         }
     }
 
-    fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> Vec<framewise::DrawCmd> {
+    fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> framewise::DrawCommands {
         let win_size = self
             .gpu
             .as_ref()
@@ -217,7 +217,7 @@ impl App {
         }
 
         self.focus_sys.begin_frame();
-        let mut cmds = vec![];
+        let mut cmds = framewise::DrawCommands::new();
         let mut ctx = WidgetContext::root(
             Theme::default(),
             text_system,

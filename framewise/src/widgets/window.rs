@@ -131,8 +131,8 @@ pub mod raw {
     //
     // This is the raw implementation that takes all parameters explicitly.
     // High-level wrappers should use this internally.
-    pub fn end_window() -> Vec<DrawCmd> {
-        vec![DrawCmd::PopClip]
+    pub fn end_window() -> DrawCommands {
+        DrawCommands(vec![DrawCmd::PopClip])
     }
 }
 
@@ -165,7 +165,7 @@ pub struct WindowResult<
     'b,
     T: crate::text::TextSystem,
     LS: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
@@ -186,13 +186,13 @@ pub fn begin_window<
     T: crate::text::TextSystem,
     LS: crate::layout::LayoutState,
     L: crate::layout::Layout,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     parent: &'b mut WidgetContext<'a, T, LS, CF>,
     layout_params: LS::Params,
     builder: WindowSpecBuilder<'c>,
     inner_layout: L,
-) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
+) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
     let layout_bounds = parent.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
@@ -203,7 +203,7 @@ pub fn begin_window<
         .buttons(buttons)
         .build();
     let raw::WindowResult { draw, content_bounds } = raw::begin_window(spec, parent.text_system);
-    parent.append_cmds(draw.0);
+    parent.append_cmds(draw);
 
     let new_clip = Some(
         parent
@@ -338,7 +338,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus = crate::focus::FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds = vec![];
+        let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 200.0, 150.0);
         let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
         let mut ctx = crate::widget::WidgetContext::root(

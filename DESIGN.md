@@ -88,7 +88,7 @@ Each `raw::*Result` is a concrete struct with no traits, no metadata maps, and n
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`) called when the context is finished; root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem) -> DrawCommands`) called when the context is finished; root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
@@ -354,9 +354,11 @@ All palette entries in `Theme::framewise()` are defined as sRGB hex/u8 values (m
 
 ```
 App draw function
-  └── widget calls → DrawCommands accumulated in WidgetContext
-        └── WidgetContext::finish() → Vec<DrawCmd>
-              └── Renderer consumes draw list (batching, GPU submission)
+  ├── creates root DrawCommands buffer
+  ├── widget calls → DrawCommands accumulated into shared buffer
+  ├── WidgetContext::finish() → () [appends on_finish post-cmds into same buffer]
+  └── App passes &DrawCommands to Renderer
+        └── Renderer consumes draw list (batching, GPU submission)
 ```
 
 The semantic work (layout, interaction, hit-testing) happens entirely in the first stage. The render stage is mechanical: no layout, no binding resolution, no hidden updates.
@@ -371,9 +373,9 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 
 - **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`) return a child `WidgetContext` with their cleanup logic embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. Commands accumulate directly into the shared buffer and cleanup runs automatically — no explicit high-level `end_*` call or manual command threading needed. The raw layer still exposes `raw::end_scroll_area(token, focus_sys)` and `raw::end_window()` for callers that bypass the context system.
 
-- **Shared Command Buffer**: Each `WidgetContext` holds `cmds: &'a mut Vec<DrawCmd>`, a mutable reference into a buffer that ultimately belongs to the root caller. Child contexts are constructed by reborrowing the parent's `cmds` reference, so all contexts in a tree write into the same buffer in evaluation order. `finish()` returns `()` — there is no `Vec<DrawCmd>` to thread back up the call stack.
+- **Shared Command Buffer**: Each `WidgetContext` holds `cmds: &'a mut DrawCommands`, a mutable reference into a buffer that ultimately belongs to the root caller. Child contexts are constructed by reborrowing the parent's `cmds` reference, so all contexts in a tree write into the same buffer in evaluation order. `finish()` returns `()` — there is no `DrawCommands` to thread back up the call stack.
 
-- **`on_finish` in `WidgetContext`**: Every `WidgetContext` carries `on_finish: CF` where `CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>`. Root contexts use a no-op function pointer. Container widgets construct a child via `child_with_layout_and_on_finish(layout, closure)`, passing a move closure that captures the container's token. `finish()` calls the closure and appends its post-commands (e.g. `PopClip`, focus claims) into the shared buffer after the child's own accumulated commands.
+- **`on_finish` in `WidgetContext`**: Every `WidgetContext` carries `on_finish: CF` where `CF: FnOnce(&mut FocusSystem) -> DrawCommands`. Root contexts use a no-op function pointer. Container widgets construct a child via `child_with_layout_and_on_finish(layout, closure)`, passing a move closure that captures the container's token. `finish()` calls the closure and appends its post-commands (e.g. `PopClip`, focus claims) into the shared buffer after the child's own accumulated commands.
 
 - **Borrow-Enforced Ordering**: Because child contexts are created from `&mut self`, the borrow checker enforces that only one child can be alive at a time. This is the correct constraint for immediate-mode GUI: draw commands are order-sensitive (later commands render on top), so constructing two sibling children simultaneously and finishing them in arbitrary order would be a footgun. The exclusive borrow makes incorrect ordering a compile error, not a runtime bug. An alternative design — separate owned buffers per context with a raw back-pointer for auto-append on `finish()` — is mechanically possible but loses this guarantee.
 

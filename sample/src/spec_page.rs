@@ -5,7 +5,7 @@ use framewise::widgets::text_edit::TextEditSpecBuilder;
 use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
-    draw::DrawCmd,
+    draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
     layout::{Layout, LayoutState, ManualLayout},
@@ -46,7 +46,7 @@ use framewise::{
 fn draw_checkbox_fake_state<
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -82,7 +82,7 @@ fn draw_checkbox_fake_state<
     );
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -90,7 +90,7 @@ fn draw_checkbox_fake_state<
 fn draw_radio_fake_state<
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -122,7 +122,7 @@ fn draw_radio_fake_state<
         framewise::widgets::radio::raw::radio(state, spec, &dummy_input, &mut dummy_focus_sys);
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -130,7 +130,7 @@ fn draw_radio_fake_state<
 fn draw_switch_fake_state<
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -162,7 +162,7 @@ fn draw_switch_fake_state<
         framewise::widgets::switch::raw::switch(state, spec, &dummy_input, &mut dummy_focus_sys);
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -171,7 +171,7 @@ fn draw_select_fake_state<
     's,
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -214,7 +214,7 @@ fn draw_select_fake_state<
     );
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -222,7 +222,7 @@ fn draw_select_fake_state<
 fn draw_drag_number_fake_state<
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -262,7 +262,7 @@ fn draw_drag_number_fake_state<
     );
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -270,7 +270,7 @@ fn draw_drag_number_fake_state<
 fn draw_button_fake_state<
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -318,7 +318,7 @@ fn draw_button_fake_state<
     );
     {
         let this = &mut *b;
-        let cmds = result.draw.0;
+        let cmds = result.draw;
         this.append_cmds(cmds);
     };
 }
@@ -624,7 +624,7 @@ pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
-fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     x: f32,
@@ -643,7 +643,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
     };
 }
 
-fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
@@ -683,7 +683,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
     };
 }
 
-fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>(
+fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
@@ -714,14 +714,14 @@ pub fn draw_spec_page(
     time: f64,
     win_w: f32,
     win_h: f32,
-) -> Vec<DrawCmd> {
+) -> DrawCommands {
     let t = Theme::framewise();
 
     let content_w = (win_w - MARGIN * 2.0).min(1100.0);
     let lx = (win_w - content_w) * 0.5;
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
-    let mut cmds = vec![];
+    let mut cmds = DrawCommands::new();
     let mut b = {
         let layout_state = ManualLayout.begin(win_rect);
         let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state, &mut cmds);
@@ -741,7 +741,7 @@ pub fn draw_spec_page(
     });
     {
         let this = &mut b;
-        let cmds = bg.draw.0;
+        let cmds = bg.draw;
         this.append_cmds(cmds);
     };
 
@@ -1228,14 +1228,14 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(pf_x, y + 18.0, 24.0, t.h_md);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect { rect, color: t.ink },
                         DrawCmd::StrokeRect {
                             rect,
                             color: t.line,
                             width: 1.0,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -1638,10 +1638,10 @@ pub fn draw_spec_page(
                         let this = &mut *b;
                         let layout_params = Rect::new(tx - 0.5, tick_y, 1.0, tick_h);
                         let rect = this.layout(layout_params);
-                        let cmds = vec![DrawCmd::FillRect {
+                        let cmds = DrawCommands(vec![DrawCmd::FillRect {
                             rect,
                             color: t.line,
-                        }];
+                        }]);
                         this.append_cmds(cmds);
                     };
                 }
@@ -1669,7 +1669,7 @@ pub fn draw_spec_page(
                         let ts = 12.0_f32; // thumb size
                         let half_ts = ts * 0.5;
 
-                        vec![
+                        DrawCommands(vec![
                             // full track
                             DrawCmd::FillRect {
                                 rect: Rect::new(lx, mid_y - 0.75, track_w, 1.5),
@@ -1700,7 +1700,7 @@ pub fn draw_spec_page(
                                 color: t.ink,
                                 width: 1.5,
                             },
-                        ]
+                        ])
                     };
                     this.append_cmds(cmds);
                 };
@@ -1784,7 +1784,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(stepper_x, y, 64.0, t.h_md);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
                             color: t.hover,
@@ -1794,7 +1794,7 @@ pub fn draw_spec_page(
                             color: t.line,
                             width: 1.0,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -1812,7 +1812,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(stepper_x + 64.0, y, 40.0, t.h_md);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
                             color: t.paper_elev,
@@ -1822,7 +1822,7 @@ pub fn draw_spec_page(
                             color: t.line,
                             width: 1.0,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -1843,7 +1843,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(sx, y, 84.0, t.h_sm);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
                             color: t.paper_elev,
@@ -1871,7 +1871,7 @@ pub fn draw_spec_page(
                             color: t.line,
                             width: 1.0,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -2143,11 +2143,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b1);
-                    let cmds = vec![DrawCmd::StrokeRect {
+                    let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
                         width: 1.0,
-                    }];
+                    }]);
 
                     this.append_cmds(cmds);
                 };
@@ -2213,11 +2213,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b2);
-                    let cmds = vec![DrawCmd::StrokeRect {
+                    let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
                         width: 1.0,
-                    }];
+                    }]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -2269,11 +2269,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b3);
-                    let cmds = vec![DrawCmd::StrokeRect {
+                    let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
                         width: 1.0,
-                    }];
+                    }]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -2321,11 +2321,11 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(b4);
-                    let cmds = vec![DrawCmd::StrokeRect {
+                    let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
                         width: 1.0,
-                    }];
+                    }]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -2881,7 +2881,7 @@ pub fn draw_spec_page(
                 {
                     let this = &mut *b;
                     let rect = this.layout(dw);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
                             color: dark_bg,
@@ -2895,7 +2895,7 @@ pub fn draw_spec_page(
                             rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
                             color: darker,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -2926,7 +2926,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                             color: Color::from_srgb_u8(42, 37, 32, 255),
@@ -2945,7 +2945,7 @@ pub fn draw_spec_page(
                             color: dark_bdr,
                             width: 1.0,
                         },
-                    ];
+                    ]);
 
                     this.append_cmds(cmds);
                 };
@@ -2983,7 +2983,7 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, inp_y, dw.w - 32.0, 26.0);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![
+                    let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
                             color: darker,
@@ -2993,7 +2993,7 @@ pub fn draw_spec_page(
                             color: dark_bdr,
                             width: 1.0,
                         },
-                    ];
+                    ]);
                     this.append_cmds(cmds);
                 };
                 {
@@ -3013,12 +3013,12 @@ pub fn draw_spec_page(
                     let this = &mut *b;
                     let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
                     let rect = this.layout(layout_params);
-                    let cmds = vec![DrawCmd::StrokeLine {
+                    let cmds = DrawCommands(vec![DrawCmd::StrokeLine {
                         p0: Vec2::new(rect.x, rect.y),
                         p1: Vec2::new(rect.x + rect.w, rect.y),
                         color: dark_bdr,
                         width: 1.0,
-                    }];
+                    }]);
                     this.append_cmds(cmds);
                 };
                 let tab_items = ["Files", "Symbols", "Frames"];
@@ -3040,10 +3040,10 @@ pub fn draw_spec_page(
                             let this = &mut *b;
                             let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
                             let rect = this.layout(layout_params);
-                            let cmds = vec![DrawCmd::FillRect {
+                            let cmds = DrawCommands(vec![DrawCmd::FillRect {
                                 rect,
                                 color: t.rust,
-                            }];
+                            }]);
 
                             this.append_cmds(cmds);
                         };
@@ -3609,8 +3609,8 @@ pub fn draw_spec_page(
     cmds
 }
 
-fn hero_logo(t: &Theme, lx: f32, y0: f32) -> Vec<DrawCmd> {
-    let mut cmds = vec![];
+fn hero_logo(t: &Theme, lx: f32, y0: f32) -> DrawCommands {
+    let mut cmds = DrawCommands::new();
 
     // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
     let ls = 0.48_f32;

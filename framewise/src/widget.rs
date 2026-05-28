@@ -1,4 +1,4 @@
-use crate::draw::DrawCmd;
+use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::LayoutState;
 use crate::text::TextSystem;
@@ -57,7 +57,7 @@ pub struct WidgetContext<
     'a,
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
@@ -68,14 +68,14 @@ pub struct WidgetContext<
     pub text_system: &'a mut T,
     pub focus_sys: &'a mut FocusSystem,
     pub input: &'a Input,
-    cmds: &'a mut Vec<DrawCmd>,
+    cmds: &'a mut DrawCommands,
 
     pub layout_state: LS,
     on_finish: CF,
 }
 
 impl<'a, T: TextSystem, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem) -> Vec<DrawCmd>>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem) -> DrawCommands>
 {
     pub fn root(
         theme: Theme,
@@ -83,7 +83,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
         focus_sys: &'a mut FocusSystem,
         input: &'a Input,
         layout_state: LS,
-        cmds: &'a mut Vec<DrawCmd>,
+        cmds: &'a mut DrawCommands,
     ) -> Self {
         Self {
             time: 0.0,
@@ -94,18 +94,18 @@ impl<'a, T: TextSystem, LS: LayoutState>
             input,
             layout_state,
             cmds,
-            on_finish: |_| vec![], // No cleanup for root context
+            on_finish: |_| DrawCommands::new(), // No cleanup for root context
         }
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>>
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>
     WidgetContext<'a, T, LS, CF>
 {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+        CF2: FnOnce(&mut FocusSystem) -> DrawCommands,
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -128,7 +128,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+        CF2: FnOnce(&mut FocusSystem) -> DrawCommands,
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -144,23 +144,23 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> Vec<Dra
     pub fn child_with_layout<'c, LS2: LayoutState>(
         &'c mut self,
         inner_layout_state: LS2,
-    ) -> WidgetContext<'c, T, LS2, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
+    ) -> WidgetContext<'c, T, LS2, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
         self.child_with_layout_and_on_finish_and_clip_rect(
             inner_layout_state,
-            |_| vec![],
+            |_| DrawCommands::new(),
             self.clip_rect, // Clip rect is inherited by default
         )
     }
 
     /// Append draw commands to the context's accumulated list.
-    pub fn append_cmds(&mut self, mut cmds: Vec<DrawCmd>) {
-        self.cmds.append(&mut cmds);
+    pub fn append_cmds(&mut self, cmds: DrawCommands) {
+        self.cmds.extend(cmds);
     }
 
-    /// Consume the context and return all accumulated draw commands.
+    /// Consume the context, running the on_finish closure and appending its post-commands.
     pub fn finish(self) {
-        let mut post_cmds = (self.on_finish)(self.focus_sys);
-        self.cmds.append(&mut post_cmds);
+        let post_cmds = (self.on_finish)(self.focus_sys);
+        self.cmds.extend(post_cmds);
     }
 
     /// Resolve layout using the context's layout state.

@@ -244,8 +244,8 @@ pub mod raw {
     pub fn end_scroll_area(
         token: ScrollAreaToken,
         focus_sys: &mut crate::focus::FocusSystem,
-    ) -> Vec<DrawCmd> {
-        let post_cmds = vec![DrawCmd::PopClip];
+    ) -> DrawCommands {
+        let post_cmds = DrawCommands(vec![DrawCmd::PopClip]);
 
         let popped = focus_sys.pop_keyboard_scroll_scope();
         debug_assert_eq!(
@@ -548,7 +548,7 @@ pub struct ScrollAreaResult<
     'b,
     T: crate::text::TextSystem,
     LS: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
@@ -568,7 +568,7 @@ pub fn begin_scroll_area<
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
     L: crate::layout::Layout,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     parent: &'b mut WidgetContext<'a, T, S, CF>,
     layout_params: S::Params,
@@ -579,7 +579,7 @@ pub fn begin_scroll_area<
     'b,
     T,
     crate::layout::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    impl FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     let layout_bounds = parent.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
@@ -588,7 +588,7 @@ pub fn begin_scroll_area<
     let raw::ScrollAreaResult { draw, token, content_bounds, offset } =
         raw::begin_scroll_area(spec, state, parent.input, parent.focus_sys, parent.time);
 
-    parent.append_cmds(draw.0);
+    parent.append_cmds(draw);
 
     let offset_layout = crate::layout::OffsetLayout {
         offset,
@@ -649,7 +649,7 @@ mod tests {
         clip_rect: ClipRect,
         time: f64,
     ) -> (
-        Vec<DrawCmd>,
+        DrawCommands,
         Rect,
         crate::layout::OffsetLayout<crate::layout::ManualLayout>,
     ) {
@@ -661,7 +661,7 @@ mod tests {
             clip_rect,
         };
         let r = raw::begin_scroll_area(spec, state, input, focus_sys, time);
-        let mut pre_cmds = r.draw.0;
+        let mut pre_cmds = r.draw;
         let post_cmds = raw::end_scroll_area(r.token, focus_sys);
         pre_cmds.extend(post_cmds);
         let layout = crate::layout::OffsetLayout {
@@ -3366,7 +3366,7 @@ mod nested_bubbling_tests {
         let mut text_sys = DummyTextSys;
         let mut focus = crate::focus::FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds = vec![];
+        let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 80.0);
         let custom_rect = Rect::new(10.0, 20.0, 200.0, 40.0);
         let mut scroll_state = ScrollState::default();

@@ -562,7 +562,7 @@ pub struct SliderResult {
 pub fn slider<
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
     state: &mut SliderState,
@@ -579,7 +579,7 @@ pub fn slider<
         .clip_rect(clip)
         .build();
     let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
-    ctx.append_cmds(result.draw.0);
+    ctx.append_cmds(result.draw);
     SliderResult { layout: LayoutInfo::tight(rect) }
 }
 
@@ -1793,7 +1793,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus = crate::focus::FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds: Vec<crate::draw::DrawCmd> = vec![];
+        let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(

@@ -78,11 +78,26 @@ impl DrawCommands {
         self.0.push(cmd);
     }
 
-    pub fn extend(&mut self, other: DrawCommands) {
-        self.0.extend(other.0);
+    pub fn extend(&mut self, other: impl IntoIterator<Item = DrawCmd>) {
+        self.0.extend(other);
     }
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl std::ops::Deref for DrawCommands {
+    type Target = [DrawCmd];
+    fn deref(&self) -> &[DrawCmd] {
+        &self.0
+    }
+}
+
+impl IntoIterator for DrawCommands {
+    type Item = DrawCmd;
+    type IntoIter = std::vec::IntoIter<DrawCmd>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }

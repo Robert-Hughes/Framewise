@@ -147,7 +147,7 @@ impl LabelSpecBuilder {
 pub fn label<
     T: TextSystem,
     S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
@@ -158,7 +158,7 @@ pub fn label<
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
-    ctx.append_cmds(result.draw.0);
+    ctx.append_cmds(result.draw);
 
     LabelResult {
         layout: LayoutInfo::tight(rect),
@@ -297,7 +297,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let mut focus = crate::focus::FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds = vec![];
+        let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
