@@ -22,7 +22,6 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct MenuResult {
         pub draw: DrawCommands,
-        pub outer: Rect,
     }
 
     /// Low-level menu widget function.
@@ -146,7 +145,7 @@ pub mod raw {
             }
         }
 
-        MenuResult { draw: cmds, outer }
+        MenuResult { draw: cmds }
     }
 }
 
@@ -282,7 +281,7 @@ pub fn menu<
     let result = raw::menu(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     MenuResult {
-        layout: LayoutInfo::tight(result.outer),
+        layout: LayoutInfo::tight(rect),
     }
 }
 
