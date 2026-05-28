@@ -687,7 +687,7 @@ mod tests {
         let mut state = ScrollState::default();
         let input = Input::new();
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let mut text_system = DummyTextSys;
+        let text_system = DummyTextSys;
 
         let (_, content_bounds, layout) = scroll_area(
             bounds,
