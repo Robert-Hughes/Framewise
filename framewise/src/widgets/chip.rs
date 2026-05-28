@@ -166,20 +166,6 @@ pub struct ChipResult {
     pub focused: bool,
 }
 
-impl ChipResult {
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-    pub fn active(&self) -> bool {
-        self.state.active
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

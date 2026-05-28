@@ -286,7 +286,7 @@ impl App {
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
-                    let clicked = btn.clicked();
+                    let clicked = btn.input.clicked;
                     self.sidebar_btns[i].state = btn.state;
                     if clicked {
                         self.sidebar_btns[i].clicks += 1;
@@ -484,7 +484,7 @@ impl App {
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
-                    let clicked = btn.clicked();
+                    let clicked = btn.input.clicked;
                     self.main_btns[i].state = btn.state;
                     if clicked {
                         self.main_btns[i].clicks += 1;
@@ -541,7 +541,7 @@ impl App {
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
-                    let clicked1 = btn1.clicked();
+                    let clicked1 = btn1.input.clicked;
                     row_state.btn1.state = btn1.state;
                     if clicked1 {
                         row_state.btn1.clicks += 1;
@@ -576,7 +576,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         row_state.inner_btns[j].state = btn.state;
                         if clicked {
                             row_state.inner_btns[j].clicks += 1;
@@ -614,7 +614,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         row_state.horiz_btns[j].state = btn.state;
                         if clicked {
                             row_state.horiz_btns[j].clicks += 1;
@@ -656,7 +656,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         row_state.both_btns[j].state = btn.state;
                         if clicked {
                             row_state.both_btns[j].clicks += 1;
@@ -845,7 +845,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         self.nested_2d_inner_btns[j].state = btn.state;
                         if clicked {
                             self.nested_2d_inner_btns[j].clicks += 1;
@@ -938,7 +938,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         self.triple_inner_btns[j].state = btn.state;
                         if clicked {
                             self.triple_inner_btns[j].clicks += 1;
@@ -971,7 +971,7 @@ impl App {
                                 ButtonSpecBuilder::new().text(text).style(button_style);
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
-                        let clicked = btn.clicked();
+                        let clicked = btn.input.clicked;
                         self.triple_innermost_btns[k].state = btn.state;
                         if clicked {
                             self.triple_innermost_btns[k].clicks += 1;

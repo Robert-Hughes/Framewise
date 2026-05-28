@@ -14,7 +14,7 @@
 //!
 //! fn draw(ui: &mut Builder, input: &Input) {
 //!     let btn = ui.button(Rect::new(20.0, 20.0, 120.0, 36.0), "Click me", input);
-//!     if btn.clicked() {
+//!     if btn.input.clicked {
 //!         println!("clicked!");
 //!     }
 //!     let cmds = ui.finish(); // hand to your renderer

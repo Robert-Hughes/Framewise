@@ -234,20 +234,6 @@ pub struct SwitchResult {
     pub focused: bool,
 }
 
-impl SwitchResult {
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-    pub fn on(&self) -> bool {
-        self.state.on
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

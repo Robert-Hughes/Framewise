@@ -232,20 +232,6 @@ pub struct RadioResult {
     pub focused: bool,
 }
 
-impl RadioResult {
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-    pub fn selected(&self) -> bool {
-        self.state.selected
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

@@ -275,20 +275,6 @@ pub struct CheckboxResult {
     pub focused: bool,
 }
 
-impl CheckboxResult {
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-    pub fn state(&self) -> CheckState {
-        self.state.check
-    }
-}
 
 // ── High-level widget function ───────────────────────────────────────────────────
 

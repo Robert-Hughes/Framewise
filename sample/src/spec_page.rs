@@ -925,7 +925,7 @@ pub fn draw_spec_page(
                             ButtonSpecBuilder::new().text(text.to_string()).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
-                    if btn.clicked() && i == 2 {
+                    if btn.input.clicked && i == 2 {
                         should_reset = true;
                     }
                     state.btn_variants[i] = btn.state;

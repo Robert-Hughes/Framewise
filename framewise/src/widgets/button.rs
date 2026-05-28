@@ -216,21 +216,6 @@ pub struct ButtonResult {
     pub focused: bool,
 }
 
-impl ButtonResult {
-    /// Shorthand for `self.input.clicked`.
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    /// Shorthand for `self.input.hovered`.
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    /// True if the widget currently has keyboard focus.
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-}
-
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
