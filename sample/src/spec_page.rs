@@ -55,7 +55,7 @@ fn draw_checkbox_fake_state<
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let state = CheckboxState {
+    let mut state = CheckboxState {
         check: state_val,
         ..Default::default()
     };
@@ -75,7 +75,7 @@ fn draw_checkbox_fake_state<
     };
 
     let result = framewise::widgets::checkbox::raw::checkbox(
-        state,
+        &mut state,
         spec,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -99,7 +99,7 @@ fn draw_radio_fake_state<
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let state = RadioState {
+    let mut state = RadioState {
         selected,
         ..Default::default()
     };
@@ -119,7 +119,7 @@ fn draw_radio_fake_state<
     };
 
     let result =
-        framewise::widgets::radio::raw::radio(state, spec, &dummy_input, &mut dummy_focus_sys);
+        framewise::widgets::radio::raw::radio(&mut state, spec, &dummy_input, &mut dummy_focus_sys);
     {
         let this = &mut *b;
         let cmds = result.draw;
@@ -139,7 +139,7 @@ fn draw_switch_fake_state<
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let state = SwitchState {
+    let mut state = SwitchState {
         on,
         ..Default::default()
     };
@@ -159,7 +159,7 @@ fn draw_switch_fake_state<
     };
 
     let result =
-        framewise::widgets::switch::raw::switch(state, spec, &dummy_input, &mut dummy_focus_sys);
+        framewise::widgets::switch::raw::switch(&mut state, spec, &dummy_input, &mut dummy_focus_sys);
     {
         let this = &mut *b;
         let cmds = result.draw;
@@ -183,7 +183,7 @@ fn draw_select_fake_state<
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
-    let state = SelectState {
+    let mut state = SelectState {
         open: is_open,
         hovered: hovered_row,
         ..Default::default()
@@ -206,7 +206,7 @@ fn draw_select_fake_state<
     };
 
     let result = framewise::widgets::select::raw::select(
-        state,
+        &mut state,
         spec,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -233,7 +233,7 @@ fn draw_drag_number_fake_state<
     is_active: bool,
 ) {
     let rect = b.layout(layout_params);
-    let state = framewise::widgets::DragNumberState {
+    let mut state = framewise::widgets::DragNumberState {
         value: val,
         is_dragging: is_active,
         ..Default::default()
@@ -254,7 +254,7 @@ fn draw_drag_number_fake_state<
 
     let mut dummy_focus_sys = FocusSystem::new();
     let result = framewise::widgets::drag_number::raw::drag_number(
-        state,
+        &mut state,
         spec,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -310,7 +310,7 @@ fn draw_button_fake_state<
         .build();
 
     let result = framewise::widgets::button::raw::button(
-        state,
+        &mut state,
         spec,
         &fake_input,
         b.text_system,
@@ -917,7 +917,7 @@ pub fn draw_spec_page(
                     let w = label.len() as f32 * 7.0 + 24.0;
                     let btn = {
                         let this = &mut *b;
-                        let state = std::mem::take(&mut state.btn_variants[i]);
+                        let state = &mut state.btn_variants[i];
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
@@ -928,7 +928,6 @@ pub fn draw_spec_page(
                     if btn.input.clicked && i == 2 {
                         should_reset = true;
                     }
-                    state.btn_variants[i] = btn.state;
                     bx += w + COL_GAP;
                 }
             }
@@ -1018,7 +1017,7 @@ pub fn draw_spec_page(
                                 let idx = ri * 2 + ci / 4; // ci=0 → idx 0 (default), ci=4 → idx 1 (disabled)
                                 let btn = {
                                     let this = &mut *b;
-                                    let state = std::mem::take(&mut state.btn_matrix[idx]);
+                                    let state = &mut state.btn_matrix[idx];
                                     let style = row_styles[ri];
                                     let spec_builder = ButtonSpecBuilder::new()
                                         .text("Action".to_string())
@@ -1026,7 +1025,6 @@ pub fn draw_spec_page(
                                         .disabled(disabled);
                                     button(this, state, rect, spec_builder)
                                 };
-                                state.btn_matrix[idx] = btn.state;
                             }
                         }
                     }
@@ -1049,7 +1047,7 @@ pub fn draw_spec_page(
                     let w = label.len() as f32 * 7.0 + 20.0;
                     let btn = {
                         let this = &mut *b;
-                        let state = std::mem::take(&mut state.btn_sizes[i]);
+                        let state = &mut state.btn_sizes[i];
                         let layout_params = Rect::new(bx, y, w, *h);
                         let text: &str = label;
                         let style = *style;
@@ -1057,7 +1055,6 @@ pub fn draw_spec_page(
                             ButtonSpecBuilder::new().text(text.to_string()).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
-                    state.btn_sizes[i] = btn.state;
                     bx += w + COL_GAP;
                 }
                 bx += 24.0;
@@ -1073,7 +1070,7 @@ pub fn draw_spec_page(
                     let w = label.len() as f32 * 7.0 + 20.0;
                     let btn = {
                         let this = &mut *b;
-                        let state = std::mem::take(&mut state.btn_grp1[i]);
+                        let state = &mut state.btn_grp1[i];
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
@@ -1081,7 +1078,6 @@ pub fn draw_spec_page(
                             ButtonSpecBuilder::new().text(text.to_string()).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
-                    state.btn_grp1[i] = btn.state;
                     bx += w;
                 }
                 bx += COL_GAP;
@@ -1096,7 +1092,7 @@ pub fn draw_spec_page(
                     let w = label.len() as f32 * 7.0 + 20.0;
                     let btn = {
                         let this = &mut *b;
-                        let state = std::mem::take(&mut state.btn_grp2[i]);
+                        let state = &mut state.btn_grp2[i];
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
@@ -1104,7 +1100,6 @@ pub fn draw_spec_page(
                             ButtonSpecBuilder::new().text(text.to_string()).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
-                    state.btn_grp2[i] = btn.state;
                     bx += w;
                 }
                 let _ = bx;
@@ -1157,7 +1152,7 @@ pub fn draw_spec_page(
                         let disabled = ci == 4;
                         let info = {
                             let this = &mut *b;
-                            let state = std::mem::take(&mut state.te_matrix[idx]);
+                            let state = &mut state.te_matrix[idx];
                             let layout_params = Rect::new(
                                 lx + label_w + ci as f32 * (cell_w + 8.0),
                                 y,
@@ -1168,7 +1163,6 @@ pub fn draw_spec_page(
                                 TextEditSpecBuilder::new().error(error).disabled(disabled);
                             text_edit(this, state, layout_params, spec_builder)
                         };
-                        state.te_matrix[idx] = info.state;
                     }
                     y += t.h_md + 8.0;
                 }
@@ -1193,12 +1187,11 @@ pub fn draw_spec_page(
                 };
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.te_labelled);
+                    let state = &mut state.te_labelled;
                     let layout_params = Rect::new(field_x, y + 18.0, 160.0, t.h_md);
                     let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
-                state.te_labelled = info.state;
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(field_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
@@ -1251,12 +1244,11 @@ pub fn draw_spec_page(
                 };
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.te_prefixed);
+                    let state = &mut state.te_prefixed;
                     let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md);
                     let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
-                state.te_prefixed = info.state;
                 {
                     let this = &mut *b;
                     let layout_params = Rect::new(pf_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
@@ -1284,12 +1276,11 @@ pub fn draw_spec_page(
                 };
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.te_multiline);
+                    let state = &mut state.te_multiline;
                     let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
                     let spec_builder = TextEditSpecBuilder::new();
                     text_edit(this, state, layout_params, spec_builder)
                 };
-                state.te_multiline = info.state;
             }
             y += 18.0 + 68.0 + 4.0 + 14.0 + SEC_GAP;
 
@@ -1355,11 +1346,10 @@ pub fn draw_spec_page(
                     if ci < 3 {
                         let info = {
                             let this = &mut *b;
-                            let state = std::mem::take(&mut state.cb_matrix[ci]);
+                            let state = &mut state.cb_matrix[ci];
                             let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
                             checkbox(this, state, rect, spec_builder)
                         };
-                        state.cb_matrix[ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(b, rect, *cs, *focused, *disabled);
                     }
@@ -1383,12 +1373,11 @@ pub fn draw_spec_page(
                     if ci < 3 {
                         let info = {
                             let this = &mut *b;
-                            let state = std::mem::take(&mut state.cb_matrix[3 + ci]);
+                            let state = &mut state.cb_matrix[3 + ci];
                             let layout_params = Rect::new(cx, y, 14.0, 14.0);
                             let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
                             checkbox(this, state, layout_params, spec_builder)
                         };
-                        state.cb_matrix[3 + ci] = info.state;
                     } else {
                         draw_checkbox_fake_state(
                             b,
@@ -1424,12 +1413,11 @@ pub fn draw_spec_page(
                     if i < 3 {
                         let info = {
                             let this = &mut *b;
-                            let state = std::mem::take(&mut state.radio_states[i]);
+                            let state = &mut state.radio_states[i];
                             let layout_params = Rect::new(lx, ry, 14.0, 14.0);
                             let spec_builder = RadioSpecBuilder::new().selected(state.selected);
                             radio(this, state, layout_params, spec_builder)
                         };
-                        state.radio_states[i] = info.state;
                         if info.input.clicked {
                             for j in 0..3 {
                                 state.radio_states[j].selected = j == i;
@@ -1475,18 +1463,17 @@ pub fn draw_spec_page(
                         3 => {
                             let info = {
                                 let this = &mut *b;
-                                let state = std::mem::take(&mut state.switch_states[2]);
+                                let state = &mut state.switch_states[2];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
                                 let spec_builder =
                                     SwitchSpecBuilder::new().on(state.on).disabled(true);
                                 switch(this, state, layout_params, spec_builder)
                             };
-                            state.switch_states[2] = info.state;
                         }
                         _ => {
                             let info = {
                                 let this = &mut *b;
-                                let state = std::mem::take(&mut state.switch_states[i]);
+                                let state = &mut state.switch_states[i];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
                                 {
                                     let this = &mut *this;
@@ -1494,7 +1481,6 @@ pub fn draw_spec_page(
                                     switch(this, state, layout_params, spec_builder)
                                 }
                             };
-                            state.switch_states[i] = info.state;
                         }
                     }
                     {
@@ -1725,7 +1711,7 @@ pub fn draw_spec_page(
                 // X — real
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.dn_showcase[0]);
+                    let state = &mut state.dn_showcase[0];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("X")
@@ -1733,12 +1719,11 @@ pub fn draw_spec_page(
                         .max(800.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
-                state.dn_showcase[0] = info.state;
                 bx += 100.0 + 8.0;
                 // Y — real
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.dn_showcase[1]);
+                    let state = &mut state.dn_showcase[1];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("Y")
@@ -1746,7 +1731,6 @@ pub fn draw_spec_page(
                         .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
-                state.dn_showcase[1] = info.state;
                 bx += 100.0 + 8.0;
                 // W — fake (forced active/dragging)
                 static_badge(b, &t, bx, y - 14.0);
@@ -1763,7 +1747,7 @@ pub fn draw_spec_page(
                 // H — real
                 let info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.dn_showcase[2]);
+                    let state = &mut state.dn_showcase[2];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("H")
@@ -1771,7 +1755,6 @@ pub fn draw_spec_page(
                         .max(600.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
-                state.dn_showcase[2] = info.state;
             }
             y += t.h_md + GROUP_GAP;
 
@@ -1950,14 +1933,13 @@ pub fn draw_spec_page(
                 } else {
                     ""
                 };
-                let sel_state = std::mem::take(&mut state.sel_state);
+                let sel_state = &mut state.sel_state;
                 let sel_info = select(
                     b,
                     sel_state,
                     Rect::new(lx, y, 160.0, t.h_md),
                     SelectSpecBuilder::new().value(value).options(LAYOUT_OPTS),
                 );
-                state.sel_state = sel_info.state;
 
                 static_badge(b, &t, lx - 48.0, y + t.h_md + 4.0);
                 draw_select_fake_state(
@@ -1976,25 +1958,23 @@ pub fn draw_spec_page(
                 const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
                 let seg1_info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.seg1_state);
+                    let state = &mut state.seg1_state;
                     let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(SEGS1)
                         .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
-                state.seg1_state = seg1_info.state;
                 const SEGS2: &[&str] = &["start", "center", "end"];
                 let seg2_info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.seg2_state);
+                    let state = &mut state.seg2_state;
                     let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
                         .items(SEGS2)
                         .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
-                state.seg2_state = seg2_info.state;
 
                 // Chips
                 let chip_labels = ["opengl", "vulkan", "metal", "wgpu"];
@@ -2005,14 +1985,13 @@ pub fn draw_spec_page(
                     let chip_w = (layout.size.x + 16.0).max(32.0);
                     let chip_info = {
                         let this = &mut *b;
-                        let state = std::mem::take(&mut state.chip_states[i]);
+                        let state = &mut state.chip_states[i];
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
                         let spec_builder = ChipSpecBuilder::new()
                             .label(label)
                             .font(this.theme.sans_font);
                         chip(this, state, layout_params, spec_builder)
                     };
-                    state.chip_states[i] = chip_info.state;
                     chip_x += chip_w + 6.0;
                 }
                 let add_layout = b
@@ -2021,14 +2000,13 @@ pub fn draw_spec_page(
                 let add_w = (add_layout.size.x + 16.0).max(32.0);
                 let add_info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.chip_states[4]);
+                    let state = &mut state.chip_states[4];
                     let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
                     let spec_builder = ChipSpecBuilder::new()
                         .label("+ add backend")
                         .font(this.theme.sans_font);
                     chip(this, state, layout_params, spec_builder)
                 };
-                state.chip_states[4] = add_info.state;
             }
             let select_open_h = 3.0 * 26.0 + 8.0;
             y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
@@ -2389,27 +2367,25 @@ pub fn draw_spec_page(
                 const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
                 let t1_info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.tabs1_state);
+                    let state = &mut state.tabs1_state;
                     let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
                         .items(TABS1)
                         .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
-                state.tabs1_state = t1_info.state;
                 y += 36.0 + 20.0;
 
                 const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
                 let t2_info = {
                     let this = &mut *b;
-                    let state = std::mem::take(&mut state.tabs2_state);
+                    let state = &mut state.tabs2_state;
                     let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
                         .items(TABS2)
                         .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
-                state.tabs2_state = t2_info.state;
                 y += 36.0;
             }
             y += SEC_GAP;
@@ -2801,7 +2777,7 @@ pub fn draw_spec_page(
                 {
                     let info = {
                         let this = &mut win;
-                        let state = std::mem::take(&mut state.win11_drags[i]);
+                        let state = &mut state.win11_drags[i];
                         let min = *min;
                         let max = *max;
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
@@ -2812,7 +2788,6 @@ pub fn draw_spec_page(
                             .max(max);
                         drag_number(this, state, layout_params, spec_builder)
                     };
-                    state.win11_drags[i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 6.0;
@@ -2823,7 +2798,7 @@ pub fn draw_spec_page(
                 {
                     let info = {
                         let this = &mut win;
-                        let state = std::mem::take(&mut state.win11_drags[2 + i]);
+                        let state = &mut state.win11_drags[2 + i];
                         let min = *min;
                         let max = *max;
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
@@ -2834,7 +2809,6 @@ pub fn draw_spec_page(
                             .max(max);
                         drag_number(this, state, layout_params, spec_builder)
                     };
-                    state.win11_drags[2 + i] = info.state;
                     drx += (cr_w / 2.0) + 4.0;
                 }
                 iy += t.h_md + 10.0;
@@ -2849,12 +2823,11 @@ pub fn draw_spec_page(
                 for (i, check_label) in check_labels.iter().enumerate() {
                     let cb_info = {
                         let this = &mut win;
-                        let state = std::mem::take(&mut state.win11_cbs[i]);
+                        let state = &mut state.win11_cbs[i];
                         let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
                         let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
                         checkbox(this, state, layout_params, spec_builder)
                     };
-                    state.win11_cbs[i] = cb_info.state;
                     {
                         let this = &mut win;
                         let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
@@ -3098,7 +3071,7 @@ pub fn draw_spec_page(
                 let tabs_items = ["General", "Frame", "Output", "Debug"];
                 let tabs_info = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_tabs);
+                    let state = &mut state.iu_tabs;
                     let items: &[&str] = &tabs_items;
                     let layout_params = Rect::new(0.0, 0.0, cr_w, 28.0);
                     let spec_builder = TabsSpecBuilder::new()
@@ -3106,7 +3079,6 @@ pub fn draw_spec_page(
                         .active_index(state.active_index);
                     tabs(this, state, layout_params, spec_builder)
                 };
-                state.iu_tabs = tabs_info.state;
 
                 // Form rows
                 let form_y_start = 38.0;
@@ -3132,7 +3104,7 @@ pub fn draw_spec_page(
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
                 let backend_info = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_backend);
+                    let state = &mut state.iu_backend;
                     let items: &[&str] = &backends;
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
@@ -3140,7 +3112,6 @@ pub fn draw_spec_page(
                         .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
-                state.iu_backend = backend_info.state;
                 fy += row_h + row_gap;
 
                 // target fps (slider)
@@ -3200,7 +3171,7 @@ pub fn draw_spec_page(
                 };
                 let switch_res = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_vsync);
+                    let state = &mut state.iu_vsync;
                     let layout_params = Rect::new(widget_x, fy + 6.0, 30.0, 16.0);
                     {
                         let this = &mut *this;
@@ -3208,7 +3179,6 @@ pub fn draw_spec_page(
                         switch(this, state, layout_params, spec_builder)
                     }
                 };
-                state.iu_vsync = switch_res.state;
                 {
                     let this = &mut win;
                     let layout_params = Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0);
@@ -3237,7 +3207,7 @@ pub fn draw_spec_page(
                 let msaa_opts = ["off", "2×", "4×", "8×"];
                 let seg_res = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_msaa);
+                    let state = &mut state.iu_msaa;
                     let items: &[&str] = &msaa_opts;
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
@@ -3245,7 +3215,6 @@ pub fn draw_spec_page(
                         .active_index(state.active_index);
                     segmented(this, state, layout_params, spec_builder)
                 };
-                state.iu_msaa = seg_res.state;
                 fy += row_h + row_gap;
 
                 // viewport (drag numbers)
@@ -3262,7 +3231,7 @@ pub fn draw_spec_page(
                 };
                 let w_res = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_vp_w);
+                    let state = &mut state.iu_vp_w;
                     let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .label("W")
@@ -3270,11 +3239,10 @@ pub fn draw_spec_page(
                         .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
-                state.iu_vp_w = w_res.state;
 
                 let h_res = {
                     let this = &mut win;
-                    let state = std::mem::take(&mut state.iu_vp_h);
+                    let state = &mut state.iu_vp_h;
                     let layout_params = Rect::new(
                         widget_x + (widget_w / 2.0) + 4.0,
                         fy,
@@ -3287,7 +3255,6 @@ pub fn draw_spec_page(
                         .max(7680.0);
                     drag_number(this, state, layout_params, spec_builder)
                 };
-                state.iu_vp_h = h_res.state;
                 fy += row_h + row_gap;
 
                 // accent (color swatch + button)
@@ -3343,12 +3310,11 @@ pub fn draw_spec_page(
                     let opt_y = fy + i as f32 * 22.0;
                     let cb_res = {
                         let this = &mut win;
-                        let state = std::mem::take(&mut state.iu_options[i]);
+                        let state = &mut state.iu_options[i];
                         let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
                         let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
                         checkbox(this, state, layout_params, spec_builder)
                     };
-                    state.iu_options[i] = cb_res.state;
 
                     {
                         let this = &mut win;
@@ -3385,7 +3351,7 @@ pub fn draw_spec_page(
                     btn_x -= bw;
                     let btn = {
                         let this = &mut win;
-                        let state = std::mem::take(&mut state.iu_btns[i]);
+                        let state = &mut state.iu_btns[i];
                         let layout_params = Rect::new(btn_x, fy, bw, t.h_md);
                         let text: &str = label;
                         let style = *style;
@@ -3393,7 +3359,6 @@ pub fn draw_spec_page(
                             ButtonSpecBuilder::new().text(text.to_string()).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
-                    state.iu_btns[i] = btn.state;
                     btn_x -= 8.0;
                 }
                 win.finish();

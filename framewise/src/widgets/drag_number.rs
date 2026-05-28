@@ -29,7 +29,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn drag_number<'a, T: crate::text::TextSystem>(
-        mut state: DragNumberState,
+        state: &mut DragNumberState,
         spec: DragNumberSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -176,7 +176,6 @@ pub mod raw {
                 pressed: state.is_dragging,
                 clicked: clicked && !state.is_dragging,
             },
-            state,
             focused,
         }
     }
@@ -185,7 +184,6 @@ pub mod raw {
     pub struct DragNumberResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: DragNumberState,
         pub focused: bool,
     }
 }
@@ -232,7 +230,6 @@ impl Default for DragNumberState {
 pub struct DragNumberResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: DragNumberState,
     pub focused: bool,
 }
 
@@ -245,9 +242,6 @@ impl DragNumberResult {
     }
     pub fn focused(&self) -> bool {
         self.focused
-    }
-    pub fn value(&self) -> f32 {
-        self.state.value
     }
 }
 
@@ -263,7 +257,7 @@ pub fn drag_number<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: DragNumberState,
+    state: &mut DragNumberState,
     layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,
 ) -> DragNumberResult {
@@ -282,7 +276,6 @@ pub fn drag_number<
     DragNumberResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -392,7 +385,7 @@ mod tests {
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>) -> raw::DragNumberResult {
         raw::drag_number(
-            DragNumberState::default(),
+            &mut DragNumberState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -471,8 +464,9 @@ mod tests {
         let style = spec.style;
         let mut input = Input::default();
         input.mouse_down = true;
+        let mut state = state;
         let res = raw::drag_number(
-            state,
+            &mut state,
             spec,
             &input,
             &mut crate::focus::FocusSystem::new(),
@@ -535,7 +529,7 @@ mod tests {
 
         let style = spec.style;
         let res = raw::drag_number(
-            DragNumberState::default(),
+            &mut DragNumberState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -593,13 +587,14 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        let res = raw::drag_number(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::drag_number(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking drag number must request focus"
         );
     }
@@ -625,8 +620,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        raw::drag_number(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::drag_number(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -649,8 +645,8 @@ mod tests {
         // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = raw::drag_number(
-            state,
+        raw::drag_number(
+            &mut state,
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
@@ -666,7 +662,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
         input.key_pressed_right = false;
 
@@ -675,8 +670,8 @@ mod tests {
         // Frame 2: Press Arrow Left -> value decreases back to 50.0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = raw::drag_number(
-            state,
+        raw::drag_number(
+            &mut state,
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
@@ -694,7 +689,7 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert_eq!(res.state.value, 50.0);
+        assert_eq!(state.value, 50.0);
     }
 
     #[test]
@@ -738,9 +733,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut dn_state = DragNumberState::default();
         let result = super::drag_number(
             &mut ctx,
-            DragNumberState::default(),
+            &mut dn_state,
             layout_rect,
             DragNumberSpecBuilder::new().label("x").value(0.0).rect(custom_rect),
         );

@@ -27,7 +27,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn segmented<'a, T: crate::text::TextSystem>(
-        mut state: SegmentedState,
+        state: &mut SegmentedState,
         spec: SegmentedSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -44,7 +44,6 @@ pub mod raw {
                     pressed: false,
                     clicked: false,
                 },
-                state,
                 focused: false,
             };
         }
@@ -174,7 +173,6 @@ pub mod raw {
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -183,7 +181,6 @@ pub mod raw {
     pub struct SegmentedResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: SegmentedState,
         pub focused: bool,
     }
 }
@@ -214,7 +211,6 @@ pub struct SegmentedState {
 pub struct SegmentedResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: SegmentedState,
     pub focused: bool,
 }
 
@@ -227,9 +223,6 @@ impl SegmentedResult {
     }
     pub fn focused(&self) -> bool {
         self.focused
-    }
-    pub fn active_index(&self) -> usize {
-        self.state.active_index
     }
 }
 
@@ -245,7 +238,7 @@ pub fn segmented<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: SegmentedState,
+    state: &mut SegmentedState,
     layout_params: S::Params,
     builder: SegmentedSpecBuilder<'a>,
 ) -> SegmentedResult {
@@ -264,7 +257,6 @@ pub fn segmented<
     SegmentedResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -361,7 +353,7 @@ mod tests {
 
     fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> raw::SegmentedResult {
         raw::segmented(
-            SegmentedState::default(),
+            &mut SegmentedState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -422,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_segmented_visual_focused() {
-        let state = SegmentedState::default();
+        let mut state = SegmentedState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
@@ -439,7 +431,7 @@ mod tests {
         };
         let style = spec.style;
         let res = raw::segmented(
-            state,
+            &mut state,
             spec,
             &Input::default(),
             &mut focus_sys,
@@ -491,7 +483,7 @@ mod tests {
     #[test]
     fn test_segmented_click_takes_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = SegmentedState::default();
+        let mut state = SegmentedState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
@@ -509,12 +501,12 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = raw::segmented(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::segmented(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking segmented must request focus"
         );
     }
@@ -522,7 +514,7 @@ mod tests {
     #[test]
     fn test_segmented_clipped_click_does_not_take_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = SegmentedState::default();
+        let mut state = SegmentedState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
@@ -540,7 +532,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::segmented(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::segmented(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -564,8 +556,8 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_sys.begin_frame();
-        let res = raw::segmented(
-            state,
+        raw::segmented(
+            &mut state,
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
@@ -579,7 +571,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
         input.key_pressed_right = false;
 
@@ -588,8 +579,8 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_sys.begin_frame();
-        let res = raw::segmented(
-            state,
+        raw::segmented(
+            &mut state,
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
@@ -605,7 +596,7 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert_eq!(res.state.active_index, 0);
+        assert_eq!(state.active_index, 0);
     }
 
     #[test]
@@ -649,9 +640,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut seg_state = SegmentedState::default();
         let result = super::segmented(
             &mut ctx,
-            SegmentedState::default(),
+            &mut seg_state,
             layout_rect,
             SegmentedSpecBuilder::new().items(&[]).rect(custom_rect),
         );

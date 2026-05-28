@@ -26,7 +26,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn chip<'a, T: crate::text::TextSystem>(
-        mut state: ChipState,
+        state: &mut ChipState,
         spec: ChipSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -120,7 +120,6 @@ pub mod raw {
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -129,7 +128,6 @@ pub mod raw {
     pub struct ChipResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: ChipState,
         pub focused: bool,
     }
 }
@@ -162,7 +160,6 @@ pub struct ChipStyle {
 pub struct ChipResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: ChipState,
     pub focused: bool,
 }
 
@@ -179,7 +176,7 @@ pub fn chip<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: ChipState,
+    state: &mut ChipState,
     layout_params: S::Params,
     builder: ChipSpecBuilder<'a>,
 ) -> ChipResult {
@@ -198,7 +195,6 @@ pub fn chip<
     ChipResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -290,7 +286,7 @@ mod tests {
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> raw::ChipResult {
         raw::chip(
-            ChipState::default(),
+            &mut ChipState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -346,8 +342,9 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
+        let mut state = state;
         let res = raw::chip(
-            state,
+            &mut state,
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -391,8 +388,9 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
+        let mut state = state;
         let res = raw::chip(
-            state,
+            &mut state,
             spec,
             &Input::default(),
             &mut focus_sys,
@@ -446,13 +444,14 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        let res = raw::chip(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::chip(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking chip must request focus"
         );
     }
@@ -475,8 +474,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 50.0, 22.0)),
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        raw::chip(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::chip(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -496,8 +496,8 @@ mod tests {
         // Frame 1: Focus chip
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = raw::chip(
-            state,
+        raw::chip(
+            &mut state,
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
@@ -510,15 +510,14 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
 
         // Frame 2: Press Space
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = raw::chip(
-            state,
+        raw::chip(
+            &mut state,
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
@@ -531,7 +530,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
 
         // Frame 3: Release Space
@@ -539,8 +537,8 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = raw::chip(
-            state,
+        raw::chip(
+            &mut state,
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 label: "Tag",
@@ -555,7 +553,7 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert!(res.state.active, "Spacebar release must toggle chip state");
+        assert!(state.active, "Spacebar release must toggle chip state");
     }
 
     #[test]
@@ -597,9 +595,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut chip_state = ChipState::default();
         let result = super::chip(
             &mut ctx,
-            ChipState::default(),
+            &mut chip_state,
             layout_rect,
             ChipSpecBuilder::new().label("X").rect(custom_rect),
         );

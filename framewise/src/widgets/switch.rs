@@ -24,7 +24,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn switch(
-        mut state: SwitchState,
+        state: &mut SwitchState,
         spec: SwitchSpec,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -121,7 +121,6 @@ pub mod raw {
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -130,7 +129,6 @@ pub mod raw {
     pub struct SwitchResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: SwitchState,
         pub focused: bool,
     }
 }
@@ -230,7 +228,6 @@ impl SwitchSpecBuilder {
 pub struct SwitchResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: SwitchState,
     pub focused: bool,
 }
 
@@ -246,7 +243,7 @@ pub fn switch<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: SwitchState,
+    state: &mut SwitchState,
     layout_params: S::Params,
     builder: SwitchSpecBuilder,
 ) -> SwitchResult {
@@ -265,7 +262,6 @@ pub fn switch<
     SwitchResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -278,7 +274,7 @@ mod tests {
 
     fn swi_tch(spec: SwitchSpec) -> raw::SwitchResult {
         raw::switch(
-            SwitchState::default(),
+            &mut SwitchState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -351,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_switch_visual_focused() {
-        let state = SwitchState::default();
+        let mut state = SwitchState::default();
         let mut focus_sys = crate::focus::FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
@@ -363,7 +359,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = raw::switch(state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::switch(&mut state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
@@ -428,7 +424,7 @@ mod tests {
     #[test]
     fn test_switch_click_takes_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = SwitchState::default();
+        let mut state = SwitchState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -442,12 +438,12 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        let res = raw::switch(state, spec, &input, &mut focus_sys);
+        raw::switch(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking switch must request focus"
         );
     }
@@ -455,7 +451,7 @@ mod tests {
     #[test]
     fn test_switch_clipped_click_does_not_take_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = SwitchState::default();
+        let mut state = SwitchState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -469,7 +465,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::switch(state, spec, &input, &mut focus_sys);
+        raw::switch(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -496,16 +492,14 @@ mod tests {
         // Frame 1: Focus switch
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = raw::switch(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::switch(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = raw::switch(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::switch(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space
@@ -513,10 +507,10 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = raw::switch(state, spec(), &input, &mut focus_sys);
+        raw::switch(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
-        assert!(res.state.on, "Spacebar release must toggle switch state");
+        assert!(state.on, "Spacebar release must toggle switch state");
     }
 
     #[test]
@@ -556,9 +550,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut sw_state = SwitchState::default();
         let result = super::switch(
             &mut ctx,
-            SwitchState::default(),
+            &mut sw_state,
             layout_rect,
             SwitchSpecBuilder::new().rect(custom_rect),
         );

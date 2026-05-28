@@ -19,7 +19,7 @@ State structs are composed based on what that widget type can do — e.g. a `Foc
 
 A classic challenge in immediate-mode GUIs is "mouse capture". If a user clicks on a button and drags the mouse off it onto a second button, the second button shouldn't accidentally trigger a click when the mouse is released.
 
-Framewise completely rejects global ID registries. Instead, we solve capture by pushing state into the application. Even simple widgets like buttons consume and return a `ButtonState`. The widget itself tracks whether it was the original target of a mouse press, elegantly handling dragging and hover logic purely locally. This requires slightly more boilerplate from the app, but results in a vastly more robust architecture that is completely immune to ID collisions.
+Framewise completely rejects global ID registries. Instead, we solve capture by pushing state into the application. Even simple widgets like buttons take a `&mut ButtonState`. The widget itself tracks whether it was the original target of a mouse press, elegantly handling dragging and hover logic purely locally. This requires slightly more boilerplate from the app, but results in a vastly more robust architecture that is completely immune to ID collisions.
 
 ### Alternative Considered: Stateless "Mouse Down Pos"
 
@@ -95,7 +95,7 @@ High-level widget APIs are freestanding, highly ergonomic functions that accept 
 ```rust
 pub fn button<T, S>(
     ctx: &mut WidgetContext<T, S>,
-    state: ButtonState,
+    state: &mut ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
 ) -> ButtonResult;
@@ -114,14 +114,16 @@ Each widget defines two result structs reflecting the two API layers.
 
 **`raw::*Result`** is returned by the low-level raw function. It contains:
 - `draw: DrawCommands` — the caller manages command accumulation directly
-- Interaction and state outputs (`InputInfo`, updated `*State`, `focused`, etc.)
+- Interaction outputs (`InputInfo`, `focused`, etc.)
 - `content_bounds: Rect` when the widget computes an inner area distinct from the input rect (e.g. a widget with a border or padding). The raw function is the authoritative place to compute this, since it has the spec in hand.
 - **Not** the input `Rect` itself — the caller supplied it explicitly, echoing it back is redundant
+- **Not** `*State` — state is mutated in-place via the `&mut *State` parameter
 
 **`*Result`** is returned by the high-level context function. It contains:
 - `layout: LayoutInfo` — includes `bounds` (the rect resolved by the layout engine, which the caller did not know before calling) and `content_bounds`
-- The same interaction and state outputs as `raw::*Result`
+- The same interaction outputs as `raw::*Result`
 - **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
+- **Not** `*State` — mutated in-place
 
 The high-level function maps between them: it calls `ctx.layout()` to resolve geometry, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
 
@@ -235,7 +237,7 @@ pub fn button(spec: ButtonSpec, input: &Input) -> raw::ButtonResult;
 // High-level: uses builder to resolve defaults
 pub fn button<T, S>(
     ctx: &mut WidgetContext<T, S>,
-    state: ButtonState,
+    state: &mut ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
 ) -> ButtonResult {
@@ -249,7 +251,6 @@ pub fn button<T, S>(
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
         input: r.input,
-        state: r.state,
         focused: r.focused,
     }
 }

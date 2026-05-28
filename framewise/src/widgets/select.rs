@@ -27,7 +27,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn select<'a, T: crate::text::TextSystem>(
-        mut state: SelectState,
+        state: &mut SelectState,
         spec: SelectSpec<'a>,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -274,7 +274,6 @@ pub mod raw {
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -283,7 +282,6 @@ pub mod raw {
     pub struct SelectResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: SelectState,
         pub focused: bool,
     }
 }
@@ -325,7 +323,6 @@ pub struct SelectState {
 pub struct SelectResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: SelectState,
     pub focused: bool,
 }
 
@@ -339,12 +336,6 @@ impl SelectResult {
     pub fn focused(&self) -> bool {
         self.focused
     }
-    pub fn open(&self) -> bool {
-        self.state.open
-    }
-    pub fn selected_index(&self) -> usize {
-        self.state.selected_index
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -356,7 +347,7 @@ pub fn select<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: SelectState,
+    state: &mut SelectState,
     layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,
 ) -> SelectResult {
@@ -375,7 +366,6 @@ pub fn select<
     SelectResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -475,7 +465,7 @@ mod tests {
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> raw::SelectResult {
         raw::select(
-            SelectState::default(),
+            &mut SelectState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -548,8 +538,9 @@ mod tests {
             focus_id: crate::focus::FocusId::new(),
         };
 
+        let mut state = state;
         let res = raw::select(
-            state,
+            &mut state,
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -642,17 +633,18 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        let res = raw::select(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::select(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking select must request focus"
         );
         assert!(
-            res.state.open,
+            state.open,
             "Clicking select must open the popup dropdown"
         );
     }
@@ -677,8 +669,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 180.0, 28.0)),
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        raw::select(state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::select(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -702,8 +695,8 @@ mod tests {
         // Frame 1: Press Arrow Down while closed -> selected index changes to 1
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = raw::select(
-            state,
+        raw::select(
+            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
@@ -717,7 +710,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
         input.key_pressed_down = false;
 
@@ -728,8 +720,8 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = raw::select(
-            state,
+        raw::select(
+            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -743,15 +735,14 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
 
         input.key_down_space = false;
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = raw::select(
-            state,
+        raw::select(
+            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -765,7 +756,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
         input.key_released_space = false;
 
@@ -775,8 +765,8 @@ mod tests {
         // Frame 3: Press Arrow Down while open -> hovers index 2
         input.key_pressed_down = true;
         focus_sys.begin_frame();
-        let res = raw::select(
-            state,
+        raw::select(
+            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -790,7 +780,6 @@ mod tests {
             &mut focus_sys,
             &mut text_sys,
         );
-        state = res.state;
         focus_sys.end_frame();
         input.key_pressed_down = false;
 
@@ -799,8 +788,8 @@ mod tests {
         // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
         input.key_pressed_enter = true;
         focus_sys.begin_frame();
-        let res = raw::select(
-            state,
+        raw::select(
+            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -816,8 +805,8 @@ mod tests {
         );
         focus_sys.end_frame();
 
-        assert!(!res.state.open);
-        assert_eq!(res.state.selected_index, 2);
+        assert!(!state.open);
+        assert_eq!(state.selected_index, 2);
     }
 
     #[test]
@@ -861,9 +850,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut sel_state = SelectState::default();
         let result = super::select(
             &mut ctx,
-            SelectState::default(),
+            &mut sel_state,
             layout_rect,
             SelectSpecBuilder::new().options(&[]).value("").rect(custom_rect),
         );

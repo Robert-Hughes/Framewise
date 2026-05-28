@@ -24,7 +24,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn radio(
-        mut state: RadioState,
+        state: &mut RadioState,
         spec: RadioSpec,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -121,7 +121,6 @@ pub mod raw {
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -130,7 +129,6 @@ pub mod raw {
     pub struct RadioResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: RadioState,
         pub focused: bool,
     }
 }
@@ -228,7 +226,6 @@ impl RadioSpecBuilder {
 pub struct RadioResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: RadioState,
     pub focused: bool,
 }
 
@@ -244,7 +241,7 @@ pub fn radio<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: RadioState,
+    state: &mut RadioState,
     layout_params: S::Params,
     builder: RadioSpecBuilder,
 ) -> RadioResult {
@@ -263,7 +260,6 @@ pub fn radio<
     RadioResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -275,7 +271,7 @@ mod tests {
 
     fn rad_io(spec: RadioSpec) -> raw::RadioResult {
         raw::radio(
-            RadioState::default(),
+            &mut RadioState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -361,7 +357,8 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = raw::radio(state, spec, &Input::default(), &mut focus_sys);
+        let mut state = state;
+        let res = raw::radio(&mut state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
@@ -436,13 +433,14 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        let res = raw::radio(state, spec, &input, &mut focus_sys);
+        raw::radio(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking radio must request focus"
         );
     }
@@ -463,8 +461,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        raw::radio(state, spec, &input, &mut focus_sys);
+        raw::radio(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -491,16 +490,14 @@ mod tests {
         // Frame 1: Explicitly focus the radio
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = raw::radio(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::radio(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = raw::radio(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::radio(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space key
@@ -508,11 +505,11 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = raw::radio(state, spec(), &input, &mut focus_sys);
+        raw::radio(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
-            res.state.selected, true,
+            state.selected, true,
             "Spacebar release must toggle radio state to selected"
         );
     }
@@ -554,9 +551,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut radio_state = RadioState::default();
         let result = super::radio(
             &mut ctx,
-            RadioState::default(),
+            &mut radio_state,
             layout_rect,
             RadioSpecBuilder::new().rect(custom_rect),
         );

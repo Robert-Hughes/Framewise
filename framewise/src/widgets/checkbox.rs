@@ -24,7 +24,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn checkbox(
-        mut state: CheckboxState,
+        state: &mut CheckboxState,
         spec: CheckboxSpec,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
@@ -146,7 +146,6 @@ pub mod raw {
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
-            state,
             focused,
         }
     }
@@ -155,7 +154,6 @@ pub mod raw {
     pub struct CheckboxResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
-        pub state: CheckboxState,
         pub focused: bool,
     }
 }
@@ -271,7 +269,6 @@ impl CheckboxSpecBuilder {
 pub struct CheckboxResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
-    pub state: CheckboxState,
     pub focused: bool,
 }
 
@@ -287,7 +284,7 @@ pub fn checkbox<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: CheckboxState,
+    state: &mut CheckboxState,
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,
 ) -> CheckboxResult {
@@ -306,7 +303,6 @@ pub fn checkbox<
     CheckboxResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
-        state: result.state,
         focused: result.focused,
     }
 }
@@ -318,7 +314,7 @@ mod tests {
 
     fn checkbox_dummy(spec: CheckboxSpec) -> raw::CheckboxResult {
         raw::checkbox(
-            CheckboxState::default(),
+            &mut CheckboxState::default(),
             spec,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
@@ -442,7 +438,8 @@ mod tests {
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-        let res = raw::checkbox(state, spec, &Input::default(), &mut focus_sys);
+        let mut state = state;
+        let res = raw::checkbox(&mut state, spec, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
             res.draw,
@@ -511,13 +508,14 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        let res = raw::checkbox(state, spec, &input, &mut focus_sys);
+        raw::checkbox(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
             focus_sys.current_focus(),
-            Some(res.state.focus_id),
+            Some(state.focus_id),
             "Clicking checkbox must request focus"
         );
     }
@@ -538,8 +536,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
         };
 
+        let mut state = state;
         focus_sys.begin_frame();
-        raw::checkbox(state, spec, &input, &mut focus_sys);
+        raw::checkbox(&mut state, spec, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -566,16 +565,14 @@ mod tests {
         // Frame 1: Explicitly focus the checkbox
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
-        state = res.state;
+        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space key
@@ -583,11 +580,11 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        let res = raw::checkbox(state, spec(), &input, &mut focus_sys);
+        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
-            res.state.check,
+            state.check,
             CheckState::On,
             "Spacebar release must toggle checkbox state"
         );
@@ -630,9 +627,10 @@ mod tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        let mut cb_state = CheckboxState::default();
         let result = super::checkbox(
             &mut ctx,
-            CheckboxState::default(),
+            &mut cb_state,
             layout_rect,
             CheckboxSpecBuilder::new().rect(custom_rect),
         );

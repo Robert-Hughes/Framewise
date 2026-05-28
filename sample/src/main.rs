@@ -280,14 +280,13 @@ impl App {
                     button_style.background =
                         Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
                     let btn = {
-                        let state = std::mem::take(&mut self.sidebar_btns[i].state);
+                        let state = &mut self.sidebar_btns[i].state;
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.input.clicked;
-                    self.sidebar_btns[i].state = btn.state;
                     if clicked {
                         self.sidebar_btns[i].clicks += 1;
                     }
@@ -325,12 +324,11 @@ impl App {
                     button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
 
                     let info = {
-                        let state = std::mem::take(&mut self.text_edit_state);
+                        let state = &mut self.text_edit_state;
                         let layout_params = Vec2::new(300.0, 40.0);
                         let spec_builder = TextEditSpecBuilder::new();
                         text_edit(&mut header_row, state, layout_params, spec_builder)
                     };
-                    self.text_edit_state = info.state;
 
                     if let Some(action) = info.clipboard_action {
                         if let Some(cb) = &mut self.clipboard {
@@ -346,22 +344,20 @@ impl App {
                     }
 
                     let btn1 = {
-                        let state = std::mem::take(&mut self.top_btn1.state);
+                        let state = &mut self.top_btn1.state;
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile".to_string();
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
-                    self.top_btn1.state = btn1.state;
 
                     let btn2 = {
-                        let state = std::mem::take(&mut self.top_btn2.state);
+                        let state = &mut self.top_btn2.state;
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings".to_string();
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
-                    self.top_btn2.state = btn2.state;
 
                     header_row.finish()
                 };
@@ -404,14 +400,13 @@ impl App {
                                     1.0,
                                 );
                                 let btn = {
-                                    let state = std::mem::take(&mut self.grid_btns[idx].state);
+                                    let state = &mut self.grid_btns[idx].state;
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder =
                                         ButtonSpecBuilder::new().text(text).style(button_style);
                                     button(&mut grid_row, state, layout_params, spec_builder)
                                 };
-                                self.grid_btns[idx].state = btn.state;
                             }
                             grid_row.finish()
                         };
@@ -478,14 +473,13 @@ impl App {
                     button_style.background =
                         Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
                     let btn = {
-                        let state = std::mem::take(&mut self.main_btns[i].state);
+                        let state = &mut self.main_btns[i].state;
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.input.clicked;
-                    self.main_btns[i].state = btn.state;
                     if clicked {
                         self.main_btns[i].clicks += 1;
                     }
@@ -535,14 +529,13 @@ impl App {
 
                     // Left button
                     let btn1 = {
-                        let state = std::mem::take(&mut row_state.btn1.state);
+                        let state = &mut row_state.btn1.state;
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.input.clicked;
-                    row_state.btn1.state = btn1.state;
                     if clicked1 {
                         row_state.btn1.clicks += 1;
                     }
@@ -569,7 +562,7 @@ impl App {
                             1.0,
                         );
                         let btn = {
-                            let state = std::mem::take(&mut row_state.inner_btns[j].state);
+                            let state = &mut row_state.inner_btns[j].state;
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
                             let spec_builder =
@@ -577,7 +570,6 @@ impl App {
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        row_state.inner_btns[j].state = btn.state;
                         if clicked {
                             row_state.inner_btns[j].clicks += 1;
                         }
@@ -607,7 +599,7 @@ impl App {
                             1.0,
                         );
                         let btn = {
-                            let state = std::mem::take(&mut row_state.horiz_btns[j].state);
+                            let state = &mut row_state.horiz_btns[j].state;
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
                             let spec_builder =
@@ -615,7 +607,6 @@ impl App {
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        row_state.horiz_btns[j].state = btn.state;
                         if clicked {
                             row_state.horiz_btns[j].clicks += 1;
                         }
@@ -649,7 +640,7 @@ impl App {
                         );
 
                         let btn = {
-                            let state = std::mem::take(&mut row_state.both_btns[j].state);
+                            let state = &mut row_state.both_btns[j].state;
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
                             let spec_builder =
@@ -657,7 +648,6 @@ impl App {
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        row_state.both_btns[j].state = btn.state;
                         if clicked {
                             row_state.both_btns[j].clicks += 1;
                         }
@@ -711,11 +701,7 @@ impl App {
 
                 // Left spacer/button
                 {
-                    let state = Default::default();
-                    let layout_params = Vec2::new(100.0, 100.0);
-                    let text = "Outer L".to_string();
-                    let spec_builder = ButtonSpecBuilder::new().text(text);
-                    button(&mut d_outer_scroll, state, layout_params, spec_builder)
+                    button(&mut d_outer_scroll, &mut framewise::widgets::button::ButtonState::default(), Vec2::new(100.0, 100.0), ButtonSpecBuilder::new().text("Outer L".to_string()))
                 };
 
                 // Inner horizontal scroll area
@@ -732,23 +718,18 @@ impl App {
 
                 for j in 0..20 {
                     let btn = {
-                        let state = std::mem::take(&mut self.double_horiz_btns[j].state);
+                        let state = &mut self.double_horiz_btns[j].state;
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(text);
                         button(&mut d_inner_scroll, state, layout_params, spec_builder)
                     };
-                    self.double_horiz_btns[j].state = btn.state;
                 }
                 d_inner_scroll.finish();
 
                 // Right spacer/button
                 {
-                    let state = Default::default();
-                    let layout_params = Vec2::new(300.0, 100.0);
-                    let text = "Outer R".to_string();
-                    let spec_builder = ButtonSpecBuilder::new().text(text);
-                    button(&mut d_outer_scroll, state, layout_params, spec_builder)
+                    button(&mut d_outer_scroll, &mut framewise::widgets::button::ButtonState::default(), Vec2::new(300.0, 100.0), ButtonSpecBuilder::new().text("Outer R".to_string()))
                 };
 
                 d_outer_scroll.finish();
@@ -802,13 +783,12 @@ impl App {
                     .enumerate()
                     {
                         let btn = {
-                            let state = std::mem::take(&mut self.nested_2d_outer_btns[k].state);
+                            let state = &mut self.nested_2d_outer_btns[k].state;
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label.to_string();
                             let spec_builder = ButtonSpecBuilder::new().text(text);
                             button(&mut outer, state, layout_params, spec_builder)
                         };
-                        self.nested_2d_outer_btns[k].state = btn.state;
                     }
 
                     // Inner 2D: viewport 250x150, content 500x300 — 4x5 button grid
@@ -833,7 +813,7 @@ impl App {
                         button_style.hovered =
                             Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
                         let btn = {
-                            let state = std::mem::take(&mut self.nested_2d_inner_btns[j].state);
+                            let state = &mut self.nested_2d_inner_btns[j].state;
                             let layout_params = Rect::new(
                                 col as f32 * 120.0 + 5.0,
                                 row as f32 * 58.0 + 5.0,
@@ -846,7 +826,6 @@ impl App {
                             button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        self.nested_2d_inner_btns[j].state = btn.state;
                         if clicked {
                             self.nested_2d_inner_btns[j].clicks += 1;
                         }
@@ -931,7 +910,7 @@ impl App {
                         button_style.hovered =
                             Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
                         let btn = {
-                            let state = std::mem::take(&mut self.triple_inner_btns[j].state);
+                            let state = &mut self.triple_inner_btns[j].state;
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
                             let spec_builder =
@@ -939,7 +918,6 @@ impl App {
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        self.triple_inner_btns[j].state = btn.state;
                         if clicked {
                             self.triple_inner_btns[j].clicks += 1;
                         }
@@ -964,7 +942,7 @@ impl App {
                         button_style.hovered =
                             Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
                         let btn = {
-                            let state = std::mem::take(&mut self.triple_innermost_btns[k].state);
+                            let state = &mut self.triple_innermost_btns[k].state;
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
                             let spec_builder =
@@ -972,7 +950,6 @@ impl App {
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
-                        self.triple_innermost_btns[k].state = btn.state;
                         if clicked {
                             self.triple_innermost_btns[k].clicks += 1;
                         }
