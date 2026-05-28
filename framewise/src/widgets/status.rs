@@ -9,10 +9,6 @@ use crate::{
 pub mod raw {
     use super::*;
 
-    pub struct StatusResult {
-        pub draw: DrawCommands,
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct StatusSpec<'a> {
         pub rect: Rect,
@@ -20,6 +16,11 @@ pub mod raw {
         pub font: FontId,
         pub variant: super::StatusVariant,
         pub style: super::StatusStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StatusResult {
+        pub draw: DrawCommands,
     }
 
     /// Low-level status widget function.
@@ -93,32 +94,6 @@ pub struct StatusResult {
     pub layout: LayoutInfo,
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level status widget function using WidgetContext.
-///
-/// This function accepts a StatusSpec and calls the low-level raw::status function.
-pub fn status<
-    'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: StatusSpecBuilder<'a>,
-) -> StatusResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::status(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
-    StatusResult {
-        layout: LayoutInfo::tight(rect),
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StatusSpecBuilder<'a> {
     pub label: Option<&'a str>,
@@ -149,9 +124,7 @@ impl<'a> StatusSpecBuilder<'a> {
         self.variant = Some(variant);
         self
     }
-}
 
-impl<'a> StatusSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -185,6 +158,32 @@ impl<'a> StatusSpecBuilder<'a> {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             variant: self.variant.expect("variant not set — call .variant()"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level status widget function using WidgetContext.
+///
+/// This function accepts a StatusSpec and calls the low-level raw::status function.
+pub fn status<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: StatusSpecBuilder<'a>,
+) -> StatusResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::status(spec, ctx.text_system);
+    ctx.append_cmds(result.draw);
+    StatusResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

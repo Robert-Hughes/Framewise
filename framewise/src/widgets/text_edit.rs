@@ -19,6 +19,13 @@ pub mod raw {
         pub disabled: bool,
     }
 
+    #[derive(Debug)]
+    pub struct TextEditResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
+        pub clipboard_action: Option<ClipboardAction>,
+    }
+
     /// Low-level text edit widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -403,12 +410,6 @@ pub mod raw {
         }
     }
 
-    #[derive(Debug)]
-    pub struct TextEditResult {
-        pub draw: DrawCommands,
-        pub content_bounds: Rect,
-        pub clipboard_action: Option<ClipboardAction>,
-    }
 }
 
 // ── Style ─────────────────────────────────────────────────────────────────────
@@ -597,46 +598,6 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
     (left, text.len())
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level text edit widget function using WidgetContext.
-///
-/// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
-pub fn text_edit<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut TextEditState,
-    layout_params: S::Params,
-    builder: TextEditSpecBuilder,
-) -> TextEditResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .build();
-    let result = raw::text_edit(
-        state,
-        spec,
-        ctx.input,
-        ctx.time,
-        ctx.text_system,
-        ctx.focus_sys,
-    );
-
-    ctx.append_cmds(result.draw);
-
-    TextEditResult {
-        layout: LayoutInfo::new(rect, result.content_bounds),
-        clipboard_action: result.clipboard_action,
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TextEditSpecBuilder {
     pub rect: Option<Rect>,
@@ -699,6 +660,46 @@ impl TextEditSpecBuilder {
             error: self.error.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level text edit widget function using WidgetContext.
+///
+/// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
+pub fn text_edit<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    state: &mut TextEditState,
+    layout_params: S::Params,
+    builder: TextEditSpecBuilder,
+) -> TextEditResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
+    let spec = builder
+        .rect(rect)
+        .defaults_from_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
+    let result = raw::text_edit(
+        state,
+        spec,
+        ctx.input,
+        ctx.time,
+        ctx.text_system,
+        ctx.focus_sys,
+    );
+
+    ctx.append_cmds(result.draw);
+
+    TextEditResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        clipboard_action: result.clipboard_action,
     }
 }
 

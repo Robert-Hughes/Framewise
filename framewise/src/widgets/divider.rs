@@ -15,6 +15,11 @@ pub mod raw {
         pub width: f32,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DividerResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level divider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -29,11 +34,6 @@ pub mod raw {
             width: spec.width,
         });
         DividerResult { draw }
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct DividerResult {
-        pub draw: DrawCommands,
     }
 }
 

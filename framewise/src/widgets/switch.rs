@@ -19,6 +19,13 @@ pub mod raw {
         pub clip_rect: ClipRect,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SwitchResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub focused: bool,
+    }
+
     /// Low-level switch widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -125,20 +132,6 @@ pub mod raw {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct SwitchResult {
-        pub draw: DrawCommands,
-        pub input: InputInfo,
-        pub focused: bool,
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct SwitchState {
-    pub on: bool,
-    pub is_active: bool,
-    pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -155,6 +148,20 @@ pub struct SwitchStyle {
     pub focus_width: f32,
     pub focus_offset: f32,
     pub disabled_alpha: f32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SwitchState {
+    pub on: bool,
+    pub is_active: bool,
+    pub space_is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+pub struct SwitchResult {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub focused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -223,12 +230,6 @@ impl SwitchSpecBuilder {
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
-}
-
-pub struct SwitchResult {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub focused: bool,
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

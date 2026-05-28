@@ -19,6 +19,12 @@ pub mod raw {
         pub style: super::MenuStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MenuResult {
+        pub draw: DrawCommands,
+        pub outer: Rect,
+    }
+
     /// Low-level menu widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -142,12 +148,6 @@ pub mod raw {
 
         MenuResult { draw: cmds, outer }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct MenuResult {
-        pub draw: DrawCommands,
-        pub outer: Rect,
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -190,32 +190,6 @@ pub struct MenuResult {
     pub layout: LayoutInfo,
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level menu widget function using WidgetContext.
-///
-/// This function accepts a MenuSpec and calls the low-level raw::menu function.
-pub fn menu<
-    'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: MenuSpecBuilder<'a>,
-) -> MenuResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::menu(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
-    MenuResult {
-        layout: LayoutInfo::tight(result.outer),
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MenuSpecBuilder<'a> {
     pub items: Option<&'a [MenuItem<'a>]>,
@@ -246,9 +220,7 @@ impl<'a> MenuSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-}
 
-impl<'a> MenuSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -285,6 +257,32 @@ impl<'a> MenuSpecBuilder<'a> {
                 .expect("meta_font must be specified or resolved from a theme"),
             style: self.style.expect("MenuStyle is required"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level menu widget function using WidgetContext.
+///
+/// This function accepts a MenuSpec and calls the low-level raw::menu function.
+pub fn menu<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: MenuSpecBuilder<'a>,
+) -> MenuResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::menu(spec, ctx.text_system);
+    ctx.append_cmds(result.draw);
+    MenuResult {
+        layout: LayoutInfo::tight(result.outer),
     }
 }
 

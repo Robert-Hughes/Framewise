@@ -9,10 +9,6 @@ use crate::{
 pub mod raw {
     use super::*;
 
-    pub struct TooltipResult {
-        pub draw: DrawCommands,
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct TooltipSpec<'a> {
         pub rect: Rect,
@@ -75,6 +71,11 @@ pub mod raw {
 
         TooltipResult { draw: cmds }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TooltipResult {
+        pub draw: DrawCommands,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -102,32 +103,6 @@ pub struct TooltipStyle {
 
 pub struct TooltipResult {
     pub layout: LayoutInfo,
-}
-
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level tooltip widget function using WidgetContext.
-///
-/// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
-pub fn tooltip<
-    'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: TooltipSpecBuilder<'a>,
-) -> TooltipResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::tooltip(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
-    TooltipResult {
-        layout: LayoutInfo::tight(rect),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -160,9 +135,7 @@ impl<'a> TooltipSpecBuilder<'a> {
         self.variant = Some(variant);
         self
     }
-}
 
-impl<'a> TooltipSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -194,6 +167,32 @@ impl<'a> TooltipSpecBuilder<'a> {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             variant: self.variant.expect("variant not set — call .variant()"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level tooltip widget function using WidgetContext.
+///
+/// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
+pub fn tooltip<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: TooltipSpecBuilder<'a>,
+) -> TooltipResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::tooltip(spec, ctx.text_system);
+    ctx.append_cmds(result.draw);
+    TooltipResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

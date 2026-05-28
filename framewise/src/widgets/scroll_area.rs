@@ -19,6 +19,7 @@ pub mod raw {
         pub clip_rect: ClipRect,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ScrollAreaToken {
         pub(super) id: crate::focus::FocusId,
         pub(super) at_top: bool,
@@ -28,6 +29,7 @@ pub mod raw {
         pub(super) mode: super::ScrollMode,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ScrollAreaResult {
         pub draw: DrawCommands,
         pub token: ScrollAreaToken,
@@ -455,6 +457,16 @@ impl Default for ScrollState {
     }
 }
 
+pub struct ScrollAreaResult<
+    'b,
+    T: crate::text::TextSystem,
+    LS: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+> {
+    pub layout: LayoutInfo,
+    pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
@@ -542,16 +554,6 @@ impl ScrollMode {
             (true, true) => ScrollMode::Both,
         }
     }
-}
-
-pub struct ScrollAreaResult<
-    'b,
-    T: crate::text::TextSystem,
-    LS: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
-> {
-    pub layout: LayoutInfo,
-    pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
 // ── High-level widget functions ───────────────────────────────────────────────────

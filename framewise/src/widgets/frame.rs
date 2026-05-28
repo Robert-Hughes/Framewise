@@ -14,6 +14,12 @@ pub mod raw {
         pub style: super::FrameStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FrameResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
+    }
+
     /// Low-level frame widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -41,12 +47,6 @@ pub mod raw {
             draw,
             content_bounds: content,
         }
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct FrameResult {
-        pub draw: DrawCommands,
-        pub content_bounds: Rect,
     }
 }
 

@@ -26,6 +26,11 @@ pub mod raw {
         }
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ColorSwatchResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level color swatch widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -43,40 +48,10 @@ pub mod raw {
         });
         ColorSwatchResult { draw }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct ColorSwatchResult {
-        pub draw: DrawCommands,
-    }
 }
 
 pub struct ColorSwatchResult {
     pub layout: LayoutInfo,
-}
-
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level color swatch widget function using WidgetContext.
-///
-/// This function accepts a ColorSwatchSpec and calls the low-level raw::color_swatch function.
-pub fn color_swatch<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: ColorSwatchSpecBuilder,
-) -> ColorSwatchResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::color_swatch(spec);
-    ctx.append_cmds(result.draw);
-    ColorSwatchResult {
-        layout: LayoutInfo::tight(rect),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -100,9 +75,7 @@ impl ColorSwatchSpecBuilder {
         self.border = Some(border);
         self
     }
-}
 
-impl ColorSwatchSpecBuilder {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -128,6 +101,31 @@ impl ColorSwatchSpecBuilder {
             spec.border = b;
         }
         spec
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level color swatch widget function using WidgetContext.
+///
+/// This function accepts a ColorSwatchSpec and calls the low-level raw::color_swatch function.
+pub fn color_swatch<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: ColorSwatchSpecBuilder,
+) -> ColorSwatchResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::color_swatch(spec);
+    ctx.append_cmds(result.draw);
+    ColorSwatchResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

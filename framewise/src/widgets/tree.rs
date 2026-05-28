@@ -9,10 +9,6 @@ use crate::{
 pub mod raw {
     use super::*;
 
-    pub struct TreeResult {
-        pub draw: DrawCommands,
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct TreeSpec<'a> {
         pub rect: Rect,
@@ -126,6 +122,11 @@ pub mod raw {
 
         TreeResult { draw: cmds }
     }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TreeResult {
+        pub draw: DrawCommands,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,32 +163,6 @@ pub struct TreeResult {
     pub layout: LayoutInfo,
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level tree widget function using WidgetContext.
-///
-/// This function accepts a TreeSpec and calls the low-level raw::tree function.
-pub fn tree<
-    'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: TreeSpecBuilder<'a>,
-) -> TreeResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::tree(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
-    TreeResult {
-        layout: LayoutInfo::tight(rect),
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
     pub rows: Option<&'a [TreeRow<'a>]>,
@@ -213,9 +188,7 @@ impl<'a> TreeSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-}
 
-impl<'a> TreeSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -248,6 +221,32 @@ impl<'a> TreeSpecBuilder<'a> {
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level tree widget function using WidgetContext.
+///
+/// This function accepts a TreeSpec and calls the low-level raw::tree function.
+pub fn tree<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: TreeSpecBuilder<'a>,
+) -> TreeResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::tree(spec, ctx.text_system);
+    ctx.append_cmds(result.draw);
+    TreeResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

@@ -8,16 +8,17 @@ use crate::{
 pub mod raw {
     use super::*;
 
-    pub struct SpinnerResult {
-        pub draw: DrawCommands,
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerSpec {
         /// Top-left. Size is either 16 or 24 (use `large` flag).
         pub rect: Rect,
         pub large: bool,
         pub style: super::SpinnerStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SpinnerResult {
+        pub draw: DrawCommands,
     }
 
     /// Low-level spinner widget function.
@@ -124,6 +125,10 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
+pub struct SpinnerResult {
+    pub layout: LayoutInfo,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpinnerSpecBuilder {
     pub large: Option<bool>,
@@ -173,10 +178,6 @@ impl SpinnerSpecBuilder {
                 .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
-}
-
-pub struct SpinnerResult {
-    pub layout: LayoutInfo,
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

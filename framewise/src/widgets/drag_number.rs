@@ -24,6 +24,13 @@ pub mod raw {
         pub clip_rect: ClipRect,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DragNumberResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub focused: bool,
+    }
+
     /// Low-level drag number widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -179,13 +186,6 @@ pub mod raw {
             focused,
         }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberResult {
-        pub draw: DrawCommands,
-        pub input: InputInfo,
-        pub focused: bool,
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -245,41 +245,6 @@ impl DragNumberResult {
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level drag number widget function using WidgetContext.
-///
-/// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
-pub fn drag_number<
-    'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut DragNumberState,
-    layout_params: S::Params,
-    builder: DragNumberSpecBuilder<'a>,
-) -> DragNumberResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .build();
-    let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
-
-    DragNumberResult {
-        layout: LayoutInfo::tight(rect),
-        input: result.input,
-        focused: result.focused,
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {
     pub label: Option<&'a str>,
@@ -331,9 +296,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self.clip_rect = Some(clip_rect);
         self
     }
-}
 
-impl<'a> DragNumberSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -373,6 +336,41 @@ impl<'a> DragNumberSpecBuilder<'a> {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level drag number widget function using WidgetContext.
+///
+/// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
+pub fn drag_number<
+    'a,
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    state: &mut DragNumberState,
+    layout_params: S::Params,
+    builder: DragNumberSpecBuilder<'a>,
+) -> DragNumberResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
+    let spec = builder
+        .rect(rect)
+        .defaults_from_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
+    let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+
+    ctx.append_cmds(result.draw);
+
+    DragNumberResult {
+        layout: LayoutInfo::tight(rect),
+        input: result.input,
+        focused: result.focused,
     }
 }
 

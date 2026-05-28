@@ -30,6 +30,7 @@ pub mod raw {
         pub claim_scroll_at_ends: bool,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
         pub draw: DrawCommands,
     }
@@ -556,37 +557,6 @@ pub struct SliderResult {
     pub layout: LayoutInfo,
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level slider widget function using WidgetContext.
-///
-/// This function accepts a SliderSpec and calls the low-level raw::slider function.
-pub fn slider<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut SliderState,
-    value: &mut f32,
-    layout_params: S::Params,
-    builder: SliderSpecBuilder,
-) -> SliderResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .build();
-    let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
-    ctx.append_cmds(result.draw);
-    SliderResult {
-        layout: LayoutInfo::tight(rect),
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliderSpecBuilder {
     pub min: Option<f32>,
@@ -679,6 +649,37 @@ impl SliderSpecBuilder {
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level slider widget function using WidgetContext.
+///
+/// This function accepts a SliderSpec and calls the low-level raw::slider function.
+pub fn slider<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    state: &mut SliderState,
+    value: &mut f32,
+    layout_params: S::Params,
+    builder: SliderSpecBuilder,
+) -> SliderResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
+    let spec = builder
+        .rect(rect)
+        .defaults_from_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
+    let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
+    ctx.append_cmds(result.draw);
+    SliderResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 

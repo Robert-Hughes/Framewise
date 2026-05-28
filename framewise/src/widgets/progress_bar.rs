@@ -20,6 +20,11 @@ pub mod raw {
         pub style: super::ProgressBarStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ProgressBarResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level progress bar widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -70,11 +75,6 @@ pub mod raw {
 
         ProgressBarResult { draw: cmds }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct ProgressBarResult {
-        pub draw: DrawCommands,
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -84,6 +84,10 @@ pub struct ProgressBarStyle {
     pub active_fill_color: Color,
     pub track_height: f32,
     pub indeterminate_fraction: f32,
+}
+
+pub struct ProgressBarResult {
+    pub layout: LayoutInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -148,10 +152,6 @@ impl ProgressBarSpecBuilder {
                 .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
-}
-
-pub struct ProgressBarResult {
-    pub layout: LayoutInfo,
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

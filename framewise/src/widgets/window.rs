@@ -20,6 +20,12 @@ pub mod raw {
         pub style: super::WindowStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct WindowResult {
+        pub draw: DrawCommands,
+        pub content_bounds: Rect,
+    }
+
     /// Low-level window begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -125,11 +131,6 @@ pub mod raw {
         }
     }
 
-    pub struct WindowResult {
-        pub draw: DrawCommands,
-        pub content_bounds: Rect,
-    }
-
     // Low-level window end function.
     //
     // This is the raw implementation that takes all parameters explicitly.
@@ -172,6 +173,85 @@ pub struct WindowResult<
 > {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct WindowSpecBuilder<'a> {
+    pub title: Option<&'a str>,
+    pub buttons: Option<&'a [WindowButton]>,
+    pub font: Option<FontId>,
+    pub style: Option<WindowStyle>,
+    pub status_bar: Option<bool>,
+    pub status_text: Option<&'a str>,
+    pub rect: Option<Rect>,
+}
+
+impl<'a> WindowSpecBuilder<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn title(mut self, title: &'a str) -> Self {
+        self.title = Some(title);
+        self
+    }
+    pub fn buttons(mut self, buttons: &'a [WindowButton]) -> Self {
+        self.buttons = Some(buttons);
+        self
+    }
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
+        self
+    }
+    pub fn style(mut self, style: WindowStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    pub fn status_bar(mut self, status_bar: bool) -> Self {
+        self.status_bar = Some(status_bar);
+        self
+    }
+    pub fn status_text(mut self, status_text: &'a str) -> Self {
+        self.status_text = Some(status_text);
+        self
+    }
+
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
+    pub fn rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(theme.window_style());
+        }
+        if self.font.is_none() {
+            self.font = Some(theme.mono_font);
+        }
+        self
+    }
+
+    pub fn build(self) -> raw::WindowSpec<'a> {
+        raw::WindowSpec {
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
+            title: self.title.expect("title not set — call .title()"),
+            buttons: self.buttons.expect("buttons not set — call .buttons()"),
+            font: self
+                .font
+                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
+            status_bar: self.status_bar.unwrap_or(false),
+            status_text: self.status_text,
+        }
+    }
 }
 
 // ── High-level widget functions ───────────────────────────────────────────────────
@@ -228,87 +308,6 @@ pub fn begin_window<
     WindowResult {
         layout: LayoutInfo::new(bounds, content_bounds),
         ctx,
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct WindowSpecBuilder<'a> {
-    pub title: Option<&'a str>,
-    pub buttons: Option<&'a [WindowButton]>,
-    pub font: Option<FontId>,
-    pub style: Option<WindowStyle>,
-    pub status_bar: Option<bool>,
-    pub status_text: Option<&'a str>,
-    pub rect: Option<Rect>,
-}
-
-impl<'a> WindowSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn title(mut self, title: &'a str) -> Self {
-        self.title = Some(title);
-        self
-    }
-    pub fn buttons(mut self, buttons: &'a [WindowButton]) -> Self {
-        self.buttons = Some(buttons);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
-        self
-    }
-    pub fn style(mut self, style: WindowStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
-    pub fn status_bar(mut self, status_bar: bool) -> Self {
-        self.status_bar = Some(status_bar);
-        self
-    }
-    pub fn status_text(mut self, status_text: &'a str) -> Self {
-        self.status_text = Some(status_text);
-        self
-    }
-}
-
-impl<'a> WindowSpecBuilder<'a> {
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(theme.window_style());
-        }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
-        self
-    }
-
-    pub fn build(self) -> raw::WindowSpec<'a> {
-        raw::WindowSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
-            title: self.title.expect("title not set — call .title()"),
-            buttons: self.buttons.expect("buttons not set — call .buttons()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            status_bar: self.status_bar.unwrap_or(false),
-            status_text: self.status_text,
-        }
     }
 }
 

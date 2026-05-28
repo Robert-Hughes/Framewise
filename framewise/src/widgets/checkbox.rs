@@ -19,6 +19,13 @@ pub mod raw {
         pub clip_rect: ClipRect,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub focused: bool,
+    }
+
     /// Low-level checkbox widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -149,13 +156,6 @@ pub mod raw {
             focused,
         }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct CheckboxResult {
-        pub draw: DrawCommands,
-        pub input: InputInfo,
-        pub focused: bool,
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -197,6 +197,12 @@ pub struct CheckboxStyle {
     pub focus_width: f32,
     pub focus_offset: f32,
     pub disabled_alpha: f32,
+}
+
+pub struct CheckboxResult {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub focused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -264,12 +270,6 @@ impl CheckboxSpecBuilder {
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
     }
-}
-
-pub struct CheckboxResult {
-    pub layout: LayoutInfo,
-    pub input: InputInfo,
-    pub focused: bool,
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

@@ -22,6 +22,13 @@ pub mod raw {
         pub clip_rect: ClipRect,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectResult {
+        pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub focused: bool,
+    }
+
     /// Low-level select widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -277,13 +284,6 @@ pub mod raw {
             focused,
         }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct SelectResult {
-        pub draw: DrawCommands,
-        pub input: InputInfo,
-        pub focused: bool,
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -338,40 +338,6 @@ impl SelectResult {
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
-pub fn select<
-    'a,
-    S: crate::layout::LayoutState,
-    T: crate::text::TextSystem,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut SelectState,
-    layout_params: S::Params,
-    builder: SelectSpecBuilder<'a>,
-) -> SelectResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .build();
-    let result = raw::select(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
-
-    SelectResult {
-        layout: LayoutInfo::tight(rect),
-        input: result.input,
-        focused: result.focused,
-    }
-}
-
-// ── Re-export raw function for direct use ───────────────────────────────────────────
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SelectSpecBuilder<'a> {
     pub value: Option<&'a str>,
@@ -413,9 +379,7 @@ impl<'a> SelectSpecBuilder<'a> {
         self.clip_rect = Some(clip_rect);
         self
     }
-}
 
-impl<'a> SelectSpecBuilder<'a> {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -453,6 +417,38 @@ impl<'a> SelectSpecBuilder<'a> {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
         }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+pub fn select<
+    'a,
+    S: crate::layout::LayoutState,
+    T: crate::text::TextSystem,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    state: &mut SelectState,
+    layout_params: S::Params,
+    builder: SelectSpecBuilder<'a>,
+) -> SelectResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
+    let spec = builder
+        .rect(rect)
+        .defaults_from_theme(&ctx.theme)
+        .clip_rect(clip)
+        .build();
+    let result = raw::select(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+
+    ctx.append_cmds(result.draw);
+
+    SelectResult {
+        layout: LayoutInfo::tight(rect),
+        input: result.input,
+        focused: result.focused,
     }
 }
 

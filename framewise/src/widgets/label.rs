@@ -20,6 +20,11 @@ pub mod raw {
         pub rule: bool,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LabelResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level label widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -46,11 +51,6 @@ pub mod raw {
         }
 
         LabelResult { draw }
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct LabelResult {
-        pub draw: DrawCommands,
     }
 }
 

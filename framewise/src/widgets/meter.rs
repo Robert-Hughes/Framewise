@@ -30,6 +30,11 @@ pub mod raw {
         }
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MeterResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level meter widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -67,11 +72,6 @@ pub mod raw {
 
         MeterResult { draw }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct MeterResult {
-        pub draw: DrawCommands,
-    }
 }
 
 // Bar dimensions matching the CSS spec: 6px wide, 14px tall, 2px gap.
@@ -81,31 +81,6 @@ const BAR_GAP: f32 = 2.0;
 
 pub struct MeterResult {
     pub layout: LayoutInfo,
-}
-
-// ── High-level widget function ───────────────────────────────────────────────────
-
-/// High-level meter widget function using WidgetContext.
-///
-/// This function accepts a MeterSpec and calls the low-level raw::meter function.
-pub fn meter<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
-    ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
-    builder: MeterSpecBuilder,
-) -> MeterResult {
-    let layout_rect = ctx.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
-    let result = raw::meter(spec);
-    ctx.append_cmds(result.draw);
-    MeterResult {
-        layout: LayoutInfo::tight(rect),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -135,9 +110,7 @@ impl MeterSpecBuilder {
         self.bars = Some(bars);
         self
     }
-}
 
-impl MeterSpecBuilder {
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -166,6 +139,31 @@ impl MeterSpecBuilder {
             spec.bars = b;
         }
         spec
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level meter widget function using WidgetContext.
+///
+/// This function accepts a MeterSpec and calls the low-level raw::meter function.
+pub fn meter<
+    T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
+    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    layout_params: S::Params,
+    builder: MeterSpecBuilder,
+) -> MeterResult {
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
+    let spec = builder.build();
+    let result = raw::meter(spec);
+    ctx.append_cmds(result.draw);
+    MeterResult {
+        layout: LayoutInfo::tight(rect),
     }
 }
 
