@@ -208,7 +208,8 @@ pub fn menu<
     layout_params: S::Params,
     builder: MenuSpecBuilder<'a>,
 ) -> MenuResult {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::menu(spec, ctx.text_system);
@@ -320,5 +321,33 @@ mod tests {
         assert_eq!(builder.style.unwrap().label_size, 99.0);
         assert_eq!(builder.label_font, Some(FontId(99)));
         assert_eq!(builder.meta_font, Some(FontId(98)));
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let result = super::menu(
+            &mut ctx,
+            layout_rect,
+            MenuSpecBuilder::new().items(&[]).rect(custom_rect),
+        );
+        // x and y come from the user-provided rect
+        assert_eq!(result.layout.bounds.x, custom_rect.x);
+        assert_eq!(result.layout.bounds.y, custom_rect.y);
     }
 }

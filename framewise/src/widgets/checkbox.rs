@@ -305,7 +305,8 @@ pub fn checkbox<
     layout_params: S::Params,
     builder: CheckboxSpecBuilder,
 ) -> CheckboxResult {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
@@ -623,5 +624,32 @@ mod tests {
         let builder = CheckboxSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().size, 99.0);
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let result = super::checkbox(
+            &mut ctx,
+            CheckboxState::default(),
+            layout_rect,
+            CheckboxSpecBuilder::new().rect(custom_rect),
+        );
+        assert_eq!(result.layout.bounds, custom_rect);
     }
 }

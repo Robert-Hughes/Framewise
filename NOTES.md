@@ -5,11 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* High-level widget funcs override explicitly set fields on builders (apart from theme, we did this correct, but doesn't work for rect and possibly others?). Fix rect, check for other cases of override user's value.
-
-* not all *Builder structs have the same set of comments for low-level-only field setters ,telling the user they don't need to set manually.
-
-
 * How do widget Result structs work with container widgets like Window or ScrollArea - they currently return a child WidgetContext instead!
   * slider
   * spinner, status, tooltip, tree

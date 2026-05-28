@@ -153,7 +153,8 @@ pub fn label<
     layout_params: S::Params,
     builder: LabelSpecBuilder,
 ) -> LabelResult {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);
 
@@ -288,5 +289,30 @@ mod tests {
         assert_eq!(builder.size, Some(99.0));
         assert_eq!(builder.font, Some(FontId(99)));
         assert_eq!(builder.text_color, Some(Color::from_srgb_u8(1, 2, 3, 255)));
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let result = super::label(
+            &mut ctx,
+            layout_rect,
+            LabelSpecBuilder::new().text("X".into()).rect(custom_rect),
+        );
+        assert_eq!(result.layout.bounds, custom_rect);
     }
 }

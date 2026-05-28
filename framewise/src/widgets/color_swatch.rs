@@ -70,7 +70,8 @@ pub fn color_swatch<
     layout_params: S::Params,
     builder: ColorSwatchSpecBuilder,
 ) -> ColorSwatchResult {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::color_swatch(spec);
@@ -136,6 +137,7 @@ impl ColorSwatchSpecBuilder {
 mod tests {
     use super::*;
     use super::raw::ColorSwatchSpec;
+    use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_color_swatch_visual_normal() {
@@ -185,5 +187,30 @@ mod tests {
                 },
             ])
         );
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let result = super::color_swatch(
+            &mut ctx,
+            layout_rect,
+            ColorSwatchSpecBuilder::new().rect(custom_rect),
+        );
+        assert_eq!(result.layout.bounds, custom_rect);
     }
 }

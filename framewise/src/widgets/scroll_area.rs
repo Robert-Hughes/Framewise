@@ -469,12 +469,15 @@ impl ScrollAreaSpecBuilder {
         self.v_vis = Some(v_vis);
         self
     }
+    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
     pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
         self.clip_rect = Some(clip_rect);
         self
     }
 
-    pub fn with_rect(mut self, rect: Rect) -> Self {
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
+    pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
@@ -483,7 +486,7 @@ impl ScrollAreaSpecBuilder {
         raw::ScrollAreaSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .with_rect() or use the high-level API"),
+                .expect("rect not set — call .rect() or use the high-level API"),
             content_size: self
                 .content_size
                 .expect("content_size not set — call .content_size()"),
@@ -556,12 +559,10 @@ pub fn begin_scroll_area<
     crate::layout::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>,
 > {
-    let bounds = parent.layout(layout_params);
-    let mut builder = builder.with_rect(bounds);
-    if builder.clip_rect.is_none() {
-        builder.clip_rect = Some(parent.clip_rect);
-    }
-    let spec = builder.build();
+    let layout_bounds = parent.layout(layout_params);
+    let bounds = builder.rect.unwrap_or(layout_bounds);
+    let clip = builder.clip_rect.unwrap_or(parent.clip_rect);
+    let spec = builder.rect(bounds).clip_rect(clip).build();
     let (pre_cmds, token, content_bounds, offset) =
         raw::begin_scroll_area(spec, state, parent.input, parent.focus_sys, parent.time);
 
@@ -3411,5 +3412,41 @@ mod nested_bubbling_tests {
             outer_state.offset.x, 50.0,
             "Outer must NOT scroll horizontally (cross-axis isolation)"
         );
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 80.0);
+        let custom_rect = Rect::new(10.0, 20.0, 200.0, 40.0);
+        let mut scroll_state = ScrollState::default();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let child = super::begin_scroll_area(
+            &mut ctx,
+            layout_rect,
+            &mut scroll_state,
+            ManualLayout,
+            // Only vertical overflow so we get a vertical scrollbar at x=content_bounds.right()
+            // The vertical scrollbar track starts at y = custom_rect.y
+            ScrollAreaSpecBuilder::new()
+                .content_size(Vec2::new(200.0, 400.0))
+                .h_vis(ScrollbarVisibility::None)
+                .rect(custom_rect),
+        );
+        child.finish();
+        // The vertical scrollbar track rect has y = custom_rect.y.
+        // Its FillRect (scrollbar_mode track) has rect.y == custom_rect.y
+        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if rect.y == custom_rect.y)));
     }
 }

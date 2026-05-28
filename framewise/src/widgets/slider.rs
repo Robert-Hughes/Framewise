@@ -562,7 +562,8 @@ pub fn slider<
     layout_params: S::Params,
     builder: SliderSpecBuilder,
 ) {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
@@ -1774,5 +1775,42 @@ mod tests {
         let builder = SliderSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().thumb_size, 99.0);
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds: Vec<crate::draw::DrawCmd> = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let mut state = SliderState::default();
+        let mut value = 0.0_f32;
+        super::slider(
+            &mut ctx,
+            &mut state,
+            &mut value,
+            layout_rect,
+            SliderSpecBuilder::new().rect(custom_rect),
+        );
+        // First draw command for horizontal slider is FillRect for the track line,
+        // which starts at track_rect.x = custom_rect.x
+        match &cmds[0] {
+            crate::draw::DrawCmd::FillRect { rect, .. } => {
+                assert_eq!(rect.x, custom_rect.x);
+            }
+            other => panic!("Expected FillRect, got {:?}", other),
+        }
     }
 }

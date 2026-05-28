@@ -178,15 +178,15 @@ pub fn begin_window<
     builder: WindowSpecBuilder<'c>,
     inner_layout: L,
 ) -> WidgetContext<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> Vec<DrawCmd>> {
-    let bounds = parent.layout(layout_params);
+    let layout_bounds = parent.layout(layout_params);
+    let bounds = builder.rect.unwrap_or(layout_bounds);
 
-    let mut resolved_builder = builder.rect(bounds).defaults_from_theme(&parent.theme);
-
-    if resolved_builder.buttons.is_none() {
-        resolved_builder.buttons = Some(&[]);
-    }
-
-    let spec = resolved_builder.build();
+    let buttons = builder.buttons.unwrap_or(&[]);
+    let spec = builder
+        .rect(bounds)
+        .defaults_from_theme(&parent.theme)
+        .buttons(buttons)
+        .build();
     let (pre_cmds, content) = raw::begin_window(spec, parent.text_system);
     parent.append_cmds(pre_cmds);
 
@@ -312,5 +312,35 @@ mod tests {
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
         assert_eq!(builder.font, Some(FontId(99)));
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 200.0, 150.0);
+        let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let child = super::begin_window(
+            &mut ctx,
+            layout_rect,
+            WindowSpecBuilder::new()
+                .title("T")
+                .rect(custom_rect),
+            ManualLayout,
+        );
+        child.finish();
+        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if *rect == custom_rect)));
     }
 }

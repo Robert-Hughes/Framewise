@@ -116,8 +116,9 @@ pub fn tooltip<
     layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
 ) {
-    let rect = ctx.layout(layout_params);
-    let builder = builder.rect(rect).with_theme(&ctx.theme);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
+    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw.0);
@@ -156,12 +157,16 @@ impl<'a> TooltipSpecBuilder<'a> {
 }
 
 impl<'a> TooltipSpecBuilder<'a> {
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    pub fn with_theme(mut self, theme: &crate::theme::Theme) -> Self {
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = Some(theme.tooltip_style());
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
@@ -180,7 +185,7 @@ impl<'a> TooltipSpecBuilder<'a> {
                 .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
-                .expect("style not set — call .style() or with_theme()"),
+                .expect("style not set — call .style() or defaults_from_theme()"),
             variant: self.variant.expect("variant not set — call .variant()"),
         }
     }
@@ -272,5 +277,40 @@ mod tests {
                 },
             ])
         );
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds: Vec<crate::draw::DrawCmd> = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        super::tooltip(
+            &mut ctx,
+            layout_rect,
+            TooltipSpecBuilder::new()
+                .text("hi")
+                .variant(TooltipVariant::Dark)
+                .rect(custom_rect),
+        );
+        // First draw command is FillRect for the box at (custom_rect.x, custom_rect.y)
+        match &cmds[0] {
+            crate::draw::DrawCmd::FillRect { rect, .. } => {
+                assert_eq!(rect.x, custom_rect.x);
+                assert_eq!(rect.y, custom_rect.y);
+            }
+            other => panic!("Expected FillRect, got {:?}", other),
+        }
     }
 }

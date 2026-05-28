@@ -190,7 +190,8 @@ pub fn spinner<
     layout_params: S::Params,
     builder: SpinnerSpecBuilder,
 ) {
-    let rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params);
+    let rect = builder.rect.unwrap_or(layout_rect);
     let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::spinner(spec);
@@ -371,5 +372,39 @@ mod tests {
         let builder = SpinnerSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().width, 99.0);
+    }
+
+    #[test]
+    fn test_user_rect_not_overridden() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = crate::focus::FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds: Vec<crate::draw::DrawCmd> = vec![];
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        super::spinner(
+            &mut ctx,
+            layout_rect,
+            SpinnerSpecBuilder::new().rect(custom_rect),
+        );
+        // First draw command is StrokeLine with p0 at (x, y+arm) and p1 at (x, y)
+        // where x = custom_rect.x, y = custom_rect.y
+        match &cmds[0] {
+            crate::draw::DrawCmd::StrokeLine { p1, .. } => {
+                assert_eq!(p1.x, custom_rect.x);
+                assert_eq!(p1.y, custom_rect.y);
+            }
+            other => panic!("Expected StrokeLine, got {:?}", other),
+        }
     }
 }
