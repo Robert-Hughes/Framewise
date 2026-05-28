@@ -105,6 +105,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.ink,
+            disabled_alpha: 0.32f32
         }
     }
 
@@ -119,7 +120,8 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.paper,
-        }
+            disabled_alpha: 0.32f32
+       }
     }
 
     pub fn button_accent_style(&self) -> ButtonStyle {
@@ -133,6 +135,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: Color::WHITE,
+            disabled_alpha: 0.32f32
         }
     }
 
@@ -147,6 +150,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.ink,
+            disabled_alpha: 0.32f32
         }
     }
 
@@ -162,6 +166,7 @@ impl Theme {
             text_color: self.ink,
             caret_color: self.rust,
             select_color: self.rust_soft,
+            disabled_alpha: 0.55_f32,
         }
     }
 

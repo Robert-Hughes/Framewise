@@ -9,9 +9,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
+* High-level fn param order
+* Move slider value to State struct
+* rename "parent" to "ctx"  for scroll area and window
+
+* Saying "call .label_font() or defaults_from_theme()" - should also mention the high-level API? Or remove the mention of high-level API from the other ones?
+* Spec structs shouldn't be  implementing Default - this is in DESIGN.md but we violating it
+
+* Add a note to DESIGN.md that widgets should follow the above guidance for consistency
 * Move time to part of spec, not separate param?
-* Check high-level fn param order is consistent (Claude only checked raw one?),
-   - and should match the low-level one (as much as possible)
 
 
 

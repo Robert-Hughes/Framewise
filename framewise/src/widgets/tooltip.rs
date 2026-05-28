@@ -146,7 +146,9 @@ impl<'a> TooltipSpecBuilder<'a> {
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.style = Some(theme.tooltip_style());
+        if self.style.is_none() {
+            self.style = Some(theme.tooltip_style());
+        }
         if self.font.is_none() {
             self.font = Some(theme.mono_font);
         }

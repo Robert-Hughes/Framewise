@@ -250,10 +250,10 @@ impl<'a> MenuSpecBuilder<'a> {
             items: self.items.expect("items not set — call .items()"),
             label_font: self
                 .label_font
-                .expect("label_font must be specified or resolved from a theme"),
+                .expect("label_font not set - call .label_font() or defaults_from_theme()"),
             meta_font: self
                 .meta_font
-                .expect("meta_font must be specified or resolved from a theme"),
+                .expect("meta_font not set - call .meta_font() or defaults_from_theme()"),
             style: self.style.expect("MenuStyle is required"),
         }
     }

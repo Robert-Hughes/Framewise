@@ -14,7 +14,7 @@ pub mod raw {
         pub rect: Rect,
         pub label: &'a str,
         /// Background fill (default: paper_elev).
-        pub bg: Color,
+        pub background: Color,
         /// Border color.
         pub border: Color,
         /// Label text color.
@@ -41,7 +41,7 @@ pub mod raw {
         // Background + border
         draw.push(DrawCmd::FillRect {
             rect: spec.rect,
-            color: spec.bg,
+            color: spec.background,
         });
         draw.push(DrawCmd::StrokeRect {
             rect: spec.rect,
@@ -83,7 +83,7 @@ pub struct KeycapResult {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {
     pub label: Option<&'a str>,
-    pub bg: Option<Color>,
+    pub background: Option<Color>,
     pub border: Option<Color>,
     pub text_color: Option<Color>,
     pub text_size: Option<f32>,
@@ -100,8 +100,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         self.label = Some(label);
         self
     }
-    pub fn bg(mut self, bg: Color) -> Self {
-        self.bg = Some(bg);
+    pub fn background(mut self, background: Color) -> Self {
+        self.background = Some(background);
         self
     }
     pub fn border(mut self, border: Color) -> Self {
@@ -143,7 +143,7 @@ impl<'a> KeycapSpecBuilder<'a> {
                 .rect
                 .expect("rect not set — call .rect() or use the high-level API"),
             label: self.label.expect("label not set — call .label()"),
-            bg: self.bg.expect("bg not set — call .bg()"),
+            background: self.background.expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),
             text_color: self
                 .text_color
@@ -199,7 +199,7 @@ mod tests {
         let spec = KeycapSpec {
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
             label: "K",
-            bg: custom_bg,
+            background: custom_bg,
             border: custom_border,
             text_color: custom_text,
             text_size: 14.0,
@@ -272,7 +272,7 @@ mod tests {
             layout_rect,
             KeycapSpecBuilder::new()
                 .label("X")
-                .bg(Color::WHITE)
+                .background(Color::WHITE)
                 .border(Color::WHITE)
                 .text_color(Color::WHITE)
                 .text_size(14.0)

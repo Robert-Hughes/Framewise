@@ -44,8 +44,7 @@ pub mod raw {
 
         // Disabled: draw at reduced alpha, no interaction.
         if spec.disabled {
-            let alpha = 0.55_f32;
-            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             // Transparent bg per mockup, just border.
             if spec.style.border_width > 0.0 {
                 draw.push(DrawCmd::StrokeRect {
@@ -426,6 +425,7 @@ pub struct TextEditStyle {
     pub text_color: Color,
     pub caret_color: Color,
     pub select_color: Color,
+    pub disabled_alpha: f32,
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────

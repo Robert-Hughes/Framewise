@@ -39,8 +39,7 @@ pub mod raw {
     ) -> ButtonResult {
         // Disabled: register for layout but skip all interaction.
         if spec.disabled {
-            let alpha = 0.32_f32;
-            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             let mut draw = DrawCommands::new();
             draw.push(DrawCmd::FillRect {
                 rect: spec.rect,
@@ -190,6 +189,7 @@ pub struct ButtonStyle {
     pub text_size: f32,
     pub font: FontId,
     pub text_color: Color,
+    pub disabled_alpha: f32,
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -997,6 +997,7 @@ mod tests {
             text_size: 19.5,
             font: FontId(0),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
+            disabled_alpha: 0.32f32
         };
 
         let spec = ButtonSpec {

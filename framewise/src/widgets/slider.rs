@@ -529,7 +529,7 @@ pub enum Orientation {
     Horizontal,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SliderState {
     pub focus_id: FocusId,
     pub is_dragging: bool,

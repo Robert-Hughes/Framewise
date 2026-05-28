@@ -153,7 +153,6 @@ pub struct SwitchStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchState {
     pub on: bool,
-    pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }

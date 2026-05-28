@@ -85,22 +85,26 @@ impl ColorSwatchSpecBuilder {
 
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
-    pub fn defaults_from_theme(self, _theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.border.is_none() {
+            self.border = Some(theme.ink);
+        }
+        // Note color doesn't come from theme - this is the colour being indicated by the swatch!
         self
     }
 
     pub fn build(self) -> raw::ColorSwatchSpec {
-        let mut spec = raw::ColorSwatchSpec::default();
-        if let Some(r) = self.rect {
-            spec.rect = r;
+        raw::ColorSwatchSpec {
+            rect: self
+                .rect
+                .expect("rect not set — call .rect() or use the high-level API"),
+            color: self
+                .color
+                .expect("color not set — call .color() or defaults_from_theme()"),
+            border: self
+                .border
+                .expect("border not set — call .border() or defaults_from_theme()"),
         }
-        if let Some(c) = self.color {
-            spec.color = c;
-        }
-        if let Some(b) = self.border {
-            spec.border = b;
-        }
-        spec
     }
 }
 
@@ -205,7 +209,7 @@ mod tests {
         let result = super::color_swatch(
             &mut ctx,
             layout_rect,
-            ColorSwatchSpecBuilder::new().rect(custom_rect),
+            ColorSwatchSpecBuilder::new().rect(custom_rect).color(Color::from_srgb_u8(0, 0, 0, 0)),
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

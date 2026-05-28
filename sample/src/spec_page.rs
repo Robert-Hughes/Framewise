@@ -2733,7 +2733,7 @@ pub fn draw_spec_page(
                             Rect::new(kx, y, kw, 22.0),
                             framewise::widgets::KeycapSpecBuilder::new()
                                 .label(key)
-                                .bg(t.paper_elev)
+                                .background(t.paper_elev)
                                 .border(t.line)
                                 .text_color(t.ink)
                                 .text_size(t.text_sm),

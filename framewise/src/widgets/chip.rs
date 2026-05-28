@@ -151,8 +151,7 @@ pub struct ChipStyle {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChipState {
-    pub active: bool,
-    pub is_active: bool,
+    pub active: bool, // toggle state
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }
