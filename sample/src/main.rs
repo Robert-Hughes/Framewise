@@ -259,7 +259,7 @@ impl App {
 
                 {
                     let layout_params = Vec2::new(200.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new().text("NAVIGATION".to_string());
+                    let spec_builder = LabelSpecBuilder::new().text("NAVIGATION");
                     label(&mut sidebar_col, layout_params, spec_builder)
                 };
 
@@ -284,7 +284,7 @@ impl App {
                         let state = &mut self.sidebar_btns[i].state;
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut sidebar_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.input.clicked;
@@ -348,16 +348,16 @@ impl App {
                     let _btn1 = {
                         let state = &mut self.top_btn1.state;
                         let layout_params = Vec2::new(100.0, 40.0);
-                        let text = "Profile".to_string();
-                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                        let text = "Profile";
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
 
                     let _btn2 = {
                         let state = &mut self.top_btn2.state;
                         let layout_params = Vec2::new(100.0, 40.0);
-                        let text = "Settings".to_string();
-                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                        let text = "Settings";
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut header_row, state, layout_params, spec_builder)
                     };
 
@@ -380,7 +380,7 @@ impl App {
                     {
                         let layout_params = Vec2::new(400.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("DASHBOARD GRID".to_string());
+                            LabelSpecBuilder::new().text("DASHBOARD GRID");
                         label(&mut grid_col, layout_params, spec_builder)
                     };
 
@@ -406,7 +406,7 @@ impl App {
                                     let layout_params = Vec2::new(120.0, 32.0);
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder =
-                                        ButtonSpecBuilder::new().text(text).style(button_style);
+                                        ButtonSpecBuilder::new().text(&text).style(button_style);
                                     button(&mut grid_row, state, layout_params, spec_builder)
                                 };
                             }
@@ -429,7 +429,7 @@ impl App {
                         let layout_params = Vec2::new(150.0, 20.0);
                         let text: &str =
                             &format!("Slider Value: {:.1}", self.standalone_slider_val);
-                        let spec_builder = LabelSpecBuilder::new().text(text.to_string());
+                        let spec_builder = LabelSpecBuilder::new().text(text);
                         label(&mut slider_row, layout_params, spec_builder)
                     };
 
@@ -451,7 +451,7 @@ impl App {
                 // Main Scroll Area
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new().text("MAIN FEED".to_string());
+                    let spec_builder = LabelSpecBuilder::new().text("MAIN FEED");
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let content_height = 30.0 * 50.0 + 30.0 * 10.0;
@@ -479,7 +479,7 @@ impl App {
                         let state = &mut self.main_btns[i].state;
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut main_scroll, state, layout_params, spec_builder)
                     };
                     let clicked = btn.input.clicked;
@@ -492,7 +492,7 @@ impl App {
                 // Nested Scroll Area Demo
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
-                    let spec_builder = LabelSpecBuilder::new().text("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks".to_string());
+                    let spec_builder = LabelSpecBuilder::new().text("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks");
                     label(&mut content_col, layout_params, spec_builder)
                 };
 
@@ -536,7 +536,7 @@ impl App {
                         let state = &mut row_state.btn1.state;
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut row_builder, state, layout_params, spec_builder)
                     };
                     let clicked1 = btn1.input.clicked;
@@ -571,7 +571,7 @@ impl App {
                             let layout_params = Vec2::new(100.0, 45.0);
                             let text = format!("V {}", j + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -609,7 +609,7 @@ impl App {
                             let layout_params = Vec2::new(80.0, row_h - 25.0);
                             let text = format!("H {}", j + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut horiz_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -651,7 +651,7 @@ impl App {
                             let layout_params = Rect::new(x, y, 80.0, 45.0);
                             let text = format!("2D {}", j + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut both_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -692,7 +692,7 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder =
-                        LabelSpecBuilder::new().text("DOUBLE HORIZONTAL SCROLL DEMO".to_string());
+                        LabelSpecBuilder::new().text("DOUBLE HORIZONTAL SCROLL DEMO");
                     label(&mut content_col, layout_params, spec_builder)
                 };
                 let mut d_outer_scroll = begin_scroll_area(
@@ -712,7 +712,7 @@ impl App {
                     &mut d_outer_scroll,
                     &mut framewise::widgets::button::ButtonState::default(),
                     Vec2::new(100.0, 100.0),
-                    ButtonSpecBuilder::new().text("Outer L".to_string()),
+                    ButtonSpecBuilder::new().text("Outer L"),
                 );
 
                 // Inner horizontal scroll area
@@ -733,7 +733,7 @@ impl App {
                         let state = &mut self.double_horiz_btns[j].state;
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(text);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text);
                         button(&mut d_inner_scroll, state, layout_params, spec_builder)
                     };
                 }
@@ -744,7 +744,7 @@ impl App {
                     &mut d_outer_scroll,
                     &mut framewise::widgets::button::ButtonState::default(),
                     Vec2::new(300.0, 100.0),
-                    ButtonSpecBuilder::new().text("Outer R".to_string()),
+                    ButtonSpecBuilder::new().text("Outer R"),
                 );
 
                 d_outer_scroll.finish();
@@ -758,7 +758,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
-                        let spec_builder = LabelSpecBuilder::new().text("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently".to_string());
+                        let spec_builder = LabelSpecBuilder::new().text("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently");
                         label(&mut content_col, layout_params, spec_builder)
                     };
 
@@ -782,7 +782,7 @@ impl App {
                             "OUTER x:{:.0} y:{:.0}  |  INNER x:{:.0} y:{:.0}",
                             outer_ox, outer_oy, inner_ox, inner_oy
                         );
-                        let spec_builder = LabelSpecBuilder::new().text(text.to_string());
+                        let spec_builder = LabelSpecBuilder::new().text(text);
                         label(&mut outer, layout_params, spec_builder)
                     };
 
@@ -801,8 +801,8 @@ impl App {
                         let _btn = {
                             let state = &mut self.nested_2d_outer_btns[k].state;
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
-                            let text = label.to_string();
-                            let spec_builder = ButtonSpecBuilder::new().text(text);
+                            let text = label;
+                            let spec_builder = ButtonSpecBuilder::new().text(&text);
                             button(&mut outer, state, layout_params, spec_builder)
                         };
                     }
@@ -839,7 +839,7 @@ impl App {
                             );
                             let text = format!("2D {:02}", j + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut inner, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -861,7 +861,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
-                        let spec_builder = LabelSpecBuilder::new().text("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation".to_string());
+                        let spec_builder = LabelSpecBuilder::new().text("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation");
                         label(&mut content_col, layout_params, spec_builder)
                     };
 
@@ -884,7 +884,7 @@ impl App {
                                             "OUTER[V]: {:.0}  |  MIDDLE[H]: {:.0}  |  INNER[V]: {:.0}  |  INNERMOST[H]: {:.0}",
                                             outer_y, middle_x, inner_y, innermost_x,
                                         );
-                        let spec_builder = LabelSpecBuilder::new().text(text.to_string());
+                        let spec_builder = LabelSpecBuilder::new().text(text);
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 
@@ -904,7 +904,7 @@ impl App {
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
+                            LabelSpecBuilder::new().text("[ horiz padding ]");
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -934,7 +934,7 @@ impl App {
                             let layout_params = Vec2::new(165.0, 35.0);
                             let text = format!("Inner V {}", j + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut inner_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -967,7 +967,7 @@ impl App {
                             let layout_params = Vec2::new(80.0, 26.0);
                             let text = format!("IH {}", k + 1);
                             let spec_builder =
-                                ButtonSpecBuilder::new().text(text).style(button_style);
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
                             button(&mut innermost_scroll, state, layout_params, spec_builder)
                         };
                         let clicked = btn.input.clicked;
@@ -1001,7 +1001,7 @@ impl App {
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ horiz padding ]".to_string());
+                            LabelSpecBuilder::new().text("[ horiz padding ]");
                         label(&mut middle_scroll, layout_params, spec_builder)
                     };
 
@@ -1010,31 +1010,31 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ outer vert padding row ]".to_string());
+                            LabelSpecBuilder::new().text("[ outer vert padding row ]");
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ outer vert padding row ]".to_string());
+                            LabelSpecBuilder::new().text("[ outer vert padding row ]");
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ outer vert padding row ]".to_string());
+                            LabelSpecBuilder::new().text("[ outer vert padding row ]");
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ outer vert padding row ]".to_string());
+                            LabelSpecBuilder::new().text("[ outer vert padding row ]");
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
-                            LabelSpecBuilder::new().text("[ outer vert padding row ]".to_string());
+                            LabelSpecBuilder::new().text("[ outer vert padding row ]");
                         label(&mut outer_scroll, layout_params, spec_builder)
                     };
 

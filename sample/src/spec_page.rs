@@ -308,7 +308,7 @@ fn draw_button_fake_state<
     };
 
     let spec = ButtonSpecBuilder::new()
-        .text(text.to_string())
+        .text(text)
         .style(style)
         .rect(rect)
         .build();
@@ -640,7 +640,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
         let size = 9.0;
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new()
-            .text("(STATIC)".to_string())
+            .text("(STATIC)")
             .size(size)
             .text_color(color);
         label(this, layout_params, spec_builder)
@@ -668,7 +668,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let size = t.text_sm;
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new()
-            .text(num.to_string())
+            .text(num)
             .size(size)
             .text_color(color);
         label(this, layout_params, spec_builder)
@@ -679,7 +679,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let color = t.ink;
         let font = t.sans_font;
         let spec_builder = LabelSpecBuilder::new()
-            .text(title.to_string())
+            .text(title)
             .size(18.0)
             .font(font)
             .text_color(color);
@@ -701,7 +701,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawC
         let size = t.text_sm;
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new()
-            .text(text.to_string())
+            .text(text)
             .size(size)
             .text_color(color);
         label(this, layout_params, spec_builder)
@@ -785,7 +785,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1".to_string())
+                        .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -798,7 +798,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let font = t.sans_bold_font;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("A widget set that".to_string())
+                        .text("A widget set that")
                         .size(56.0)
                         .font(font)
                         .text_color(color);
@@ -810,7 +810,7 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let font = t.sans_bold_font;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("explains itself.".to_string())
+                        .text("explains itself.")
                         .size(56.0)
                         .font(font)
                         .text_color(color);
@@ -825,7 +825,7 @@ pub fn draw_spec_page(
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust —"
-                            .to_string())
+                            )
                     .size(15.0)
                     .font(font)
                     .text_color(color);
@@ -837,7 +837,7 @@ pub fn draw_spec_page(
                         Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0);
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let font = t.sans_font;
-                    let spec_builder = LabelSpecBuilder::new().text("reserved for focus, drag, and primary action. Every widget describes its state".to_string())
+                    let spec_builder = LabelSpecBuilder::new().text("reserved for focus, drag, and primary action. Every widget describes its state")
                             .size(15.0)
                             .font(font)
                             .text_color(color);
@@ -851,7 +851,7 @@ pub fn draw_spec_page(
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
                         .text(
-                            "explicitly; nothing is hidden behind animation or chrome.".to_string(),
+                            "explicitly; nothing is hidden behind animation or chrome.",
                         )
                         .size(15.0)
                         .font(font)
@@ -877,7 +877,7 @@ pub fn draw_spec_page(
                         let color = t.ink;
                         let font = t.sans_bold_font;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(key.to_string())
+                            .text(key)
                             .size(size)
                             .font(font)
                             .text_color(color);
@@ -891,7 +891,7 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let font = t.sans_font;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(val.to_string())
+                            .text(val)
                             .size(size)
                             .font(font)
                             .text_color(color);
@@ -927,7 +927,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder =
-                            ButtonSpecBuilder::new().text(text.to_string()).style(style);
+                            ButtonSpecBuilder::new().text(text).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     if btn.input.clicked && i == 2 {
@@ -966,7 +966,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(col.to_string())
+                            .text(col)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -981,7 +981,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(row_label.to_string())
+                            .text(row_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -1025,7 +1025,7 @@ pub fn draw_spec_page(
                                     let state = &mut state.btn_matrix[idx];
                                     let style = row_styles[ri];
                                     let spec_builder = ButtonSpecBuilder::new()
-                                        .text("Action".to_string())
+                                        .text("Action")
                                         .style(style)
                                         .disabled(disabled);
                                     button(this, state, rect, spec_builder)
@@ -1057,7 +1057,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder =
-                            ButtonSpecBuilder::new().text(text.to_string()).style(style);
+                            ButtonSpecBuilder::new().text(text).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     bx += w + COL_GAP;
@@ -1080,7 +1080,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder =
-                            ButtonSpecBuilder::new().text(text.to_string()).style(style);
+                            ButtonSpecBuilder::new().text(text).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     bx += w;
@@ -1102,7 +1102,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder =
-                            ButtonSpecBuilder::new().text(text.to_string()).style(style);
+                            ButtonSpecBuilder::new().text(text).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     bx += w;
@@ -1131,7 +1131,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(col.to_string())
+                            .text(col)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -1146,7 +1146,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(row_label.to_string())
+                            .text(row_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -1185,7 +1185,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("CRATE NAME".to_string())
+                        .text("CRATE NAME")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1203,7 +1203,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("a–z, 0–9, hyphen; max 64".to_string())
+                        .text("a–z, 0–9, hyphen; max 64")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1217,7 +1217,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("VERSION".to_string())
+                        .text("VERSION")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1242,7 +1242,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("v".to_string())
+                        .text("v")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1260,7 +1260,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.rust;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("semver mismatch — bump minor".to_string())
+                        .text("semver mismatch — bump minor")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1274,7 +1274,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("DESCRIPTION".to_string())
+                        .text("DESCRIPTION")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1319,7 +1319,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(col.to_string())
+                            .text(col)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -1334,7 +1334,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("box".to_string())
+                        .text("box")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1368,7 +1368,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("with label".to_string())
+                        .text("with label")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1399,7 +1399,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(cx + 18.0, y, 60.0, 14.0);
                         let size = t.text_sm;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text("vsync".to_string())
+                            .text("vsync")
                             .size(size)
                             .text_color(label_alpha);
                         label(this, layout_params, spec_builder)
@@ -1438,7 +1438,7 @@ pub fn draw_spec_page(
                         let size = t.text_md;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(radio_label.to_string())
+                            .text(radio_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -1493,7 +1493,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(sw_x + 36.0, ry, 140.0, 16.0);
                         let size = t.text_md;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(switch_label.to_string())
+                            .text(switch_label)
                             .size(size)
                             .text_color(label_color);
                         label(this, layout_params, spec_builder)
@@ -1532,7 +1532,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(text.to_string())
+                        .text(text)
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1559,7 +1559,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(text.to_string())
+                        .text(text)
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1586,7 +1586,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(text.to_string())
+                        .text(text)
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1614,7 +1614,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(text.to_string())
+                        .text(text)
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1701,7 +1701,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(".24–.76".to_string())
+                        .text(".24–.76")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1791,7 +1791,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("padding".to_string())
+                        .text("padding")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1819,7 +1819,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("12".to_string())
+                        .text("12")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1868,7 +1868,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("−".to_string())
+                        .text("−")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1879,7 +1879,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("12".to_string())
+                        .text("12")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1890,7 +1890,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("+".to_string())
+                        .text("+")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -1914,7 +1914,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(hex.to_string())
+                            .text(hex)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2170,7 +2170,7 @@ pub fn draw_spec_page(
                             let size = t.text_sm;
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new()
-                                .text(line.to_string())
+                                .text(line)
                                 .size(size)
                                 .text_color(color);
                             label(this, layout_params, spec_builder)
@@ -2184,7 +2184,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("vertical · idle".to_string())
+                        .text("vertical · idle")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2227,7 +2227,7 @@ pub fn draw_spec_page(
                             let size = t.text_sm;
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new()
-                                .text(text.to_string())
+                                .text(text)
                                 .size(size)
                                 .text_color(color);
                             label(this, layout_params, spec_builder)
@@ -2241,7 +2241,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("vertical · dragging (rust)".to_string())
+                        .text("vertical · dragging (rust)")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2281,7 +2281,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(6.0, 6.0, 680.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new().text("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )".to_string())
+                        let spec_builder = LabelSpecBuilder::new().text("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )")
                                 .size(size)
                                 .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2294,7 +2294,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("horizontal".to_string())
+                        .text("horizontal")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2335,7 +2335,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text("scroll surface with".to_string())
+                            .text("scroll surface with")
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2346,7 +2346,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text("both bars + corner".to_string())
+                            .text("both bars + corner")
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2359,7 +2359,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("both axes".to_string())
+                        .text("both axes")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2428,7 +2428,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(bar_label.to_string())
+                            .text(bar_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2454,7 +2454,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(meter_label.to_string())
+                            .text(meter_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2467,7 +2467,7 @@ pub fn draw_spec_page(
                             let size = t.text_sm;
                             let color = t.ink;
                             let spec_builder = LabelSpecBuilder::new()
-                                .text("2.4 ms".to_string())
+                                .text("2.4 ms")
                                 .size(size)
                                 .text_color(color);
                             label(this, layout_params, spec_builder)
@@ -2498,7 +2498,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("loading".to_string())
+                        .text("loading")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2515,7 +2515,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("large".to_string())
+                        .text("large")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -2746,7 +2746,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(desc.to_string())
+                            .text(desc)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2843,7 +2843,7 @@ pub fn draw_spec_page(
                         let size = t.text_md;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(check_label.to_string())
+                            .text(check_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -2885,7 +2885,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · DARK".to_string())
+                        .text("FRAMEWISE · DARK")
                         .size(size)
                         .text_color(light);
                     label(this, layout_params, spec_builder)
@@ -2895,7 +2895,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(dw.x + dw.w - 28.0, y + 6.0, 20.0, 14.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("✕".to_string())
+                        .text("✕")
                         .size(size)
                         .text_color(light);
                     label(this, layout_params, spec_builder)
@@ -2935,7 +2935,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("⌘".to_string())
+                        .text("⌘")
                         .size(size)
                         .text_color(light);
                     label(b, layout_params, spec_builder)
@@ -2944,7 +2944,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("K".to_string())
+                        .text("K")
                         .size(size)
                         .text_color(light);
                     label(b, layout_params, spec_builder)
@@ -2953,7 +2953,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("search everything".to_string())
+                        .text("search everything")
                         .size(size)
                         .text_color(muted_l);
                     label(b, layout_params, spec_builder)
@@ -2983,7 +2983,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0);
                     let size = t.text_sm;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("type a command…".to_string())
+                        .text("type a command…")
                         .size(size)
                         .text_color(muted_l);
                     label(this, layout_params, spec_builder)
@@ -3012,7 +3012,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = if i == 0 { light } else { muted_l };
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(item.to_string())
+                            .text(item)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -3042,7 +3042,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(cx, file_y + i as f32 * 18.0, 200.0, 14.0);
                         let size = t.text_sm;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(file.to_string())
+                            .text(file)
                             .size(size)
                             .text_color(muted_l);
                         label(this, layout_params, spec_builder)
@@ -3105,7 +3105,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("BACKEND".to_string())
+                        .text("BACKEND")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3130,7 +3130,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("TARGET FPS".to_string())
+                        .text("TARGET FPS")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3159,7 +3159,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(text.to_string())
+                        .text(text)
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3173,7 +3173,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("VSYNC".to_string())
+                        .text("VSYNC")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3194,7 +3194,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("match display".to_string())
+                        .text("match display")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3208,7 +3208,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("MSAA".to_string())
+                        .text("MSAA")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3233,7 +3233,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("VIEWPORT".to_string())
+                        .text("VIEWPORT")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3273,7 +3273,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("ACCENT".to_string())
+                        .text("ACCENT")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3291,7 +3291,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("#c25a2c".to_string())
+                        .text("#c25a2c")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3305,7 +3305,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("OPTIONS".to_string())
+                        .text("OPTIONS")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)
@@ -3332,7 +3332,7 @@ pub fn draw_spec_page(
                         let size = t.text_md;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(opt_label.to_string())
+                            .text(opt_label)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -3365,7 +3365,7 @@ pub fn draw_spec_page(
                         let text: &str = label;
                         let style = *style;
                         let spec_builder =
-                            ButtonSpecBuilder::new().text(text.to_string()).style(style);
+                            ButtonSpecBuilder::new().text(text).style(style);
                         button(this, state, layout_params, spec_builder)
                     };
                     btn_x -= 8.0;
@@ -3440,7 +3440,7 @@ pub fn draw_spec_page(
                             let size = t.text_sm;
                             let color = t.muted;
                             let spec_builder = LabelSpecBuilder::new()
-                                .text(ts_str.to_string())
+                                .text(ts_str)
                                 .size(size)
                                 .text_color(color);
                             label(this, layout_params, spec_builder)
@@ -3456,7 +3456,7 @@ pub fn draw_spec_page(
                             );
                             let size = t.text_sm;
                             let spec_builder = LabelSpecBuilder::new()
-                                .text(msg.to_string())
+                                .text(msg)
                                 .size(size)
                                 .text_color(msg_color);
                             label(this, layout_params, spec_builder)
@@ -3542,7 +3542,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(key.to_string())
+                            .text(key)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -3554,7 +3554,7 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
-                            .text(val.to_string())
+                            .text(val)
                             .size(size)
                             .text_color(color);
                         label(this, layout_params, spec_builder)
@@ -3567,7 +3567,7 @@ pub fn draw_spec_page(
                     let size = t.text_sm;
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · WIDGET SPECIFICATION".to_string())
+                        .text("FRAMEWISE · WIDGET SPECIFICATION")
                         .size(size)
                         .text_color(color);
                     label(this, layout_params, spec_builder)

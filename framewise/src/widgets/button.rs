@@ -11,9 +11,9 @@ pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ButtonSpec {
+    pub struct ButtonSpec<'a> {
         pub rect: Rect,
-        pub text: String,
+        pub text: &'a str,
         pub style: super::ButtonStyle,
         pub clip_rect: ClipRect,
         pub disabled: bool,
@@ -215,19 +215,19 @@ pub struct ButtonResult {
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ButtonSpecBuilder {
-    pub text: Option<String>,
+pub struct ButtonSpecBuilder<'a> {
+    pub text: Option<&'a str>,
     pub style: Option<ButtonStyle>,
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
     pub disabled: Option<bool>,
 }
 
-impl ButtonSpecBuilder {
+impl<'a> ButtonSpecBuilder<'a> {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn text(mut self, text: String) -> Self {
+    pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
         self
     }
@@ -258,7 +258,7 @@ impl ButtonSpecBuilder {
         self.clip_rect = Some(clip_rect);
         self
     }
-    pub fn build(self) -> raw::ButtonSpec {
+    pub fn build(self) -> raw::ButtonSpec<'a> {
         raw::ButtonSpec {
             rect: self
                 .rect
@@ -282,6 +282,7 @@ impl ButtonSpecBuilder {
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
 pub fn button<
+    'a,
     T: crate::text::TextSystem,
     S: crate::layout::LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
@@ -289,7 +290,7 @@ pub fn button<
     ctx: &mut WidgetContext<T, S, CF>,
     state: &mut ButtonState,
     layout_params: S::Params,
-    builder: ButtonSpecBuilder,
+    builder: ButtonSpecBuilder<'a>,
 ) -> ButtonResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -320,10 +321,10 @@ mod tests {
     use crate::text::TextHandle;
     use crate::theme;
     use crate::types::Vec2;
-    fn btn_spec(rect: Rect) -> ButtonSpec {
+    fn btn_spec(rect: Rect) -> ButtonSpec<'static> {
         ButtonSpec {
             rect,
-            text: "Btn".into(),
+            text: "Btn",
             style: theme::Theme::default().button_primary_style(),
             clip_rect: None,
             disabled: false,
@@ -439,11 +440,11 @@ mod tests {
         let mut state2 = ButtonState::default();
 
         let btn1_spec = || ButtonSpec {
-            text: "Click Me".to_string(),
+            text: "Click Me",
             ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
         };
         let btn2_spec = || ButtonSpec {
-            text: "Btn2".to_string(),
+            text: "Btn2",
             ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
         };
 
@@ -1002,7 +1003,7 @@ mod tests {
 
         let spec = ButtonSpec {
             rect: Rect::new(5.0, 15.0, 120.0, 45.0),
-            text: "Explicit Spec".to_string(),
+            text: "Explicit Spec",
             style: custom_style,
             clip_rect: None,
             disabled: false,
@@ -1037,7 +1038,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
         let theme = crate::theme::Theme::framewise();
-        let builder = ButtonSpecBuilder::new().text("test".to_string());
+        let builder = ButtonSpecBuilder::new().text("test");
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
@@ -1054,7 +1055,7 @@ mod tests {
             ..theme::Theme::default().button_primary_style()
         };
         let builder = ButtonSpecBuilder::new()
-            .text("test".to_string())
+            .text("test")
             .style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);

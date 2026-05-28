@@ -10,9 +10,9 @@ pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LabelSpec {
+    pub struct LabelSpec<'a> {
         pub rect: Rect,
-        pub text: String,
+        pub text: &'a str,
         pub size: f32,
         pub font: FontId,
         pub text_color: Color,
@@ -63,8 +63,8 @@ pub struct LabelResult {
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct LabelSpecBuilder {
-    pub text: Option<String>,
+pub struct LabelSpecBuilder<'a> {
+    pub text: Option<&'a str>,
     pub size: Option<f32>,
     pub font: Option<FontId>,
     pub text_color: Option<Color>,
@@ -72,11 +72,11 @@ pub struct LabelSpecBuilder {
     pub rule: Option<bool>,
 }
 
-impl LabelSpecBuilder {
+impl<'a> LabelSpecBuilder<'a> {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn text(mut self, text: String) -> Self {
+    pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
         self
     }
@@ -116,7 +116,7 @@ impl LabelSpecBuilder {
         }
         self
     }
-    pub fn build(self) -> raw::LabelSpec {
+    pub fn build(self) -> raw::LabelSpec<'a> {
         raw::LabelSpec {
             rect: self
                 .rect
@@ -143,13 +143,14 @@ impl LabelSpecBuilder {
 /// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::label function.
 pub fn label<
+    'a,
     T: TextSystem,
     S: crate::layout::LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
     layout_params: S::Params,
-    builder: LabelSpecBuilder,
+builder: LabelSpecBuilder<'a>,
 ) -> LabelResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -196,7 +197,7 @@ mod tests {
         let mut sys = DummyTextSys;
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
-            text: "Hello".to_string(),
+            text: "Hello",
             size: 16.0,
             font: FontId(1),
             text_color: Color::WHITE,
@@ -219,7 +220,7 @@ mod tests {
         let mut sys = DummyTextSys;
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
-            text: "Section".to_string(),
+            text: "Section",
             size: 14.0,
             font: FontId(1),
             text_color: Color::WHITE,
@@ -250,7 +251,7 @@ mod tests {
         let expected = FontId(42);
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
-            text: "font".to_string(),
+            text: "font",
             size: 14.0,
             font: expected,
             text_color: Color::WHITE,
@@ -265,7 +266,7 @@ mod tests {
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_fields() {
         let theme = crate::theme::Theme::framewise();
-        let builder = LabelSpecBuilder::new().text("test".to_string());
+        let builder = LabelSpecBuilder::new().text("test");
         assert!(builder.size.is_none());
         assert!(builder.font.is_none());
         assert!(builder.text_color.is_none());
@@ -279,7 +280,7 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let builder = LabelSpecBuilder::new()
-            .text("test".to_string())
+            .text("test")
             .size(99.0)
             .font(FontId(99))
             .text_color(Color::from_srgb_u8(1, 2, 3, 255));
