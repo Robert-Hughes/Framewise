@@ -34,8 +34,8 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn segmented<'a, T: crate::text::TextSystem>(
-        state: &mut SegmentedState,
         spec: SegmentedSpec<'a>,
+        state: &mut SegmentedState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
         text_system: &mut T,
@@ -332,7 +332,7 @@ pub fn segmented<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::segmented(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::segmented(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -351,8 +351,8 @@ mod tests {
 
     fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> raw::SegmentedResult {
         raw::segmented(
-            &mut SegmentedState::default(),
             spec,
+            &mut SegmentedState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -429,8 +429,8 @@ mod tests {
         };
         let style = spec.style;
         let res = raw::segmented(
-            &mut state,
             spec,
+            &mut state,
             &Input::default(),
             &mut focus_sys,
             &mut text_sys,
@@ -499,7 +499,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::segmented(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::segmented(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -530,7 +530,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::segmented(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::segmented(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -555,7 +555,6 @@ mod tests {
         input.key_pressed_right = true;
         focus_sys.begin_frame();
         raw::segmented(
-            &mut state,
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
@@ -565,6 +564,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -578,7 +578,6 @@ mod tests {
         input.key_pressed_left = true;
         focus_sys.begin_frame();
         raw::segmented(
-            &mut state,
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
@@ -588,6 +587,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,

@@ -34,11 +34,11 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn select<'a, T: crate::text::TextSystem>(
-        state: &mut SelectState,
         spec: SelectSpec<'a>,
+        state: &mut SelectState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
-        text_sys: &mut T,
+        text_system: &mut T,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -200,7 +200,7 @@ pub mod raw {
             spec.value
         };
 
-        let val_layout = text_sys.prepare(display_text, s.text_size, spec.font);
+        let val_layout = text_system.prepare(display_text, s.text_size, spec.font);
         let vty = r.y + (s.height - val_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
@@ -210,7 +210,7 @@ pub mod raw {
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_layout = text_sys.prepare("v", s.chevron_size, spec.font);
+        let chev_layout = text_system.prepare("v", s.chevron_size, spec.font);
         let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -258,7 +258,7 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_layout = text_sys.prepare(opt, s.text_size, spec.font);
+                let opt_layout = text_system.prepare(opt, s.text_size, spec.font);
                 let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
                     rect: Rect::new(
@@ -441,7 +441,7 @@ pub fn select<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::select(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::select(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -461,8 +461,8 @@ mod tests {
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> raw::SelectResult {
         raw::select(
-            &mut SelectState::default(),
             spec,
+            &mut SelectState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -536,8 +536,8 @@ mod tests {
 
         let mut state = state;
         let res = raw::select(
-            &mut state,
             spec,
+            &mut state,
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut text_sys,
@@ -631,7 +631,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::select(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::select(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -664,7 +664,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::select(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::select(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -689,7 +689,6 @@ mod tests {
         input.key_pressed_down = true;
         focus_sys.begin_frame();
         raw::select(
-            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
@@ -699,6 +698,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -714,7 +714,6 @@ mod tests {
         input.key_pressed_space = true;
         focus_sys.begin_frame();
         raw::select(
-            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -724,6 +723,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -735,7 +735,6 @@ mod tests {
         input.key_released_space = true;
         focus_sys.begin_frame();
         raw::select(
-            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -745,6 +744,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -759,7 +759,6 @@ mod tests {
         input.key_pressed_down = true;
         focus_sys.begin_frame();
         raw::select(
-            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -769,6 +768,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -782,7 +782,6 @@ mod tests {
         input.key_pressed_enter = true;
         focus_sys.begin_frame();
         raw::select(
-            &mut state,
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
@@ -792,6 +791,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,

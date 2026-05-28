@@ -9,6 +9,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
+* Move time to part of spec, not separate param?
+* Check high-level fn param order is consistent (Claude only checked raw one?),
+   - and should match the low-level one (as much as possible)
+
+
+
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 ## Things Still to Figure Out

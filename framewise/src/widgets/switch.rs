@@ -31,8 +31,8 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn switch(
-        state: &mut SwitchState,
         spec: SwitchSpec,
+        state: &mut SwitchState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
     ) -> SwitchResult {
@@ -255,7 +255,7 @@ pub fn switch<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::switch(state, spec, ctx.input, ctx.focus_sys);
+    let result = raw::switch(spec, state, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw);
 
@@ -274,8 +274,8 @@ mod tests {
 
     fn swi_tch(spec: SwitchSpec) -> raw::SwitchResult {
         raw::switch(
-            &mut SwitchState::default(),
             spec,
+            &mut SwitchState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
         )
@@ -359,7 +359,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = raw::switch(&mut state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::switch(spec, &mut state, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
@@ -438,7 +438,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::switch(&mut state, spec, &input, &mut focus_sys);
+        raw::switch(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -465,7 +465,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::switch(&mut state, spec, &input, &mut focus_sys);
+        raw::switch(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -492,14 +492,14 @@ mod tests {
         // Frame 1: Focus switch
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        raw::switch(&mut state, spec(), &input, &mut focus_sys);
+        raw::switch(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        raw::switch(&mut state, spec(), &input, &mut focus_sys);
+        raw::switch(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space
@@ -507,7 +507,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        raw::switch(&mut state, spec(), &input, &mut focus_sys);
+        raw::switch(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert!(state.on, "Spacebar release must toggle switch state");

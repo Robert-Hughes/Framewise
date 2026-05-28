@@ -34,11 +34,11 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn tabs<'a, T: crate::text::TextSystem>(
-        state: &mut TabsState,
         spec: TabsSpec<'a>,
+        state: &mut TabsState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
-        text_sys: &mut T,
+        text_system: &mut T,
     ) -> TabsResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
@@ -50,7 +50,7 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let layout = text_sys.prepare(label, s.text_size, spec.font);
+            let layout = text_system.prepare(label, s.text_size, spec.font);
             total_w += layout.size.x + pad_x * 2.0;
         }
 
@@ -90,7 +90,7 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let layout = text_sys.prepare(label, s.text_size, spec.font);
+                let layout = text_system.prepare(label, s.text_size, spec.font);
                 let tab_w = layout.size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
@@ -119,7 +119,7 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let layout = text_sys.prepare(label, s.text_size, spec.font);
+            let layout = text_system.prepare(label, s.text_size, spec.font);
             let tab_w = layout.size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -324,7 +324,7 @@ pub fn tabs<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::tabs(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::tabs(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -343,8 +343,8 @@ mod tests {
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> raw::TabsResult {
         raw::tabs(
-            &mut TabsState::default(),
             spec,
+            &mut TabsState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -420,8 +420,8 @@ mod tests {
         };
         let style = spec.style;
         let res = raw::tabs(
-            &mut state,
             spec,
+            &mut state,
             &Input::default(),
             &mut focus_sys,
             &mut text_sys,
@@ -489,7 +489,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::tabs(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::tabs(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -520,7 +520,7 @@ mod tests {
         };
 
         focus_sys.begin_frame();
-        raw::tabs(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::tabs(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -545,7 +545,6 @@ mod tests {
         input.key_pressed_right = true;
         focus_sys.begin_frame();
         raw::tabs(
-            &mut state,
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
@@ -555,6 +554,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -568,7 +568,6 @@ mod tests {
         input.key_pressed_left = true;
         focus_sys.begin_frame();
         raw::tabs(
-            &mut state,
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
@@ -578,6 +577,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,

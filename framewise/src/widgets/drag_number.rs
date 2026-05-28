@@ -36,8 +36,8 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn drag_number<'a, T: crate::text::TextSystem>(
-        state: &mut DragNumberState,
         spec: DragNumberSpec<'a>,
+        state: &mut DragNumberState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
         text_system: &mut T,
@@ -363,7 +363,7 @@ pub fn drag_number<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::drag_number(state, spec, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::drag_number(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -383,8 +383,8 @@ mod tests {
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>) -> raw::DragNumberResult {
         raw::drag_number(
-            &mut DragNumberState::default(),
             spec,
+            &mut DragNumberState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -464,8 +464,8 @@ mod tests {
         input.mouse_down = true;
         let mut state = state;
         let res = raw::drag_number(
-            &mut state,
             spec,
+            &mut state,
             &input,
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -527,8 +527,8 @@ mod tests {
 
         let style = spec.style;
         let res = raw::drag_number(
-            &mut DragNumberState::default(),
             spec,
+            &mut DragNumberState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut text_sys,
@@ -587,7 +587,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::drag_number(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::drag_number(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -620,7 +620,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::drag_number(&mut state, spec, &input, &mut focus_sys, &mut text_sys);
+        raw::drag_number(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -644,7 +644,6 @@ mod tests {
         input.key_pressed_right = true;
         focus_sys.begin_frame();
         raw::drag_number(
-            &mut state,
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
@@ -656,6 +655,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().drag_number_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -669,7 +669,6 @@ mod tests {
         input.key_pressed_left = true;
         focus_sys.begin_frame();
         raw::drag_number(
-            &mut state,
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 label: "X",
@@ -681,6 +680,7 @@ mod tests {
                 style: crate::theme::Theme::framewise().drag_number_style(),
                 clip_rect: None,
             },
+            &mut state,
             &input,
             &mut focus_sys,
             &mut text_sys,

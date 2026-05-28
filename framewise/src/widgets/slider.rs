@@ -39,13 +39,14 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn slider(
+    pub fn slider<T: crate::text::TextSystem>(
+        spec: SliderSpec,
         state: &mut SliderState,
         value: &mut f32,
-        spec: SliderSpec,
+        time: f64,
         input: &Input,
-        _time: f64,
         focus_sys: &mut FocusSystem,
+        _text_system: &mut T,
     ) -> SliderResult {
         let mut cmds = Vec::new();
 
@@ -247,7 +248,7 @@ pub mod raw {
             focus_sys.take_focus(state.focus_id);
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
-            state.next_repeat_time = _time + 0.5;
+            state.next_repeat_time = time + 0.5;
             // Page up/down towards mouse
             if mouse_coord < _thumb_start {
                 *value = (*value - spec.page_step).clamp(min, max);
@@ -265,7 +266,7 @@ pub mod raw {
         }
 
         // Track click repeat logic (time-based paging)
-        if state.is_track_clicking && _time >= state.next_repeat_time {
+        if state.is_track_clicking && time >= state.next_repeat_time {
             if track_rect.contains(input.mouse_pos) {
                 let track_start = if is_vert { track_rect.y } else { track_rect.x };
                 if mouse_coord < _thumb_start {
@@ -278,7 +279,7 @@ pub mod raw {
                         min
                     };
                     *value = (*value - spec.page_step).max(cursor_val).clamp(min, max);
-                    state.next_repeat_time = _time + 0.05;
+                    state.next_repeat_time = time + 0.05;
                 } else if mouse_coord > _thumb_end {
                     // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
                     let cursor_val = if usable_track > 0.0 {
@@ -287,7 +288,7 @@ pub mod raw {
                         max
                     };
                     *value = (*value + spec.page_step).min(cursor_val).clamp(min, max);
-                    state.next_repeat_time = _time + 0.05;
+                    state.next_repeat_time = time + 0.05;
                 }
                 // else: cursor is now inside the thumb; paging stops but keep
                 // is_track_clicking=true so the drag-transition check can still fire.
@@ -676,7 +677,7 @@ pub fn slider<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::slider(state, value, spec, ctx.input, ctx.time, ctx.focus_sys);
+    let result = raw::slider(spec, state, value, ctx.time, ctx.input, ctx.focus_sys, ctx.text_system);
     ctx.append_cmds(result.draw);
     SliderResult {
         layout: LayoutInfo::tight(rect),
@@ -687,6 +688,7 @@ pub fn slider<
 mod tests {
     use super::raw::SliderSpec;
     use super::*;
+    use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_slider_page_up_down_keyboard() {
@@ -696,6 +698,7 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         // Must be focused to receive keyboard events
         focus_sys.take_focus(state.focus_id);
@@ -703,12 +706,13 @@ mod tests {
         // Frame 1: register claims
         focus_sys.begin_frame();
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -716,12 +720,13 @@ mod tests {
         focus_sys.begin_frame();
         input.key_pressed_page_up = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 30.0);
         focus_sys.end_frame();
@@ -731,12 +736,13 @@ mod tests {
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 50.0);
         focus_sys.end_frame();
@@ -744,24 +750,26 @@ mod tests {
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 0.0);
 
         input.key_pressed_home = false;
         input.key_pressed_end = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 100.0);
     }
@@ -777,6 +785,7 @@ mod tests {
             },
             ..test_spec(0.0, 100.0, true)
         };
+        let mut text_system = DummyTextSys;
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
 
@@ -789,12 +798,13 @@ mod tests {
         input.mouse_down = true;
 
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_coord, 10.0);
@@ -803,12 +813,13 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
 
         // 40 / 80 usable track = 0.5 ratio = 50 value
@@ -822,6 +833,7 @@ mod tests {
         let spec = test_spec(0.0, 100.0, true);
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         // 1. Initial click at bottom of track (y=80)
         input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
@@ -830,12 +842,13 @@ mod tests {
 
         // Frame 1: time=0.0. Should page down by 20.0
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 20.0);
         assert!(state.is_track_clicking);
@@ -844,47 +857,51 @@ mod tests {
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.4,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 20.0);
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.5,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.6,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 60.0);
 
         // Release mouse -> track clicking ends
         input.mouse_down = false;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.7,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(!state.is_track_clicking);
     }
@@ -897,18 +914,20 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state.focus_id);
 
         // Up decrements
         input.key_pressed_up = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 45.0);
         assert_eq!(
@@ -921,12 +940,13 @@ mod tests {
         input.key_pressed_up = false;
         input.key_pressed_down = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 50.0);
         assert_eq!(
@@ -939,12 +959,13 @@ mod tests {
         input.key_pressed_down = false;
         input.key_pressed_left = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 45.0);
         assert_eq!(
@@ -957,12 +978,13 @@ mod tests {
         input.key_pressed_left = false;
         input.key_pressed_right = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 50.0);
         assert_eq!(
@@ -984,24 +1006,26 @@ mod tests {
 
         input.key_pressed_left = true;
         raw::slider(
+            horiz_spec.clone(),
             &mut horiz_state,
             &mut horiz_value,
-            horiz_spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(horiz_value, 45.0);
 
         input.key_pressed_left = false;
         input.key_pressed_right = true;
         raw::slider(
+            horiz_spec.clone(),
             &mut horiz_state,
             &mut horiz_value,
-            horiz_spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(horiz_value, 50.0);
     }
@@ -1014,6 +1038,7 @@ mod tests {
         let mut value_a = 50.0_f32;
         let mut value_b = 50.0_f32;
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state_a.focus_id);
 
@@ -1022,40 +1047,44 @@ mod tests {
         let mut input = crate::input::Input::new();
         input.key_pressed_tab = true;
         raw::slider(
+            spec.clone(),
             &mut state_a,
             &mut value_a,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         raw::slider(
+            spec.clone(),
             &mut state_b,
             &mut value_b,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
         // Frame 2: confirm focus moved to slider_b
         focus_sys.begin_frame();
         raw::slider(
+            spec.clone(),
             &mut state_a,
             &mut value_a,
-            spec.clone(),
-            &crate::input::Input::new(),
             0.0,
+            &crate::input::Input::new(),
             &mut focus_sys,
+            &mut text_system,
         );
         raw::slider(
+            spec.clone(),
             &mut state_b,
             &mut value_b,
-            spec.clone(),
-            &crate::input::Input::new(),
             0.0,
+            &crate::input::Input::new(),
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
         assert_eq!(
@@ -1072,6 +1101,7 @@ mod tests {
         let mut focus_sys = FocusSystem::new();
         let mut value = 50.0_f32;
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         // Click on the track
         let mut input = crate::input::Input::new();
@@ -1080,12 +1110,13 @@ mod tests {
 
         focus_sys.begin_frame();
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1101,6 +1132,7 @@ mod tests {
         let mut state = SliderState::default();
         let mut focus_sys = FocusSystem::new();
         let mut value = 50.0_f32;
+        let mut text_system = DummyTextSys;
 
         // Mouse is inside the widget rect but outside the clip_rect.
         let mut spec = test_spec(0.0, 100.0, true);
@@ -1111,7 +1143,7 @@ mod tests {
         input.mouse_pressed = true;
 
         focus_sys.begin_frame();
-        raw::slider(&mut state, &mut value, spec, &input, 0.0, &mut focus_sys);
+        raw::slider(spec, &mut state, &mut value, 0.0, &input, &mut focus_sys, &mut text_system);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1129,6 +1161,7 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         // Hover over the slider track
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
@@ -1136,12 +1169,13 @@ mod tests {
         // Frame 1: Register hover
         focus_sys.begin_frame();
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1151,12 +1185,13 @@ mod tests {
         input.scroll_delta.y = 2.0;
         focus_sys.begin_frame();
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1182,18 +1217,20 @@ mod tests {
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         // Frame 1: click empty track at y=50 (thumb is at y=0..20) → page step
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             state.is_track_clicking,
@@ -1206,12 +1243,13 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             state.is_dragging,
@@ -1224,12 +1262,13 @@ mod tests {
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!((value - 68.75).abs() < 0.01, "drag to 68.75, got {value}");
     }
@@ -1256,18 +1295,20 @@ mod tests {
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
 
         // Frame 1: initial click at y=70 (well below thumb at y=0..20).
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
@@ -1276,12 +1317,13 @@ mod tests {
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.4,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert_eq!(value, 60.0);
 
@@ -1289,12 +1331,13 @@ mod tests {
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.5,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             (value - 87.5).abs() < 0.01,
@@ -1304,12 +1347,13 @@ mod tests {
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.6,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             (value - 87.5).abs() < 0.01,
@@ -1326,12 +1370,13 @@ mod tests {
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.65,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             state.is_dragging,
@@ -1347,12 +1392,13 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
         raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.7,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         assert!(
             (value - 93.75).abs() < 0.01,
@@ -1386,6 +1432,7 @@ mod tests {
         let mut value = 0.0; // already at min
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1398,12 +1445,13 @@ mod tests {
         focus_sys.claim_scroll_down(parent_id);
         // Standalone slider registers second (inner) — overwrites both
         raw::slider(
+            test_spec(0.0, 100.0, true),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, true),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1422,6 +1470,7 @@ mod tests {
         let mut value = 100.0; // already at max
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1431,12 +1480,13 @@ mod tests {
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id);
         raw::slider(
+            test_spec(0.0, 100.0, true),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, true),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1456,6 +1506,7 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1465,12 +1516,13 @@ mod tests {
         focus_sys.claim_scroll_left(parent_id);
         focus_sys.claim_scroll_right(parent_id);
         raw::slider(
+            test_spec(0.0, 100.0, true),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, true),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1492,6 +1544,7 @@ mod tests {
         let mut value = 0.0; // at min — can't scroll up
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1503,12 +1556,13 @@ mod tests {
         focus_sys.claim_scroll_down(parent_id);
         // Inner propagating slider at min: skips claim_scroll_up
         raw::slider(
+            test_spec(0.0, 100.0, false),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, false),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1526,6 +1580,7 @@ mod tests {
         let mut value = 100.0; // at max — can't scroll down
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1535,12 +1590,13 @@ mod tests {
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id); // parent can scroll down
         raw::slider(
+            test_spec(0.0, 100.0, false),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, false),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1559,6 +1615,7 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1568,12 +1625,13 @@ mod tests {
         focus_sys.claim_scroll_up(parent_id);
         focus_sys.claim_scroll_down(parent_id);
         raw::slider(
+            test_spec(0.0, 100.0, false),
             &mut state,
             &mut value,
-            test_spec(0.0, 100.0, false),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1595,16 +1653,18 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         let input = Input::new();
         focus_sys.begin_frame();
         let result = raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1638,18 +1698,20 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
 
         focus_sys.begin_frame();
         let result = raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1684,17 +1746,19 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_down = true;
         focus_sys.begin_frame();
         let result = raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1728,18 +1792,20 @@ mod tests {
         let mut value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
+        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state.focus_id);
 
         let input = Input::new();
         focus_sys.begin_frame();
         let result = raw::slider(
+            spec.clone(),
             &mut state,
             &mut value,
-            spec.clone(),
-            &input,
             0.0,
+            &input,
             &mut focus_sys,
+            &mut text_system,
         );
         focus_sys.end_frame();
 

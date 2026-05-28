@@ -75,8 +75,8 @@ fn draw_checkbox_fake_state<
     };
 
     let result = framewise::widgets::checkbox::raw::checkbox(
-        &mut state,
         spec,
+        &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
     );
@@ -119,7 +119,7 @@ fn draw_radio_fake_state<
     };
 
     let result =
-        framewise::widgets::radio::raw::radio(&mut state, spec, &dummy_input, &mut dummy_focus_sys);
+        framewise::widgets::radio::raw::radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys);
     {
         let this = &mut *b;
         let cmds = result.draw;
@@ -159,8 +159,8 @@ fn draw_switch_fake_state<
     };
 
     let result = framewise::widgets::switch::raw::switch(
-        &mut state,
         spec,
+        &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
     );
@@ -210,8 +210,8 @@ fn draw_select_fake_state<
     };
 
     let result = framewise::widgets::select::raw::select(
-        &mut state,
         spec,
+        &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
         b.text_system,
@@ -258,8 +258,8 @@ fn draw_drag_number_fake_state<
 
     let mut dummy_focus_sys = FocusSystem::new();
     let result = framewise::widgets::drag_number::raw::drag_number(
-        &mut state,
         spec,
+        &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
         b.text_system,
@@ -314,11 +314,11 @@ fn draw_button_fake_state<
         .build();
 
     let result = framewise::widgets::button::raw::button(
-        &mut state,
         spec,
+        &mut state,
         &fake_input,
-        b.text_system,
         &mut dummy_focus_sys,
+        b.text_system,
     );
     {
         let this = &mut *b;

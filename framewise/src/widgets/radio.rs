@@ -31,8 +31,8 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn radio(
-        state: &mut RadioState,
         spec: RadioSpec,
+        state: &mut RadioState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
     ) -> RadioResult {
@@ -252,7 +252,7 @@ pub fn radio<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::radio(state, spec, ctx.input, ctx.focus_sys);
+    let result = raw::radio(spec, state, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw);
 
@@ -270,8 +270,8 @@ mod tests {
 
     fn rad_io(spec: RadioSpec) -> raw::RadioResult {
         raw::radio(
-            &mut RadioState::default(),
             spec,
+            &mut RadioState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
         )
@@ -357,7 +357,7 @@ mod tests {
         };
         let s = spec.style;
         let mut state = state;
-        let res = raw::radio(&mut state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::radio(spec, &mut state, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
@@ -434,7 +434,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::radio(&mut state, spec, &input, &mut focus_sys);
+        raw::radio(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -462,7 +462,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::radio(&mut state, spec, &input, &mut focus_sys);
+        raw::radio(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -489,14 +489,14 @@ mod tests {
         // Frame 1: Explicitly focus the radio
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        raw::radio(&mut state, spec(), &input, &mut focus_sys);
+        raw::radio(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        raw::radio(&mut state, spec(), &input, &mut focus_sys);
+        raw::radio(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space key
@@ -504,7 +504,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        raw::radio(&mut state, spec(), &input, &mut focus_sys);
+        raw::radio(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

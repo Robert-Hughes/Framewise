@@ -31,8 +31,8 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn checkbox(
-        state: &mut CheckboxState,
         spec: CheckboxSpec,
+        state: &mut CheckboxState,
         input: &Input,
         focus_sys: &mut crate::focus::FocusSystem,
     ) -> CheckboxResult {
@@ -295,7 +295,7 @@ pub fn checkbox<
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::checkbox(state, spec, ctx.input, ctx.focus_sys);
+    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_sys);
 
     ctx.append_cmds(result.draw);
 
@@ -313,8 +313,8 @@ mod tests {
 
     fn checkbox_dummy(spec: CheckboxSpec) -> raw::CheckboxResult {
         raw::checkbox(
-            &mut CheckboxState::default(),
             spec,
+            &mut CheckboxState::default(),
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
         )
@@ -438,7 +438,7 @@ mod tests {
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let mut state = state;
-        let res = raw::checkbox(&mut state, spec, &Input::default(), &mut focus_sys);
+        let res = raw::checkbox(spec, &mut state, &Input::default(), &mut focus_sys);
         focus_sys.end_frame();
         assert_eq!(
             res.draw,
@@ -509,7 +509,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::checkbox(&mut state, spec, &input, &mut focus_sys);
+        raw::checkbox(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -537,7 +537,7 @@ mod tests {
 
         let mut state = state;
         focus_sys.begin_frame();
-        raw::checkbox(&mut state, spec, &input, &mut focus_sys);
+        raw::checkbox(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -564,14 +564,14 @@ mod tests {
         // Frame 1: Explicitly focus the checkbox
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
-        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
+        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_sys.begin_frame();
-        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
+        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 3: Release Space key
@@ -579,7 +579,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_sys.begin_frame();
-        raw::checkbox(&mut state, spec(), &input, &mut focus_sys);
+        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
