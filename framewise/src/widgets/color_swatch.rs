@@ -16,16 +16,6 @@ pub mod raw {
         pub border: Color,
     }
 
-    impl Default for ColorSwatchSpec {
-        fn default() -> Self {
-            Self {
-                rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-                color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
-                border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
-            }
-        }
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
         pub draw: DrawCommands,
@@ -141,7 +131,11 @@ mod tests {
 
     #[test]
     fn test_color_swatch_visual_normal() {
-        let spec = ColorSwatchSpec::default();
+        let spec = ColorSwatchSpecBuilder::new()
+            .rect(Rect::new(0.0, 0.0, 16.0, 16.0))
+            .color(Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0))
+            .border(Color::linear_rgba(0.0, 0.0, 0.0, 0.20))
+            .build();
         let res = raw::color_swatch(spec);
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
         let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);

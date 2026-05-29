@@ -9,12 +9,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
-* Up to 'N.' in Claude review
-
 * Extras from me:
   * Saying "call .label_font() or defaults_from_theme()" - should also mention the high-level API? Or remove the mention of high-level API from the other ones?
-  * Spec structs shouldn't be implementing Default - this is in DESIGN.md but we violating it
-  * Add a note to DESIGN.md that widgets should follow the above guidance about general consistency
 
 
 

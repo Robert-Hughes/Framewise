@@ -19,17 +19,6 @@ pub mod raw {
         pub bars: usize,
     }
 
-    impl Default for MeterSpec {
-        fn default() -> Self {
-            Self {
-                rect: Rect::new(0.0, 0.0, 80.0, 14.0),
-                value: 0.5,
-                peak: None,
-                bars: 10,
-            }
-        }
-    }
-
     #[derive(Debug, Clone, PartialEq)]
     pub struct MeterResult {
         pub draw: DrawCommands,

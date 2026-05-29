@@ -110,12 +110,12 @@ Framewise has two layers:
 Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct and return a `raw::*Result` containing draw commands and interaction info. Every input is explicit; the cost is strictly local.
 
 ```rust
-pub fn button(spec: ButtonSpec, input: &Input) -> raw::ButtonResult;
-pub fn label(spec: LabelSpec) -> raw::LabelResult;
-pub fn text_edit(spec: TextEditSpec, state: TextEditState, input: &Input) -> raw::TextEditResult;
+pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
+pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> raw::LabelResult;
+pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::TextEditResult;
 ```
 
-Each `raw::*Result` is a concrete struct with no traits, no metadata maps, and no dynamic type slots.
+Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
 
 ### High-Level Freestanding API: Context Integration
 
@@ -124,8 +124,8 @@ A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
 ```rust
-pub fn button<T, S>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn button<T, S, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: &mut ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
@@ -247,10 +247,6 @@ Because every builder field is `Option<T>`, `derive(Default)` produces exactly a
 
 This means defaults are applied **as late as possible**, giving higher layers the opportunity to provide sensible context-aware values rather than being silently pre-empted by a `false` baked in at construction time.
 
-**Exception**
-
-Purely numeric/visual specs with no required content (e.g. `MeterSpec`) may implement `Default` when a zero state has a genuinely reasonable rendering and there is no borrowed data. The bar is whether `Default::default()` produces something visually coherent and useful — not just something that compiles.
-
 ### Style Structs
 
 Some widget types group their styling fields into a dedicated `*Style` struct embedded inside `*Spec` and `*SpecBuilder`. The decision rule:
@@ -263,11 +259,11 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button(spec: ButtonSpec, input: &Input) -> raw::ButtonResult;
+pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
-pub fn button<T, S>(
-    ctx: &mut WidgetContext<T, S>,
+pub fn button<T, S, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
     state: &mut ButtonState,
     layout_params: S::Params,
     builder: ButtonSpecBuilder,
@@ -292,7 +288,7 @@ pub fn button<T, S>(
 `Theme` is part of the high-level API. The `WidgetContext` uses it to resolve ergonomic defaults such as colours, spacing, and semantic font choices, but low-level widget functions must not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is passed to the widget function.
 
 > [!IMPORTANT]
-> **Static Check Rule:** Widgets must not import `theme::Theme` or call `Theme::framewise` outside tests. All low-level widgets in `framewise/src/widgets/*` must consume fully resolved `WidgetSpec`/`Style` data only.
+> **Static Check Rule:** Low-level raw widget functions must not import or depend on `theme::Theme`. The builder layer (`*SpecBuilder::defaults_from_theme`) is the correct and only place `Theme` is consumed — it translates the theme to resolved primitives before any raw function sees them. Because builders live in the same file as their raw functions, widget files do import `Theme`, but the import is confined to the builder layer. All `raw::*` functions in `framewise/src/widgets/*` must accept only fully resolved `*Spec`/`*Style` data and must not reference `Theme` directly.
 
 Fonts follow the same rule. A font is an application-owned handle independent of any theme. A theme references the two handles it wants to use for sans and mono text, but it does not own renderer-specific font data. The context may copy those handles from the theme into widget specs based on widget type; direct low-level callers choose fonts explicitly, often by copying a handle from a theme themselves.
 
