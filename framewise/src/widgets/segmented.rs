@@ -16,7 +16,6 @@ pub mod raw {
         pub rect: Rect,
         pub items: &'a [&'a str],
         pub font: FontId,
-        pub active_index: usize,
         pub disabled: bool,
         pub style: super::SegmentedStyle,
         pub clip_rect: ClipRect,
@@ -84,10 +83,6 @@ pub mod raw {
                 spec.disabled,
             )
         };
-
-        if state.active_index != spec.active_index {
-            state.active_index = spec.active_index;
-        }
 
         let mut is_clicked = clicked;
 
@@ -254,10 +249,6 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-    pub fn active_index(mut self, active_index: usize) -> Self {
-        self.active_index = Some(active_index);
-        self
-    }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
         self
@@ -297,7 +288,6 @@ impl<'a> SegmentedSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            active_index: self.active_index.unwrap_or(0),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
@@ -347,10 +337,10 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>) -> raw::SegmentedResult {
+    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>, active_index: usize) -> raw::SegmentedResult {
         raw::segmented(
             spec,
-            &mut SegmentedState::default(),
+            &mut SegmentedState { active_index, ..Default::default()},
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -364,13 +354,12 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented_dummy(spec);
+        let res = segmented_dummy(spec, 0);
 
         assert_eq!(
             res.draw,
@@ -410,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_segmented_visual_focused() {
-        let mut state = SegmentedState::default();
+        let mut state = SegmentedState { active_index: 1, ..Default::default() };
         let mut focus_sys = crate::focus::FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
@@ -420,7 +409,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
-            active_index: 1,
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
@@ -490,7 +478,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
@@ -521,7 +508,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 28.0)),
@@ -557,7 +543,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 font: FontId(1),
-                active_index: 0,
                 disabled: false,
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
@@ -580,7 +565,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 font: FontId(1),
-                active_index: 0,
                 disabled: false,
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,

@@ -13,7 +13,6 @@ pub mod raw {
     pub struct RadioSpec {
         /// Top-left of the 14×14 bounding area.
         pub rect: Rect,
-        pub selected: bool,
         pub disabled: bool,
         pub style: super::RadioStyle,
         pub clip_rect: ClipRect,
@@ -65,11 +64,6 @@ pub mod raw {
         }
         if focused && input.key_pressed_space {
             state.space_is_active = true;
-        }
-
-        // Keep state.selected in sync with spec.selected
-        if state.selected != spec.selected {
-            state.selected = spec.selected;
         }
 
         if is_clicked {
@@ -185,11 +179,6 @@ impl RadioSpecBuilder {
         Self::default()
     }
 
-    pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = Some(selected);
-        self
-    }
-
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
         self
@@ -225,7 +214,6 @@ impl RadioSpecBuilder {
     pub fn build(self) -> raw::RadioSpec {
         raw::RadioSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
-            selected: self.selected.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
@@ -276,10 +264,10 @@ mod tests {
     use super::raw::RadioSpec;
     use super::*;
 
-    fn rad_io(spec: RadioSpec) -> raw::RadioResult {
+    fn test_radio(spec: RadioSpec, selected: bool) -> raw::RadioResult {
         raw::radio(
             spec,
-            &mut RadioState::default(),
+            &mut RadioState { selected, ..Default::default() },
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
         )
@@ -289,13 +277,12 @@ mod tests {
     fn test_radio_visual_unselected() {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = rad_io(spec);
+        let res = test_radio(spec, false);
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -319,13 +306,12 @@ mod tests {
     fn test_radio_visual_selected() {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: true,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = rad_io(spec);
+        let res = test_radio(spec, true);
         let center = Vec2::new(17.0, 17.0);
         assert_eq!(
             res.draw,
@@ -358,7 +344,6 @@ mod tests {
         focus_sys.begin_frame();
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
@@ -396,13 +381,12 @@ mod tests {
     fn test_radio_visual_disabled() {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: true,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = rad_io(spec);
+        let res = test_radio(spec, false);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let center = Vec2::new(17.0, 17.0);
@@ -434,7 +418,6 @@ mod tests {
 
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,
@@ -462,7 +445,6 @@ mod tests {
 
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
@@ -488,7 +470,6 @@ mod tests {
 
         let spec = || RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            selected: false,
             disabled: false,
             style: crate::theme::Theme::framewise().radio_style(),
             clip_rect: None,

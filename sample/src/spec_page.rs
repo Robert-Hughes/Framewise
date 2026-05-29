@@ -110,7 +110,6 @@ fn draw_radio_fake_state<
     let dummy_input = Input::default();
     let spec = RadioSpec {
         rect,
-        selected,
         disabled: is_disabled,
         style: b.theme.radio_style(),
         clip_rect: b.clip_rect,
@@ -149,7 +148,6 @@ fn draw_switch_fake_state<
     let dummy_input = Input::default();
     let spec = SwitchSpec {
         rect,
-        on,
         disabled: is_disabled,
         style: b.theme.switch_style(),
         clip_rect: b.clip_rect,
@@ -243,7 +241,6 @@ fn draw_drag_number_fake_state<
         rect,
         text: label,
         font: b.theme.sans_font,
-        value: val,
         min,
         max,
         disabled: false,
@@ -1385,7 +1382,7 @@ pub fn draw_spec_page(
                         let info = {
                             let state = &mut state.radio_states[i];
                             let layout_params = Rect::new(lx, ry, 14.0, 14.0);
-                            let spec_builder = RadioSpecBuilder::new().selected(state.selected);
+                            let spec_builder = RadioSpecBuilder::new();
                             radio(b, spec_builder, layout_params, state)
                         };
                         if info.input.clicked {
@@ -1434,7 +1431,7 @@ pub fn draw_spec_page(
                                 let state = &mut state.switch_states[2];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
                                 let spec_builder =
-                                    SwitchSpecBuilder::new().on(state.on).disabled(true);
+                                    SwitchSpecBuilder::new().disabled(true);
                                 switch(b, spec_builder, layout_params, state)
                             };
                         }
@@ -1443,7 +1440,7 @@ pub fn draw_spec_page(
                                 let state = &mut state.switch_states[i];
                                 let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
                                 {
-                                    let spec_builder = SwitchSpecBuilder::new().on(state.on);
+                                    let spec_builder = SwitchSpecBuilder::new();
                                     switch(b, spec_builder, layout_params, state)
                                 }
                             };
@@ -1645,7 +1642,6 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .text("X")
-                        .value(state.value)
                         .max(800.0);
                     drag_number(b, spec_builder, layout_params, state)
                 };
@@ -1656,7 +1652,6 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .text("Y")
-                        .value(state.value)
                         .max(600.0);
                     drag_number(b, spec_builder, layout_params, state)
                 };
@@ -1679,7 +1674,6 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .text("H")
-                        .value(state.value)
                         .max(600.0);
                     drag_number(b, spec_builder, layout_params, state)
                 };
@@ -1879,8 +1873,7 @@ pub fn draw_spec_page(
                     let state = &mut state.seg1_state;
                     let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
-                        .items(SEGS1)
-                        .active_index(state.active_index);
+                        .items(SEGS1);
                     segmented(b, spec_builder, layout_params, state)
                 };
                 const SEGS2: &[&str] = &["start", "center", "end"];
@@ -1888,8 +1881,7 @@ pub fn draw_spec_page(
                     let state = &mut state.seg2_state;
                     let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
                     let spec_builder = SegmentedSpecBuilder::new()
-                        .items(SEGS2)
-                        .active_index(state.active_index);
+                        .items(SEGS2);
                     segmented(b, spec_builder, layout_params, state)
                 };
 
@@ -2272,8 +2264,7 @@ pub fn draw_spec_page(
                     let state = &mut state.tabs1_state;
                     let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
-                        .items(TABS1)
-                        .active_index(state.active_index);
+                        .items(TABS1);
                     tabs(b, spec_builder, layout_params, state)
                 };
                 y += 36.0 + 20.0;
@@ -2283,8 +2274,7 @@ pub fn draw_spec_page(
                     let state = &mut state.tabs2_state;
                     let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
                     let spec_builder = TabsSpecBuilder::new()
-                        .items(TABS2)
-                        .active_index(state.active_index);
+                        .items(TABS2);
                     tabs(b, spec_builder, layout_params, state)
                 };
                 y += 36.0;
@@ -2681,8 +2671,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
                             .text(label)
-                            .value(state.value)
-                            .min(min)
+                                .min(min)
                             .max(max);
                         drag_number(&mut win, spec_builder, layout_params, state)
                     };
@@ -2701,8 +2690,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
                             .text(label)
-                            .value(state.value)
-                            .min(min)
+                                .min(min)
                             .max(max);
                         drag_number(&mut win, spec_builder, layout_params, state)
                     };
@@ -2958,8 +2946,7 @@ pub fn draw_spec_page(
                     let items: &[&str] = &tabs_items;
                     let layout_params = Rect::new(0.0, 0.0, cr_w, 28.0);
                     let spec_builder = TabsSpecBuilder::new()
-                        .items(items)
-                        .active_index(state.active_index);
+                        .items(items);
                     tabs(&mut win, spec_builder, layout_params, state)
                 };
 
@@ -2989,8 +2976,7 @@ pub fn draw_spec_page(
                     let items: &[&str] = &backends;
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
-                        .items(items)
-                        .active_index(state.active_index);
+                        .items(items);
                     segmented(&mut win, spec_builder, layout_params, state)
                 };
                 fy += row_h + row_gap;
@@ -3044,7 +3030,7 @@ pub fn draw_spec_page(
                     let state = &mut state.iu_vsync;
                     let layout_params = Rect::new(widget_x, fy + 6.0, 30.0, 16.0);
                     {
-                        let spec_builder = SwitchSpecBuilder::new().on(state.on);
+                        let spec_builder = SwitchSpecBuilder::new();
                         switch(&mut *&mut win, spec_builder, layout_params, state)
                     }
                 };
@@ -3077,8 +3063,7 @@ pub fn draw_spec_page(
                     let items: &[&str] = &msaa_opts;
                     let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
                     let spec_builder = SegmentedSpecBuilder::new()
-                        .items(items)
-                        .active_index(state.active_index);
+                        .items(items);
                     segmented(&mut win, spec_builder, layout_params, state)
                 };
                 fy += row_h + row_gap;
@@ -3099,7 +3084,6 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
                     let spec_builder = DragNumberSpecBuilder::new()
                         .text("W")
-                        .value(state.value)
                         .max(7680.0);
                     drag_number(&mut win, spec_builder, layout_params, state)
                 };
@@ -3114,7 +3098,6 @@ pub fn draw_spec_page(
                     );
                     let spec_builder = DragNumberSpecBuilder::new()
                         .text("H")
-                        .value(state.value)
                         .max(7680.0);
                     drag_number(&mut win, spec_builder, layout_params, state)
                 };

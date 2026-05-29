@@ -16,7 +16,6 @@ pub mod raw {
         pub rect: Rect,
         pub items: &'a [&'a str],
         pub font: FontId,
-        pub active_index: usize,
         pub disabled: bool,
         pub style: super::TabsStyle,
         pub clip_rect: ClipRect,
@@ -68,10 +67,6 @@ pub mod raw {
                 spec.disabled,
             )
         };
-
-        if state.active_index != spec.active_index {
-            state.active_index = spec.active_index;
-        }
 
         let mut is_clicked = clicked;
 
@@ -249,10 +244,6 @@ impl<'a> TabsSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-    pub fn active_index(mut self, active_index: usize) -> Self {
-        self.active_index = Some(active_index);
-        self
-    }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
         self
@@ -292,7 +283,6 @@ impl<'a> TabsSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            active_index: self.active_index.unwrap_or(0),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
@@ -342,10 +332,10 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn tabs_dummy<'a>(spec: TabsSpec<'a>) -> raw::TabsResult {
+    fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> raw::TabsResult {
         raw::tabs(
             spec,
-            &mut TabsState::default(),
+            &mut TabsState { active_index, ..Default::default() },
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -359,13 +349,12 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
         };
         let style = spec.style;
-        let res = tabs_dummy(spec);
+        let res = tabs_dummy(spec, 0);
 
         assert_eq!(
             res.draw,
@@ -404,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_tabs_visual_focused() {
-        let mut state = TabsState::default();
+        let mut state = TabsState { active_index: 1, ..Default::default() };
         let mut focus_sys = crate::focus::FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
@@ -414,7 +403,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
-            active_index: 1,
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
@@ -483,7 +471,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
@@ -514,7 +501,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             font: FontId(1),
-            active_index: 0,
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
@@ -550,7 +536,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
-                active_index: 0,
                 disabled: false,
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,
@@ -573,7 +558,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 font: FontId(1),
-                active_index: 0,
                 disabled: false,
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,

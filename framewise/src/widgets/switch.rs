@@ -13,7 +13,6 @@ pub mod raw {
     pub struct SwitchSpec {
         /// Top-left of the 30×16 bounding area.
         pub rect: Rect,
-        pub on: bool,
         pub disabled: bool,
         pub style: super::SwitchStyle,
         pub clip_rect: ClipRect,
@@ -65,11 +64,6 @@ pub mod raw {
         }
         if focused && input.key_pressed_space {
             state.space_is_active = true;
-        }
-
-        // Keep state.on in sync with spec.on if spec.on changed out of band.
-        if state.on != spec.on {
-            state.on = spec.on;
         }
 
         if is_clicked {
@@ -187,11 +181,6 @@ impl SwitchSpecBuilder {
         Self::default()
     }
 
-    pub fn on(mut self, on: bool) -> Self {
-        self.on = Some(on);
-        self
-    }
-
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
         self
@@ -227,7 +216,6 @@ impl SwitchSpecBuilder {
     pub fn build(self) -> raw::SwitchSpec {
         raw::SwitchSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
-            on: self.on.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
@@ -279,10 +267,10 @@ mod tests {
     use super::*;
     use crate::types::Vec2;
 
-    fn swi_tch(spec: SwitchSpec) -> raw::SwitchResult {
+    fn test_switch(spec: SwitchSpec, on: bool) -> raw::SwitchResult {
         raw::switch(
             spec,
-            &mut SwitchState::default(),
+            &mut SwitchState { on, ..Default::default() },
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
         )
@@ -292,13 +280,12 @@ mod tests {
     fn test_switch_visual_off() {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = swi_tch(spec);
+        let res = test_switch(spec, false);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
             res.draw,
@@ -324,13 +311,12 @@ mod tests {
     fn test_switch_visual_on() {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: true,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = swi_tch(spec);
+        let res = test_switch(spec, true);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
             res.draw,
@@ -360,7 +346,6 @@ mod tests {
         focus_sys.begin_frame();
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
@@ -398,13 +383,12 @@ mod tests {
     fn test_switch_visual_disabled() {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: true,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
         };
         let s = spec.style;
-        let res = swi_tch(spec);
+        let res = test_switch(spec, false);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
@@ -438,7 +422,6 @@ mod tests {
 
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,
@@ -465,7 +448,6 @@ mod tests {
 
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
@@ -490,7 +472,6 @@ mod tests {
 
         let spec = || SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            on: false,
             disabled: false,
             style: crate::theme::Theme::framewise().switch_style(),
             clip_rect: None,

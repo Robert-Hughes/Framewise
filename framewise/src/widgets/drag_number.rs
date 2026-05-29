@@ -16,7 +16,6 @@ pub mod raw {
         pub rect: Rect,
         pub text: &'a str,
         pub font: FontId,
-        pub value: f32,
         pub min: f32,
         pub max: f32,
         pub disabled: bool,
@@ -56,10 +55,6 @@ pub mod raw {
                 spec.disabled,
             )
         };
-
-        if state.value != spec.value && !state.is_dragging {
-            state.value = spec.value;
-        }
 
         let s = spec.style;
 
@@ -262,10 +257,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-    pub fn value(mut self, value: f32) -> Self {
-        self.value = Some(value);
-        self
-    }
     pub fn min(mut self, min: f32) -> Self {
         self.min = Some(min);
         self
@@ -313,7 +304,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            value: self.value.expect("value not set — call .value()"),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             disabled: self.disabled.unwrap_or(false),
@@ -366,10 +356,10 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn drag_num<'a>(spec: DragNumberSpec<'a>) -> raw::DragNumberResult {
+    fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> raw::DragNumberResult {
         raw::drag_number(
             spec,
-            &mut DragNumberState::default(),
+            &mut DragNumberState { value, ..Default::default() },
             &Input::default(),
             &mut crate::focus::FocusSystem::new(),
             &mut DummyTextSys,
@@ -382,7 +372,6 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             font: FontId(1),
-            value: 50.0,
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -391,7 +380,7 @@ mod tests {
         };
 
         let style = spec.style;
-        let res = drag_num(spec);
+        let res = drag_num(spec, 50.0);
 
         assert_eq!(
             res.draw,
@@ -429,14 +418,13 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_active() {
-        let mut state = DragNumberState::default();
+        let mut state = DragNumberState { value: 50.0, ..Default::default() };
         state.is_dragging = true;
         state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             font: FontId(1),
-            value: 50.0,
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -502,7 +490,6 @@ mod tests {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             font: FontId(1),
-            value: 0.0,
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -552,7 +539,7 @@ mod tests {
     #[test]
     fn test_drag_number_click_takes_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = DragNumberState::default();
+        let state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -562,7 +549,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
             font: FontId(1),
-            value: 50.0,
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -585,7 +571,7 @@ mod tests {
     #[test]
     fn test_drag_number_clipped_click_does_not_take_focus() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let state = DragNumberState::default();
+        let state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -595,7 +581,6 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
             font: FontId(1),
-            value: 50.0,
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -618,7 +603,7 @@ mod tests {
     #[test]
     fn test_drag_number_keyboard_navigation() {
         let mut focus_sys = crate::focus::FocusSystem::new();
-        let mut state = DragNumberState::default();
+        let mut state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
 
@@ -633,7 +618,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
                 font: FontId(1),
-                value: 50.0,
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
@@ -658,7 +642,6 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
                 font: FontId(1),
-                value: 51.0,
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
@@ -721,7 +704,6 @@ mod tests {
             &mut ctx,
             DragNumberSpecBuilder::new()
                 .text("x")
-                .value(0.0)
                 .rect(custom_rect),
             layout_rect,
             &mut dn_state,
