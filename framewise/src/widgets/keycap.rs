@@ -87,6 +87,22 @@ pub struct KeycapStyle {
     pub font: FontId,
 }
 
+impl KeycapStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: theme.paper_elev,
+            shadow: theme.line,
+            shadow_offset: 1.0,
+            shadow_height: 2.0,
+            border: theme.line,
+            border_width: theme.border,
+            text_color: theme.ink,
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,7 +144,7 @@ impl<'a> KeycapSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.keycap_style());
+            self.style = Some(KeycapStyle::from_theme(theme));
         }
         self
     }

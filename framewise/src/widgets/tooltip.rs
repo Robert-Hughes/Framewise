@@ -114,6 +114,27 @@ pub struct TooltipStyle {
     pub arrow_width: f32,
 }
 
+impl TooltipStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+            pad_x: 8.0,
+            pad_y_top: 5.0,
+            pad_y_bot: 6.0,
+            arrow_h: 4.0,
+            arrow_w: 8.0,
+            arrow_x: 14.0,
+            max_width: 240.0,
+            dark_bg: theme.ink,
+            dark_text: theme.paper,
+            rust_bg: theme.rust,
+            rust_text: Color::WHITE,
+            arrow_width: 1.5,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,7 +181,7 @@ impl<'a> TooltipSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.tooltip_style());
+            self.style = Some(TooltipStyle::from_theme(theme));
         }
         self
     }
@@ -210,7 +231,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
             variant: TooltipVariant::Dark,
-            style: crate::theme::Theme::framewise().tooltip_style(),
+            style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::tooltip(spec, &mut text_system);
@@ -250,7 +271,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
             variant: TooltipVariant::Rust,
-            style: crate::theme::Theme::framewise().tooltip_style(),
+            style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::tooltip(spec, &mut text_system);
@@ -343,7 +364,7 @@ mod tests {
             layout_rect,
         );
 
-        let style = ctx.theme.tooltip_style();
+        let style = TooltipStyle::from_theme(&ctx.theme);
         let expected_w = (16.0 + style.pad_x * 2.0).min(style.max_width);
         let expected_h = 16.0 + style.pad_y_top + style.pad_y_bot;
 

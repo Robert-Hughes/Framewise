@@ -90,6 +90,18 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
+impl ProgressBarStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            track_color: theme.line_soft,
+            fill_color: theme.ink,
+            active_fill_color: theme.rust,
+            track_height: 3.0,
+            indeterminate_fraction: 0.3,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,7 +155,7 @@ impl ProgressBarSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.progress_bar_style());
+            self.style = Some(ProgressBarStyle::from_theme(theme));
         }
         self
     }
@@ -197,7 +209,7 @@ mod tests {
             value: 0.5,
             phase: 0.0,
             active: false,
-            style: crate::theme::Theme::framewise().progress_bar_style(),
+            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -224,7 +236,7 @@ mod tests {
             value: 0.5,
             phase: 0.0,
             active: true,
-            style: crate::theme::Theme::framewise().progress_bar_style(),
+            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -251,7 +263,7 @@ mod tests {
             value: f32::NAN,
             phase: 0.5,
             active: false,
-            style: crate::theme::Theme::framewise().progress_bar_style(),
+            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::progress_bar(spec);
@@ -277,13 +289,13 @@ mod tests {
         let builder = ProgressBarSpecBuilder::new().value(0.5);
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.progress_bar_style()));
+        assert_eq!(builder.style, Some(ProgressBarStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.progress_bar_style();
+        let mut custom_style = ProgressBarStyle::from_theme(&theme);
         custom_style.track_height = 99.0;
         let builder = ProgressBarSpecBuilder::new().value(0.5).style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

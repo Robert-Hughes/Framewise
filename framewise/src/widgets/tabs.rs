@@ -198,6 +198,27 @@ pub struct TabsStyle {
     pub disabled_alpha: f32,
 }
 
+impl TabsStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            height: 36.0,
+            pad_x: 18.0,
+            underbar_height: 3.0,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            border: theme.ink,
+            text: theme.ink,
+            inactive_text: theme.muted,
+            accent: theme.rust,
+            focus: theme.rust,
+            border_width: theme.border,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -260,7 +281,7 @@ impl<'a> TabsSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.tabs_style());
+            self.style = Some(TabsStyle::from_theme(theme));
         }
         self
     }
@@ -336,7 +357,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().tabs_style(),
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -392,7 +413,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().tabs_style(),
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -459,7 +480,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().tabs_style(),
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -494,7 +515,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().tabs_style(),
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
         };
 
@@ -534,7 +555,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().tabs_style(),
+                style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -555,7 +576,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().tabs_style(),
+                style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -574,13 +595,13 @@ mod tests {
         let builder = TabsSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.tabs_style()));
+        assert_eq!(builder.style, Some(TabsStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.tabs_style();
+        let mut custom_style = TabsStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = TabsSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

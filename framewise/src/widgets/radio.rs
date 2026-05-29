@@ -147,6 +147,23 @@ pub struct RadioStyle {
     pub disabled_alpha: f32,
 }
 
+impl RadioStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            radius: 7.0,
+            dot_radius: 3.0,
+            background: theme.paper_elev,
+            border: theme.ink,
+            dot: theme.ink,
+            focus: theme.rust,
+            border_width: 1.5,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -207,7 +224,7 @@ impl RadioSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.radio_style());
+            self.style = Some(RadioStyle::from_theme(theme));
         }
         self
     }
@@ -278,7 +295,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -307,7 +324,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -345,7 +362,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -382,7 +399,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: true,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -419,7 +436,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -446,7 +463,7 @@ mod tests {
         let spec = RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
         };
 
@@ -471,7 +488,7 @@ mod tests {
         let spec = || RadioSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().radio_style(),
+            style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -508,13 +525,13 @@ mod tests {
         let builder = RadioSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.radio_style()));
+        assert_eq!(builder.style, Some(RadioStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.radio_style();
+        let mut custom_style = RadioStyle::from_theme(&theme);
         custom_style.radius = 99.0;
         let builder = RadioSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

@@ -69,7 +69,7 @@ fn draw_checkbox_fake_state<
     let spec = CheckboxSpec {
         rect,
         disabled: is_disabled,
-        style: b.theme.checkbox_style(),
+        style: framewise::widgets::checkbox::CheckboxStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
@@ -111,7 +111,7 @@ fn draw_radio_fake_state<
     let spec = RadioSpec {
         rect,
         disabled: is_disabled,
-        style: b.theme.radio_style(),
+        style: framewise::widgets::radio::RadioStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
@@ -149,7 +149,7 @@ fn draw_switch_fake_state<
     let spec = SwitchSpec {
         rect,
         disabled: is_disabled,
-        style: b.theme.switch_style(),
+        style: framewise::widgets::switch::SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
@@ -198,7 +198,7 @@ fn draw_select_fake_state<
         value,
         items: options,
         disabled: is_disabled,
-        style: b.theme.select_style(),
+        style: framewise::widgets::select::SelectStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
@@ -242,7 +242,7 @@ fn draw_drag_number_fake_state<
         min,
         max,
         disabled: false,
-        style: b.theme.drag_number_style(),
+        style: framewise::widgets::drag_number::DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
@@ -635,7 +635,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
         let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
             size,
             text_color: color,
-            ..t.label_style()
+            ..framewise::widgets::label::LabelStyle::from_theme(&t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -663,7 +663,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
             size,
             text_color: color,
-            ..t.label_style()
+            ..framewise::widgets::label::LabelStyle::from_theme(&t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -675,7 +675,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
             size: 18.0,
             font,
             text_color: color,
-            ..t.label_style()
+            ..framewise::widgets::label::LabelStyle::from_theme(&t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -688,7 +688,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
             size,
             font,
             text_color: color,
-            ..t.label_style()
+            ..framewise::widgets::label::LabelStyle::from_theme(&t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -709,7 +709,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawC
         let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
             size,
             text_color: color,
-            ..t.label_style()
+            ..framewise::widgets::label::LabelStyle::from_theme(&t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -793,7 +793,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -810,7 +810,7 @@ pub fn draw_spec_page(
                                 size: 56.0,
                                 font,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -825,7 +825,7 @@ pub fn draw_spec_page(
                                 size: 56.0,
                                 font,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -841,7 +841,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -856,7 +856,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -871,7 +871,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -896,7 +896,7 @@ pub fn draw_spec_page(
                             size,
                             font,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -910,7 +910,7 @@ pub fn draw_spec_page(
                             size,
                             font,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -929,10 +929,10 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let styles: &[(&str, ButtonStyle, bool)] = &[
-                    ("Apply changes", t.button_primary_style(), false),
-                    ("Cancel", t.button_primary_style(), false),
-                    ("Reset", t.button_ghost_style(), false),
-                    ("Publish v0.2", t.button_accent_style(), false),
+                    ("Apply changes", framewise::widgets::button::ButtonStyle::primary_from_theme(&t), false),
+                    ("Cancel", framewise::widgets::button::ButtonStyle::primary_from_theme(&t), false),
+                    ("Reset", framewise::widgets::button::ButtonStyle::ghost_from_theme(&t), false),
+                    ("Publish v0.2", framewise::widgets::button::ButtonStyle::accent_from_theme(&t), false),
                 ];
                 let mut bx = lx;
                 for (i, (label, style, _)) in styles.iter().enumerate() {
@@ -960,10 +960,10 @@ pub fn draw_spec_page(
                 let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
                 let row_labels = ["secondary", "primary", "accent", "ghost"];
                 let row_styles: &[ButtonStyle] = &[
-                    t.button_primary_style(),
-                    t.button_primary_style(),
-                    t.button_accent_style(),
-                    t.button_ghost_style(),
+                    framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    framewise::widgets::button::ButtonStyle::accent_from_theme(&t),
+                    framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
                 ];
                 let label_w = 80.0_f32;
                 let cell_w = 88.0_f32;
@@ -982,7 +982,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -998,7 +998,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(row_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -1058,9 +1058,9 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let size_defs: &[(&str, f32, ButtonStyle)] = &[
-                    ("22 px", t.h_sm, t.button_primary_style()),
-                    ("28 px", t.h_md, t.button_primary_style()),
-                    ("36 px", t.h_lg, t.button_primary_style()),
+                    ("22 px", t.h_sm, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("28 px", t.h_md, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("36 px", t.h_lg, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
                 ];
                 let mut bx = lx;
                 for (i, (label, h, style)) in size_defs.iter().enumerate() {
@@ -1079,9 +1079,9 @@ pub fn draw_spec_page(
 
                 // button group 1: ← | Frame 248 | →
                 let grp1: &[(&str, ButtonStyle)] = &[
-                    ("←", t.button_primary_style()),
-                    ("Frame 248", t.button_primary_style()),
-                    ("→", t.button_primary_style()),
+                    ("←", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("Frame 248", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("→", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
                 ];
                 // draw group border
                 for (i, (label, style)) in grp1.iter().enumerate() {
@@ -1100,9 +1100,9 @@ pub fn draw_spec_page(
 
                 // button group 2: Build | Run | Ship
                 let grp2: &[(&str, ButtonStyle)] = &[
-                    ("Build", t.button_primary_style()),
-                    ("Run", t.button_primary_style()),
-                    ("Ship", t.button_primary_style()),
+                    ("Build", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("Run", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("Ship", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
                 ];
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
@@ -1141,7 +1141,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1157,7 +1157,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(row_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -1198,7 +1198,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -1217,7 +1217,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -1231,7 +1231,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("VERSION").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1255,7 +1255,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("v").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1274,7 +1274,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -1291,7 +1291,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -1336,7 +1336,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1351,7 +1351,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("box").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1387,7 +1387,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -1418,7 +1418,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text("vsync").style(LabelStyle {
                                 size,
                                 text_color: label_alpha,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -1457,7 +1457,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -1511,7 +1511,7 @@ pub fn draw_spec_page(
                                 .style(LabelStyle {
                                     size,
                                     text_color: label_color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                         label(b, spec_builder, layout_params)
                     };
@@ -1544,7 +1544,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1564,7 +1564,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1584,7 +1584,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1605,7 +1605,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1690,7 +1690,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(".24–.76").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1767,7 +1767,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("padding").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1794,7 +1794,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1842,7 +1842,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("−").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1853,7 +1853,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1864,7 +1864,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("+").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -1888,7 +1888,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(hex).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1960,7 +1960,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
                         let spec_builder = ChipSpecBuilder::new().text(label).style(ChipStyle {
                             font: b.theme.sans_font,
-                            ..b.theme.chip_style()
+                            ..framewise::widgets::chip::ChipStyle::from_theme(&b.theme)
                         });
                         chip(b, spec_builder, layout_params, state)
                     };
@@ -1978,7 +1978,7 @@ pub fn draw_spec_page(
                             .text("+ add backend")
                             .style(ChipStyle {
                                 font: b.theme.sans_font,
-                                ..b.theme.chip_style()
+                                ..framewise::widgets::chip::ChipStyle::from_theme(&b.theme)
                             });
                     chip(b, spec_builder, layout_params, state)
                 };
@@ -2141,7 +2141,7 @@ pub fn draw_spec_page(
                                 LabelSpecBuilder::new().text(line).style(LabelStyle {
                                     size,
                                     text_color: color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                             label(&mut sa, spec_builder, layout_params)
                         };
@@ -2158,7 +2158,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -2200,7 +2200,7 @@ pub fn draw_spec_page(
                                 LabelSpecBuilder::new().text(text).style(LabelStyle {
                                     size,
                                     text_color: color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                             label(&mut sa, spec_builder, layout_params)
                         };
@@ -2216,7 +2216,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -2257,7 +2257,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(&mut sa, spec_builder, layout_params)
                     };
@@ -2273,7 +2273,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -2314,7 +2314,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(&mut sa, spec_builder, layout_params)
                     };
@@ -2327,7 +2327,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(&mut sa, spec_builder, layout_params)
                     };
@@ -2341,7 +2341,7 @@ pub fn draw_spec_page(
                         LabelSpecBuilder::new().text("both axes").style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -2406,7 +2406,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(bar_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -2433,7 +2433,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(meter_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(b, spec_builder, layout_params)
                     };
@@ -2447,7 +2447,7 @@ pub fn draw_spec_page(
                                 LabelSpecBuilder::new().text("2.4 ms").style(LabelStyle {
                                     size,
                                     text_color: color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                             label(b, spec_builder, layout_params)
                         };
@@ -2478,7 +2478,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("loading").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -2495,7 +2495,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("large").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -2723,7 +2723,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(desc).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -2812,7 +2812,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(check_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(&mut win, spec_builder, layout_params)
                     };
@@ -2856,7 +2856,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: light,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -2866,7 +2866,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("✕").style(LabelStyle {
                         size,
                         text_color: light,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -2906,7 +2906,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("⌘").style(LabelStyle {
                         size,
                         text_color: light,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -2916,7 +2916,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("K").style(LabelStyle {
                         size,
                         text_color: light,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(b, spec_builder, layout_params)
                 };
@@ -2929,7 +2929,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: muted_l,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -2961,7 +2961,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: muted_l,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -2989,7 +2989,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(item).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -3018,7 +3018,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(file).style(LabelStyle {
                             size,
                             text_color: muted_l,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -3078,7 +3078,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("BACKEND").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3103,7 +3103,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3130,7 +3130,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3144,7 +3144,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("VSYNC").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3166,7 +3166,7 @@ pub fn draw_spec_page(
                             .style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3180,7 +3180,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("MSAA").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3202,7 +3202,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("VIEWPORT").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3234,7 +3234,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("ACCENT").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3252,7 +3252,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("#c25a2c").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3266,7 +3266,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new().text("OPTIONS").style(LabelStyle {
                         size,
                         text_color: color,
-                        ..t.label_style()
+                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
                     });
                     label(&mut win, spec_builder, layout_params)
                 };
@@ -3293,7 +3293,7 @@ pub fn draw_spec_page(
                             LabelSpecBuilder::new().text(opt_label).style(LabelStyle {
                                 size,
                                 text_color: color,
-                                ..t.label_style()
+                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
                             });
                         label(&mut win, spec_builder, layout_params)
                     };
@@ -3310,9 +3310,9 @@ pub fn draw_spec_page(
                 // button row
                 let mut btn_x = cr_w;
                 let btns: &[(&str, ButtonStyle)] = &[
-                    ("Apply", t.button_primary_style()),
-                    ("Cancel", t.button_primary_style()),
-                    ("Reset", t.button_ghost_style()),
+                    ("Apply", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("Cancel", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    ("Reset", framewise::widgets::button::ButtonStyle::ghost_from_theme(&t)),
                 ];
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;
@@ -3397,7 +3397,7 @@ pub fn draw_spec_page(
                                 LabelSpecBuilder::new().text(ts_str).style(LabelStyle {
                                     size,
                                     text_color: color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                             label(&mut log_page, spec_builder, layout_params)
                         };
@@ -3414,7 +3414,7 @@ pub fn draw_spec_page(
                                 LabelSpecBuilder::new().text(msg).style(LabelStyle {
                                     size,
                                     text_color: msg_color,
-                                    ..t.label_style()
+                                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
                                 });
                             label(&mut log_page, spec_builder, layout_params)
                         };
@@ -3498,7 +3498,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -3510,7 +3510,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -3525,7 +3525,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..t.label_style()
+                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -3607,3 +3607,4 @@ fn hero_logo(t: &Theme, lx: f32, y0: f32) -> DrawCommands {
 fn opts_dropdown_h(n: usize) -> f32 {
     n as f32 * 26.0 + 8.0
 }
+

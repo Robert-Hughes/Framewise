@@ -172,6 +172,29 @@ pub struct TreeStyle {
     pub border_width: f32,
 }
 
+impl TreeStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            row_height: 20.0,
+            indent_width: 14.0,
+            caret_width: 12.0,
+            pad_x: 10.0,
+            pad_y: 4.0,
+            min_width: 280.0,
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            selected_bg: theme.ink,
+            text: theme.ink,
+            selected_text: theme.paper,
+            muted: theme.muted,
+            selected_meta_alpha: 0.7,
+            border_width: theme.border,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -213,7 +236,7 @@ impl<'a> TreeSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.tree_style());
+            self.style = Some(TreeStyle::from_theme(theme));
         }
         self
     }
@@ -259,13 +282,13 @@ mod tests {
         let builder = TreeSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.tree_style()));
+        assert_eq!(builder.style, Some(TreeStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.tree_style();
+        let mut custom_style = TreeStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = TreeSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
@@ -324,7 +347,7 @@ mod tests {
         );
         let res = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), layout_rect);
 
-        let style = ctx.theme.tree_style();
+        let style = TreeStyle::from_theme(&ctx.theme);
         let expected_h = style.pad_y * 2.0;
         let expected_w = layout_rect.w.max(style.min_width);
         assert_eq!(

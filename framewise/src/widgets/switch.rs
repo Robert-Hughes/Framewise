@@ -149,6 +149,25 @@ pub struct SwitchStyle {
     pub disabled_alpha: f32,
 }
 
+impl SwitchStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            size: Vec2::new(30.0, 16.0),
+            thumb_size: 10.0,
+            off_fill: theme.paper_elev,
+            on_fill: theme.ink,
+            border: theme.ink,
+            off_thumb: theme.ink,
+            on_thumb: theme.paper,
+            focus: theme.rust,
+            border_width: 1.5,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -209,7 +228,7 @@ impl SwitchSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.switch_style());
+            self.style = Some(SwitchStyle::from_theme(theme));
         }
         self
     }
@@ -281,7 +300,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -312,7 +331,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -347,7 +366,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -384,7 +403,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: true,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -423,7 +442,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -449,7 +468,7 @@ mod tests {
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
         };
 
@@ -473,7 +492,7 @@ mod tests {
         let spec = || SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
-            style: crate::theme::Theme::framewise().switch_style(),
+            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -507,13 +526,13 @@ mod tests {
         let builder = SwitchSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.switch_style()));
+        assert_eq!(builder.style, Some(SwitchStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.switch_style();
+        let mut custom_style = SwitchStyle::from_theme(&theme);
         custom_style.thumb_size = 99.0;
         let builder = SwitchSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

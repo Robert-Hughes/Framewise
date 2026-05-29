@@ -89,6 +89,23 @@ pub struct StatusStyle {
     pub text: Color,
 }
 
+impl StatusStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            dot_size: 6.0,
+            gap: 8.0,
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+            neutral: theme.muted,
+            ok: Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
+            warn: theme.rust,
+            err: Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
+            live: theme.rust,
+            text: theme.muted,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,7 +152,7 @@ impl<'a> StatusSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.status_style());
+            self.style = Some(StatusStyle::from_theme(theme));
         }
         self
     }
@@ -185,7 +202,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Online",
             variant: StatusVariant::Ok,
-            style: crate::theme::Theme::framewise().status_style(),
+            style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::status(spec, &mut text_system);
@@ -213,7 +230,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Warning",
             variant: StatusVariant::Warn,
-            style: crate::theme::Theme::framewise().status_style(),
+            style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::status(spec, &mut text_system);
@@ -240,13 +257,13 @@ mod tests {
         let builder = StatusSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.status_style()));
+        assert_eq!(builder.style, Some(StatusStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.status_style();
+        let mut custom_style = StatusStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = StatusSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

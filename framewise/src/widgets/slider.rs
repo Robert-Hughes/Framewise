@@ -521,6 +521,42 @@ pub struct SliderStyle {
     pub scrollbar_mode: bool,
 }
 
+impl SliderStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            track_color: theme.ink,
+            thumb_color: theme.paper_elev,
+            thumb_border_color: theme.ink,
+            thumb_border_width: 1.5,
+            thumb_hover_color: theme.paper_elev,
+            thumb_drag_color: theme.rust,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            thickness: 1.5,
+            thumb_size: 12.0,
+            scrollbar_mode: false,
+        }
+    }
+
+    pub fn scrollbar_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            track_color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
+            thumb_color: theme.ink,
+            thumb_border_color: Color::TRANSPARENT,
+            thumb_border_width: 0.0,
+            thumb_hover_color: theme.rust,
+            thumb_drag_color: theme.rust,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            thickness: 1.5,
+            thumb_size: 12.0,
+            scrollbar_mode: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Orientation {
     Vertical,
@@ -625,7 +661,7 @@ impl SliderSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.slider_style());
+            self.style = Some(SliderStyle::from_theme(theme));
         }
         self
     }
@@ -734,7 +770,7 @@ mod tests {
         let spec = SliderSpec {
             style: SliderStyle {
                 thumb_size: 20.0,
-                ..crate::theme::Theme::framewise().slider_style()
+                ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
             },
             ..test_spec(0.0, 100.0, true)
         };
@@ -1047,7 +1083,7 @@ mod tests {
         let spec = SliderSpec {
             style: SliderStyle {
                 thumb_size: 20.0,
-                ..crate::theme::Theme::framewise().slider_style()
+                ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
             },
             ..test_spec(0.0, 100.0, true)
         };
@@ -1107,7 +1143,7 @@ mod tests {
             page_step: 60.0,
             style: SliderStyle {
                 thumb_size: 20.0,
-                ..crate::theme::Theme::framewise().slider_style()
+                ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
             },
             ..test_spec(0.0, 100.0, true)
         };
@@ -1229,7 +1265,7 @@ mod tests {
             page_step: 20.0,
             step: 5.0,
             thumb_size_ratio: None,
-            style: crate::theme::Theme::framewise().slider_style(),
+            style: SliderStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
             claim_scroll_at_ends: claim_at_ends,
             time: 0.0,
@@ -1597,13 +1633,13 @@ mod tests {
         let builder = SliderSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.slider_style()));
+        assert_eq!(builder.style, Some(SliderStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.slider_style();
+        let mut custom_style = SliderStyle::from_theme(&theme);
         custom_style.thumb_size = 99.0;
         let builder = SliderSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

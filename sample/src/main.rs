@@ -256,7 +256,7 @@ impl App {
                     let bounds = main_row.layout(layout_params);
                     main_row.child_with_layout(layout.begin(bounds))
                 };
-                let mut button_style = sidebar_col.theme.button_secondary_style();
+                let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
                 button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
                 button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
                 button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
@@ -324,7 +324,7 @@ impl App {
                         let bounds = content_col.layout(layout_params);
                         content_col.child_with_layout(layout.begin(bounds))
                     };
-                    let mut button_style = header_row.theme.button_secondary_style();
+                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&header_row.theme);
                     button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
                     button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
                     button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
@@ -376,7 +376,7 @@ impl App {
                         let bounds = content_col.layout(layout_params);
                         content_col.child_with_layout(layout.begin(bounds))
                     };
-                    let mut button_style = grid_col.theme.button_secondary_style();
+                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
                     button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
                     button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
                     button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
@@ -468,7 +468,7 @@ impl App {
                     framewise::layout::ColumnLayout { spacing: 10.0 },
                 )
                 .ctx;
-                let mut button_style = main_scroll.theme.button_secondary_style();
+                let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&main_scroll.theme);
                 button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
                 button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
                 button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
@@ -526,7 +526,7 @@ impl App {
                         1 => (0.90, 0.20, 0.60), // Hot pink
                         _ => (0.10, 0.50, 0.90), // Vivid blue
                     };
-                    let mut button_style = row_builder.theme.button_secondary_style();
+                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&row_builder.theme);
                     button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
                     button_style.hovered =
                         Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
@@ -599,7 +599,7 @@ impl App {
 
                     for j in 0..10 {
                         let shade = (j % 2) as f32 * 0.15;
-                        let mut button_style = horiz_scroll.theme.button_secondary_style();
+                        let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&horiz_scroll.theme);
                         button_style.background = Color::from_srgb_f32(
                             base_r + shade,
                             base_g + shade,
@@ -640,7 +640,7 @@ impl App {
                         let x = (j % 8) as f32 * 88.0;
                         let y = (j / 8) as f32 * 53.0;
                         let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
-                        let mut button_style = both_scroll.theme.button_secondary_style();
+                        let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&both_scroll.theme);
                         button_style.background = Color::from_srgb_f32(
                             base_r + shade,
                             base_g + shade,
@@ -824,7 +824,7 @@ impl App {
                         let col = j % 4;
                         let row = j / 4;
                         let shade = ((col + row) % 2) as f32 * 0.12;
-                        let mut button_style = inner.theme.button_secondary_style();
+                        let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner.theme);
                         button_style.background =
                             Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
                         button_style.hovered =
@@ -923,7 +923,7 @@ impl App {
 
                     for j in 0..12 {
                         let shade = (j % 2) as f32 * 0.12;
-                        let mut button_style = inner_scroll.theme.button_secondary_style();
+                        let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner_scroll.theme);
                         button_style.background =
                             Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
                         button_style.hovered =
@@ -956,7 +956,7 @@ impl App {
                     )
                     .ctx;
                     for k in 0..5 {
-                        let mut button_style = innermost_scroll.theme.button_secondary_style();
+                        let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&innermost_scroll.theme);
                         button_style.background =
                             Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
                         button_style.hovered =

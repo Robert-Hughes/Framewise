@@ -63,6 +63,18 @@ pub struct LabelStyle {
     pub rule_color: Color,
 }
 
+impl LabelStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            size: theme.text_md,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            rule: false,
+            rule_color: theme.line,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -101,7 +113,7 @@ impl<'a> LabelSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.label_style());
+            self.style = Some(LabelStyle::from_theme(theme));
         }
         self
     }
@@ -253,7 +265,7 @@ mod tests {
         let builder = LabelSpecBuilder::new().text("test");
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.label_style()));
+        assert_eq!(builder.style, Some(LabelStyle::from_theme(&theme)));
     }
 
     #[test]

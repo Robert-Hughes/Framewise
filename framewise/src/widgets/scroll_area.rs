@@ -515,7 +515,7 @@ impl ScrollAreaSpecBuilder {
             self.scrollbar_width = Some(theme.scrollbar_width);
         }
         if self.scrollbar_style.is_none() {
-            self.scrollbar_style = Some(theme.scrollbar_style());
+            self.scrollbar_style = Some(crate::widgets::slider::SliderStyle::scrollbar_from_theme(theme));
         }
         self
     }
@@ -702,7 +702,7 @@ mod tests {
             clip_rect,
             time,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let r = raw::begin_scroll_area(spec, state, input, focus_system);
         let mut pre_cmds = r.draw;
@@ -761,7 +761,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_r = begin_scroll_area(outer_spec, outer_state, &input, &mut focus_system);
 
@@ -773,7 +773,7 @@ mod tests {
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_r = begin_scroll_area(inner_spec, inner_state, &input, &mut focus_system);
             raw::end_scroll_area(inner_r.token, &mut focus_system);
@@ -831,7 +831,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
 
@@ -839,7 +839,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -884,14 +884,14 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -932,7 +932,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -950,7 +950,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
             raw::end_scroll_area(token, &mut focus_system);
@@ -986,7 +986,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1007,7 +1007,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1046,7 +1046,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system).token;
@@ -1059,7 +1059,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_system).token;
@@ -1096,7 +1096,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system).token;
@@ -1109,7 +1109,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_system).token;
@@ -1143,7 +1143,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1172,7 +1172,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token_a = begin_scroll_area(spec_a, &mut a, &input, fs).token;
             raw::end_scroll_area(token_a, fs);
@@ -1185,7 +1185,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token_b = begin_scroll_area(spec_b, &mut b, &input, fs).token;
             raw::end_scroll_area(token_b, fs);
@@ -1218,7 +1218,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1249,7 +1249,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1283,7 +1283,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1315,7 +1315,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2).token;
             raw::end_scroll_area(token, &mut focus_sys2);
@@ -1349,7 +1349,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1388,7 +1388,7 @@ mod tests {
                 clip_rect: Some(clip),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1444,7 +1444,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1455,7 +1455,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1472,7 +1472,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1489,7 +1489,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1550,7 +1550,7 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1562,7 +1562,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1579,7 +1579,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1616,7 +1616,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1636,7 +1636,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1665,7 +1665,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1685,7 +1685,7 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1717,7 +1717,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1736,7 +1736,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1758,7 +1758,7 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
         raw::end_scroll_area(token, &mut focus_system);
@@ -1800,7 +1800,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1812,7 +1812,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -1848,7 +1848,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1860,7 +1860,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -1896,7 +1896,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1908,7 +1908,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -1944,7 +1944,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1956,7 +1956,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -1996,7 +1996,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2008,7 +2008,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2016,7 +2016,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2060,7 +2060,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2072,7 +2072,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2080,7 +2080,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2116,7 +2116,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2140,7 +2140,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2152,7 +2152,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2181,7 +2181,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2205,7 +2205,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2217,7 +2217,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2267,7 +2267,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2279,7 +2279,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2331,7 +2331,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2343,7 +2343,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2389,7 +2389,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2401,7 +2401,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2409,7 +2409,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2449,7 +2449,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2473,7 +2473,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2485,7 +2485,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2555,7 +2555,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2567,7 +2567,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2579,7 +2579,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2632,7 +2632,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2644,7 +2644,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2656,7 +2656,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2708,7 +2708,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2720,7 +2720,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2732,7 +2732,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2740,7 +2740,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2790,7 +2790,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2815,7 +2815,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2827,7 +2827,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2839,7 +2839,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2912,7 +2912,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2924,7 +2924,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2936,7 +2936,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2988,7 +2988,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3000,7 +3000,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3012,7 +3012,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3063,7 +3063,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3075,7 +3075,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3087,7 +3087,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3095,7 +3095,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3143,7 +3143,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3168,7 +3168,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3180,7 +3180,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3192,7 +3192,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3254,7 +3254,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3266,7 +3266,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3311,7 +3311,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3323,7 +3323,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3378,7 +3378,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3390,7 +3390,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3429,7 +3429,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3441,7 +3441,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3485,7 +3485,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3497,7 +3497,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3530,7 +3530,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3553,7 +3553,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3565,7 +3565,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3601,7 +3601,7 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: theme::Theme::default().scrollbar_style(),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3624,7 +3624,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3636,7 +3636,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3679,7 +3679,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3691,7 +3691,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3699,7 +3699,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: theme::Theme::default().button_primary_style(),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3747,7 +3747,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3759,7 +3759,7 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: theme::Theme::default().scrollbar_style(),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;

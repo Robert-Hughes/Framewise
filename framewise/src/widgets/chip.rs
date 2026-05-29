@@ -157,6 +157,27 @@ pub struct ChipStyle {
     pub disabled_alpha: f32,
 }
 
+impl ChipStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            height: theme.h_sm,
+            pad_x: 8.0,
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+            background: theme.paper_elev,
+            active_bg: theme.ink,
+            border: theme.ink,
+            text: theme.ink,
+            active_text: theme.paper,
+            focus: theme.rust,
+            border_width: theme.border,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -220,7 +241,7 @@ impl<'a> ChipSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.chip_style());
+            self.style = Some(ChipStyle::from_theme(theme));
         }
         self
     }
@@ -293,7 +314,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
-            style: crate::theme::Theme::framewise().chip_style(),
+            style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -329,7 +350,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
-            style: crate::theme::Theme::framewise().chip_style(),
+            style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -374,7 +395,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
-            style: crate::theme::Theme::framewise().chip_style(),
+            style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -429,7 +450,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
-            style: crate::theme::Theme::framewise().chip_style(),
+            style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -464,7 +485,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
-            style: crate::theme::Theme::framewise().chip_style(),
+            style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 50.0, 22.0)),
         };
 
@@ -501,7 +522,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,
-                style: crate::theme::Theme::framewise().chip_style(),
+                style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -520,7 +541,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,
-                style: crate::theme::Theme::framewise().chip_style(),
+                style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -540,7 +561,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,
-                style: crate::theme::Theme::framewise().chip_style(),
+                style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -559,13 +580,13 @@ mod tests {
         let builder = ChipSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.chip_style()));
+        assert_eq!(builder.style, Some(ChipStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.chip_style();
+        let mut custom_style = ChipStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = ChipSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

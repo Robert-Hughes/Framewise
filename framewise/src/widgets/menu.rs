@@ -198,6 +198,35 @@ pub struct MenuStyle {
     pub border_width: f32,
 }
 
+impl MenuStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            row_height: 26.0,
+            separator_height: 9.0,
+            group_height: 22.0,
+            pad_x: 12.0,
+            pad_y: 4.0,
+            group_text_y: 8.0,
+            separator_y: 4.0,
+            min_width: 200.0,
+            label_size: theme.text_md,
+            meta_size: theme.text_sm,
+            label_font: theme.sans_font,
+            meta_font: theme.mono_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            separator: theme.line,
+            selected_bg: theme.ink,
+            selected_text: theme.paper,
+            text: theme.ink,
+            muted: theme.muted,
+            shortcut_selected_alpha: 0.6,
+            disabled_alpha: 0.4,
+            border_width: theme.border,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -239,7 +268,7 @@ impl<'a> MenuSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.menu_style());
+            self.style = Some(MenuStyle::from_theme(theme));
         }
         self
     }
@@ -285,13 +314,13 @@ mod tests {
         let builder = MenuSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.menu_style()));
+        assert_eq!(builder.style, Some(MenuStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.menu_style();
+        let mut custom_style = MenuStyle::from_theme(&theme);
         custom_style.label_size = 99.0;
         let builder = MenuSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
@@ -345,7 +374,7 @@ mod tests {
         );
         let res = super::menu(&mut ctx, MenuSpecBuilder::new().items(&[]), layout_rect);
 
-        let style = ctx.theme.menu_style();
+        let style = MenuStyle::from_theme(&ctx.theme);
         let expected_h = style.pad_y * 2.0;
         let expected_w = layout_rect.w.max(style.min_width);
         assert_eq!(

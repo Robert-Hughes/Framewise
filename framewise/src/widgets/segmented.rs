@@ -203,6 +203,27 @@ pub struct SegmentedStyle {
     pub disabled_alpha: f32,
 }
 
+impl SegmentedStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            height: theme.h_md,
+            pad_x: 14.0,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            active_bg: theme.ink,
+            text: theme.ink,
+            active_text: theme.paper,
+            focus: theme.rust,
+            border_width: theme.border,
+            focus_width: theme.focus_width,
+            focus_offset: 2.0,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -265,7 +286,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.segmented_style());
+            self.style = Some(SegmentedStyle::from_theme(theme));
         }
         self
     }
@@ -346,7 +367,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().segmented_style(),
+            style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -403,7 +424,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().segmented_style(),
+            style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let style = spec.style;
@@ -471,7 +492,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().segmented_style(),
+            style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -506,7 +527,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().segmented_style(),
+            style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 28.0)),
         };
 
@@ -546,7 +567,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().segmented_style(),
+                style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -567,7 +588,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().segmented_style(),
+                style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -586,13 +607,13 @@ mod tests {
         let builder = SegmentedSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.segmented_style()));
+        assert_eq!(builder.style, Some(SegmentedStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.segmented_style();
+        let mut custom_style = SegmentedStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = SegmentedSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

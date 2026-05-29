@@ -129,6 +129,21 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
+impl SpinnerStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            color: theme.ink,
+            highlight: theme.rust,
+            small_size: 16.0,
+            large_size: 24.0,
+            small_arm: 5.0,
+            large_arm: 7.0,
+            width: 1.5,
+            highlight_fraction: 0.4,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,7 +186,7 @@ impl SpinnerSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.spinner_style());
+            self.style = Some(SpinnerStyle::from_theme(theme));
         }
         self
     }
@@ -217,7 +232,7 @@ mod tests {
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             large: false,
-            style: crate::theme::Theme::framewise().spinner_style(),
+            style: SpinnerStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::spinner(spec);
@@ -293,7 +308,7 @@ mod tests {
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 24.0, 24.0),
             large: true,
-            style: crate::theme::Theme::framewise().spinner_style(),
+            style: SpinnerStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
         let res = raw::spinner(spec.clone());
@@ -370,13 +385,13 @@ mod tests {
         let builder = SpinnerSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.spinner_style()));
+        assert_eq!(builder.style, Some(SpinnerStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.spinner_style();
+        let mut custom_style = SpinnerStyle::from_theme(&theme);
         custom_style.width = 99.0;
         let builder = SpinnerSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

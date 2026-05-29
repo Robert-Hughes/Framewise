@@ -201,6 +201,76 @@ pub struct ButtonStyle {
     pub disabled_alpha: f32,
 }
 
+impl ButtonStyle {
+    pub fn secondary_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: Color::TRANSPARENT,
+            hovered: theme.hover,
+            pressed: theme.press,
+            border: theme.ink,
+            border_width: theme.border,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            disabled_alpha: 0.32f32,
+        }
+    }
+
+    pub fn primary_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: theme.ink,
+            hovered: Color::BLACK,
+            pressed: Color::from_srgb_u8(42, 37, 32, 255),
+            border: theme.ink,
+            border_width: theme.border,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            text_color: theme.paper,
+            disabled_alpha: 0.32f32,
+        }
+    }
+
+    pub fn accent_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: theme.rust,
+            hovered: Color::from_srgb_u8(176, 79, 35, 255),
+            pressed: Color::from_srgb_u8(156, 69, 32, 255),
+            border: theme.rust,
+            border_width: theme.border,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            text_color: Color::WHITE,
+            disabled_alpha: 0.32f32,
+        }
+    }
+
+    pub fn ghost_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: Color::TRANSPARENT,
+            hovered: theme.hover,
+            pressed: theme.press,
+            border: Color::TRANSPARENT,
+            border_width: 0.0,
+            focus: theme.rust,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            text_size: theme.text_md,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            disabled_alpha: 0.32f32,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -259,7 +329,7 @@ impl<'a> ButtonSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.button_secondary_style());
+            self.style = Some(ButtonStyle::secondary_from_theme(theme));
         }
         self
     }
@@ -328,7 +398,7 @@ mod tests {
         ButtonSpec {
             rect,
             text: "Btn",
-            style: theme::Theme::default().button_primary_style(),
+            style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
             clip_rect: None,
             disabled: false,
         }
@@ -604,7 +674,7 @@ mod tests {
         let spec = ButtonSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".into(),
-            style: theme::Theme::default().button_primary_style(),
+            style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
             clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 30.0)),
             disabled: false,
         };
@@ -879,7 +949,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = theme::Theme::default().button_primary_style();
+        } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
             res.draw,
@@ -928,7 +998,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = theme::Theme::default().button_primary_style();
+        } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
             res.draw,
@@ -980,7 +1050,7 @@ mod tests {
             border_width,
             text_color,
             ..
-        } = theme::Theme::default().button_primary_style();
+        } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
             res.draw,
@@ -1032,7 +1102,7 @@ mod tests {
             focus_offset,
             focus_width,
             ..
-        } = theme::Theme::default().button_primary_style();
+        } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         let expected_focus_rect =
             Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + focus_offset));
@@ -1087,10 +1157,11 @@ mod tests {
         let alpha = 0.32_f32;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let expected_bg = tint(theme::Theme::default().button_primary_style().background);
-        let expected_border = tint(theme::Theme::default().button_primary_style().border);
-        let expected_text = tint(theme::Theme::default().button_primary_style().text_color);
-        let border_width = theme::Theme::default().button_primary_style().border_width;
+        let primary_style = ButtonStyle::primary_from_theme(&theme::Theme::default());
+        let expected_bg = tint(primary_style.background);
+        let expected_border = tint(primary_style.border);
+        let expected_text = tint(primary_style.text_color);
+        let border_width = primary_style.border_width;
 
         assert_eq!(
             res.draw,
@@ -1182,7 +1253,7 @@ mod tests {
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
-        let expected = theme.button_secondary_style();
+        let expected = ButtonStyle::secondary_from_theme(&theme);
         assert_eq!(builder.style.unwrap().font, expected.font);
         assert_eq!(builder.style.unwrap().text_size, expected.text_size);
     }
@@ -1192,7 +1263,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let custom_style = ButtonStyle {
             text_size: 99.0,
-            ..theme::Theme::default().button_primary_style()
+            ..ButtonStyle::primary_from_theme(&theme::Theme::default())
         };
         let builder = ButtonSpecBuilder::new().text("test").style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

@@ -10,8 +10,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
 
-* Widget styles shouldn't live in theme, as can't extend. Instead we should have per-widget theme -> style creation
-
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go

@@ -168,6 +168,30 @@ pub struct WindowStyle {
     pub border_width: f32,
 }
 
+impl WindowStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            title_height: 26.0,
+            button_size: 16.0,
+            button_gap: 2.0,
+            button_right_pad: 4.0,
+            status_height: 22.0,
+            content_pad_x: 16.0,
+            content_pad_y: 16.0,
+            text_pad_x: 10.0,
+            text_size: theme.text_sm,
+            font: theme.mono_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            title_bg: theme.ink,
+            title_text: theme.paper,
+            status_text: theme.muted,
+            status_border: theme.line,
+            border_width: theme.border,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct WindowResult<
@@ -229,7 +253,7 @@ impl<'a> WindowSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.window_style());
+            self.style = Some(WindowStyle::from_theme(theme));
         }
         self
     }
@@ -314,13 +338,13 @@ mod tests {
         let builder = WindowSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.window_style()));
+        assert_eq!(builder.style, Some(WindowStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.window_style();
+        let mut custom_style = WindowStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = WindowSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

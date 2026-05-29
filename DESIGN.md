@@ -231,7 +231,7 @@ Specs are fully resolved; every field is a concrete value with no `Option<>`. A 
 
 **`*Style` structs — no `Default`**
 
-The only authoritative source of style defaults is `Theme::xxx_style()` methods. A `*Style` struct is always either caller-supplied or theme-derived; there is no meaningful style independent of the theme. Hardcoded defaults on style structs duplicate the theme, diverge silently when the theme changes, and mask missing `defaults_from_theme()` calls with plausible-looking but wrong colors.
+The only authoritative source of style defaults is the `*Style::from_theme()` (or `*Style::*_from_theme()` for multi-variant styles) methods defined directly on each style struct. A `*Style` struct is always either caller-supplied or theme-derived; there is no meaningful style independent of the theme. Hardcoded defaults on style structs duplicate the theme, diverge silently when the theme changes, and mask missing `defaults_from_theme()` calls with plausible-looking but wrong colors.
 
 **`*SpecBuilder` structs — `derive(Default)` + `new()` forwarding**
 
@@ -283,12 +283,24 @@ pub fn button<T, S, CF>(
 }
 ```
 
+### User-Defined Widgets Are First-Class
+
+Built-in widgets hold no privileged position in the architecture. `Theme` is a library-defined struct — callers cannot add methods to it. If themed style defaults required a `theme.xxx_style()` method on `Theme`, only built-in widgets could participate; user-defined widgets would have no equivalent path.
+
+By placing the conversion on the style struct itself — `*Style::from_theme(&theme)` — the pattern is fully open to extension. A user-defined widget follows exactly the same design as a built-in one:
+
+1. Define a `*Style` struct with the widget's styling fields.
+2. Implement `from_theme` (or `*_from_theme` for multi-variant styles) on that struct.
+3. Call it from `*SpecBuilder::defaults_from_theme`.
+
+No library modification required. No special registration. The library's own widgets are simply examples of the pattern, not gatekeepers of it.
+
 ### Theme and Font Boundaries
 
 `Theme` is part of the high-level API. The `WidgetContext` uses it to resolve ergonomic defaults such as colours, spacing, and semantic font choices, but low-level widget functions must not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is passed to the widget function.
 
 > [!IMPORTANT]
-> **Static Check Rule:** Low-level raw widget functions must not import or depend on `theme::Theme`. The builder layer (`*SpecBuilder::defaults_from_theme`) is the correct and only place `Theme` is consumed — it translates the theme to resolved primitives before any raw function sees them. Because builders live in the same file as their raw functions, widget files do import `Theme`, but the import is confined to the builder layer. All `raw::*` functions in `framewise/src/widgets/*` must accept only fully resolved `*Spec`/`*Style` data and must not reference `Theme` directly.
+> **Static Check Rule:** Low-level raw widget functions must not import or depend on `theme::Theme`. The builder layer is the correct and only place `Theme` is consumed — `*SpecBuilder::defaults_from_theme` calls `*Style::from_theme` (or `*Style::*_from_theme`) on the widget's style struct, which translates the theme into resolved primitives before any raw function sees them. Because builders and style structs live in the same file as their raw functions, widget files do import `Theme`, but the import is confined to these higher-level layers. All `raw::*` functions in `framewise/src/widgets/*` must accept only fully resolved `*Spec`/`*Style` data and must not reference `Theme` directly.
 
 Fonts follow the same rule. A font is an application-owned handle independent of any theme. A theme references the two handles it wants to use for sans and mono text, but it does not own renderer-specific font data. The context may copy those handles from the theme into widget specs based on widget type; direct low-level callers choose fonts explicitly, often by copying a handle from a theme themselves.
 

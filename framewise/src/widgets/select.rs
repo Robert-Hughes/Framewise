@@ -316,6 +316,36 @@ pub struct SelectStyle {
     pub disabled_alpha: f32,
 }
 
+impl SelectStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            min_width: 180.0,
+            height: theme.h_md,
+            row_height: 26.0,
+            popup_gap: 2.0,
+            popup_pad_y: 4.0,
+            pad_x: 10.0,
+            chevron_right: 18.0,
+            text_size: theme.text_md,
+            chevron_size: theme.text_sm,
+            font: theme.sans_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            text: theme.ink,
+            selected_bg: theme.ink,
+            selected_text: theme.paper,
+            hover: theme.hover,
+            muted: theme.muted,
+            accent: theme.rust,
+            focus: theme.rust,
+            border_width: theme.border,
+            focus_width: theme.focus_width,
+            focus_offset: 1.0,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -386,7 +416,7 @@ impl<'a> SelectSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.select_style());
+            self.style = Some(SelectStyle::from_theme(theme));
         }
         self
     }
@@ -459,7 +489,7 @@ mod tests {
             value: "Option 1",
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().select_style(),
+            style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -500,7 +530,7 @@ mod tests {
             value: "Option 1",
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().select_style(),
+            style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
         let s = spec.style;
@@ -604,7 +634,7 @@ mod tests {
             value: "Option 1",
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().select_style(),
+            style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -642,7 +672,7 @@ mod tests {
             value: "Option 1",
             items: &items,
             disabled: false,
-            style: crate::theme::Theme::framewise().select_style(),
+            style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 180.0, 28.0)),
         };
 
@@ -684,7 +714,7 @@ mod tests {
                 value: "Option 1",
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().select_style(),
+                style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -708,7 +738,7 @@ mod tests {
                 value: "Option 2",
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().select_style(),
+                style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -728,7 +758,7 @@ mod tests {
                 value: "Option 2",
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().select_style(),
+                style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -751,7 +781,7 @@ mod tests {
                 value: "Option 2",
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().select_style(),
+                style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -773,7 +803,7 @@ mod tests {
                 value: "Option 2",
                 items: &items,
                 disabled: false,
-                style: crate::theme::Theme::framewise().select_style(),
+                style: SelectStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -793,13 +823,13 @@ mod tests {
         let builder = SelectSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.select_style()));
+        assert_eq!(builder.style, Some(SelectStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.select_style();
+        let mut custom_style = SelectStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = SelectSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

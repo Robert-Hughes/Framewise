@@ -447,6 +447,27 @@ pub struct TextEditStyle {
     pub disabled_alpha: f32,
 }
 
+impl TextEditStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: theme.paper_elev,
+            error_background: theme.rust_soft,
+            border: theme.ink,
+            focus: theme.rust,
+            error_border: theme.rust,
+            error_stripe_width: 4.0,
+            border_width: theme.border,
+            padding: 4.0,
+            text_size: theme.text_mono,
+            font: theme.mono_font,
+            text_color: theme.ink,
+            caret_color: theme.rust,
+            select_color: theme.rust_soft,
+            disabled_alpha: 0.55,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -547,7 +568,7 @@ impl TextEditSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.text_edit_style());
+            self.style = Some(TextEditStyle::from_theme(theme));
         }
         self
     }
@@ -722,10 +743,10 @@ mod tests {
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
-        assert_eq!(builder.style.unwrap().font, theme.text_edit_style().font);
+        assert_eq!(builder.style.unwrap().font, TextEditStyle::from_theme(&theme).font);
         assert_eq!(
             builder.style.unwrap().text_size,
-            theme.text_edit_style().text_size
+            TextEditStyle::from_theme(&theme).text_size
         );
     }
 
@@ -734,7 +755,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let custom_style = TextEditStyle {
             font: FontId(99),
-            ..crate::theme::Theme::framewise().text_edit_style()
+            ..TextEditStyle::from_theme(&crate::theme::Theme::framewise())
         };
         let builder = TextEditSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
@@ -744,7 +765,7 @@ mod tests {
     fn spec() -> TextEditSpec {
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-            style: crate::theme::Theme::framewise().text_edit_style(),
+            style: TextEditStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
             error: false,
             disabled: false,

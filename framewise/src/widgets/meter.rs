@@ -80,6 +80,19 @@ pub struct MeterStyle {
     pub unlit: Color,
 }
 
+impl MeterStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            bar_w: 6.0,
+            bar_h: 14.0,
+            bar_gap: 2.0,
+            ink: theme.ink,
+            rust: theme.rust,
+            unlit: theme.muted,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -134,7 +147,7 @@ impl MeterSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.meter_style());
+            self.style = Some(MeterStyle::from_theme(theme));
         }
         self
     }
@@ -177,14 +190,13 @@ mod tests {
     use super::raw::MeterSpec;
     use super::*;
     use crate::test_utils::DummyTextSys;
-    use crate::theme;
 
     #[test]
     fn test_meter_visual_normal() {
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
-            style: theme::Theme::default().meter_style(),
+            style: MeterStyle::from_theme(&crate::theme::Theme::default()),
             peak: None,
             bars: 10,
         };
@@ -209,7 +221,7 @@ mod tests {
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
-            style: theme::Theme::default().meter_style(),
+            style: MeterStyle::from_theme(&crate::theme::Theme::default()),
             peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
             bars: 10,
         };

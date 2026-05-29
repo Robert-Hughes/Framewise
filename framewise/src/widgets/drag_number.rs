@@ -206,6 +206,28 @@ pub struct DragNumberStyle {
     pub disabled_alpha: f32,
 }
 
+impl DragNumberStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            text_size: theme.text_md,
+            text_pad_x: 10.0,
+            font: theme.sans_font,
+            background: theme.paper_elev,
+            border: theme.ink,
+            focus: theme.rust,
+            text_bg: theme.ink,
+            active_text_bg: theme.rust,
+            text_text: theme.paper,
+            value_text: theme.ink,
+            value_fill: theme.rust_soft,
+            border_width: theme.border,
+            focus_width: theme.focus_width,
+            focus_offset: 1.0,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -281,7 +303,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.drag_number_style());
+            self.style = Some(DragNumberStyle::from_theme(theme));
         }
         self
     }
@@ -366,7 +388,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: crate::theme::Theme::framewise().drag_number_style(),
+            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -421,7 +443,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: crate::theme::Theme::framewise().drag_number_style(),
+            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -485,7 +507,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: crate::theme::Theme::framewise().drag_number_style(),
+            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -546,7 +568,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: crate::theme::Theme::framewise().drag_number_style(),
+            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
         };
 
@@ -586,7 +608,7 @@ mod tests {
             min: 0.0,
             max: 100.0,
             disabled: false,
-            style: crate::theme::Theme::framewise().drag_number_style(),
+            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
         };
 
@@ -631,7 +653,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
-                style: crate::theme::Theme::framewise().drag_number_style(),
+                style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -654,7 +676,7 @@ mod tests {
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
-                style: crate::theme::Theme::framewise().drag_number_style(),
+                style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
             },
             &mut state,
@@ -673,13 +695,13 @@ mod tests {
         let builder = DragNumberSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style, Some(theme.drag_number_style()));
+        assert_eq!(builder.style, Some(DragNumberStyle::from_theme(&theme)));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let mut custom_style = theme.drag_number_style();
+        let mut custom_style = DragNumberStyle::from_theme(&theme);
         custom_style.text_size = 99.0;
         let builder = DragNumberSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);

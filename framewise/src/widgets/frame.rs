@@ -64,6 +64,17 @@ pub struct FrameStyle {
     pub padding: f32,
 }
 
+impl FrameStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            background: theme.paper_elev,
+            border: theme.ink,
+            border_width: theme.border,
+            padding: 4.0,
+        }
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,7 +115,7 @@ impl FrameSpecBuilder {
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(theme.frame_style());
+            self.style = Some(FrameStyle::from_theme(theme));
         }
         self
     }
@@ -192,7 +203,7 @@ mod tests {
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
-        let expected = theme.frame_style();
+        let expected = FrameStyle::from_theme(&theme);
         assert_eq!(builder.style.unwrap().border_width, expected.border_width);
         assert_eq!(builder.style.unwrap().padding, expected.padding);
     }
