@@ -144,10 +144,10 @@ impl<'a> StatusSpecBuilder<'a> {
         raw::StatusSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
+            variant: self.variant.expect("variant not set — call .variant()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            variant: self.variant.expect("variant not set — call .variant()"),
         }
     }
 }
@@ -164,8 +164,7 @@ pub fn status<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
 ) -> StatusResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::status(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     StatusResult {

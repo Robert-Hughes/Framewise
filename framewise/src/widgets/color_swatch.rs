@@ -119,8 +119,7 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) 
 ) -> ColorSwatchResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::color_swatch(spec);
     ctx.append_cmds(result.draw);
     ColorSwatchResult {

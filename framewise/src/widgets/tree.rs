@@ -183,9 +183,9 @@ pub struct TreeResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub items: Option<&'a [TreeRow<'a>]>,
     pub style: Option<TreeStyle>,
-    pub rect: Option<Rect>,
 }
 
 impl<'a> TreeSpecBuilder<'a> {
@@ -241,8 +241,7 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> D
 ) -> TreeResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     TreeResult {

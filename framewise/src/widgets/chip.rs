@@ -19,8 +19,8 @@ pub mod raw {
         /// Top-left origin. Height is fixed at 22.
         pub rect: Rect,
         pub text: &'a str,
-        pub disabled: bool,
         pub style: super::ChipStyle,
+        pub disabled: bool,
         pub clip_rect: ClipRect,
     }
 
@@ -181,8 +181,8 @@ pub struct ChipResult {
 pub struct ChipSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub disabled: Option<bool>,
     pub style: Option<ChipStyle>,
+    pub disabled: Option<bool>,
     pub clip_rect: Option<ClipRect>,
 }
 

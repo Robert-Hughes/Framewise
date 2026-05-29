@@ -16,10 +16,10 @@ pub mod raw {
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
         pub text: &'a str,
+        pub style: super::DragNumberStyle,
         pub min: f32,
         pub max: f32,
         pub disabled: bool,
-        pub style: super::DragNumberStyle,
         pub clip_rect: ClipRect,
     }
 
@@ -232,10 +232,10 @@ pub struct DragNumberResult {
 pub struct DragNumberSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
+    pub style: Option<DragNumberStyle>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub disabled: Option<bool>,
-    pub style: Option<DragNumberStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 

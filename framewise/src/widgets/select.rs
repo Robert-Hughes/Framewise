@@ -16,9 +16,9 @@ pub mod raw {
         /// Bounding rect for the closed box (height h_md = 28).
         pub rect: Rect,
         pub value: &'a str,
+        pub style: super::SelectStyle,
         pub items: &'a [&'a str],
         pub disabled: bool,
-        pub style: super::SelectStyle,
         pub clip_rect: ClipRect,
     }
 
@@ -342,9 +342,9 @@ pub struct SelectResult {
 pub struct SelectSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub value: Option<&'a str>,
+    pub style: Option<SelectStyle>,
     pub items: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
-    pub style: Option<SelectStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 

@@ -16,8 +16,8 @@ pub mod raw {
         /// Bounding rect; only x/y/w used — height is fixed at 36.
         pub rect: Rect,
         pub items: &'a [&'a str],
-        pub disabled: bool,
         pub style: super::TabsStyle,
+        pub disabled: bool,
         pub clip_rect: ClipRect,
     }
 
@@ -221,8 +221,8 @@ pub struct TabsResult {
 pub struct TabsSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
-    pub disabled: Option<bool>,
     pub style: Option<TabsStyle>,
+    pub disabled: Option<bool>,
     pub clip_rect: Option<ClipRect>,
 }
 

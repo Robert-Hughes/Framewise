@@ -199,8 +199,7 @@ pub fn spinner<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Dr
 ) -> SpinnerResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::spinner(spec);
     ctx.append_cmds(result.draw);
     SpinnerResult {

@@ -239,11 +239,11 @@ impl<'a> WindowSpecBuilder<'a> {
             rect: self.rect.expect("rect not set — call .rect()"),
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
+            status_bar: self.status_bar.unwrap_or(false),
+            status_text: self.status_text,
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            status_bar: self.status_bar.unwrap_or(false),
-            status_text: self.status_text,
         }
     }
 }

@@ -16,8 +16,8 @@ pub mod raw {
         /// Top-left origin. Height is fixed at h_md (28).
         pub rect: Rect,
         pub items: &'a [&'a str],
-        pub disabled: bool,
         pub style: super::SegmentedStyle,
+        pub disabled: bool,
         pub clip_rect: ClipRect,
     }
 
@@ -226,8 +226,8 @@ pub struct SegmentedResult {
 pub struct SegmentedSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
-    pub disabled: Option<bool>,
     pub style: Option<SegmentedStyle>,
+    pub disabled: Option<bool>,
     pub clip_rect: Option<ClipRect>,
 }
 

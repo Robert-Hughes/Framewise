@@ -156,8 +156,7 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
 ) -> KeycapResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).defaults_from_theme(&ctx.theme);
-    let spec = builder.build();
+    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::keycap(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     KeycapResult {
