@@ -181,7 +181,7 @@ pub enum CheckState {
     Indeterminate,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CheckboxState {
     pub check: CheckState,
     pub space_is_active: bool,

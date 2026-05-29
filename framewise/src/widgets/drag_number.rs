@@ -212,25 +212,13 @@ pub struct DragNumberStyle {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct DragNumberState {
     pub value: f32,
     pub is_dragging: bool,
     pub drag_start_x: f32,
     pub drag_start_value: f32,
     pub focus_id: crate::focus::FocusId,
-}
-
-impl Default for DragNumberState {
-    fn default() -> Self {
-        Self {
-            value: 0.0,
-            is_dragging: false,
-            drag_start_x: 0.0,
-            drag_start_value: 0.0,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────

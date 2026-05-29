@@ -543,7 +543,7 @@ pub enum Orientation {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SliderState {
     pub value: f32,
     pub focus_id: FocusId,
@@ -553,21 +553,6 @@ pub struct SliderState {
     pub is_track_clicking: bool,
     pub track_click_start_coord: f32,
     pub next_repeat_time: f64,
-}
-
-impl Default for SliderState {
-    fn default() -> Self {
-        Self {
-            value: 0.0,
-            focus_id: FocusId::new(),
-            is_dragging: false,
-            drag_start_mouse_coord: 0.0,
-            drag_start_val: 0.0,
-            is_track_clicking: false,
-            track_click_start_coord: 0.0,
-            next_repeat_time: 0.0,
-        }
-    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────

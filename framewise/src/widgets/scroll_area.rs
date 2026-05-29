@@ -433,23 +433,12 @@ pub enum ScrollbarVisibility {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScrollState {
     pub id: crate::focus::FocusId,
     pub offset: Vec2,
     pub vert_slider_state: crate::widgets::slider::SliderState,
     pub horiz_slider_state: crate::widgets::slider::SliderState,
-}
-
-impl Default for ScrollState {
-    fn default() -> Self {
-        Self {
-            id: crate::focus::FocusId::new(),
-            offset: Vec2::ZERO,
-            vert_slider_state: crate::widgets::slider::SliderState::default(),
-            horiz_slider_state: crate::widgets::slider::SliderState::default(),
-        }
-    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────

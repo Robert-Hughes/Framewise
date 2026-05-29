@@ -440,7 +440,7 @@ pub struct TextEditStyle {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TextEditState {
     pub value: String,
     pub caret_byte: usize,
@@ -450,21 +450,6 @@ pub struct TextEditState {
     pub drag_word_origin: Option<(usize, usize)>,
     pub last_caret_move_time: f64,
     pub was_focused: bool,
-}
-
-impl Default for TextEditState {
-    fn default() -> Self {
-        Self {
-            value: String::new(),
-            caret_byte: 0,
-            selection_byte: None,
-            focus_id: FocusId::new(),
-            is_dragging: false,
-            drag_word_origin: None,
-            last_caret_move_time: 0.0,
-            was_focused: false,
-        }
-    }
 }
 
 impl TextEditState {

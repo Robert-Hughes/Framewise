@@ -196,7 +196,7 @@ pub struct ButtonStyle {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ButtonState {
     /// True if the mouse was pressed while hovering this button, until the mouse is released.
     pub is_active: bool,
