@@ -1,6 +1,6 @@
 use crate::{
     text::{FontId, FontRole},
-    types::Color,
+    types::{Color, Vec2},
     widgets::{
         button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle,
         drag_number::DragNumberStyle, frame::FrameStyle, keycap::KeycapStyle, label::LabelStyle,
@@ -94,7 +94,7 @@ impl Theme {
             font: self.sans_font,
             text_color: self.ink,
             rule: false,
-            rule_color: self.ink,
+            rule_color: self.line,
         }
     }
 
@@ -275,7 +275,7 @@ impl Theme {
 
     pub fn switch_style(&self) -> SwitchStyle {
         SwitchStyle {
-            size: (30.0, 16.0),
+            size: Vec2::new(30.0, 16.0),
             thumb_size: 10.0,
             off_fill: self.paper_elev,
             on_fill: self.ink,

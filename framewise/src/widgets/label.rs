@@ -42,7 +42,7 @@ pub mod raw {
             cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(spec.rect.x, y),
                 p1: Vec2::new(spec.rect.x + spec.rect.w, y),
-                color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
+                color: spec.style.rule_color,
                 width: 1.0,
             });
         }
@@ -219,7 +219,7 @@ mod tests {
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 20.0),
                     p1: Vec2::new(100.0, 20.0),
-                    color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
+                    color: Color::WHITE,
                     width: 1.0,
                 }
             ])

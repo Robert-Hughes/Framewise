@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::TextSystem,
-    types::{ClipRect, Color, Rect},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -77,7 +77,7 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let r = Rect::new(spec.rect.x, spec.rect.y, s.size.0, s.size.1);
+        let r = Rect::new(spec.rect.x, spec.rect.y, s.size.x, s.size.y);
 
         let visually_focused = focused;
 
@@ -135,7 +135,7 @@ pub mod raw {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SwitchStyle {
-    pub size: (f32, f32),
+    pub size: Vec2,
     pub thumb_size: f32,
     pub off_fill: Color,
     pub on_fill: Color,

@@ -146,8 +146,8 @@ impl MeterSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or .defaults_from_theme()"),
-            peak: self.peak.expect("peak not set — call .peak()"),
-            bars: self.bars.expect("bars not set — call .bars()"),
+            peak: self.peak.unwrap_or(None),
+            bars: self.bars.unwrap_or(10),
         }
     }
 }
@@ -263,5 +263,17 @@ mod tests {
             layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
+    }
+
+    #[test]
+    fn test_builder_defaults() {
+        let theme = crate::theme::Theme::default();
+        let spec = MeterSpecBuilder::new()
+            .rect(Rect::new(0.0, 0.0, 100.0, 20.0))
+            .value(0.5)
+            .defaults_from_theme(&theme)
+            .build();
+        assert_eq!(spec.peak, None);
+        assert_eq!(spec.bars, 10);
     }
 }

@@ -273,7 +273,7 @@ pub fn button<T, S, CF>(
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .build();
-    let r = raw::button(state, spec, ctx.input, ctx.focus_sys);
+    let r = raw::button(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
     ctx.append_cmds(r.draw.0);
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),

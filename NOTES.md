@@ -12,6 +12,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Widget styles shouldn't live in theme, as can't extend. Instead we should have per-widget theme -> style creation
 
+* system vs sys for focus and text
+
 * Text system - single- and multi-line wrapping, newlines in string, width and height provided, auto-ellipses
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
