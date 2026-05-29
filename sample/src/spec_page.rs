@@ -445,10 +445,22 @@ impl Default for SpecPageState {
             te_multiline: TextEditState::new(
                 "A small, procedural Rust library for describing GUI elements per frame.",
             ),
-            slider1_state: SliderState { value: 0.14, ..Default::default() },
-            slider2_state: SliderState { value: 0.62, ..Default::default() },
-            slider3_state: SliderState { value: 0.88, ..Default::default() },
-            slider4_state: SliderState { value: 3.0, ..Default::default() },
+            slider1_state: SliderState {
+                value: 0.14,
+                ..Default::default()
+            },
+            slider2_state: SliderState {
+                value: 0.62,
+                ..Default::default()
+            },
+            slider3_state: SliderState {
+                value: 0.88,
+                ..Default::default()
+            },
+            slider4_state: SliderState {
+                value: 3.0,
+                ..Default::default()
+            },
             radio_states: vec![
                 RadioState {
                     selected: true,
@@ -570,7 +582,10 @@ impl Default for SpecPageState {
                 active_index: 0,
                 ..Default::default()
             },
-            iu_fps_slider: SliderState { value: 60.0, ..Default::default() },
+            iu_fps_slider: SliderState {
+                value: 60.0,
+                ..Default::default()
+            },
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
             iu_log_scroll: ScrollState::default(),
             iu_vsync: SwitchState {
@@ -840,9 +855,7 @@ pub fn draw_spec_page(
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text(
-                            "explicitly; nothing is hidden behind animation or chrome.",
-                        )
+                        .text("explicitly; nothing is hidden behind animation or chrome.")
                         .size(15.0)
                         .font(font)
                         .text_color(color);
@@ -916,8 +929,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(text).style(style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                         button(this, spec_builder, layout_params, state)
                     };
                     if btn.input.clicked && i == 2 {
@@ -1046,8 +1058,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx, y, w, *h);
                         let text: &str = label;
                         let style = *style;
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(text).style(style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                         button(this, spec_builder, layout_params, state)
                     };
                     bx += w + COL_GAP;
@@ -1069,8 +1080,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(text).style(style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                         button(this, spec_builder, layout_params, state)
                     };
                     bx += w;
@@ -1091,8 +1101,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx, y, w, t.h_md);
                         let text: &str = label;
                         let style = *style;
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(text).style(style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                         button(this, spec_builder, layout_params, state)
                     };
                     bx += w;
@@ -1507,12 +1516,7 @@ pub fn draw_spec_page(
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-                    slider(
-                        this,
-                        spec_builder,
-                        layout_params,
-                        &mut state.slider1_state,
-                    );
+                    slider(this, spec_builder, layout_params, &mut state.slider1_state);
                 };
                 {
                     let this = &mut *b;
@@ -1533,12 +1537,7 @@ pub fn draw_spec_page(
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-                    slider(
-                        this,
-                        spec_builder,
-                        layout_params,
-                        &mut state.slider2_state,
-                    );
+                    slider(this, spec_builder, layout_params, &mut state.slider2_state);
                 };
                 {
                     let this = &mut *b;
@@ -1559,12 +1558,7 @@ pub fn draw_spec_page(
                     let step = 0.1;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-                    slider(
-                        this,
-                        spec_builder,
-                        layout_params,
-                        &mut state.slider3_state,
-                    );
+                    slider(this, spec_builder, layout_params, &mut state.slider3_state);
                 };
                 {
                     let this = &mut *b;
@@ -1586,12 +1580,7 @@ pub fn draw_spec_page(
                     let step = 1.0;
                     let layout_params = Rect::new(lx, y, slider_w, t.h_md);
                     let spec_builder = SliderSpecBuilder::new().max(9.0).page_step(step);
-                    slider(
-                        this,
-                        spec_builder,
-                        layout_params,
-                        &mut state.slider4_state,
-                    );
+                    slider(this, spec_builder, layout_params, &mut state.slider4_state);
                 };
                 {
                     let this = &mut *b;
@@ -3130,12 +3119,7 @@ pub fn draw_spec_page(
                         .max(240.0)
                         .page_step(step)
                         .step(step);
-                    slider(
-                        this,
-                        spec_builder,
-                        layout_params,
-                        &mut state.iu_fps_slider,
-                    );
+                    slider(this, spec_builder, layout_params, &mut state.iu_fps_slider);
                 };
                 {
                     let this = &mut win;
@@ -3349,8 +3333,7 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(btn_x, fy, bw, t.h_md);
                         let text: &str = label;
                         let style = *style;
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(text).style(style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                         button(this, spec_builder, layout_params, state)
                     };
                     btn_x -= 8.0;
