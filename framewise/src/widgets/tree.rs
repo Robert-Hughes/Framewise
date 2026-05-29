@@ -20,6 +20,8 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct TreeResult {
         pub draw: DrawCommands,
+        pub bounds: Rect,
+        pub content_bounds: Rect,
     }
 
     /// Low-level tree widget function.
@@ -122,7 +124,18 @@ pub mod raw {
             y += row_h;
         }
 
-        TreeResult { draw: cmds }
+        let content_bounds = Rect::new(
+            outer.x + s.border_width + s.pad_x,
+            outer.y + s.border_width + s.pad_y,
+            outer.w - (s.border_width + s.pad_x) * 2.0,
+            outer.h - (s.border_width + s.pad_y) * 2.0,
+        );
+
+        TreeResult {
+            draw: cmds,
+            bounds: outer,
+            content_bounds,
+        }
     }
 }
 
@@ -233,7 +246,7 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> D
     let result = raw::tree(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     TreeResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
 }
 
@@ -291,5 +304,41 @@ mod tests {
             }
             other => panic!("Expected FillRect, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_tree_bounds_and_content_bounds() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let res = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), layout_rect);
+
+        let style = ctx.theme.tree_style();
+        let expected_h = style.pad_y * 2.0;
+        let expected_w = layout_rect.w.max(style.min_width);
+        assert_eq!(
+            res.layout.bounds,
+            Rect::new(layout_rect.x, layout_rect.y, expected_w, expected_h)
+        );
+
+        let expected_content = Rect::new(
+            layout_rect.x + style.border_width + style.pad_x,
+            layout_rect.y + style.border_width + style.pad_y,
+            expected_w - (style.border_width + style.pad_x) * 2.0,
+            expected_h - (style.border_width + style.pad_y) * 2.0,
+        );
+        assert_eq!(res.layout.content_bounds, expected_content);
     }
 }

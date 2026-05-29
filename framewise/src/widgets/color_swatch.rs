@@ -21,6 +21,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
         pub draw: DrawCommands,
+        pub content_bounds: Rect,
     }
 
     /// Low-level color swatch widget function.
@@ -38,7 +39,10 @@ pub mod raw {
             color: spec.border,
             width: 1.0,
         });
-        ColorSwatchResult { draw }
+        ColorSwatchResult {
+            draw,
+            content_bounds: spec.rect.inset(1.0),
+        }
     }
 }
 
@@ -120,7 +124,7 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) 
     let result = raw::color_swatch(spec);
     ctx.append_cmds(result.draw);
     ColorSwatchResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
     }
 }
 
@@ -209,5 +213,30 @@ mod tests {
             layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
+    }
+
+    #[test]
+    fn test_color_swatch_bounds_and_content_bounds() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_sys = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let result = super::color_swatch(
+            &mut ctx,
+            ColorSwatchSpecBuilder::new().color(Color::from_srgb_u8(0, 0, 0, 0)),
+            layout_rect,
+        );
+        assert_eq!(result.layout.bounds, layout_rect);
+        assert_eq!(result.layout.content_bounds, layout_rect.inset(1.0));
     }
 }

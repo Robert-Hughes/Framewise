@@ -21,6 +21,8 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct TooltipResult {
         pub draw: DrawCommands,
+        pub bounds: Rect,
+        pub content_bounds: Rect,
     }
 
     /// Low-level tooltip widget function.
@@ -71,7 +73,18 @@ pub mod raw {
             width: s.arrow_width,
         });
 
-        TooltipResult { draw: cmds }
+        let content_bounds = Rect::new(
+            r.x + pad_x,
+            r.y + pad_y_top,
+            r.w - pad_x * 2.0,
+            r.h - (pad_y_top + pad_y_bot),
+        );
+
+        TooltipResult {
+            draw: cmds,
+            bounds: r,
+            content_bounds,
+        }
     }
 }
 
@@ -181,7 +194,7 @@ pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -
     let result = raw::tooltip(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     TooltipResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
 }
 
@@ -304,5 +317,48 @@ mod tests {
             }
             other => panic!("Expected FillRect, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_tooltip_bounds_and_content_bounds() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let res = super::tooltip(
+            &mut ctx,
+            TooltipSpecBuilder::new()
+                .text("hi")
+                .variant(TooltipVariant::Dark),
+            layout_rect,
+        );
+
+        let style = ctx.theme.tooltip_style();
+        let expected_w = (16.0 + style.pad_x * 2.0).min(style.max_width);
+        let expected_h = 16.0 + style.pad_y_top + style.pad_y_bot;
+
+        assert_eq!(
+            res.layout.bounds,
+            Rect::new(layout_rect.x, layout_rect.y, expected_w, expected_h)
+        );
+
+        let expected_content = Rect::new(
+            layout_rect.x + style.pad_x,
+            layout_rect.y + style.pad_y_top,
+            expected_w - style.pad_x * 2.0,
+            expected_h - (style.pad_y_top + style.pad_y_bot),
+        );
+        assert_eq!(res.layout.content_bounds, expected_content);
     }
 }

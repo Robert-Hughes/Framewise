@@ -66,7 +66,7 @@ pub mod raw {
 
         KeycapResult {
             draw,
-            content_bounds: spec.rect.inset(1.0),
+            content_bounds: spec.rect.inset(spec.style.border_width),
         }
     }
 }
@@ -285,5 +285,45 @@ mod tests {
             layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
+    }
+
+    #[test]
+    fn test_keycap_bounds_and_content_bounds() {
+        use crate::layout::{Layout, ManualLayout};
+        use crate::test_utils::DummyTextSys;
+        let mut text_sys = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_sys,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let custom_border_width = 3.5;
+        let result = super::keycap(
+            &mut ctx,
+            KeycapSpecBuilder::new().text("X").style(KeycapStyle {
+                background: Color::WHITE,
+                shadow: Color::BLACK,
+                shadow_offset: 1.0,
+                shadow_height: 2.0,
+                border: Color::WHITE,
+                border_width: custom_border_width,
+                text_color: Color::WHITE,
+                text_size: 14.0,
+                font: FontId(0),
+            }),
+            layout_rect,
+        );
+        assert_eq!(result.layout.bounds, layout_rect);
+        assert_eq!(
+            result.layout.content_bounds,
+            layout_rect.inset(custom_border_width)
+        );
     }
 }
