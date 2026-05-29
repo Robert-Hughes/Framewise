@@ -15,7 +15,7 @@ use framewise::{
     widgets::{
         button::{button, ButtonState, ButtonStyle},
         checkbox::{checkbox, raw::CheckboxSpec, CheckState, CheckboxSpecBuilder, CheckboxState},
-        chip::{chip, ChipSpecBuilder, ChipState},
+        chip::{chip, ChipSpecBuilder, ChipState, ChipStyle},
         color_swatch::color_swatch,
         divider::divider,
         drag_number::{drag_number, raw::DragNumberSpec, DragNumberSpecBuilder, DragNumberState},
@@ -196,7 +196,6 @@ fn draw_select_fake_state<
     let spec = SelectSpec {
         rect,
         value,
-        font: b.theme.sans_font,
         items: options,
         disabled: is_disabled,
         style: b.theme.select_style(),
@@ -240,7 +239,6 @@ fn draw_drag_number_fake_state<
     let spec = DragNumberSpec {
         rect,
         text: label,
-        font: b.theme.sans_font,
         min,
         max,
         disabled: false,
@@ -1960,8 +1958,10 @@ pub fn draw_spec_page(
                     let _chip_info = {
                         let state = &mut state.chip_states[i];
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
-                        let spec_builder =
-                            ChipSpecBuilder::new().text(label).font(b.theme.sans_font);
+                        let spec_builder = ChipSpecBuilder::new().text(label).style(ChipStyle {
+                            font: b.theme.sans_font,
+                            ..b.theme.chip_style()
+                        });
                         chip(b, spec_builder, layout_params, state)
                     };
                     chip_x += chip_w + 6.0;
@@ -1973,9 +1973,13 @@ pub fn draw_spec_page(
                 let _add_info = {
                     let state = &mut state.chip_states[4];
                     let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
-                    let spec_builder = ChipSpecBuilder::new()
-                        .text("+ add backend")
-                        .font(b.theme.sans_font);
+                    let spec_builder =
+                        ChipSpecBuilder::new()
+                            .text("+ add backend")
+                            .style(ChipStyle {
+                                font: b.theme.sans_font,
+                                ..b.theme.chip_style()
+                            });
                     chip(b, spec_builder, layout_params, state)
                 };
             }

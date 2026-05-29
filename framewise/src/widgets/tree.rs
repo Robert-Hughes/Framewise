@@ -14,7 +14,6 @@ pub mod raw {
     pub struct TreeSpec<'a> {
         pub rect: Rect,
         pub items: &'a [super::TreeRow<'a>],
-        pub font: FontId,
         pub style: super::TreeStyle,
     }
 
@@ -86,7 +85,7 @@ pub mod raw {
                 Some(false) => ">",
                 None => " ",
             };
-            let caret_layout = text_system.prepare(caret_sym, s.text_size, spec.font);
+            let caret_layout = text_system.prepare(caret_sym, s.text_size, spec.style.font);
             let cty = y + (row_h - caret_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
                 rect: Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
@@ -95,7 +94,7 @@ pub mod raw {
             });
 
             // Label.
-            let label_layout = text_system.prepare(row.label, s.text_size, spec.font);
+            let label_layout = text_system.prepare(row.label, s.text_size, spec.style.font);
             let lty = y + (row_h - label_layout.size.y) * 0.5;
             cmds.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -110,7 +109,7 @@ pub mod raw {
 
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
-                let meta_layout = text_system.prepare(meta, s.text_size, spec.font);
+                let meta_layout = text_system.prepare(meta, s.text_size, spec.style.font);
                 let mx = outer.x + w - pad_x - meta_layout.size.x;
                 let mty = y + (row_h - meta_layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
@@ -149,6 +148,7 @@ pub struct TreeStyle {
     pub pad_y: f32,
     pub min_width: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub background: Color,
     pub border: Color,
     pub selected_bg: Color,
@@ -171,7 +171,6 @@ pub struct TreeResult {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
     pub items: Option<&'a [TreeRow<'a>]>,
-    pub font: Option<FontId>,
     pub style: Option<TreeStyle>,
     pub rect: Option<Rect>,
 }
@@ -183,10 +182,6 @@ impl<'a> TreeSpecBuilder<'a> {
 
     pub fn items(mut self, items: &'a [TreeRow<'a>]) -> Self {
         self.items = Some(items);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: TreeStyle) -> Self {
@@ -207,9 +202,6 @@ impl<'a> TreeSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.tree_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -217,9 +209,6 @@ impl<'a> TreeSpecBuilder<'a> {
         raw::TreeSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -257,10 +246,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = TreeSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.tree_style()));
-        assert_eq!(builder.font, Some(theme.mono_font));
     }
 
     #[test]
@@ -268,10 +255,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.tree_style();
         custom_style.text_size = 99.0;
-        let builder = TreeSpecBuilder::new().style(custom_style).font(FontId(99));
+        let builder = TreeSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

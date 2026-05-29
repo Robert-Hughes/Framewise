@@ -16,7 +16,6 @@ pub mod raw {
         /// Bounding rect; only x/y/w used — height is fixed at 36.
         pub rect: Rect,
         pub items: &'a [&'a str],
-        pub font: FontId,
         pub disabled: bool,
         pub style: super::TabsStyle,
         pub clip_rect: ClipRect,
@@ -51,7 +50,7 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let layout = text_system.prepare(label, s.text_size, spec.font);
+            let layout = text_system.prepare(label, s.text_size, spec.style.font);
             total_w += layout.size.x + pad_x * 2.0;
         }
 
@@ -87,7 +86,7 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let layout = text_system.prepare(label, s.text_size, spec.font);
+                let layout = text_system.prepare(label, s.text_size, spec.style.font);
                 let tab_w = layout.size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
@@ -116,7 +115,7 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let layout = text_system.prepare(label, s.text_size, spec.font);
+            let layout = text_system.prepare(label, s.text_size, spec.style.font);
             let tab_w = layout.size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -187,6 +186,7 @@ pub struct TabsStyle {
     pub pad_x: f32,
     pub underbar_height: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub border: Color,
     pub text: Color,
     pub inactive_text: Color,
@@ -221,7 +221,6 @@ pub struct TabsResult {
 pub struct TabsSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
-    pub font: Option<FontId>,
     pub disabled: Option<bool>,
     pub style: Option<TabsStyle>,
     pub clip_rect: Option<ClipRect>,
@@ -234,10 +233,6 @@ impl<'a> TabsSpecBuilder<'a> {
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
         self.items = Some(items);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: TabsStyle) -> Self {
@@ -267,9 +262,6 @@ impl<'a> TabsSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.tabs_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.sans_font);
-        }
         self
     }
 
@@ -277,9 +269,6 @@ impl<'a> TabsSpecBuilder<'a> {
         raw::TabsSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -346,7 +335,6 @@ mod tests {
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
@@ -403,7 +391,6 @@ mod tests {
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
@@ -471,7 +458,6 @@ mod tests {
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: None,
@@ -501,7 +487,6 @@ mod tests {
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().tabs_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
@@ -536,7 +521,6 @@ mod tests {
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
-                font: FontId(1),
                 disabled: false,
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,
@@ -558,7 +542,6 @@ mod tests {
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
                 items: &items,
-                font: FontId(1),
                 disabled: false,
                 style: crate::theme::Theme::framewise().tabs_style(),
                 clip_rect: None,
@@ -578,10 +561,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = TabsSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.tabs_style()));
-        assert_eq!(builder.font, Some(theme.sans_font));
     }
 
     #[test]
@@ -589,10 +570,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.tabs_style();
         custom_style.text_size = 99.0;
-        let builder = TabsSpecBuilder::new().style(custom_style).font(FontId(99));
+        let builder = TabsSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

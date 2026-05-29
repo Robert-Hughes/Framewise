@@ -16,7 +16,6 @@ pub mod raw {
         pub rect: Rect,
         pub title: &'a str,
         pub buttons: &'a [super::WindowButton],
-        pub font: FontId,
         pub status_bar: bool,
         pub status_text: Option<&'a str>,
         pub style: super::WindowStyle,
@@ -65,7 +64,7 @@ pub mod raw {
             color: s.title_bg,
         });
 
-        let title_layout = text_system.prepare(spec.title, s.text_size, spec.font);
+        let title_layout = text_system.prepare(spec.title, s.text_size, spec.style.font);
         let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
             rect: Rect::new(
@@ -82,7 +81,7 @@ pub mod raw {
         let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
-            let btn_layout = text_system.prepare(btn.symbol, s.text_size, spec.font);
+            let btn_layout = text_system.prepare(btn.symbol, s.text_size, spec.style.font);
             let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
@@ -101,7 +100,7 @@ pub mod raw {
                 width: s.border_width,
             });
             let status_layout =
-                text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.font);
+                text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.style.font);
             let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(
@@ -159,6 +158,7 @@ pub struct WindowStyle {
     pub content_pad_y: f32,
     pub text_pad_x: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub background: Color,
     pub border: Color,
     pub title_bg: Color,
@@ -187,7 +187,6 @@ pub struct WindowSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
-    pub font: Option<FontId>,
     pub status_bar: Option<bool>,
     pub status_text: Option<&'a str>,
     pub style: Option<WindowStyle>,
@@ -204,10 +203,6 @@ impl<'a> WindowSpecBuilder<'a> {
     }
     pub fn buttons(mut self, buttons: &'a [WindowButton]) -> Self {
         self.buttons = Some(buttons);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: WindowStyle) -> Self {
@@ -236,9 +231,6 @@ impl<'a> WindowSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.window_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -247,9 +239,6 @@ impl<'a> WindowSpecBuilder<'a> {
             rect: self.rect.expect("rect not set — call .rect()"),
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -324,10 +313,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = WindowSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.window_style()));
-        assert_eq!(builder.font, Some(theme.mono_font));
     }
 
     #[test]
@@ -335,12 +322,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.window_style();
         custom_style.text_size = 99.0;
-        let builder = WindowSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = WindowSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

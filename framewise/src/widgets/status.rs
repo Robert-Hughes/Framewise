@@ -14,7 +14,6 @@ pub mod raw {
     pub struct StatusSpec<'a> {
         pub rect: Rect,
         pub text: &'a str,
-        pub font: FontId,
         pub variant: super::StatusVariant,
         pub style: super::StatusStyle,
     }
@@ -48,7 +47,7 @@ pub mod raw {
             color: dot_color,
         });
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
         let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -81,6 +80,7 @@ pub struct StatusStyle {
     pub dot_size: f32,
     pub gap: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub neutral: Color,
     pub ok: Color,
     pub warn: Color,
@@ -102,7 +102,6 @@ pub struct StatusResult {
 pub struct StatusSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub font: Option<FontId>,
     pub variant: Option<StatusVariant>,
     pub style: Option<StatusStyle>,
 }
@@ -114,10 +113,6 @@ impl<'a> StatusSpecBuilder<'a> {
 
     pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: StatusStyle) -> Self {
@@ -142,9 +137,6 @@ impl<'a> StatusSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.status_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -152,9 +144,6 @@ impl<'a> StatusSpecBuilder<'a> {
         raw::StatusSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -196,7 +185,6 @@ mod tests {
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Online",
-            font: FontId(0),
             variant: StatusVariant::Ok,
             style: crate::theme::Theme::framewise().status_style(),
         };
@@ -225,7 +213,6 @@ mod tests {
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Warning",
-            font: FontId(0),
             variant: StatusVariant::Warn,
             style: crate::theme::Theme::framewise().status_style(),
         };
@@ -253,10 +240,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = StatusSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.status_style()));
-        assert_eq!(builder.font, Some(theme.mono_font));
     }
 
     #[test]
@@ -264,12 +249,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.status_style();
         custom_style.text_size = 99.0;
-        let builder = StatusSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = StatusSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

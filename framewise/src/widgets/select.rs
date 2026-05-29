@@ -16,7 +16,6 @@ pub mod raw {
         /// Bounding rect for the closed box (height h_md = 28).
         pub rect: Rect,
         pub value: &'a str,
-        pub font: FontId,
         pub items: &'a [&'a str],
         pub disabled: bool,
         pub style: super::SelectStyle,
@@ -201,7 +200,7 @@ pub mod raw {
             spec.value
         };
 
-        let val_layout = text_system.prepare(display_text, s.text_size, spec.font);
+        let val_layout = text_system.prepare(display_text, s.text_size, spec.style.font);
         let vty = r.y + (s.height - val_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
@@ -211,7 +210,7 @@ pub mod raw {
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_layout = text_system.prepare("v", s.chevron_size, spec.font);
+        let chev_layout = text_system.prepare("v", s.chevron_size, spec.style.font);
         let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -259,7 +258,7 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_layout = text_system.prepare(opt, s.text_size, spec.font);
+                let opt_layout = text_system.prepare(opt, s.text_size, spec.style.font);
                 let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
                 cmds.push(DrawCmd::Text {
                     rect: Rect::new(
@@ -301,6 +300,7 @@ pub struct SelectStyle {
     pub chevron_right: f32,
     pub text_size: f32,
     pub chevron_size: f32,
+    pub font: FontId,
     pub background: Color,
     pub border: Color,
     pub text: Color,
@@ -342,7 +342,6 @@ pub struct SelectResult {
 pub struct SelectSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub value: Option<&'a str>,
-    pub font: Option<FontId>,
     pub items: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
     pub style: Option<SelectStyle>,
@@ -356,10 +355,6 @@ impl<'a> SelectSpecBuilder<'a> {
 
     pub fn value(mut self, value: &'a str) -> Self {
         self.value = Some(value);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: SelectStyle) -> Self {
@@ -393,9 +388,6 @@ impl<'a> SelectSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.select_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.sans_font);
-        }
         self
     }
 
@@ -403,9 +395,6 @@ impl<'a> SelectSpecBuilder<'a> {
         raw::SelectSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -468,7 +457,6 @@ mod tests {
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
-            font: FontId(0),
             items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
@@ -510,7 +498,6 @@ mod tests {
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
-            font: FontId(0),
             items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
@@ -615,7 +602,6 @@ mod tests {
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
-            font: FontId(0),
             items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
@@ -648,7 +634,6 @@ mod tests {
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
-            font: FontId(0),
             items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
@@ -685,7 +670,6 @@ mod tests {
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
-                font: FontId(0),
                 items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
@@ -710,7 +694,6 @@ mod tests {
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
-                font: FontId(0),
                 items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
@@ -731,7 +714,6 @@ mod tests {
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
-                font: FontId(0),
                 items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
@@ -755,7 +737,6 @@ mod tests {
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
-                font: FontId(0),
                 items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
@@ -778,7 +759,6 @@ mod tests {
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
-                font: FontId(0),
                 items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
@@ -800,10 +780,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = SelectSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.select_style()));
-        assert_eq!(builder.font, Some(theme.sans_font));
     }
 
     #[test]
@@ -811,12 +789,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.select_style();
         custom_style.text_size = 99.0;
-        let builder = SelectSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = SelectSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

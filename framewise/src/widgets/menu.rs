@@ -15,8 +15,6 @@ pub mod raw {
         /// Top-left origin; width is at least 200.
         pub rect: Rect,
         pub items: &'a [super::MenuItem<'a>],
-        pub label_font: FontId,
-        pub meta_font: FontId,
         pub style: super::MenuStyle,
     }
 
@@ -77,7 +75,7 @@ pub mod raw {
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {
-                    let layout = text_system.prepare(label, s.meta_size, spec.meta_font);
+                    let layout = text_system.prepare(label, s.meta_size, spec.style.meta_font);
                     let ty = y + s.group_text_y;
                     cmds.push(DrawCmd::Text {
                         rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -109,7 +107,7 @@ pub mod raw {
                     } else {
                         tint(s.text)
                     };
-                    let layout = text_system.prepare(label, s.label_size, spec.label_font);
+                    let layout = text_system.prepare(label, s.label_size, spec.style.label_font);
                     let ty = y + (row_h - layout.size.y) * 0.5;
                     cmds.push(DrawCmd::Text {
                         rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -128,7 +126,7 @@ pub mod raw {
                         } else {
                             tint(s.muted)
                         };
-                        let sc_layout = text_system.prepare(sc, s.meta_size, spec.meta_font);
+                        let sc_layout = text_system.prepare(sc, s.meta_size, spec.style.meta_font);
                         let sc_x = outer.x + w - pad_x - sc_layout.size.x;
                         let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
                         cmds.push(DrawCmd::Text {
@@ -173,6 +171,8 @@ pub struct MenuStyle {
     pub min_width: f32,
     pub label_size: f32,
     pub meta_size: f32,
+    pub label_font: FontId,
+    pub meta_font: FontId,
     pub background: Color,
     pub border: Color,
     pub separator: Color,
@@ -198,8 +198,6 @@ pub struct MenuResult {
 pub struct MenuSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub items: Option<&'a [MenuItem<'a>]>,
-    pub label_font: Option<FontId>,
-    pub meta_font: Option<FontId>,
     pub style: Option<MenuStyle>,
 }
 
@@ -210,14 +208,6 @@ impl<'a> MenuSpecBuilder<'a> {
 
     pub fn items(mut self, items: &'a [MenuItem<'a>]) -> Self {
         self.items = Some(items);
-        self
-    }
-    pub fn label_font(mut self, font: FontId) -> Self {
-        self.label_font = Some(font);
-        self
-    }
-    pub fn meta_font(mut self, font: FontId) -> Self {
-        self.meta_font = Some(font);
         self
     }
     pub fn style(mut self, style: MenuStyle) -> Self {
@@ -238,12 +228,6 @@ impl<'a> MenuSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.menu_style());
         }
-        if self.label_font.is_none() {
-            self.label_font = Some(theme.sans_font);
-        }
-        if self.meta_font.is_none() {
-            self.meta_font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -251,12 +235,6 @@ impl<'a> MenuSpecBuilder<'a> {
         raw::MenuSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
-            label_font: self
-                .label_font
-                .expect("label_font not set — call .label_font() or defaults_from_theme()"),
-            meta_font: self
-                .meta_font
-                .expect("meta_font not set — call .meta_font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -294,12 +272,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = MenuSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.label_font.is_none());
-        assert!(builder.meta_font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.menu_style()));
-        assert_eq!(builder.label_font, Some(theme.sans_font));
-        assert_eq!(builder.meta_font, Some(theme.mono_font));
     }
 
     #[test]
@@ -307,14 +281,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.menu_style();
         custom_style.label_size = 99.0;
-        let builder = MenuSpecBuilder::new()
-            .style(custom_style)
-            .label_font(FontId(99))
-            .meta_font(FontId(98));
+        let builder = MenuSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().label_size, 99.0);
-        assert_eq!(builder.label_font, Some(FontId(99)));
-        assert_eq!(builder.meta_font, Some(FontId(98)));
     }
 
     #[test]

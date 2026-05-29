@@ -51,7 +51,6 @@ pub mod raw {
     }
 }
 
-
 // ── Style ─────────────────────────────────────────────────────────────────────
 
 /// Visual configuration for a label.

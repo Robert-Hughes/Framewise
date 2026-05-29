@@ -16,7 +16,6 @@ pub mod raw {
         /// Top-left origin. Height is fixed at h_md (28).
         pub rect: Rect,
         pub items: &'a [&'a str],
-        pub font: FontId,
         pub disabled: bool,
         pub style: super::SegmentedStyle,
         pub clip_rect: ClipRect,
@@ -64,7 +63,7 @@ pub mod raw {
         let layouts: Vec<_> = spec
             .items
             .iter()
-            .map(|text| text_system.prepare(text, s.text_size, spec.font))
+            .map(|text| text_system.prepare(text, s.text_size, spec.style.font))
             .collect();
         let widths: Vec<f32> = layouts.iter().map(|l| l.size.x + pad_x * 2.0).collect();
         let total_w: f32 = widths.iter().sum();
@@ -191,6 +190,7 @@ pub struct SegmentedStyle {
     pub height: f32,
     pub pad_x: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub background: Color,
     pub border: Color,
     pub active_bg: Color,
@@ -226,7 +226,6 @@ pub struct SegmentedResult {
 pub struct SegmentedSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
-    pub font: Option<FontId>,
     pub disabled: Option<bool>,
     pub style: Option<SegmentedStyle>,
     pub clip_rect: Option<ClipRect>,
@@ -239,10 +238,6 @@ impl<'a> SegmentedSpecBuilder<'a> {
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
         self.items = Some(items);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: SegmentedStyle) -> Self {
@@ -272,9 +267,6 @@ impl<'a> SegmentedSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.segmented_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.sans_font);
-        }
         self
     }
 
@@ -282,9 +274,6 @@ impl<'a> SegmentedSpecBuilder<'a> {
         raw::SegmentedSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -356,7 +345,6 @@ mod tests {
         let spec = SegmentedSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
@@ -414,7 +402,6 @@ mod tests {
         let spec = SegmentedSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
@@ -483,7 +470,6 @@ mod tests {
         let spec = SegmentedSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: None,
@@ -513,7 +499,6 @@ mod tests {
         let spec = SegmentedSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
-            font: FontId(1),
             disabled: false,
             style: crate::theme::Theme::framewise().segmented_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 28.0)),
@@ -548,7 +533,6 @@ mod tests {
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
-                font: FontId(1),
                 disabled: false,
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
@@ -570,7 +554,6 @@ mod tests {
             SegmentedSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
-                font: FontId(1),
                 disabled: false,
                 style: crate::theme::Theme::framewise().segmented_style(),
                 clip_rect: None,
@@ -590,10 +573,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = SegmentedSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.segmented_style()));
-        assert_eq!(builder.font, Some(theme.sans_font));
     }
 
     #[test]
@@ -601,12 +582,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.segmented_style();
         custom_style.text_size = 99.0;
-        let builder = SegmentedSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = SegmentedSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

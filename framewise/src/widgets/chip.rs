@@ -19,7 +19,6 @@ pub mod raw {
         /// Top-left origin. Height is fixed at 22.
         pub rect: Rect,
         pub text: &'a str,
-        pub font: FontId,
         pub disabled: bool,
         pub style: super::ChipStyle,
         pub clip_rect: ClipRect,
@@ -86,7 +85,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -145,6 +144,7 @@ pub struct ChipStyle {
     pub height: f32,
     pub pad_x: f32,
     pub text_size: f32,
+    pub font: FontId,
     pub background: Color,
     pub active_bg: Color,
     pub border: Color,
@@ -181,7 +181,6 @@ pub struct ChipResult {
 pub struct ChipSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub font: Option<FontId>,
     pub disabled: Option<bool>,
     pub style: Option<ChipStyle>,
     pub clip_rect: Option<ClipRect>,
@@ -194,10 +193,6 @@ impl<'a> ChipSpecBuilder<'a> {
 
     pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: ChipStyle) -> Self {
@@ -227,9 +222,6 @@ impl<'a> ChipSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.chip_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -237,9 +229,6 @@ impl<'a> ChipSpecBuilder<'a> {
         raw::ChipSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -303,7 +292,6 @@ mod tests {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
-            font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
@@ -340,7 +328,6 @@ mod tests {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
-            font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
@@ -386,7 +373,6 @@ mod tests {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
-            font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
@@ -442,7 +428,6 @@ mod tests {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
-            font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: None,
@@ -472,7 +457,6 @@ mod tests {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
-            font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 50.0, 22.0)),
@@ -504,7 +488,6 @@ mod tests {
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
-                font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
@@ -524,7 +507,6 @@ mod tests {
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
-                font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
@@ -545,7 +527,6 @@ mod tests {
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
-                font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
                 clip_rect: None,
@@ -565,10 +546,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = ChipSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.chip_style()));
-        assert_eq!(builder.font, Some(theme.mono_font));
     }
 
     #[test]
@@ -576,10 +555,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.chip_style();
         custom_style.text_size = 99.0;
-        let builder = ChipSpecBuilder::new().style(custom_style).font(FontId(99));
+        let builder = ChipSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

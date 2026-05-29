@@ -16,7 +16,6 @@ pub mod raw {
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
         pub text: &'a str,
-        pub font: FontId,
         pub min: f32,
         pub max: f32,
         pub disabled: bool,
@@ -60,7 +59,7 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let text_layout = text_system.prepare(spec.text, s.text_size, spec.font);
+        let text_layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
         let text_w = text_layout.size.x + s.text_pad_x * 2.0;
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
@@ -163,7 +162,7 @@ pub mod raw {
         }
 
         let value_text = format!("{:.2}", state.value);
-        let val_layout = text_system.prepare(&value_text, s.text_size, spec.font);
+        let val_layout = text_system.prepare(&value_text, s.text_size, spec.style.font);
         let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
         let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
@@ -192,6 +191,7 @@ pub mod raw {
 pub struct DragNumberStyle {
     pub text_size: f32,
     pub text_pad_x: f32,
+    pub font: FontId,
     pub background: Color,
     pub border: Color,
     pub focus: Color,
@@ -232,7 +232,6 @@ pub struct DragNumberResult {
 pub struct DragNumberSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub font: Option<FontId>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub disabled: Option<bool>,
@@ -247,10 +246,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
     pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: DragNumberStyle) -> Self {
@@ -288,9 +283,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.drag_number_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.sans_font);
-        }
         self
     }
 
@@ -298,9 +290,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
         raw::DragNumberSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -374,7 +363,6 @@ mod tests {
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
-            font: FontId(1),
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -430,7 +418,6 @@ mod tests {
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
-            font: FontId(1),
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -495,7 +482,6 @@ mod tests {
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
-            font: FontId(1),
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -557,7 +543,6 @@ mod tests {
         let spec = DragNumberSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
-            font: FontId(1),
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -592,7 +577,6 @@ mod tests {
         let spec = DragNumberSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
-            font: FontId(1),
             min: 0.0,
             max: 100.0,
             disabled: false,
@@ -632,7 +616,6 @@ mod tests {
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
-                font: FontId(1),
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
@@ -656,7 +639,6 @@ mod tests {
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
-                font: FontId(1),
                 min: 0.0,
                 max: 100.0,
                 disabled: false,
@@ -678,10 +660,8 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let builder = DragNumberSpecBuilder::new();
         assert!(builder.style.is_none());
-        assert!(builder.font.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style, Some(theme.drag_number_style()));
-        assert_eq!(builder.font, Some(theme.sans_font));
     }
 
     #[test]
@@ -689,12 +669,9 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = theme.drag_number_style();
         custom_style.text_size = 99.0;
-        let builder = DragNumberSpecBuilder::new()
-            .style(custom_style)
-            .font(FontId(99));
+        let builder = DragNumberSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
-        assert_eq!(builder.font, Some(FontId(99)));
     }
 
     #[test]

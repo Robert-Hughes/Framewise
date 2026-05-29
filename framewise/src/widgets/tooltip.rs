@@ -14,7 +14,6 @@ pub mod raw {
     pub struct TooltipSpec<'a> {
         pub rect: Rect,
         pub text: &'a str,
-        pub font: FontId,
         pub variant: super::TooltipVariant,
         pub style: super::TooltipStyle,
     }
@@ -43,7 +42,7 @@ pub mod raw {
             TooltipVariant::Rust => (s.rust_bg, s.rust_text),
         };
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
         let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
         let box_h = layout.size.y + pad_y_top + pad_y_bot;
 
@@ -87,6 +86,7 @@ pub enum TooltipVariant {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TooltipStyle {
     pub text_size: f32,
+    pub font: FontId,
     pub pad_x: f32,
     pub pad_y_top: f32,
     pub pad_y_bot: f32,
@@ -114,7 +114,6 @@ pub struct TooltipResult {
 pub struct TooltipSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub font: Option<FontId>,
     pub variant: Option<TooltipVariant>,
     pub style: Option<TooltipStyle>,
 }
@@ -126,10 +125,6 @@ impl<'a> TooltipSpecBuilder<'a> {
 
     pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
         self
     }
     pub fn style(mut self, style: TooltipStyle) -> Self {
@@ -154,9 +149,6 @@ impl<'a> TooltipSpecBuilder<'a> {
         if self.style.is_none() {
             self.style = Some(theme.tooltip_style());
         }
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
-        }
         self
     }
 
@@ -164,9 +156,6 @@ impl<'a> TooltipSpecBuilder<'a> {
         raw::TooltipSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -208,7 +197,6 @@ mod tests {
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
-            font: FontId(0),
             variant: TooltipVariant::Dark,
             style: crate::theme::Theme::framewise().tooltip_style(),
         };
@@ -249,7 +237,6 @@ mod tests {
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
-            font: FontId(0),
             variant: TooltipVariant::Rust,
             style: crate::theme::Theme::framewise().tooltip_style(),
         };
