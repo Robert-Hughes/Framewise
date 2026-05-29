@@ -1,7 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
+    layout::LayoutState,
+    text::TextSystem,
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -34,7 +36,7 @@ pub mod raw {
         spec: RadioSpec,
         state: &mut RadioState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
     ) -> RadioResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -151,7 +153,7 @@ pub struct RadioStyle {
 pub struct RadioState {
     pub selected: bool,
     pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -231,8 +233,8 @@ impl RadioSpecBuilder {
 ///
 /// This function accepts a RadioSpec and calls the low-level raw::radio function.
 pub fn radio<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -269,7 +271,7 @@ mod tests {
             spec,
             &mut RadioState { selected, ..Default::default() },
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
         )
     }
 
@@ -339,7 +341,7 @@ mod tests {
     #[test]
     fn test_radio_visual_focused() {
         let state = RadioState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
         let spec = RadioSpec {
@@ -410,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_radio_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = RadioState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -437,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_radio_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = RadioState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -464,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_radio_keyboard_toggle() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = RadioState::default();
         let mut input = Input::default();
 
@@ -526,7 +528,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

@@ -1,9 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    input::Input,
-    types::{ClipRect, Color, Rect, Vec2},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, types::{ClipRect, Color, Rect, Vec2}, widget::{InputInfo, LayoutInfo, WidgetContext}
 };
 
 pub mod raw {
@@ -34,7 +30,7 @@ pub mod raw {
         spec: CheckboxSpec,
         state: &mut CheckboxState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
     ) -> CheckboxResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -185,7 +181,7 @@ pub enum CheckState {
 pub struct CheckboxState {
     pub check: CheckState,
     pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -263,8 +259,8 @@ impl CheckboxSpecBuilder {
 ///
 /// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
 pub fn checkbox<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -304,7 +300,7 @@ mod tests {
                 ..Default::default()
             },
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
         )
     }
 
@@ -410,7 +406,7 @@ mod tests {
     #[test]
     fn test_checkbox_visual_focused() {
         let state = CheckboxState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
         let spec = CheckboxSpec {
@@ -476,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = CheckboxState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -503,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = CheckboxState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -530,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_keyboard_toggle() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = CheckboxState::default();
         let mut input = Input::default();
 
@@ -593,7 +589,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

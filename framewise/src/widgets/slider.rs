@@ -2,6 +2,8 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
+    layout::LayoutState,
+    text::TextSystem,
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -653,8 +655,8 @@ impl SliderSpecBuilder {
 ///
 /// This function accepts a SliderSpec and calls the low-level raw::slider function.
 pub fn slider<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -1605,7 +1607,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

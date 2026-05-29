@@ -1,14 +1,11 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    input::Input,
-    text::FontId,
-    types::{ClipRect, Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, text::FontId, types::{ClipRect, Color, Rect}, widget::{InputInfo, LayoutInfo, WidgetContext}
 };
 
 pub mod raw {
-    use super::*;
+    use crate::TextSystem;
+
+use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonSpec<'a> {
@@ -31,11 +28,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn button<T: crate::text::TextSystem>(
+    pub fn button<T: TextSystem>(
         spec: ButtonSpec,
         state: &mut ButtonState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> ButtonResult {
         // Disabled: register for layout but skip all interaction.
@@ -203,7 +200,7 @@ pub struct ButtonState {
     /// True if the spacebar was pressed while this button was focused, until space or focus is lost.
     pub space_is_active: bool,
     /// Globally unique ID for tracking keyboard focus.
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -284,8 +281,8 @@ impl<'a> ButtonSpecBuilder<'a> {
 /// and calls the low-level raw::button function.
 pub fn button<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -317,7 +314,7 @@ mod tests {
     use super::raw::ButtonSpec;
     use super::*;
 
-    use crate::focus::FocusId;
+    use FocusId;
     use crate::test_utils::DummyTextSys;
     use crate::text::TextHandle;
     use crate::theme;
@@ -334,7 +331,7 @@ mod tests {
 
     /// Run one frame with two buttons.
     fn two_btn_frame(
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         s1: &mut ButtonState,
         s2: &mut ButtonState,
         input: &Input,
@@ -360,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_button_tab_moves_focus_next() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
         focus_sys.take_focus(s1.focus_id);
@@ -379,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_button_right_arrow_moves_focus_next() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
         focus_sys.take_focus(s1.focus_id);
@@ -397,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_button_down_arrow_moves_focus_next() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
         focus_sys.take_focus(s1.focus_id);
@@ -415,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_button_shift_tab_moves_focus_prev() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
         // Start with focus on s2
@@ -450,7 +447,7 @@ mod tests {
         };
 
         // Frame 1: Mouse down on Btn1
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
@@ -531,7 +528,7 @@ mod tests {
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Mouse pressed
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
@@ -555,7 +552,7 @@ mod tests {
     fn test_button_click_takes_focus() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
@@ -578,7 +575,7 @@ mod tests {
     #[test]
     fn test_button_clipped_click_does_not_take_focus() {
         let mut text_system = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // Mouse is inside the widget rect but outside the clip_rect.
         let spec = ButtonSpec {
@@ -609,7 +606,7 @@ mod tests {
     fn test_enter_clicks_raw_button() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
@@ -629,7 +626,7 @@ mod tests {
     fn test_hover_and_press_state() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
@@ -670,7 +667,7 @@ mod tests {
     fn test_spacebar_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
@@ -708,7 +705,7 @@ mod tests {
     fn test_spacebar_loses_focus_does_not_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
@@ -747,7 +744,7 @@ mod tests {
     #[test]
     fn test_button_visual_normal() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
@@ -789,7 +786,7 @@ mod tests {
     #[test]
     fn test_button_visual_hovered() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
@@ -832,7 +829,7 @@ mod tests {
     #[test]
     fn test_button_visual_pressed() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0);
@@ -878,7 +875,7 @@ mod tests {
     #[test]
     fn test_button_visual_focused() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
@@ -935,7 +932,7 @@ mod tests {
     #[test]
     fn test_button_visual_disabled() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let spec = ButtonSpec {
             disabled: true,
@@ -985,7 +982,7 @@ mod tests {
     #[test]
     fn test_regression_custom_style_no_theme_lookup() {
         let mut text_sys = DummyTextSys;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
 
@@ -1064,7 +1061,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

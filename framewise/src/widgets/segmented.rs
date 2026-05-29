@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -33,11 +34,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn segmented<'a, T: crate::text::TextSystem>(
+    pub fn segmented<'a, T: TextSystem>(
         spec: SegmentedSpec<'a>,
         state: &mut SegmentedState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> SegmentedResult {
         let mut cmds = DrawCommands::new();
@@ -207,7 +208,7 @@ pub struct SegmentedStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SegmentedState {
     pub active_index: usize,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -303,8 +304,8 @@ impl<'a> SegmentedSpecBuilder<'a> {
 /// This function accepts a SegmentedSpec and calls the low-level raw::segmented function.
 pub fn segmented<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -342,7 +343,7 @@ mod tests {
             spec,
             &mut SegmentedState { active_index, ..Default::default()},
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         )
     }
@@ -400,7 +401,7 @@ mod tests {
     #[test]
     fn test_segmented_visual_focused() {
         let mut state = SegmentedState { active_index: 1, ..Default::default() };
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
@@ -466,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_segmented_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = SegmentedState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
@@ -496,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_segmented_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = SegmentedState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
@@ -526,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_segmented_keyboard_navigation() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = SegmentedState::default();
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
@@ -607,7 +608,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

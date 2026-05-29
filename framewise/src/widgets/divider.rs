@@ -1,6 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
+    layout::LayoutState,
+    text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -97,8 +99,8 @@ impl DividerSpecBuilder {
 /// This function accepts a DividerSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::divider function.
 pub fn divider<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -165,7 +167,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

@@ -1,7 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -27,7 +28,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<'a, T: crate::text::TextSystem>(
+    pub fn tooltip<'a, T: TextSystem>(
         spec: TooltipSpec<'a>,
         text_system: &mut T,
     ) -> TooltipResult {
@@ -184,8 +185,8 @@ impl<'a> TooltipSpecBuilder<'a> {
 /// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
 pub fn tooltip<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -295,7 +296,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

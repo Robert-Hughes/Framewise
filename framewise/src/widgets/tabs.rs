@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -33,11 +34,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tabs<'a, T: crate::text::TextSystem>(
+    pub fn tabs<'a, T: TextSystem>(
         spec: TabsSpec<'a>,
         state: &mut TabsState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> TabsResult {
         let mut cmds = DrawCommands::new();
@@ -202,7 +203,7 @@ pub struct TabsStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TabsState {
     pub active_index: usize,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -298,8 +299,8 @@ impl<'a> TabsSpecBuilder<'a> {
 /// This function accepts a TabsSpec and calls the low-level raw::tabs function.
 pub fn tabs<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -337,7 +338,7 @@ mod tests {
             spec,
             &mut TabsState { active_index, ..Default::default() },
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         )
     }
@@ -394,7 +395,7 @@ mod tests {
     #[test]
     fn test_tabs_visual_focused() {
         let mut state = TabsState { active_index: 1, ..Default::default() };
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
@@ -459,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_tabs_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
@@ -489,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_tabs_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
@@ -519,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_tabs_keyboard_navigation() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
@@ -598,7 +599,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

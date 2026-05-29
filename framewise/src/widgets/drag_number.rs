@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -35,11 +36,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn drag_number<'a, T: crate::text::TextSystem>(
+    pub fn drag_number<'a, T: TextSystem>(
         spec: DragNumberSpec<'a>,
         state: &mut DragNumberState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> DragNumberResult {
         let (focused, clicked) = if spec.disabled {
@@ -213,7 +214,7 @@ pub struct DragNumberState {
     pub is_dragging: bool,
     pub drag_start_x: f32,
     pub drag_start_value: f32,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -321,8 +322,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
 /// This function accepts a DragNumberSpec and calls the low-level raw::drag_number function.
 pub fn drag_number<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -361,7 +362,7 @@ mod tests {
             spec,
             &mut DragNumberState { value, ..Default::default() },
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         )
     }
@@ -440,7 +441,7 @@ mod tests {
             spec,
             &mut state,
             &input,
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         );
 
@@ -502,7 +503,7 @@ mod tests {
             spec,
             &mut DragNumberState::default(),
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut text_sys,
         );
 
@@ -538,7 +539,7 @@ mod tests {
 
     #[test]
     fn test_drag_number_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -570,7 +571,7 @@ mod tests {
 
     #[test]
     fn test_drag_number_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -602,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_drag_number_keyboard_navigation() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = DragNumberState { value: 50.0, ..Default::default() };
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
@@ -686,7 +687,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

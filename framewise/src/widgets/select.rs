@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -34,11 +35,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn select<'a, T: crate::text::TextSystem>(
+    pub fn select<'a, T: TextSystem>(
         spec: SelectSpec<'a>,
         state: &mut SelectState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
@@ -323,7 +324,7 @@ pub struct SelectState {
     pub open: bool,
     pub hovered: Option<usize>,
     pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -421,8 +422,8 @@ impl<'a> SelectSpecBuilder<'a> {
 
 pub fn select<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -461,7 +462,7 @@ mod tests {
             spec,
             &mut SelectState::default(),
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         )
     }
@@ -528,7 +529,7 @@ mod tests {
             open: true,
             hovered: Some(1),
             space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
+            focus_id: FocusId::new(),
         };
 
         let mut state = state;
@@ -536,7 +537,7 @@ mod tests {
             spec,
             &mut state,
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut text_sys,
         );
 
@@ -608,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_select_click_takes_focus_and_opens() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = SelectState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -641,7 +642,7 @@ mod tests {
 
     #[test]
     fn test_select_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = SelectState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -673,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_select_keyboard_navigation() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = SelectState::default();
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
@@ -827,7 +828,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

@@ -1,7 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -27,7 +28,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<'a, T: crate::text::TextSystem>(
+    pub fn status<'a, T: TextSystem>(
         spec: StatusSpec<'a>,
         text_system: &mut T,
     ) -> StatusResult {
@@ -50,8 +51,7 @@ pub mod raw {
             color: dot_color,
         });
 
-        let text_upper = spec.text.to_uppercase();
-        let layout = text_system.prepare(&text_upper, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
         let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -173,8 +173,8 @@ impl<'a> StatusSpecBuilder<'a> {
 /// This function accepts a StatusSpec and calls the low-level raw::status function.
 pub fn status<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -284,7 +284,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

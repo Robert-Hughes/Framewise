@@ -1,6 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
+    layout::LayoutState,
+    text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -191,8 +193,8 @@ impl SpinnerSpecBuilder {
 ///
 /// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
 pub fn spinner<
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -391,7 +393,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

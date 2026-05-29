@@ -1,9 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    text::FontId,
-    types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    TextSystem, draw::{DrawCmd, DrawCommands}, focus::FocusSystem, layout::{Layout, LayoutState}, text::FontId, types::{Color, Rect, Vec2}, widget::{LayoutInfo, WidgetContext}
 };
 
 pub mod raw {
@@ -30,7 +26,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn begin_window<'a, T: crate::text::TextSystem>(
+    pub fn begin_window<'a, T: TextSystem>(
         spec: WindowSpec<'a>,
         text_system: &mut T,
     ) -> WindowResult {
@@ -63,8 +59,7 @@ pub mod raw {
             color: s.title_bg,
         });
 
-        let title_upper = spec.title.to_uppercase();
-        let title_layout = text_system.prepare(&title_upper, s.text_size, spec.font);
+        let title_layout = text_system.prepare(spec.title, s.text_size, spec.font);
         let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
         draw.push(DrawCmd::Text {
             rect: Rect::new(
@@ -171,8 +166,8 @@ pub struct WindowStyle {
 
 pub struct WindowResult<
     'b,
-    T: crate::text::TextSystem,
-    LS: crate::layout::LayoutState,
+    T: TextSystem,
+    LS: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     pub layout: LayoutInfo,
@@ -270,9 +265,9 @@ pub fn begin_window<
     'a,
     'b,
     'c,
-    T: crate::text::TextSystem,
-    LS: crate::layout::LayoutState,
-    L: crate::layout::Layout,
+    T: TextSystem,
+    LS: LayoutState,
+    L: Layout,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &'b mut WidgetContext<'a, T, LS, CF>,
@@ -347,7 +342,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 200.0, 150.0);

@@ -1,14 +1,11 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    input::Input,
-    text::FontId,
-    types::{ClipRect, Color, Rect},
-    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, text::FontId, types::{ClipRect, Color, Rect}, widget::{InputInfo, LayoutInfo, WidgetContext}
 };
 
 pub mod raw {
-    use super::*;
+    use crate::TextSystem;
+
+use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ChipSpec<'a> {
@@ -33,11 +30,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn chip<'a, T: crate::text::TextSystem>(
+    pub fn chip<'a, T: TextSystem>(
         spec: ChipSpec<'a>,
         state: &mut ChipState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> ChipResult {
         let (focused, clicked) = if spec.disabled {
@@ -159,7 +156,7 @@ pub struct ChipStyle {
 pub struct ChipState {
     pub active: bool, // toggle state
     pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
+    pub focus_id: FocusId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -254,8 +251,8 @@ impl<'a> ChipSpecBuilder<'a> {
 /// This function accepts a ChipSpec and calls the low-level raw::chip function.
 pub fn chip<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -294,7 +291,7 @@ mod tests {
             spec,
             &mut ChipState::default(),
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut DummyTextSys,
         )
     }
@@ -352,7 +349,7 @@ mod tests {
             spec,
             &mut state,
             &Input::default(),
-            &mut crate::focus::FocusSystem::new(),
+            &mut FocusSystem::new(),
             &mut text_sys,
         );
 
@@ -380,7 +377,7 @@ mod tests {
     #[test]
     fn test_chip_visual_focused() {
         let state = ChipState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();
         let mut text_sys = DummyTextSys;
@@ -433,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_chip_click_takes_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ChipState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(10.0, 10.0);
@@ -463,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_chip_clipped_click_does_not_take_focus() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let state = ChipState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(10.0, 10.0);
@@ -493,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_chip_keyboard_toggle() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut state = ChipState::default();
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
@@ -587,7 +584,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

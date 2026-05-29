@@ -1,7 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    text::FontId,
+    layout::LayoutState,
+    text::{FontId, TextSystem},
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -28,7 +29,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: crate::text::TextSystem>(
+    pub fn menu<'a, T: TextSystem>(
         spec: MenuSpec<'a>,
         text_system: &mut T,
     ) -> MenuResult {
@@ -273,8 +274,8 @@ impl<'a> MenuSpecBuilder<'a> {
 /// This function accepts a MenuSpec and calls the low-level raw::menu function.
 pub fn menu<
     'a,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
+    T: TextSystem,
+    S: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
@@ -329,7 +330,7 @@ mod tests {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);

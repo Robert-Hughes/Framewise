@@ -1,8 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
+    focus::{FocusId, FocusSystem},
     input::Input,
-    layout::Layout,
+    layout::{Layout, LayoutState},
+    text::TextSystem,
     types::{ClipRect, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext}, widgets::SliderStyle,
 };
@@ -24,7 +25,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ScrollAreaToken {
-        pub(super) id: crate::focus::FocusId,
+        pub(super) id: FocusId,
         pub(super) at_top: bool,
         pub(super) at_bottom: bool,
         pub(super) at_left: bool,
@@ -48,7 +49,7 @@ pub mod raw {
         spec: ScrollAreaSpec,
         state: &mut ScrollState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
     ) -> ScrollAreaResult {
         let mut pre_cmds = Vec::new();
 
@@ -248,7 +249,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn end_scroll_area(
         token: ScrollAreaToken,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
     ) -> DrawCommands {
         let post_cmds = DrawCommands(vec![DrawCmd::PopClip]);
 
@@ -313,13 +314,13 @@ pub mod raw {
     fn apply_wheel(
         state: &mut ScrollState,
         mode: ScrollMode,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         input: &Input,
     ) {
         let dy = input.scroll_delta.y;
         let dx_raw = input.scroll_delta.x;
 
-        let scroll_vert = |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem| {
+        let scroll_vert = |state: &mut ScrollState, focus_sys: &FocusSystem| {
             if dy > 0.0 && focus_sys.is_active_scroll_up(state.id) {
                 state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
             }
@@ -328,7 +329,7 @@ pub mod raw {
             }
         };
         let scroll_horiz =
-            |state: &mut ScrollState, focus_sys: &crate::focus::FocusSystem, dx: f32| {
+            |state: &mut ScrollState, focus_sys: &FocusSystem, dx: f32| {
                 if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
                     state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
                 }
@@ -369,7 +370,7 @@ pub mod raw {
         state: &mut ScrollState,
         mode: ScrollMode,
         content_bounds: Rect,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         input: &Input,
     ) {
         if !input.key_pressed_page_up && !input.key_pressed_page_down {
@@ -436,7 +437,7 @@ pub enum ScrollbarVisibility {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScrollState {
-    pub id: crate::focus::FocusId,
+    pub id: FocusId,
     pub offset: Vec2,
     pub vert_slider_state: crate::widgets::slider::SliderState,
     pub horiz_slider_state: crate::widgets::slider::SliderState,
@@ -446,8 +447,8 @@ pub struct ScrollState {
 
 pub struct ScrollAreaResult<
     'b,
-    T: crate::text::TextSystem,
-    LS: crate::layout::LayoutState,
+    T: TextSystem,
+    LS: LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
     pub layout: LayoutInfo,
@@ -599,9 +600,9 @@ const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 pub fn begin_scroll_area<
     'a,
     'b,
-    T: crate::text::TextSystem,
-    S: crate::layout::LayoutState,
-    L: crate::layout::Layout,
+    T: TextSystem,
+    S: LayoutState,
+    L: Layout,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
@@ -683,7 +684,7 @@ mod tests {
         content_size: Vec2,
         state: &mut ScrollState,
         input: &Input,
-        focus_sys: &mut crate::focus::FocusSystem,
+        focus_sys: &mut FocusSystem,
         clip_rect: ClipRect,
         time: f64,
     ) -> (
@@ -717,7 +718,7 @@ mod tests {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
         let input = Input::new();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         let (_, content_bounds, layout) = scroll_area(
             bounds,
@@ -746,7 +747,7 @@ mod tests {
         let mut input = Input::new();
         input.scroll_delta = Vec2::new(0.0, wheel_delta_y);
         input.mouse_pos = mouse_pos;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         for _ in 0..2 {
             focus_sys.begin_frame();
@@ -812,7 +813,7 @@ mod tests {
 
         let mut input = Input::new();
         input.key_pressed_page_down = true;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut text_sys = DummyTextSys;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
@@ -863,7 +864,7 @@ mod tests {
         let mut state = ScrollState::default();
         let mut input = Input::new();
         input.key_pressed_page_down = true;
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut text_sys = DummyTextSys;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
@@ -913,7 +914,7 @@ mod tests {
     fn test_pgdn_with_focus_outside_token() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
         let mut text_sys = DummyTextSys;
 
@@ -966,7 +967,7 @@ mod tests {
     fn test_slider_drag_with_wheel_drag_wins() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // Frame 0: press on vertical thumb (drag start). Thumb at top of track,
         // track at x=188..200 y=0..200. Thumb pos = 0, length ratio = 200/1000.
@@ -1027,7 +1028,7 @@ mod tests {
     fn test_auto_degenerate_does_not_block_parent() {
         let mut outer = ScrollState::default();
         let mut inner = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         for frame in 0..3 {
             focus_sys.begin_frame();
@@ -1077,7 +1078,7 @@ mod tests {
     fn test_always_visible_but_fits_does_not_block_parent() {
         let mut outer = ScrollState::default();
         let mut inner = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         for frame in 0..3 {
             focus_sys.begin_frame();
@@ -1126,7 +1127,7 @@ mod tests {
     fn test_mouse_outside_bounds_no_scroll() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
@@ -1154,7 +1155,7 @@ mod tests {
     fn test_sibling_scroll_areas_dont_steal() {
         let mut a = ScrollState::default();
         let mut b = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
@@ -1197,7 +1198,7 @@ mod tests {
     fn test_simultaneous_dx_and_dy() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         frames(&mut focus_sys, 3, |frame, fs| {
             let mut input = Input::new();
@@ -1235,7 +1236,7 @@ mod tests {
         let mut state = ScrollState::default();
         state.offset.y = 500.0; // ahead of any plausible max
         let input = Input::new();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         focus_sys.begin_frame();
         let spec = ScrollAreaSpec {
@@ -1264,7 +1265,7 @@ mod tests {
     fn test_non_zero_bounds_origin() {
         let bounds = Rect::new(100.0, 200.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         for frame in 0..3 {
             focus_sys.begin_frame();
@@ -1298,7 +1299,7 @@ mod tests {
 
         // Mouse just outside the offset bounds must NOT scroll.
         let mut state2 = ScrollState::default();
-        let mut focus_sys2 = crate::focus::FocusSystem::new();
+        let mut focus_sys2 = FocusSystem::new();
         for frame in 0..3 {
             focus_sys2.begin_frame();
             let mut input = Input::new();
@@ -1331,7 +1332,7 @@ mod tests {
     fn test_scrollbar_corner_is_dead_zone() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // 2D scroll area: content_bounds=(0,0,188,188). Corner is (188..200, 188..200).
         frames(&mut focus_sys, 3, |frame, fs| {
@@ -1367,7 +1368,7 @@ mod tests {
     fn test_clip_rect_masks_scroll() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // Clip excludes the bottom-right quadrant. Mouse lands at (150,150) — inside
         // content_bounds but outside this clip.
@@ -1409,7 +1410,7 @@ mod tests {
     /// Up from btn_start: currently picks btn_clipped (lower score). Should pick btn_visible.
     #[test]
     fn test_spatial_nav_skips_widget_clipped_by_scroll_area() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut scroll_state = ScrollState::default();
         let mut btn_visible_state = crate::widgets::button::ButtonState::default();
         let mut btn_clipped_state = crate::widgets::button::ButtonState::default();
@@ -1517,7 +1518,7 @@ mod tests {
     /// Up from btn_start must land on btn_partial (partially visible, not excluded).
     #[test]
     fn test_spatial_nav_reaches_partially_clipped_widget() {
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let mut scroll_state = ScrollState::default();
         let mut btn_partial_state = crate::widgets::button::ButtonState::default();
         let mut btn_start_state = crate::widgets::button::ButtonState::default();
@@ -1601,7 +1602,7 @@ mod tests {
     fn test_scrollbar_click_takes_focus() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // Pre-render to materialise the vertical slider's focus_id.
         focus_sys.begin_frame();
@@ -1650,7 +1651,7 @@ mod tests {
     fn test_scrollbar_clipped_click_does_not_take_focus() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
 
         // Pre-render to materialise the vertical slider's focus_id.
         focus_sys.begin_frame();
@@ -1701,7 +1702,7 @@ mod tests {
     fn test_home_end_on_focused_slider() {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         let mut state = ScrollState::default();
-        let mut focus_sys = crate::focus::FocusSystem::new();
+        let mut focus_sys = FocusSystem::new();
         let input = Input::new();
 
         // Pre-render to materialise the vertical slider's focus_id.
@@ -3778,7 +3779,7 @@ mod nested_bubbling_tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_sys = DummyTextSys;
-        let mut focus = crate::focus::FocusSystem::new();
+        let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 80.0);
