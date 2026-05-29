@@ -18,6 +18,17 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
 
+  2. Mouse-capture flag — inconsistent, contradicts DESIGN
+button: is_active
+slider/text_edit/drag_number: is_dragging
+checkbox/radio/switch/chip/segmented/tabs/select: no capture flag
+DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Toggles drop it. Partly justified (toggles fire on click, no drag), BUT button keeps is_active for drag-off-cancel while checkbox doesn't → clicking checkbox + dragging off still fires. UX inconsistency not stated as deliberate. Name is_active vs is_dragging also arbitrary for same concept.
+
+3. Keyboard space/enter block — copy-pasted, no helper
+Verbatim space_is_active press/release/activation block duplicated in button, checkbox, radio, switch, chip, select. Should be shared fn. segmented/tabs/drag_number use arrow nav instead (justified).
+
+
+
 ## Things Still to Figure Out
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual

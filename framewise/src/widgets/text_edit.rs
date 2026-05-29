@@ -338,7 +338,7 @@ pub mod raw {
             let b_color = if spec.error {
                 spec.style.error_border
             } else if focused {
-                spec.style.focus_border
+                spec.style.focus
             } else {
                 spec.style.border
             };
@@ -434,7 +434,7 @@ pub struct TextEditStyle {
     pub background: Color,
     pub error_background: Color,
     pub border: Color,
-    pub focus_border: Color,
+    pub focus: Color,
     pub border_width: f32,
     pub error_border: Color,
     pub error_stripe_width: f32,
@@ -1226,7 +1226,7 @@ mod tests {
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                    color: spec().style.focus_border,
+                    color: spec().style.focus,
                     width: spec().style.border_width,
                 },
                 DrawCmd::Text {
@@ -1267,7 +1267,7 @@ mod tests {
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                    color: spec().style.focus_border,
+                    color: spec().style.focus,
                     width: spec().style.border_width,
                 },
                 DrawCmd::FillRect {

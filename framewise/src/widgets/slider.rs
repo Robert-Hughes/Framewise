@@ -385,9 +385,9 @@ pub mod raw {
         // Focus outline.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
-                rect: track_rect.inset(-2.0),
-                color: spec.style.focus_outline_color,
-                width: 2.0,
+                rect: track_rect.inset(-spec.style.focus_offset),
+                color: spec.style.focus,
+                width: spec.style.focus_width,
             });
         }
 
@@ -508,7 +508,9 @@ pub struct SliderStyle {
     pub thumb_border_width: f32,
     pub thumb_hover_color: Color, // fill on hover (standalone only)
     pub thumb_drag_color: Color,  // fill + border when dragging
-    pub focus_outline_color: Color,
+    pub focus: Color,
+    pub focus_width: f32,
+    pub focus_offset: f32,
     /// Track line thickness for standalone sliders; ignored in scrollbar mode.
     pub thickness: f32,
     /// Square thumb side length for standalone sliders.
@@ -1555,8 +1557,8 @@ mod tests {
             vec![
                 DrawCmd::StrokeRect {
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
-                    color: spec.style.focus_outline_color,
-                    width: 2.0,
+                    color: spec.style.focus,
+                    width: spec.style.focus_width,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),

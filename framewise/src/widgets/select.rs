@@ -179,7 +179,7 @@ pub mod raw {
         if visually_focused || state.open {
             cmds.push(DrawCmd::StrokeRect {
                 rect: r.inset(-s.focus_offset),
-                color: tint(s.accent),
+                color: tint(s.focus),
                 width: s.focus_width,
             });
         }
@@ -309,6 +309,7 @@ pub struct SelectStyle {
     pub hover: Color,
     pub muted: Color,
     pub accent: Color,
+    pub focus: Color,
     pub border_width: f32,
     pub focus_width: f32,
     pub focus_offset: f32,
@@ -543,7 +544,7 @@ mod tests {
             DrawCommands(vec![
                 DrawCmd::StrokeRect {
                     rect: r.inset(-s.focus_offset),
-                    color: s.accent,
+                    color: s.focus,
                     width: s.focus_width,
                 },
                 DrawCmd::FillRect {

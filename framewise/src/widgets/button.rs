@@ -135,9 +135,11 @@ pub mod raw {
         // Focus ring drawn first (outset — sits outside the button bounds).
         if focused {
             draw.push(DrawCmd::StrokeRect {
-                rect: spec.rect.inset(-(spec.style.border_width + 2.0)),
-                color: spec.style.focus_border,
-                width: 2.0,
+                rect: spec
+                    .rect
+                    .inset(-(spec.style.border_width + spec.style.focus_offset)),
+                color: spec.style.focus,
+                width: spec.style.focus_width,
             });
         }
 
@@ -190,7 +192,9 @@ pub struct ButtonStyle {
     pub pressed: Color,
     pub border: Color,
     pub border_width: f32,
-    pub focus_border: Color,
+    pub focus: Color,
+    pub focus_width: f32,
+    pub focus_offset: f32,
     pub text_size: f32,
     pub font: FontId,
     pub text_color: Color,
@@ -898,19 +902,22 @@ mod tests {
             border,
             border_width,
             text_color,
-            focus_border,
+            focus,
+            focus_offset,
+            focus_width,
             ..
         } = theme::Theme::default().button_primary_style();
 
-        let expected_focus_rect = Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + 2.0));
+        let expected_focus_rect =
+            Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + focus_offset));
 
         assert_eq!(
             res.draw,
             DrawCommands(vec![
                 DrawCmd::StrokeRect {
                     rect: expected_focus_rect,
-                    color: focus_border,
-                    width: 2.0,
+                    color: focus,
+                    width: focus_width,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -993,7 +1000,9 @@ mod tests {
             pressed: Color::from_srgb_u8(120, 170, 220, 255),
             border: Color::from_srgb_u8(220, 230, 240, 255),
             border_width: 4.5,
-            focus_border: Color::from_srgb_u8(255, 0, 0, 255),
+            focus: Color::from_srgb_u8(255, 0, 0, 255),
+            focus_width: 2.0,
+            focus_offset: 2.0,
             text_size: 19.5,
             font: FontId(0),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),

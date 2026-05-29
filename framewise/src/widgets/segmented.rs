@@ -142,7 +142,7 @@ pub mod raw {
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
                 cmds.push(DrawCmd::StrokeRect {
-                    rect: seg_rect.inset(s.focus_inset),
+                    rect: seg_rect.inset(s.focus_offset),
                     color: tint(s.focus),
                     width: s.focus_width,
                 });
@@ -199,7 +199,7 @@ pub struct SegmentedStyle {
     pub focus: Color,
     pub border_width: f32,
     pub focus_width: f32,
-    pub focus_inset: f32,
+    pub focus_offset: f32,
     pub disabled_alpha: f32,
 }
 
