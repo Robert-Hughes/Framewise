@@ -68,7 +68,6 @@ fn draw_checkbox_fake_state<
     let dummy_input = Input::default();
     let spec = CheckboxSpec {
         rect,
-        state: state_val,
         disabled: is_disabled,
         style: b.theme.checkbox_style(),
         clip_rect: b.clip_rect,
@@ -1351,7 +1350,7 @@ pub fn draw_spec_page(
                         let _info = {
                             let this = &mut *b;
                             let state = &mut state.cb_matrix[ci];
-                            let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
+                            let spec_builder = CheckboxSpecBuilder::new();
                             checkbox(this, spec_builder, rect, state)
                         };
                     } else {
@@ -1379,7 +1378,7 @@ pub fn draw_spec_page(
                             let this = &mut *b;
                             let state = &mut state.cb_matrix[3 + ci];
                             let layout_params = Rect::new(cx, y, 14.0, 14.0);
-                            let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
+                            let spec_builder = CheckboxSpecBuilder::new();
                             checkbox(this, spec_builder, layout_params, state)
                         };
                     } else {
@@ -2809,7 +2808,7 @@ pub fn draw_spec_page(
                         let this = &mut win;
                         let state = &mut state.win11_cbs[i];
                         let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
-                        let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
+                        let spec_builder = CheckboxSpecBuilder::new();
                         checkbox(this, spec_builder, layout_params, state)
                     };
                     {
@@ -3290,7 +3289,7 @@ pub fn draw_spec_page(
                         let this = &mut win;
                         let state = &mut state.iu_options[i];
                         let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
-                        let spec_builder = CheckboxSpecBuilder::new().check_state(state.check);
+                        let spec_builder = CheckboxSpecBuilder::new();
                         checkbox(this, spec_builder, layout_params, state)
                     };
 
