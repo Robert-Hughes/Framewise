@@ -18,6 +18,11 @@ pub mod raw {
         pub style: super::TooltipStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TooltipResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level tooltip widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -71,12 +76,9 @@ pub mod raw {
 
         TooltipResult { draw: cmds }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct TooltipResult {
-        pub draw: DrawCommands,
-    }
 }
+
+// ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TooltipVariant {
@@ -101,10 +103,14 @@ pub struct TooltipStyle {
     pub arrow_width: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TooltipResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TooltipSpecBuilder<'a> {

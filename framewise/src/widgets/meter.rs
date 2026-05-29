@@ -68,10 +68,14 @@ const BAR_W: f32 = 6.0;
 const BAR_H: f32 = 14.0;
 const BAR_GAP: f32 = 2.0;
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MeterResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MeterSpecBuilder {

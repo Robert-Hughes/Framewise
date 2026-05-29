@@ -80,10 +80,14 @@ pub mod raw {
     }
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeycapResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {

@@ -149,6 +149,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum MenuItem<'a> {
     Item {
@@ -185,10 +187,14 @@ pub struct MenuStyle {
     pub border_width: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MenuResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MenuSpecBuilder<'a> {

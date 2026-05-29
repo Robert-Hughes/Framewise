@@ -135,6 +135,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SwitchStyle {
     pub size: (f32, f32),
@@ -151,6 +153,8 @@ pub struct SwitchStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchState {
     pub on: bool,
@@ -158,12 +162,16 @@ pub struct SwitchState {
     pub focus_id: crate::focus::FocusId,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwitchResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SwitchSpecBuilder {

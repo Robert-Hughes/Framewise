@@ -140,6 +140,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowButton {
     pub symbol: &'static str,
@@ -165,6 +167,8 @@ pub struct WindowStyle {
     pub border_width: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 pub struct WindowResult<
     'b,
     T: crate::text::TextSystem,
@@ -174,6 +178,8 @@ pub struct WindowResult<
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct WindowSpecBuilder<'a> {

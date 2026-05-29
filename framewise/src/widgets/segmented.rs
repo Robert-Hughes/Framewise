@@ -188,6 +188,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SegmentedStyle {
     pub height: f32,
@@ -205,11 +207,15 @@ pub struct SegmentedStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SegmentedState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
+
+// ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SegmentedResult {
@@ -229,6 +235,8 @@ impl SegmentedResult {
         self.focused
     }
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SegmentedSpecBuilder<'a> {

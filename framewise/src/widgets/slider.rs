@@ -496,6 +496,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SliderStyle {
     pub track_color: Color,
@@ -539,6 +541,8 @@ pub enum Orientation {
     Horizontal,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderState {
     pub value: f32,
@@ -566,12 +570,16 @@ impl Default for SliderState {
     }
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliderSpecBuilder {

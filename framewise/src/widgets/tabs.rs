@@ -183,6 +183,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TabsStyle {
     pub height: f32,
@@ -200,11 +202,15 @@ pub struct TabsStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TabsState {
     pub active_index: usize,
     pub focus_id: crate::focus::FocusId,
 }
+
+// ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TabsResult {
@@ -224,6 +230,8 @@ impl TabsResult {
         self.focused
     }
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TabsSpecBuilder<'a> {

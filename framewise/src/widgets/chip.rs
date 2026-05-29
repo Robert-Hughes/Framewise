@@ -134,6 +134,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChipStyle {
     pub height: f32,
@@ -151,6 +153,8 @@ pub struct ChipStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChipState {
     pub active: bool, // toggle state
@@ -158,12 +162,16 @@ pub struct ChipState {
     pub focus_id: crate::focus::FocusId,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChipResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChipSpecBuilder<'a> {

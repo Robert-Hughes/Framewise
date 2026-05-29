@@ -113,6 +113,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SpinnerStyle {
     pub color: Color,
@@ -125,10 +127,14 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpinnerSpecBuilder {

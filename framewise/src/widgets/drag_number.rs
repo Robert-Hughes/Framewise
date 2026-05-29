@@ -190,6 +190,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DragNumberStyle {
     pub text_size: f32,
@@ -207,6 +209,8 @@ pub struct DragNumberStyle {
     pub focus_offset: f32,
     pub disabled_alpha: f32,
 }
+
+// ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberState {
@@ -229,6 +233,8 @@ impl Default for DragNumberState {
     }
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberResult {
     pub layout: LayoutInfo,
@@ -247,6 +253,8 @@ impl DragNumberResult {
         self.focused
     }
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {

@@ -17,6 +17,11 @@ pub mod raw {
         pub style: super::TreeStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TreeResult {
+        pub draw: DrawCommands,
+    }
+
     /// Low-level tree widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -122,12 +127,9 @@ pub mod raw {
 
         TreeResult { draw: cmds }
     }
-
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct TreeResult {
-        pub draw: DrawCommands,
-    }
 }
+
+// ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeRow<'a> {
@@ -159,10 +161,14 @@ pub struct TreeStyle {
     pub border_width: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TreeResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {

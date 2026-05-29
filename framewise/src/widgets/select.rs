@@ -288,6 +288,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SelectStyle {
     pub min_width: f32,
@@ -313,6 +315,8 @@ pub struct SelectStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SelectState {
     pub selected_index: usize,
@@ -321,6 +325,8 @@ pub struct SelectState {
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
 }
+
+// ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelectResult {
@@ -340,6 +346,8 @@ impl SelectResult {
         self.focused
     }
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SelectSpecBuilder<'a> {

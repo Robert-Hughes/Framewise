@@ -135,12 +135,7 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct RadioState {
-    pub selected: bool,
-    pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
-}
+// ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RadioStyle {
@@ -156,12 +151,25 @@ pub struct RadioStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RadioState {
+    pub selected: bool,
+    pub space_is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RadioResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RadioSpecBuilder {

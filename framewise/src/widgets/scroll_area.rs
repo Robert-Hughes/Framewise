@@ -422,16 +422,7 @@ pub mod raw {
     }
 }
 
-/// Pixels of scroll per wheel "line" (winit `LineDelta` unit).
-///
-/// Windows exposes the user setting via `SPI_GETWHEELSCROLLLINES` (default 3),
-/// but the actual pixel size is up to the app. Browsers, GTK, and most editors
-/// use 30–40 px/line; we pick 30. macOS and trackpads deliver pixel-precise
-/// deltas via `PixelDelta` and the embedder is expected to convert to lines.
-///
-/// TODO: read `SPI_GETWHEELSCROLLLINES` (Windows) / equivalent (X11/Wayland)
-/// when a cross-platform crate exposes it.
-const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
+// ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScrollbarVisibility {
@@ -439,6 +430,8 @@ pub enum ScrollbarVisibility {
     Auto,
     Always,
 }
+
+// ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct ScrollState {
@@ -459,6 +452,8 @@ impl Default for ScrollState {
     }
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 pub struct ScrollAreaResult<
     'b,
     T: crate::text::TextSystem,
@@ -468,6 +463,8 @@ pub struct ScrollAreaResult<
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScrollAreaSpecBuilder {
@@ -561,6 +558,17 @@ impl ScrollMode {
         }
     }
 }
+
+/// Pixels of scroll per wheel "line" (winit `LineDelta` unit).
+///
+/// Windows exposes the user setting via `SPI_GETWHEELSCROLLLINES` (default 3),
+/// but the actual pixel size is up to the app. Browsers, GTK, and most editors
+/// use 30–40 px/line; we pick 30. macOS and trackpads deliver pixel-precise
+/// deltas via `PixelDelta` and the embedder is expected to convert to lines.
+///
+/// TODO: read `SPI_GETWHEELSCROLLLINES` (Windows) / equivalent (X11/Wayland)
+/// when a cross-platform crate exposes it.
+const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 
 // ── High-level widget functions ───────────────────────────────────────────────────
 

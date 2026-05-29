@@ -77,6 +77,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ProgressBarStyle {
     pub track_color: Color,
@@ -86,10 +88,14 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarResult {
     pub layout: LayoutInfo,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ProgressBarSpecBuilder {

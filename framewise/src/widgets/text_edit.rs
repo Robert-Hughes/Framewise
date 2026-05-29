@@ -503,6 +503,77 @@ pub struct TextEditResult {
     pub focused: bool,
 }
 
+// ── Spec Builder ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct TextEditSpecBuilder {
+    pub rect: Option<Rect>,
+    pub style: Option<TextEditStyle>,
+    pub clip_rect: Option<ClipRect>,
+    pub error: Option<bool>,
+    pub disabled: Option<bool>,
+    pub time: Option<f64>,
+}
+
+impl TextEditSpecBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn style(mut self, style: TextEditStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
+    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
+        self.clip_rect = Some(clip_rect);
+        self
+    }
+    pub fn error(mut self, error: bool) -> Self {
+        self.error = Some(error);
+        self
+    }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+    pub fn time(mut self, time: f64) -> Self {
+        self.time = Some(time);
+        self
+    }
+
+    /// Sets the bounding rectangle. Called automatically by high-level context
+    /// functions from the layout engine — only needed when using the raw API directly.
+    pub fn rect(mut self, rect: Rect) -> Self {
+        self.rect = Some(rect);
+        self
+    }
+
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(theme.text_edit_style());
+        }
+        self
+    }
+
+    pub fn build(self) -> raw::TextEditSpec {
+        raw::TextEditSpec {
+            rect: self.rect.expect("rect not set — call .rect()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
+            clip_rect: self
+                .clip_rect
+                .expect("clip_rect not set — call .clip_rect()"),
+            error: self.error.unwrap_or(false),
+            disabled: self.disabled.unwrap_or(false),
+            time: self.time.unwrap_or(0.0),
+        }
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 #[derive(PartialEq)]
@@ -609,75 +680,6 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
         }
     }
     (left, text.len())
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TextEditSpecBuilder {
-    pub rect: Option<Rect>,
-    pub style: Option<TextEditStyle>,
-    pub clip_rect: Option<ClipRect>,
-    pub error: Option<bool>,
-    pub disabled: Option<bool>,
-    pub time: Option<f64>,
-}
-
-impl TextEditSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn style(mut self, style: TextEditStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
-    pub fn error(mut self, error: bool) -> Self {
-        self.error = Some(error);
-        self
-    }
-    pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
-        self
-    }
-    pub fn time(mut self, time: f64) -> Self {
-        self.time = Some(time);
-        self
-    }
-
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(theme.text_edit_style());
-        }
-        self
-    }
-
-    pub fn build(self) -> raw::TextEditSpec {
-        raw::TextEditSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
-            error: self.error.unwrap_or(false),
-            disabled: self.disabled.unwrap_or(false),
-            time: self.time.unwrap_or(0.0),
-        }
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

@@ -154,20 +154,7 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum CheckState {
-    #[default]
-    Off,
-    On,
-    Indeterminate,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct CheckboxState {
-    pub check: CheckState,
-    pub space_is_active: bool,
-    pub focus_id: crate::focus::FocusId,
-}
+// ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CheckboxStyle {
@@ -184,12 +171,33 @@ pub struct CheckboxStyle {
     pub disabled_alpha: f32,
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum CheckState {
+    #[default]
+    Off,
+    On,
+    Indeterminate,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CheckboxState {
+    pub check: CheckState,
+    pub space_is_active: bool,
+    pub focus_id: crate::focus::FocusId,
+}
+
+// ── Result ───────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
 }
+
+// ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxSpecBuilder {
