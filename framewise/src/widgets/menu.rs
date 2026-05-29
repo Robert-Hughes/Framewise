@@ -246,15 +246,15 @@ impl<'a> MenuSpecBuilder<'a> {
         raw::MenuSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
             label_font: self
                 .label_font
-                .expect("label_font not set - call .label_font() or defaults_from_theme()"),
+                .expect("label_font not set — call .label_font() or defaults_from_theme()"),
             meta_font: self
                 .meta_font
-                .expect("meta_font not set - call .meta_font() or defaults_from_theme()"),
-            style: self.style.expect("MenuStyle is required"),
+                .expect("meta_font not set — call .meta_font() or defaults_from_theme()"),
+            style: self.style.expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }

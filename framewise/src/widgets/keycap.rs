@@ -141,7 +141,7 @@ impl<'a> KeycapSpecBuilder<'a> {
         raw::KeycapSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             label: self.label.expect("label not set — call .label()"),
             background: self.background.expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),

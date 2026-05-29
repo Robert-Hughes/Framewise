@@ -148,7 +148,7 @@ impl<'a> StatusSpecBuilder<'a> {
         raw::StatusSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             label: self.label.expect("label not set — call .label()"),
             font: self
                 .font

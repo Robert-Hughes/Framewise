@@ -222,7 +222,7 @@ impl<'a> ChipSpecBuilder<'a> {
         raw::ChipSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             label: self.label.expect("label not set — call .label()"),
             font: self
                 .font
@@ -233,7 +233,7 @@ impl<'a> ChipSpecBuilder<'a> {
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }

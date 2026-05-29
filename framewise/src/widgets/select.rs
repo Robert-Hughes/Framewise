@@ -403,7 +403,7 @@ impl<'a> SelectSpecBuilder<'a> {
         raw::SelectSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
             font: self
                 .font
@@ -415,7 +415,7 @@ impl<'a> SelectSpecBuilder<'a> {
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }

@@ -109,7 +109,7 @@ impl FrameSpecBuilder {
         raw::FrameSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

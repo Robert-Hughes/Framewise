@@ -283,7 +283,7 @@ impl<'a> TabsSpecBuilder<'a> {
         raw::TabsSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
             font: self
                 .font
@@ -295,7 +295,7 @@ impl<'a> TabsSpecBuilder<'a> {
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }

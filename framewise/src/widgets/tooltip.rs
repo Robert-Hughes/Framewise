@@ -159,7 +159,7 @@ impl<'a> TooltipSpecBuilder<'a> {
         raw::TooltipSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             font: self
                 .font

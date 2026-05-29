@@ -239,7 +239,7 @@ impl<'a> WindowSpecBuilder<'a> {
         raw::WindowSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
             font: self

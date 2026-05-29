@@ -212,7 +212,7 @@ impl<'a> TreeSpecBuilder<'a> {
         raw::TreeSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             rows: self.rows.expect("rows not set — call .rows()"),
             font: self
                 .font

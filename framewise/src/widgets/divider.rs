@@ -80,7 +80,7 @@ impl DividerSpecBuilder {
         raw::DividerSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             color: self
                 .color
                 .expect("color not set — call .color() or defaults_from_theme()"),

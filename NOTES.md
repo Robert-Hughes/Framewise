@@ -9,10 +9,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
-* Extras from me:
-  * Saying "call .label_font() or defaults_from_theme()" - should also mention the high-level API? Or remove the mention of high-level API from the other ones?
-
-
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).

@@ -520,7 +520,7 @@ impl ScrollAreaSpecBuilder {
         raw::ScrollAreaSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             content_size: self
                 .content_size
                 .expect("content_size not set — call .content_size()"),
@@ -528,7 +528,7 @@ impl ScrollAreaSpecBuilder {
             v_vis: self.v_vis.unwrap_or(ScrollbarVisibility::Auto),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
             time: self.time.unwrap_or(0.0),
         }
     }

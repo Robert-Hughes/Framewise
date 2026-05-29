@@ -641,7 +641,7 @@ impl SliderSpecBuilder {
         raw::SliderSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             page_step: self.page_step.unwrap_or(10.0),
@@ -653,7 +653,7 @@ impl SliderSpecBuilder {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
             time: self.time.unwrap_or(0.0),
         }

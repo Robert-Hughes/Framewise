@@ -262,14 +262,14 @@ impl<'a> ButtonSpecBuilder<'a> {
         raw::ButtonSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             clip_rect: self
                 .clip_rect
-                .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
+                .expect("clip_rect not set — call .clip_rect()"),
             disabled: self.disabled.unwrap_or(false),
         }
     }

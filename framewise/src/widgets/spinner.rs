@@ -171,7 +171,7 @@ impl SpinnerSpecBuilder {
         raw::SpinnerSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             large: self.large.unwrap_or(false),
             style: self
                 .style

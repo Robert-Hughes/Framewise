@@ -117,7 +117,7 @@ impl MeterSpecBuilder {
         raw::MeterSpec {
             rect: self
                 .rect
-                .expect("rect not set — call .rect() or use the high-level API"),
+                .expect("rect not set — call .rect()"),
             value: self
                 .value
                 .expect("value not set — call .value()"),
