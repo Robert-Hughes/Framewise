@@ -160,28 +160,19 @@ pub mod raw {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum CheckState {
+    #[default]
     Off,
     On,
     Indeterminate,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxState {
     pub check: CheckState,
     pub space_is_active: bool,
     pub focus_id: crate::focus::FocusId,
-}
-
-impl Default for CheckboxState {
-    fn default() -> Self {
-        Self {
-            check: CheckState::Off,
-            space_is_active: false,
-            focus_id: crate::focus::FocusId::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
