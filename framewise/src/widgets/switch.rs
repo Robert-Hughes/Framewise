@@ -232,7 +232,7 @@ impl SwitchSpecBuilder {
 
 /// High-level switch widget function using WidgetContext.
 ///
-/// This function accepts a SwitchSpec and calls the low-level raw::switch function.
+/// This function accepts a SwitchSpecBuilder and calls the low-level raw::switch function.
 pub fn switch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,

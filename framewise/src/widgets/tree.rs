@@ -13,7 +13,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct TreeSpec<'a> {
         pub rect: Rect,
-        pub rows: &'a [super::TreeRow<'a>],
+        pub items: &'a [super::TreeRow<'a>],
         pub font: FontId,
         pub style: super::TreeStyle,
     }
@@ -35,7 +35,7 @@ pub mod raw {
         let indent_w = s.indent_width;
         let caret_w = s.caret_width;
         let pad_x = s.pad_x;
-        let total_h = spec.rows.len() as f32 * row_h + s.pad_y * 2.0;
+        let total_h = spec.items.len() as f32 * row_h + s.pad_y * 2.0;
         let w = spec.rect.w.max(s.min_width);
         let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
@@ -51,7 +51,7 @@ pub mod raw {
 
         let mut y = spec.rect.y + s.pad_y;
 
-        for row in spec.rows {
+        for row in spec.items {
             let row_rect = Rect::new(outer.x, y, w, row_h);
 
             if row.selected {
@@ -170,7 +170,7 @@ pub struct TreeResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
-    pub rows: Option<&'a [TreeRow<'a>]>,
+    pub items: Option<&'a [TreeRow<'a>]>,
     pub font: Option<FontId>,
     pub style: Option<TreeStyle>,
     pub rect: Option<Rect>,
@@ -181,8 +181,8 @@ impl<'a> TreeSpecBuilder<'a> {
         Self::default()
     }
 
-    pub fn rows(mut self, rows: &'a [TreeRow<'a>]) -> Self {
-        self.rows = Some(rows);
+    pub fn items(mut self, items: &'a [TreeRow<'a>]) -> Self {
+        self.items = Some(items);
         self
     }
     pub fn font(mut self, font: FontId) -> Self {
@@ -216,7 +216,7 @@ impl<'a> TreeSpecBuilder<'a> {
     pub fn build(self) -> raw::TreeSpec<'a> {
         raw::TreeSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
-            rows: self.rows.expect("rows not set — call .rows()"),
+            items: self.items.expect("items not set — call .items()"),
             font: self
                 .font
                 .expect("font not set — call .font() or defaults_from_theme()"),
@@ -231,7 +231,7 @@ impl<'a> TreeSpecBuilder<'a> {
 
 /// High-level tree widget function using WidgetContext.
 ///
-/// This function accepts a TreeSpec and calls the low-level raw::tree function.
+/// This function accepts a TreeSpecBuilder and calls the low-level raw::tree function.
 pub fn tree<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TreeSpecBuilder<'a>,
@@ -294,7 +294,7 @@ mod tests {
         );
         super::tree(
             &mut ctx,
-            TreeSpecBuilder::new().rows(&[]).rect(custom_rect),
+            TreeSpecBuilder::new().items(&[]).rect(custom_rect),
             layout_rect,
         );
         // First draw command is FillRect for the outer rect at (custom_rect.x, custom_rect.y)

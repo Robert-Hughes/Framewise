@@ -191,7 +191,7 @@ impl SpinnerSpecBuilder {
 
 /// High-level spinner widget function using WidgetContext.
 ///
-/// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
+/// This function accepts a SpinnerSpecBuilder and calls the low-level raw::spinner function.
 pub fn spinner<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SpinnerSpecBuilder,

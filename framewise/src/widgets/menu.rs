@@ -268,7 +268,7 @@ impl<'a> MenuSpecBuilder<'a> {
 
 /// High-level menu widget function using WidgetContext.
 ///
-/// This function accepts a MenuSpec and calls the low-level raw::menu function.
+/// This function accepts a MenuSpecBuilder and calls the low-level raw::menu function.
 pub fn menu<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MenuSpecBuilder<'a>,

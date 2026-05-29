@@ -197,7 +197,7 @@ fn draw_select_fake_state<
         rect,
         value,
         font: b.theme.sans_font,
-        options,
+        items: options,
         disabled: is_disabled,
         style: b.theme.select_style(),
         clip_rect: b.clip_rect,
@@ -1842,7 +1842,7 @@ pub fn draw_spec_page(
                 let sel_state = &mut state.sel_state;
                 let _sel_info = select(
                     b,
-                    SelectSpecBuilder::new().value(value).options(LAYOUT_OPTS),
+                    SelectSpecBuilder::new().value(value).items(LAYOUT_OPTS),
                     Rect::new(lx, y, 160.0, t.h_md),
                     sel_state,
                 );
@@ -2487,7 +2487,7 @@ pub fn draw_spec_page(
                 ];
                 tree(
                     b,
-                    framewise::widgets::TreeSpecBuilder::new().rows(WIDGET_TREE),
+                    framewise::widgets::TreeSpecBuilder::new().items(WIDGET_TREE),
                     Rect::new(lx, y, 320.0, 0.0),
                 );
 
@@ -2544,7 +2544,7 @@ pub fn draw_spec_page(
                 ];
                 tree(
                     b,
-                    framewise::widgets::TreeSpecBuilder::new().rows(FILE_LIST),
+                    framewise::widgets::TreeSpecBuilder::new().items(FILE_LIST),
                     Rect::new(lx + 360.0, y, 240.0, 0.0),
                 );
 

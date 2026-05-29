@@ -263,7 +263,7 @@ impl CheckboxSpecBuilder {
 
 /// High-level checkbox widget function using WidgetContext.
 ///
-/// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
+/// This function accepts a CheckboxSpecBuilder and calls the low-level raw::checkbox function.
 pub fn checkbox<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: CheckboxSpecBuilder,

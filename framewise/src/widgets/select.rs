@@ -17,7 +17,7 @@ pub mod raw {
         pub rect: Rect,
         pub value: &'a str,
         pub font: FontId,
-        pub options: &'a [&'a str],
+        pub items: &'a [&'a str],
         pub disabled: bool,
         pub style: super::SelectStyle,
         pub clip_rect: ClipRect,
@@ -56,16 +56,16 @@ pub mod raw {
             )
         };
 
-        if !spec.options.is_empty() {
-            let current_val = if state.selected_index < spec.options.len() {
-                spec.options[state.selected_index]
+        if !spec.items.is_empty() {
+            let current_val = if state.selected_index < spec.items.len() {
+                spec.items[state.selected_index]
             } else {
                 ""
             };
             if current_val != spec.value {
-                // Out of band update, search for spec.value in options
+                // Out of band update, search for spec.value in items
                 let mut found = false;
-                for (i, opt) in spec.options.iter().enumerate() {
+                for (i, opt) in spec.items.iter().enumerate() {
                     if *opt == spec.value {
                         state.selected_index = i;
                         found = true;
@@ -73,7 +73,7 @@ pub mod raw {
                     }
                 }
                 if !found {
-                    state.selected_index = state.selected_index.min(spec.options.len() - 1);
+                    state.selected_index = state.selected_index.min(spec.items.len() - 1);
                 }
             }
         }
@@ -109,15 +109,15 @@ pub mod raw {
         );
 
         // Keyboard navigation when focused
-        if focused && !spec.disabled && !spec.options.is_empty() {
+        if focused && !spec.disabled && !spec.items.is_empty() {
             if input.key_pressed_down {
                 if state.open {
                     let current = state.hovered.unwrap_or(0);
-                    if current + 1 < spec.options.len() {
+                    if current + 1 < spec.items.len() {
                         state.hovered = Some(current + 1);
                     }
                 } else {
-                    if state.selected_index + 1 < spec.options.len() {
+                    if state.selected_index + 1 < spec.items.len() {
                         state.selected_index += 1;
                     }
                 }
@@ -138,7 +138,7 @@ pub mod raw {
 
             if state.open && input.key_pressed_enter {
                 if let Some(h) = state.hovered {
-                    if h < spec.options.len() {
+                    if h < spec.items.len() {
                         state.selected_index = h;
                         state.open = false;
                     }
@@ -147,16 +147,16 @@ pub mod raw {
         }
 
         // Mouse interaction with popup when open
-        if state.open && !spec.disabled && !spec.options.is_empty() {
+        if state.open && !spec.disabled && !spec.items.is_empty() {
             let row_h = s.row_height;
-            let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
+            let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
             let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
             if is_visible && popup.contains(input.mouse_pos) {
                 let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
                 let hovered_row = (relative_y / row_h).floor() as i32;
-                if hovered_row >= 0 && hovered_row < spec.options.len() as i32 {
+                if hovered_row >= 0 && hovered_row < spec.items.len() as i32 {
                     state.hovered = Some(hovered_row as usize);
 
                     if input.mouse_pressed {
@@ -195,9 +195,9 @@ pub mod raw {
         });
 
         // Selected value text.
-        let display_text = if !spec.options.is_empty() && state.selected_index < spec.options.len()
+        let display_text = if !spec.items.is_empty() && state.selected_index < spec.items.len()
         {
-            spec.options[state.selected_index]
+            spec.items[state.selected_index]
         } else {
             spec.value
         };
@@ -226,9 +226,9 @@ pub mod raw {
         });
 
         // Dropdown popup.
-        if state.open && !spec.options.is_empty() {
+        if state.open && !spec.items.is_empty() {
             let row_h = s.row_height;
-            let popup_h = spec.options.len() as f32 * row_h + s.popup_pad_y * 2.0;
+            let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
             cmds.push(DrawCmd::FillRect {
@@ -241,7 +241,7 @@ pub mod raw {
                 width: s.border_width,
             });
 
-            for (i, opt) in spec.options.iter().enumerate() {
+            for (i, opt) in spec.items.iter().enumerate() {
                 let is_selected = i == state.selected_index;
                 let is_hovered = state.hovered == Some(i);
                 let row_y = popup.y + s.popup_pad_y + i as f32 * row_h;
@@ -343,7 +343,7 @@ pub struct SelectSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub value: Option<&'a str>,
     pub font: Option<FontId>,
-    pub options: Option<&'a [&'a str]>,
+    pub items: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
     pub style: Option<SelectStyle>,
     pub clip_rect: Option<ClipRect>,
@@ -366,8 +366,8 @@ impl<'a> SelectSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-    pub fn options(mut self, options: &'a [&'a str]) -> Self {
-        self.options = Some(options);
+    pub fn items(mut self, items: &'a [&'a str]) -> Self {
+        self.items = Some(items);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -409,7 +409,7 @@ impl<'a> SelectSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            options: self.options.expect("options not set — call .options()"),
+            items: self.items.expect("items not set — call .items()"),
             disabled: self.disabled.unwrap_or(false),
             clip_rect: self
                 .clip_rect
@@ -464,12 +464,12 @@ mod tests {
 
     #[test]
     fn test_select_visual_normal() {
-        let options = vec!["Option 1", "Option 2", "Option 3"];
+        let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
-            options: &options,
+            items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
@@ -506,12 +506,12 @@ mod tests {
     #[test]
     fn test_select_visual_open() {
         let mut text_sys = DummyTextSys;
-        let options = vec!["Option 1", "Option 2", "Option 3"];
+        let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
-            options: &options,
+            items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
@@ -611,12 +611,12 @@ mod tests {
         input.mouse_pressed = true;
 
         let mut text_sys = DummyTextSys;
-        let options = vec!["Option 1", "Option 2"];
+        let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
-            options: &options,
+            items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
             clip_rect: None,
@@ -644,12 +644,12 @@ mod tests {
         input.mouse_pressed = true;
 
         let mut text_sys = DummyTextSys;
-        let options = vec!["Option 1", "Option 2"];
+        let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             font: FontId(0),
-            options: &options,
+            items: &items,
             disabled: false,
             style: crate::theme::Theme::framewise().select_style(),
             clip_rect: Some(Rect::new(500.0, 500.0, 180.0, 28.0)),
@@ -673,7 +673,7 @@ mod tests {
         let mut state = SelectState::default();
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
-        let options = vec!["Option 1", "Option 2", "Option 3"];
+        let items = vec!["Option 1", "Option 2", "Option 3"];
 
         // Focus the widget first
         focus_sys.take_focus(state.focus_id);
@@ -686,7 +686,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
                 font: FontId(0),
-                options: &options,
+                items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
@@ -711,7 +711,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
-                options: &options,
+                items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
@@ -732,7 +732,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
-                options: &options,
+                items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
@@ -756,7 +756,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
-                options: &options,
+                items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
@@ -779,7 +779,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 font: FontId(0),
-                options: &options,
+                items: &items,
                 disabled: false,
                 style: crate::theme::Theme::framewise().select_style(),
                 clip_rect: None,
@@ -840,7 +840,7 @@ mod tests {
         let result = super::select(
             &mut ctx,
             SelectSpecBuilder::new()
-                .options(&[])
+                .items(&[])
                 .value("")
                 .rect(custom_rect),
             layout_rect,
