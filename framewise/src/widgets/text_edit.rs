@@ -23,10 +23,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditResult {
         pub draw: DrawCommands,
+        pub input: InputInfo,
+        pub focused: bool,
         pub content_bounds: Rect,
         pub clipboard_action: Option<ClipboardAction>,
-        pub focused: bool,
-        pub input: InputInfo,
     }
 
     /// Low-level text edit widget function.
@@ -498,9 +498,9 @@ pub enum ClipboardAction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEditResult {
     pub layout: LayoutInfo,
-    pub clipboard_action: Option<ClipboardAction>,
     pub input: InputInfo,
     pub focused: bool,
+    pub clipboard_action: Option<ClipboardAction>,
 }
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────

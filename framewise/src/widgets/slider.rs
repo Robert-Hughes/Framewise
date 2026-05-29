@@ -34,8 +34,8 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
         pub draw: DrawCommands,
-        pub focused: bool,
         pub input: InputInfo,
+        pub focused: bool,
     }
 
     /// Low-level slider widget function.

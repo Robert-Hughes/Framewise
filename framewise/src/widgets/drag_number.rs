@@ -242,18 +242,6 @@ pub struct DragNumberResult {
     pub focused: bool,
 }
 
-impl DragNumberResult {
-    pub fn clicked(&self) -> bool {
-        self.input.clicked
-    }
-    pub fn hovered(&self) -> bool {
-        self.input.hovered
-    }
-    pub fn focused(&self) -> bool {
-        self.focused
-    }
-}
-
 // ── Spec Builder ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
