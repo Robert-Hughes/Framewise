@@ -36,7 +36,7 @@ pub use drag_number::{
 };
 pub use frame::{frame, FrameResult, FrameSpecBuilder, FrameStyle};
 pub use keycap::{keycap, KeycapResult, KeycapSpecBuilder, KeycapStyle};
-pub use label::{label, LabelResult, LabelSpecBuilder};
+pub use label::{label, LabelResult, LabelSpecBuilder, LabelStyle};
 pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
 pub use meter::{meter, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle};

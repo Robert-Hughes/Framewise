@@ -14,12 +14,7 @@ pub mod raw {
     pub struct LabelSpec<'a> {
         pub rect: Rect,
         pub text: &'a str,
-        pub size: f32,
-        pub font: FontId,
-        pub text_color: Color,
-        /// Draw a hairline rule at the bottom of the rect.
-        pub rule: bool,
-        pub rule_color: Color,
+        pub style: super::LabelStyle,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -34,15 +29,15 @@ pub mod raw {
     pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
         let mut draw = DrawCommands::new();
 
-        let layout = text_system.prepare(spec.text, spec.size, spec.font);
+        let layout = text_system.prepare(spec.text, spec.style.size, spec.style.font);
 
         draw.push(DrawCmd::Text {
             rect: spec.rect,
-            color: spec.text_color,
+            color: spec.style.text_color,
             handle: layout.handle,
         });
 
-        if spec.rule {
+        if spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
             draw.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(spec.rect.x, y),
@@ -54,6 +49,19 @@ pub mod raw {
 
         LabelResult { draw }
     }
+}
+
+
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+/// Visual configuration for a label.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LabelStyle {
+    pub size: f32,
+    pub font: FontId,
+    pub text_color: Color,
+    pub rule: bool,
+    pub rule_color: Color,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -69,11 +77,7 @@ pub struct LabelResult {
 pub struct LabelSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub size: Option<f32>,
-    pub font: Option<FontId>,
-    pub text_color: Option<Color>,
-    pub rule: Option<bool>,
-    pub rule_color: Option<Color>,
+    pub style: Option<LabelStyle>,
 }
 
 impl<'a> LabelSpecBuilder<'a> {
@@ -84,24 +88,8 @@ impl<'a> LabelSpecBuilder<'a> {
         self.text = Some(text);
         self
     }
-    pub fn size(mut self, size: f32) -> Self {
-        self.size = Some(size);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
-        self
-    }
-    pub fn text_color(mut self, color: Color) -> Self {
-        self.text_color = Some(color);
-        self
-    }
-    pub fn rule(mut self, rule: bool) -> Self {
-        self.rule = Some(rule);
-        self
-    }
-    pub fn rule_color(mut self, color: Color) -> Self {
-        self.rule_color = Some(color);
+    pub fn style(mut self, style: LabelStyle) -> Self {
+        self.style = Some(style);
         self
     }
     /// Sets the bounding rectangle. Called automatically by high-level context
@@ -113,17 +101,8 @@ impl<'a> LabelSpecBuilder<'a> {
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.size.is_none() {
-            self.size = Some(theme.text_md);
-        }
-        if self.font.is_none() {
-            self.font = Some(theme.sans_font);
-        }
-        if self.text_color.is_none() {
-            self.text_color = Some(theme.ink);
-        }
-        if self.rule_color.is_none() {
-            self.rule_color = Some(theme.ink);
+        if self.style.is_none() {
+            self.style = Some(theme.label_style());
         }
         self
     }
@@ -131,19 +110,9 @@ impl<'a> LabelSpecBuilder<'a> {
         raw::LabelSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            size: self
-                .size
-                .expect("size not set — call .size() or defaults_from_theme()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
-            text_color: self
-                .text_color
-                .expect("text_color not set — call .text_color() or defaults_from_theme()"),
-            rule: self.rule.unwrap_or(false),
-            rule_color: self
-                .rule_color
-                .expect("rule_color not set — call .rule_color() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }
@@ -205,11 +174,13 @@ mod tests {
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Hello",
-            size: 16.0,
-            font: FontId(1),
-            text_color: Color::WHITE,
-            rule: false,
-            rule_color: Color::WHITE,
+            style: LabelStyle {
+                size: 16.0,
+                font: FontId(1),
+                text_color: Color::WHITE,
+                rule: false,
+                rule_color: Color::WHITE,
+            },
         };
         let res = raw::label(spec, &mut sys);
 
@@ -229,11 +200,13 @@ mod tests {
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Section",
-            size: 14.0,
-            font: FontId(1),
-            text_color: Color::WHITE,
-            rule: true,
-            rule_color: Color::WHITE,
+            style: LabelStyle {
+                size: 14.0,
+                font: FontId(1),
+                text_color: Color::WHITE,
+                rule: true,
+                rule_color: Color::WHITE,
+            },
         };
         let res = raw::label(spec, &mut sys);
         assert_eq!(
@@ -261,11 +234,13 @@ mod tests {
         let spec = LabelSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "font",
-            size: 14.0,
-            font: expected,
-            text_color: Color::WHITE,
-            rule: false,
-            rule_color: Color::WHITE,
+            style: LabelStyle {
+                size: 14.0,
+                font: expected,
+                text_color: Color::WHITE,
+                rule: false,
+                rule_color: Color::WHITE,
+            },
         };
 
         let _ = raw::label(spec, &mut sys);
@@ -277,27 +252,24 @@ mod tests {
     fn test_builder_defaults_from_theme_fills_unset_fields() {
         let theme = crate::theme::Theme::framewise();
         let builder = LabelSpecBuilder::new().text("test");
-        assert!(builder.size.is_none());
-        assert!(builder.font.is_none());
-        assert!(builder.text_color.is_none());
+        assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.size, Some(theme.text_md));
-        assert_eq!(builder.font, Some(theme.sans_font));
-        assert_eq!(builder.text_color, Some(theme.ink));
+        assert_eq!(builder.style, Some(theme.label_style()));
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
-        let builder = LabelSpecBuilder::new()
-            .text("test")
-            .size(99.0)
-            .font(FontId(99))
-            .text_color(Color::from_srgb_u8(1, 2, 3, 255));
+        let custom_style = LabelStyle {
+            size: 99.0,
+            font: FontId(99),
+            text_color: Color::from_srgb_u8(1, 2, 3, 255),
+            rule: true,
+            rule_color: Color::from_srgb_u8(4, 5, 6, 255),
+        };
+        let builder = LabelSpecBuilder::new().text("test").style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.size, Some(99.0));
-        assert_eq!(builder.font, Some(FontId(99)));
-        assert_eq!(builder.text_color, Some(Color::from_srgb_u8(1, 2, 3, 255)));
+        assert_eq!(builder.style, Some(custom_style));
     }
 
     #[test]

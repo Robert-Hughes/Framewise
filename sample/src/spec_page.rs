@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::text::TextSystem;
 use framewise::widgets::slider::SliderSpecBuilder;
 use framewise::widgets::text_edit::TextEditSpecBuilder;
-use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder};
+use framewise::widgets::{ButtonSpecBuilder, DividerSpecBuilder, LabelSpecBuilder, LabelStyle};
 /// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
 use framewise::{
     draw::{DrawCmd, DrawCommands},
@@ -634,10 +634,11 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
         let layout_params = Rect::new(x, y, 44.0, 12.0);
         let size = 9.0;
         let color = t.muted;
-        let spec_builder = LabelSpecBuilder::new()
-            .text("(STATIC)")
-            .size(size)
-            .text_color(color);
+        let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
+            size,
+            text_color: color,
+            ..t.label_style()
+        });
         label(b, spec_builder, layout_params)
     };
 }
@@ -661,21 +662,23 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let layout_params = Rect::new(lx, y, 40.0, 20.0);
         let size = t.text_sm;
         let color = t.muted;
-        let spec_builder = LabelSpecBuilder::new()
-            .text(num)
-            .size(size)
-            .text_color(color);
+        let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
+            size,
+            text_color: color,
+            ..t.label_style()
+        });
         label(b, spec_builder, layout_params)
     };
     {
         let layout_params = Rect::new(lx + 44.0, y, w - 44.0, 22.0);
         let color = t.ink;
         let font = t.sans_font;
-        let spec_builder = LabelSpecBuilder::new()
-            .text(title)
-            .size(18.0)
-            .font(font)
-            .text_color(color);
+        let spec_builder = LabelSpecBuilder::new().text(title).style(LabelStyle {
+            size: 18.0,
+            font,
+            text_color: color,
+            ..t.label_style()
+        });
         label(b, spec_builder, layout_params)
     };
     {
@@ -683,11 +686,12 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let size = t.text_sm;
         let color = t.muted;
         let font = t.sans_font;
-        let spec_builder = LabelSpecBuilder::new()
-            .text(detail_text)
-            .size(size)
-            .font(font)
-            .text_color(color);
+        let spec_builder = LabelSpecBuilder::new().text(detail_text).style(LabelStyle {
+            size,
+            font,
+            text_color: color,
+            ..t.label_style()
+        });
         label(b, spec_builder, layout_params)
     };
 }
@@ -704,10 +708,11 @@ fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawC
         let text: &str = &text.to_uppercase();
         let size = t.text_sm;
         let color = t.muted;
-        let spec_builder = LabelSpecBuilder::new()
-            .text(text)
-            .size(size)
-            .text_color(color);
+        let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+            size,
+            text_color: color,
+            ..t.label_style()
+        });
         label(b, spec_builder, layout_params)
     };
 }
@@ -787,8 +792,11 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1")
-                        .size(size)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -797,22 +805,30 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w, 53.0);
                     let color = t.ink;
                     let font = t.sans_bold_font;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("A widget set that")
-                        .size(56.0)
-                        .font(font)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("A widget set that")
+                            .style(LabelStyle {
+                                size: 56.0,
+                                font,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(tx, MARGIN + 22.0 + 53.0, hero_w, 53.0);
                     let color = t.ink;
                     let font = t.sans_bold_font;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("explains itself.")
-                        .size(56.0)
-                        .font(font)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("explains itself.")
+                            .style(LabelStyle {
+                                size: 56.0,
+                                font,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -822,11 +838,13 @@ pub fn draw_spec_page(
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust —"
-                            )
-                    .size(15.0)
-                    .font(font)
-                    .text_color(color);
+                        .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust —")
+                        .style(LabelStyle {
+                            size: 15.0,
+                            font,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
                 {
@@ -834,10 +852,14 @@ pub fn draw_spec_page(
                         Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0);
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let font = t.sans_font;
-                    let spec_builder = LabelSpecBuilder::new().text("reserved for focus, drag, and primary action. Every widget describes its state")
-                            .size(15.0)
-                            .font(font)
-                            .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new()
+                        .text("reserved for focus, drag, and primary action. Every widget describes its state")
+                        .style(LabelStyle {
+                            size: 15.0,
+                            font,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
                 {
@@ -847,9 +869,12 @@ pub fn draw_spec_page(
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("explicitly; nothing is hidden behind animation or chrome.")
-                        .size(15.0)
-                        .font(font)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size: 15.0,
+                            font,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -869,11 +894,12 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.ink;
                         let font = t.sans_bold_font;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(key)
-                            .size(size)
-                            .font(font)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
+                            size,
+                            font,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     let key_w = key.len() as f32 * 7.5 + 4.0;
@@ -882,11 +908,12 @@ pub fn draw_spec_page(
                         let size = t.text_sm;
                         let color = t.muted;
                         let font = t.sans_font;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(val)
-                            .size(size)
-                            .font(font)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
+                            size,
+                            font,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     mx += key_w + val.len() as f32 * 6.5 + 24.0;
@@ -954,10 +981,11 @@ pub fn draw_spec_page(
                             Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(col)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -968,10 +996,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(lx, y, label_w - 8.0, t.h_md);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(row_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(row_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                     for ci in 0..5 {
@@ -1110,10 +1140,11 @@ pub fn draw_spec_page(
                             Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(col)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -1124,10 +1155,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(lx, y, label_w - 4.0, t.h_md);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(row_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(row_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                     for ci in 0..5 {
@@ -1161,10 +1194,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(field_x, y, 120.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("CRATE NAME")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("CRATE NAME")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
                 let _info = {
@@ -1179,8 +1216,11 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("a–z, 0–9, hyphen; max 64")
-                        .size(size)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -1190,10 +1230,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(pf_x, y, 120.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("VERSION")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("VERSION").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
@@ -1213,10 +1254,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(pf_x + 6.0, y + 18.0 + 7.0, 16.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("v")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("v").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 let _info = {
@@ -1231,8 +1273,11 @@ pub fn draw_spec_page(
                     let color = t.rust;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("semver mismatch — bump minor")
-                        .size(size)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -1242,10 +1287,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(ml_x, y, 120.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("DESCRIPTION")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("DESCRIPTION")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
                 let _info = {
@@ -1286,10 +1335,11 @@ pub fn draw_spec_page(
                             Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(col)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -1300,10 +1350,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx, y, label_w - 4.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("box")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("box").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 let box_specs: &[(CheckState, bool, bool)] = &[
@@ -1332,10 +1383,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx, y, label_w - 4.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("with label")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("with label")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
@@ -1361,10 +1416,12 @@ pub fn draw_spec_page(
                     {
                         let layout_params = Rect::new(cx + 18.0, y, 60.0, 14.0);
                         let size = t.text_sm;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text("vsync")
-                            .size(size)
-                            .text_color(label_alpha);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text("vsync").style(LabelStyle {
+                                size,
+                                text_color: label_alpha,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -1398,10 +1455,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(lx + 18.0, ry, 140.0, 14.0);
                         let size = t.text_md;
                         let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(radio_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -1448,10 +1507,14 @@ pub fn draw_spec_page(
                     {
                         let layout_params = Rect::new(sw_x + 36.0, ry, 140.0, 16.0);
                         let size = t.text_md;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(switch_label)
-                            .size(size)
-                            .text_color(label_color);
+                        let spec_builder =
+                            LabelSpecBuilder::new()
+                                .text(switch_label)
+                                .style(LabelStyle {
+                                    size,
+                                    text_color: label_color,
+                                    ..t.label_style()
+                                });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -1480,10 +1543,11 @@ pub fn draw_spec_page(
                     let text: &str = &format!("{:.2}", state.slider1_state.value);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(text)
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 y += t.h_md + row_gap;
@@ -1499,10 +1563,11 @@ pub fn draw_spec_page(
                     let text: &str = &format!("{:.2}", state.slider2_state.value);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(text)
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 y += t.h_md + row_gap;
@@ -1518,10 +1583,11 @@ pub fn draw_spec_page(
                     let text: &str = &format!("{:.2}", state.slider3_state.value);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(text)
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 y += t.h_md + row_gap;
@@ -1538,10 +1604,11 @@ pub fn draw_spec_page(
                     let text: &str = &format!("{:.0} / 9", state.slider4_state.value);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(text)
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 // tick marks below track
@@ -1622,10 +1689,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx + track_w + 12.0, y + 6.0, 80.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(".24–.76")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(".24–.76").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
             }
@@ -1698,10 +1766,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(stepper_x + 6.0, y + 7.0, 56.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("padding")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("padding").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
@@ -1724,10 +1793,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(stepper_x + 72.0, y + 7.0, 24.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("12")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -1771,30 +1841,33 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(sx + 6.0, y + 4.0, 10.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("−")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("−").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(sx + 28.0, y + 4.0, 28.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("12")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(sx + 68.0, y + 4.0, 10.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("+")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("+").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -1814,10 +1887,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0);
                         let size = t.text_sm;
                         let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(hex)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(hex).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     bx += 86.0;
@@ -2059,10 +2133,12 @@ pub fn draw_spec_page(
                             let layout_params = Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0);
                             let size = t.text_sm;
                             let color = t.muted;
-                            let spec_builder = LabelSpecBuilder::new()
-                                .text(line)
-                                .size(size)
-                                .text_color(color);
+                            let spec_builder =
+                                LabelSpecBuilder::new().text(line).style(LabelStyle {
+                                    size,
+                                    text_color: color,
+                                    ..t.label_style()
+                                });
                             label(&mut sa, spec_builder, layout_params)
                         };
                     }
@@ -2072,10 +2148,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("vertical · idle")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("vertical · idle")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2112,10 +2192,12 @@ pub fn draw_spec_page(
                             let text: &str = &format!("// entry {:02}/24 — frame state", i + 1);
                             let size = t.text_sm;
                             let color = t.muted;
-                            let spec_builder = LabelSpecBuilder::new()
-                                .text(text)
-                                .size(size)
-                                .text_color(color);
+                            let spec_builder =
+                                LabelSpecBuilder::new().text(text).style(LabelStyle {
+                                    size,
+                                    text_color: color,
+                                    ..t.label_style()
+                                });
                             label(&mut sa, spec_builder, layout_params)
                         };
                     }
@@ -2127,8 +2209,11 @@ pub fn draw_spec_page(
                     let color = t.muted;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("vertical · dragging (rust)")
-                        .size(size)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2163,9 +2248,13 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(6.0, 6.0, 680.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new().text("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )")
-                                .size(size)
-                                .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new()
+                            .text("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(&mut sa, spec_builder, layout_params)
                     };
                     sa.finish();
@@ -2174,10 +2263,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("horizontal")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("horizontal")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2214,8 +2307,11 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
                             .text("scroll surface with")
-                            .size(size)
-                            .text_color(color);
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(&mut sa, spec_builder, layout_params)
                     };
                     {
@@ -2224,8 +2320,11 @@ pub fn draw_spec_page(
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new()
                             .text("both bars + corner")
-                            .size(size)
-                            .text_color(color);
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(&mut sa, spec_builder, layout_params)
                     };
                     sa.finish();
@@ -2234,10 +2333,12 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("both axes")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new().text("both axes").style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2297,10 +2398,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(bar_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(bar_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                     y += 22.0;
@@ -2322,10 +2425,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(bx, y, 36.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(meter_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(meter_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(b, spec_builder, layout_params)
                     };
                     bx += 40.0;
@@ -2334,10 +2439,12 @@ pub fn draw_spec_page(
                             let layout_params = Rect::new(bx, y - 1.0, 60.0, 16.0);
                             let size = t.text_sm;
                             let color = t.ink;
-                            let spec_builder = LabelSpecBuilder::new()
-                                .text("2.4 ms")
-                                .size(size)
-                                .text_color(color);
+                            let spec_builder =
+                                LabelSpecBuilder::new().text("2.4 ms").style(LabelStyle {
+                                    size,
+                                    text_color: color,
+                                    ..t.label_style()
+                                });
                             label(b, spec_builder, layout_params)
                         };
                         bx += 70.0;
@@ -2364,10 +2471,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("loading")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("loading").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2380,10 +2488,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("large")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("large").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2607,10 +2716,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(kx + 4.0, y + 3.0, 200.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(desc)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(desc).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     y += 28.0;
@@ -2694,10 +2804,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
                         let size = t.text_md;
                         let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(check_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(check_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(&mut win, spec_builder, layout_params)
                     };
                     iy += 22.0;
@@ -2734,19 +2846,24 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · DARK")
-                        .size(size)
-                        .text_color(light);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("FRAMEWISE · DARK")
+                            .style(LabelStyle {
+                                size,
+                                text_color: light,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(dw.x + dw.w - 28.0, y + 6.0, 20.0, 14.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("✕")
-                        .size(size)
-                        .text_color(light);
+                    let spec_builder = LabelSpecBuilder::new().text("✕").style(LabelStyle {
+                        size,
+                        text_color: light,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2782,28 +2899,34 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("⌘")
-                        .size(size)
-                        .text_color(light);
+                    let spec_builder = LabelSpecBuilder::new().text("⌘").style(LabelStyle {
+                        size,
+                        text_color: light,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("K")
-                        .size(size)
-                        .text_color(light);
+                    let spec_builder = LabelSpecBuilder::new().text("K").style(LabelStyle {
+                        size,
+                        text_color: light,
+                        ..t.label_style()
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 {
                     let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("search everything")
-                        .size(size)
-                        .text_color(muted_l);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("search everything")
+                            .style(LabelStyle {
+                                size,
+                                text_color: muted_l,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2828,10 +2951,14 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0);
                     let size = t.text_sm;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("type a command…")
-                        .size(size)
-                        .text_color(muted_l);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("type a command…")
+                            .style(LabelStyle {
+                                size,
+                                text_color: muted_l,
+                                ..t.label_style()
+                            });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -2855,10 +2982,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(tab_x, tab_y + 5.0, 60.0, 14.0);
                         let size = t.text_sm;
                         let color = if i == 0 { light } else { muted_l };
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(item)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(item).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     if i == 0 {
@@ -2883,10 +3011,11 @@ pub fn draw_spec_page(
                     {
                         let layout_params = Rect::new(cx, file_y + i as f32 * 18.0, 200.0, 14.0);
                         let size = t.text_sm;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(file)
-                            .size(size)
-                            .text_color(muted_l);
+                        let spec_builder = LabelSpecBuilder::new().text(file).style(LabelStyle {
+                            size,
+                            text_color: muted_l,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                 }
@@ -2942,10 +3071,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("BACKEND")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("BACKEND").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
@@ -2963,10 +3093,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("TARGET FPS")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("TARGET FPS")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(&mut win, spec_builder, layout_params)
                 };
                 {
@@ -2989,10 +3123,11 @@ pub fn draw_spec_page(
                     let text: &str = &format!("{:.0}", state.iu_fps_slider.value);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text(text)
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 fy += row_h + row_gap;
@@ -3002,10 +3137,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("VSYNC")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("VSYNC").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 let _switch_res = {
@@ -3020,10 +3156,14 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("match display")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text("match display")
+                            .style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                     label(&mut win, spec_builder, layout_params)
                 };
                 fy += row_h + row_gap;
@@ -3033,10 +3173,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("MSAA")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("MSAA").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 let msaa_opts = ["off", "2×", "4×", "8×"];
@@ -3054,10 +3195,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("VIEWPORT")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("VIEWPORT").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 let _w_res = {
@@ -3085,10 +3227,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("ACCENT")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("ACCENT").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 color_swatch(
@@ -3102,10 +3245,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("#c25a2c")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("#c25a2c").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 fy += row_h + row_gap;
@@ -3115,10 +3259,11 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("OPTIONS")
-                        .size(size)
-                        .text_color(color);
+                    let spec_builder = LabelSpecBuilder::new().text("OPTIONS").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..t.label_style()
+                    });
                     label(&mut win, spec_builder, layout_params)
                 };
                 let opt_labels = [
@@ -3140,10 +3285,12 @@ pub fn draw_spec_page(
                             Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0);
                         let size = t.text_md;
                         let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(opt_label)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder =
+                            LabelSpecBuilder::new().text(opt_label).style(LabelStyle {
+                                size,
+                                text_color: color,
+                                ..t.label_style()
+                            });
                         label(&mut win, spec_builder, layout_params)
                     };
                 }
@@ -3242,10 +3389,12 @@ pub fn draw_spec_page(
                             let layout_params = Rect::new(6.0, row_y, ts_w, 14.0);
                             let size = t.text_sm;
                             let color = t.muted;
-                            let spec_builder = LabelSpecBuilder::new()
-                                .text(ts_str)
-                                .size(size)
-                                .text_color(color);
+                            let spec_builder =
+                                LabelSpecBuilder::new().text(ts_str).style(LabelStyle {
+                                    size,
+                                    text_color: color,
+                                    ..t.label_style()
+                                });
                             label(&mut log_page, spec_builder, layout_params)
                         };
                         let msg_color = if *highlight { t.rust } else { t.ink };
@@ -3257,10 +3406,12 @@ pub fn draw_spec_page(
                                 14.0,
                             );
                             let size = t.text_sm;
-                            let spec_builder = LabelSpecBuilder::new()
-                                .text(msg)
-                                .size(size)
-                                .text_color(msg_color);
+                            let spec_builder =
+                                LabelSpecBuilder::new().text(msg).style(LabelStyle {
+                                    size,
+                                    text_color: msg_color,
+                                    ..t.label_style()
+                                });
                             label(&mut log_page, spec_builder, layout_params)
                         };
                     }
@@ -3340,10 +3491,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(fx, y, 32.0, 14.0);
                         let size = t.text_sm;
                         let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(key)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     let kw = key.len() as f32 * 7.0 + 8.0;
@@ -3351,10 +3503,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(fx + kw, y, 220.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new()
-                            .text(val)
-                            .size(size)
-                            .text_color(color);
+                        let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                         label(b, spec_builder, layout_params)
                     };
                     fx += kw + val.len() as f32 * 6.5 + 24.0;
@@ -3365,8 +3518,11 @@ pub fn draw_spec_page(
                     let color = t.ink;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("FRAMEWISE · WIDGET SPECIFICATION")
-                        .size(size)
-                        .text_color(color);
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..t.label_style()
+                        });
                     label(b, spec_builder, layout_params)
                 };
             }

@@ -3,8 +3,8 @@ use crate::{
     types::Color,
     widgets::{
         button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle,
-        drag_number::DragNumberStyle, frame::FrameStyle, keycap::KeycapStyle, menu::MenuStyle,
-        meter::MeterStyle, progress_bar::ProgressBarStyle, radio::RadioStyle,
+        drag_number::DragNumberStyle, frame::FrameStyle, keycap::KeycapStyle, label::LabelStyle,
+        menu::MenuStyle, meter::MeterStyle, progress_bar::ProgressBarStyle, radio::RadioStyle,
         segmented::SegmentedStyle, select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle,
         status::StatusStyle, switch::SwitchStyle, tabs::TabsStyle, text_edit::TextEditStyle,
         tooltip::TooltipStyle, tree::TreeStyle, window::WindowStyle,
@@ -85,6 +85,16 @@ impl Theme {
         match role {
             FontRole::Sans => self.sans_font,
             FontRole::Mono => self.mono_font,
+        }
+    }
+
+    pub fn label_style(&self) -> LabelStyle {
+        LabelStyle {
+            size: self.text_md,
+            font: self.sans_font,
+            text_color: self.ink,
+            rule: false,
+            rule_color: self.ink,
         }
     }
 
