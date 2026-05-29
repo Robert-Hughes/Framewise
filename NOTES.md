@@ -9,23 +9,18 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
   - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
 
-* Claude halfway through:
-  * High-level fn param order
-  * Move slider value to State struct
-  * rename "parent" to "ctx"  for scroll area and window
-
 * Up to 'N.' in Claude review
 
 * Extras from me:
   * Saying "call .label_font() or defaults_from_theme()" - should also mention the high-level API? Or remove the mention of high-level API from the other ones?
   * Spec structs shouldn't be implementing Default - this is in DESIGN.md but we violating it
   * Add a note to DESIGN.md that widgets should follow the above guidance about general consistency
-  * Move `time` to part of spec, not separate param?
-  * Document in DESIGN.md that data in *State are ones that the widget is likely to modify based on user input etc., whereas *Spec is for constant things (they can change frame-to-frame like time, but not as a result of calling the widget function).
 
 
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+  - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
+  Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
 
 ## Things Still to Figure Out
 

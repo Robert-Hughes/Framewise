@@ -28,6 +28,7 @@ pub mod raw {
         /// so that when the content is fully scrolled the parent can hand off
         /// the event to an outer scroll area.
         pub claim_scroll_at_ends: bool,
+        pub time: f64,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -42,7 +43,6 @@ pub mod raw {
     pub fn slider<T: crate::text::TextSystem>(
         spec: SliderSpec,
         state: &mut SliderState,
-        time: f64,
         input: &Input,
         focus_sys: &mut FocusSystem,
         _text_system: &mut T,
@@ -247,7 +247,7 @@ pub mod raw {
             focus_sys.take_focus(state.focus_id);
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
-            state.next_repeat_time = time + 0.5;
+            state.next_repeat_time = spec.time + 0.5;
             // Page up/down towards mouse
             if mouse_coord < _thumb_start {
                 state.value = (state.value - spec.page_step).clamp(min, max);
@@ -265,7 +265,7 @@ pub mod raw {
         }
 
         // Track click repeat logic (time-based paging)
-        if state.is_track_clicking && time >= state.next_repeat_time {
+        if state.is_track_clicking && spec.time >= state.next_repeat_time {
             if track_rect.contains(input.mouse_pos) {
                 let track_start = if is_vert { track_rect.y } else { track_rect.x };
                 if mouse_coord < _thumb_start {
@@ -278,7 +278,7 @@ pub mod raw {
                         min
                     };
                     state.value = (state.value - spec.page_step).max(cursor_val).clamp(min, max);
-                    state.next_repeat_time = time + 0.05;
+                    state.next_repeat_time = spec.time + 0.05;
                 } else if mouse_coord > _thumb_end {
                     // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
                     let cursor_val = if usable_track > 0.0 {
@@ -287,7 +287,7 @@ pub mod raw {
                         max
                     };
                     state.value = (state.value + spec.page_step).min(cursor_val).clamp(min, max);
-                    state.next_repeat_time = time + 0.05;
+                    state.next_repeat_time = spec.time + 0.05;
                 }
                 // else: cursor is now inside the thumb; paging stops but keep
                 // is_track_clicking=true so the drag-transition check can still fire.
@@ -571,6 +571,7 @@ pub struct SliderSpecBuilder {
     pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: Option<bool>,
+    pub time: Option<f64>,
 }
 
 impl SliderSpecBuilder {
@@ -615,6 +616,10 @@ impl SliderSpecBuilder {
         self.claim_scroll_at_ends = Some(claim_scroll_at_ends);
         self
     }
+    pub fn time(mut self, time: f64) -> Self {
+        self.time = Some(time);
+        self
+    }
 
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
@@ -650,6 +655,7 @@ impl SliderSpecBuilder {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
+            time: self.time.unwrap_or(0.0),
         }
     }
 }
@@ -676,8 +682,9 @@ pub fn slider<
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
+        .time(ctx.time)
         .build();
-    let result = raw::slider(spec, state, ctx.time, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::slider(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
     ctx.append_cmds(result.draw);
     SliderResult {
         layout: LayoutInfo::tight(rect),
@@ -708,8 +715,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -722,8 +727,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -738,8 +741,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -752,8 +753,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -765,8 +764,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -799,8 +796,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -814,8 +809,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -842,8 +835,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -855,10 +846,8 @@ mod tests {
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.4, ..spec.clone() },
             &mut state,
-
-            0.4,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -867,10 +856,8 @@ mod tests {
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.5, ..spec.clone() },
             &mut state,
-
-            0.5,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -880,10 +867,8 @@ mod tests {
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.6, ..spec.clone() },
             &mut state,
-
-            0.6,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -893,10 +878,8 @@ mod tests {
         // Release mouse -> track clicking ends
         input.mouse_down = false;
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.7, ..spec.clone() },
             &mut state,
-
-            0.7,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -921,8 +904,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -940,8 +921,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -959,8 +938,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -978,8 +955,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1006,8 +981,6 @@ mod tests {
         raw::slider(
             horiz_spec.clone(),
             &mut horiz_state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1019,8 +992,6 @@ mod tests {
         raw::slider(
             horiz_spec.clone(),
             &mut horiz_state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1047,8 +1018,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state_a,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1056,8 +1025,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state_b,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1069,8 +1036,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state_a,
-
-            0.0,
             &crate::input::Input::new(),
             &mut focus_sys,
             &mut text_system,
@@ -1078,8 +1043,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state_b,
-
-            0.0,
             &crate::input::Input::new(),
             &mut focus_sys,
             &mut text_system,
@@ -1110,8 +1073,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1141,7 +1102,7 @@ mod tests {
         input.mouse_pressed = true;
 
         focus_sys.begin_frame();
-        raw::slider(spec, &mut state, 0.0, &input, &mut focus_sys, &mut text_system);
+        raw::slider(spec, &mut state, &input, &mut focus_sys, &mut text_system);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1169,8 +1130,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1185,8 +1144,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1223,8 +1180,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1242,8 +1197,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1261,8 +1214,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1300,8 +1251,6 @@ mod tests {
         raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1313,10 +1262,8 @@ mod tests {
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.4, ..spec.clone() },
             &mut state,
-
-            0.4,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1327,10 +1274,8 @@ mod tests {
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.5, ..spec.clone() },
             &mut state,
-
-            0.5,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1344,10 +1289,8 @@ mod tests {
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.6, ..spec.clone() },
             &mut state,
-
-            0.6,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1368,10 +1311,8 @@ mod tests {
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.65, ..spec.clone() },
             &mut state,
-
-            0.65,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1391,10 +1332,8 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
         raw::slider(
-            spec.clone(),
+            SliderSpec { time: 0.7, ..spec.clone() },
             &mut state,
-
-            0.7,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1419,6 +1358,7 @@ mod tests {
             style: crate::theme::Theme::framewise().slider_style(),
             clip_rect: None,
             claim_scroll_at_ends: claim_at_ends,
+            time: 0.0,
         }
     }
 
@@ -1446,8 +1386,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1481,8 +1419,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1517,8 +1453,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1557,8 +1491,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, false),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1591,8 +1523,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, false),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1626,8 +1556,6 @@ mod tests {
         raw::slider(
             test_spec(0.0, 100.0, false),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1659,8 +1587,6 @@ mod tests {
         let result = raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1706,8 +1632,6 @@ mod tests {
         let result = raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1753,8 +1677,6 @@ mod tests {
         let result = raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,
@@ -1800,8 +1722,6 @@ mod tests {
         let result = raw::slider(
             spec.clone(),
             &mut state,
-
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_system,

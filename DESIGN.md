@@ -13,6 +13,37 @@ For features requiring state (like Button hover/press tracking, or TextEdit cont
 
 State structs are composed based on what that widget type can do — e.g. a `FocusState` struct might be common across many widget types. We also share logic inside widget functions: a `handle_focus` function that manipulates `FocusState` could be re-used by many widget types.
 
+### `*State` vs `*Spec` — What Changes and Who Changes It
+
+The distinction between the two parameter types is about **who mutates what, and when**:
+
+- **`*State`** holds data that the widget function itself may modify as a direct result of user interaction — hover tracking, pressed flags, scroll position, text content, caret position, focus IDs. The caller passes `&mut *State`; the widget mutates it in place.
+- **`*Spec`** holds everything the caller provides as input to the widget for that frame. Spec fields can vary frame-to-frame (e.g. elapsed time, a label string, an enabled flag driven by app logic), but they are **never mutated by the widget function**. The spec is consumed, not updated.
+
+In short: if a value changes because the user clicked or typed, it belongs in `*State`. If it changes because the app decided something different this frame, it belongs in `*Spec`.
+
+---
+
+## Widget Consistency
+
+All widget files must be consistent with each other. A reader browsing from one widget to another should never have to ask "why does widget X do it like this but widget Y does it like that?"
+
+Consistency applies across every dimension of the code:
+
+- **Naming** — struct names, field names, parameter names, local variable names, result field names
+- **File structure** — ordering of structs, functions, and sections within the file
+- **Derived traits** — the same set of `#[derive(...)]` on equivalent structs (e.g. all `*Spec` structs derive the same traits)
+- **Visibility** — `pub`, `pub(crate)`, or private applied consistently to equivalent items
+- **Parameters** — order of parameters to raw functions and high-level context functions, including where `&Input`, `&mut *State`, and `*Spec` appear
+- **Return types** — if one widget's high-level function returns `layout: LayoutInfo`, all do; if one raw result includes `content_bounds`, equivalent raw results do too
+- **Default value handling** — `unwrap_or` vs. `unwrap_or_default` vs. panic in `build()`, applied uniformly based on field semantics
+- **Composition patterns** — shared sub-structs (e.g. `FocusState`), shared helper functions (e.g. `handle_focus`), used consistently rather than re-implemented per widget
+- **Doc comments and inline comments** — same level of documentation for equivalent items; no widget's public API should be substantially better or worse documented than another's
+
+Differences between widgets are acceptable only when driven by **genuine functional differences** — a container widget necessarily has a different lifecycle than a leaf widget, a stateless label necessarily omits `&mut *State`. If two widgets handle the same concern differently, the difference must be justified by a real difference in what they do, not by the order they were written or who wrote them.
+
+When adding a new widget or modifying an existing one, check the other widgets and align with them.
+
 ---
 
 ## Mouse Capture

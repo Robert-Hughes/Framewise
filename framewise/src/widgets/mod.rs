@@ -41,19 +41,18 @@ pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
 pub use meter::{meter, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle};
 pub use radio::{radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
-pub use scroll_area::{begin_scroll_area, ScrollAreaResult, ScrollState, ScrollbarVisibility};
+pub use scroll_area::{begin_scroll_area, ScrollAreaResult, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility};
 pub use segmented::{
     segmented, SegmentedResult, SegmentedSpecBuilder, SegmentedState, SegmentedStyle,
 };
 pub use select::{select, SelectResult, SelectSpecBuilder, SelectState, SelectStyle};
-pub use slider::{slider, Orientation, SliderResult, SliderState, SliderStyle};
+pub use slider::{slider, Orientation, SliderResult, SliderSpecBuilder, SliderState, SliderStyle};
 pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
 pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
 pub use switch::{switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle};
 pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 pub use text_edit::{
-    find_word_boundary, raw, text_edit, word_bounds, ClipboardAction, TextEditResult,
-    TextEditState, TextEditStyle,
+    text_edit, ClipboardAction, TextEditResult, TextEditSpecBuilder, TextEditState, TextEditStyle,
 };
 pub use tooltip::{tooltip, TooltipResult, TooltipSpecBuilder, TooltipStyle, TooltipVariant};
 pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};

@@ -17,6 +17,7 @@ pub mod raw {
         pub clip_rect: ClipRect,
         pub error: bool,
         pub disabled: bool,
+        pub time: f64,
     }
 
     #[derive(Debug)]
@@ -33,7 +34,6 @@ pub mod raw {
     pub fn text_edit<T: TextSystem>(
         spec: TextEditSpec,
         state: &mut TextEditState,
-        time: f64,
         input: &Input,
         focus_sys: &mut FocusSystem,
         text_system: &mut T,
@@ -299,7 +299,7 @@ pub mod raw {
         }
 
         if state.caret_byte != old_caret || state.selection_byte != old_selection {
-            state.last_caret_move_time = time;
+            state.last_caret_move_time = spec.time;
         }
 
         // Drawing Background
@@ -374,7 +374,7 @@ pub mod raw {
 
         // Caret
         if focused && state.selection_byte.is_none_or(|s| s == state.caret_byte) {
-            let time_since_move = time - state.last_caret_move_time;
+            let time_since_move = spec.time - state.last_caret_move_time;
             // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
             let blink_on = if time_since_move < 0.5 {
                 true
@@ -605,6 +605,7 @@ pub struct TextEditSpecBuilder {
     pub clip_rect: Option<ClipRect>,
     pub error: Option<bool>,
     pub disabled: Option<bool>,
+    pub time: Option<f64>,
 }
 
 impl TextEditSpecBuilder {
@@ -627,6 +628,10 @@ impl TextEditSpecBuilder {
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
+        self
+    }
+    pub fn time(mut self, time: f64) -> Self {
+        self.time = Some(time);
         self
     }
 
@@ -659,6 +664,7 @@ impl TextEditSpecBuilder {
                 .expect("clip_rect not set — call .clip_rect() or use the high-level API"),
             error: self.error.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
+            time: self.time.unwrap_or(0.0),
         }
     }
 }
@@ -685,11 +691,11 @@ pub fn text_edit<
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
+        .time(ctx.time)
         .build();
     let result = raw::text_edit(
         spec,
         state,
-        ctx.time,
         ctx.input,
         ctx.focus_sys,
         ctx.text_system,
@@ -743,6 +749,7 @@ mod tests {
             clip_rect: None,
             error: false,
             disabled: false,
+            time: 0.0,
         }
     }
 
@@ -763,7 +770,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -780,7 +786,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -793,7 +798,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -818,7 +822,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -831,7 +834,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -856,7 +858,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -869,7 +870,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -901,7 +901,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -914,7 +913,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -941,7 +939,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -955,7 +952,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -967,7 +963,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -996,7 +991,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1013,7 +1007,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1027,7 +1020,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1053,7 +1045,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1062,9 +1053,8 @@ mod tests {
         assert!(has_caret, "Caret should be visible initially");
 
         let res = raw::text_edit(
-            spec(),
+            TextEditSpec { time: 0.6, ..spec() },
             &mut state,
-            0.6,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1077,9 +1067,8 @@ mod tests {
             ctrl: false,
         });
         let res = raw::text_edit(
-            spec(),
+            TextEditSpec { time: 0.6, ..spec() },
             &mut state,
-            0.6,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1094,9 +1083,8 @@ mod tests {
 
         input.text_events.clear();
         let res = raw::text_edit(
-            spec(),
+            TextEditSpec { time: 1.0, ..spec() },
             &mut state,
-            1.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1105,9 +1093,8 @@ mod tests {
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
         let res = raw::text_edit(
-            spec(),
+            TextEditSpec { time: 1.2, ..spec() },
             &mut state,
-            1.2,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1149,7 +1136,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1176,7 +1162,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1189,7 +1174,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1215,7 +1199,6 @@ mod tests {
         raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1250,7 +1233,6 @@ mod tests {
         raw::text_edit(
             clipped_spec,
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1282,7 +1264,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1295,7 +1276,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1310,7 +1290,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1331,7 +1310,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1373,7 +1351,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1421,7 +1398,6 @@ mod tests {
         let res = raw::text_edit(
             spec(),
             &mut state,
-            0.0,
             &input,
             &mut focus_sys,
             &mut text_sys,
@@ -1461,7 +1437,7 @@ mod tests {
         sp.error = true;
 
         let input = Input::default();
-        let res = raw::text_edit(sp, &mut state, 0.0, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(sp, &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert_eq!(
             res.draw,
