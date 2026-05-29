@@ -38,7 +38,7 @@ pub mod raw {
         spec: SelectSpec<'a>,
         state: &mut SelectState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
         text_system: &mut T,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
@@ -49,7 +49,7 @@ pub mod raw {
                 spec.rect,
                 spec.clip_rect,
                 input,
-                focus_sys,
+                focus_system,
                 crate::focus::FocusTraversalKeys::all(),
                 spec.disabled,
             )
@@ -423,7 +423,7 @@ pub fn select<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::select(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::select(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_select_visual_open() {
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -520,7 +520,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_sys,
+            &mut text_system,
         );
 
         let r = Rect::new(0.0, 0.0, 180.0, 28.0);
@@ -591,13 +591,13 @@ mod tests {
 
     #[test]
     fn test_select_click_takes_focus_and_opens() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let state = SelectState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -609,12 +609,18 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
-        raw::select(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::select(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking select must request focus"
         );
@@ -623,13 +629,13 @@ mod tests {
 
     #[test]
     fn test_select_clipped_click_does_not_take_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let state = SelectState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -641,12 +647,18 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
-        raw::select(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::select(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away select must not take focus"
         );
@@ -654,18 +666,18 @@ mod tests {
 
     #[test]
     fn test_select_keyboard_navigation() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = SelectState::default();
         let mut input = Input::default();
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2", "Option 3"];
 
         // Focus the widget first
-        focus_sys.take_focus(state.focus_id);
+        focus_system.take_focus(state.focus_id);
 
         // Frame 1: Press Arrow Down while closed -> selected index changes to 1
         input.key_pressed_down = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -677,10 +689,10 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
         input.key_pressed_down = false;
 
         assert_eq!(state.selected_index, 1);
@@ -689,7 +701,7 @@ mod tests {
         // Frame 2: Press Space -> opens dropdown
         input.key_down_space = true;
         input.key_pressed_space = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -701,15 +713,15 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         input.key_down_space = false;
         input.key_pressed_space = false;
         input.key_released_space = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -721,10 +733,10 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
         input.key_released_space = false;
 
         assert!(state.open);
@@ -732,7 +744,7 @@ mod tests {
 
         // Frame 3: Press Arrow Down while open -> hovers index 2
         input.key_pressed_down = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -744,17 +756,17 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
         input.key_pressed_down = false;
 
         assert_eq!(state.hovered, Some(2));
 
         // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
         input.key_pressed_enter = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -766,10 +778,10 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         assert!(!state.open);
         assert_eq!(state.selected_index, 2);
@@ -797,7 +809,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -805,7 +817,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

@@ -39,7 +39,7 @@ pub mod raw {
         spec: ButtonSpec,
         state: &mut ButtonState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
         text_system: &mut T,
     ) -> ButtonResult {
         // Disabled: register for layout but skip all interaction.
@@ -78,7 +78,7 @@ pub mod raw {
             };
         }
 
-        let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
+        let focused = focus_system.register(state.focus_id, spec.rect, spec.clip_rect);
 
         let is_visible = spec
             .clip_rect
@@ -116,10 +116,10 @@ pub mod raw {
         let pressed = (state.is_active && hovered && input.mouse_down) || state.space_is_active;
 
         if pressed {
-            focus_sys.take_focus(state.focus_id);
+            focus_system.take_focus(state.focus_id);
         }
 
-        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
+        focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
 
         // Choose fill colour based on interaction state.
         let fill = if pressed {
@@ -303,7 +303,7 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip_rect)
         .build();
-    let r = raw::button(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 
     ctx.append_cmds(r.draw);
 
@@ -336,44 +336,44 @@ mod tests {
 
     /// Run one frame with two buttons.
     fn two_btn_frame(
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
         s1: &mut ButtonState,
         s2: &mut ButtonState,
         input: &Input,
     ) {
         let mut ts = DummyTextSys;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::button(
             btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)),
             s1,
             input,
-            focus_sys,
+            focus_system,
             &mut ts,
         );
         raw::button(
             btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
             s2,
             input,
-            focus_sys,
+            focus_system,
             &mut ts,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
     }
 
     #[test]
     fn test_button_tab_moves_focus_next() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_sys.take_focus(s1.focus_id);
+        focus_system.take_focus(s1.focus_id);
 
         let mut input = Input::default();
         input.key_pressed_tab = true;
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &input);
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
         // Focus shift resolves at end_frame; confirm in next frame
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &Input::default());
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(s2.focus_id),
             "Tab should move focus to btn2"
         );
@@ -381,17 +381,17 @@ mod tests {
 
     #[test]
     fn test_button_right_arrow_moves_focus_next() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_sys.take_focus(s1.focus_id);
+        focus_system.take_focus(s1.focus_id);
 
         let mut input = Input::default();
         input.key_pressed_right = true;
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &Input::default());
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(s2.focus_id),
             "Right arrow should move focus to btn2"
         );
@@ -399,17 +399,17 @@ mod tests {
 
     #[test]
     fn test_button_down_arrow_moves_focus_next() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_sys.take_focus(s1.focus_id);
+        focus_system.take_focus(s1.focus_id);
 
         let mut input = Input::default();
         input.key_pressed_down = true;
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &Input::default());
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(s2.focus_id),
             "Down arrow should move focus to btn2"
         );
@@ -417,19 +417,19 @@ mod tests {
 
     #[test]
     fn test_button_shift_tab_moves_focus_prev() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
         // Start with focus on s2
-        focus_sys.take_focus(s2.focus_id);
+        focus_system.take_focus(s2.focus_id);
 
         let mut input = Input::default();
         input.key_pressed_tab = true;
         input.modifier_shift = true;
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_sys, &mut s1, &mut s2, &Input::default());
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
+        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(s1.focus_id),
             "Shift+Tab should move focus back to btn1"
         );
@@ -452,7 +452,7 @@ mod tests {
         };
 
         // Frame 1: Mouse down on Btn1
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
@@ -464,7 +464,7 @@ mod tests {
             btn1_spec(),
             &mut state1,
             &input,
-            &mut focus_sys,
+            &mut focus_system,
             &mut text_system,
         );
         assert!(res1.input.pressed);
@@ -476,14 +476,14 @@ mod tests {
             btn1_spec(),
             &mut state1,
             &input,
-            &mut focus_sys,
+            &mut focus_system,
             &mut text_system,
         );
         let res2 = raw::button(
             btn2_spec(),
             &mut state2,
             &input,
-            &mut focus_sys,
+            &mut focus_system,
             &mut text_system,
         );
 
@@ -503,7 +503,7 @@ mod tests {
             btn1_spec(),
             &mut state1,
             &input,
-            &mut focus_sys,
+            &mut focus_system,
             &mut text_system,
         );
 
@@ -511,7 +511,7 @@ mod tests {
             btn2_spec(),
             &mut state2,
             &input,
-            &mut focus_sys,
+            &mut focus_system,
             &mut text_system,
         );
 
@@ -533,7 +533,7 @@ mod tests {
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Mouse pressed
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut input = Input {
             mouse_pos: Vec2::new(50.0, 25.0),
             mouse_down: true,
@@ -541,14 +541,26 @@ mod tests {
             mouse_clicked: false,
             ..Default::default()
         };
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.pressed);
 
         // Frame 2: Mouse released
         input.mouse_down = false;
         input.mouse_pressed = false;
         input.mouse_clicked = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
         assert!(res.input.clicked, "Button should register as clicked");
     }
@@ -557,7 +569,7 @@ mod tests {
     fn test_button_click_takes_focus() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
@@ -566,12 +578,18 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
 
-        focus_sys.begin_frame();
-        raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_system);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking button must request focus"
         );
@@ -580,7 +598,7 @@ mod tests {
     #[test]
     fn test_button_clipped_click_does_not_take_focus() {
         let mut text_system = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         // Mouse is inside the widget rect but outside the clip_rect.
         let spec = ButtonSpec {
@@ -596,12 +614,18 @@ mod tests {
         input.mouse_down = true;
 
         let mut state = ButtonState::default();
-        focus_sys.begin_frame();
-        raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_system);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away button must not take focus"
         );
@@ -611,19 +635,31 @@ mod tests {
     fn test_enter_clicks_raw_button() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Register and take focus explicitly
         let mut input = Input::default();
-        raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         // Frame 2: Press Enter
         input.key_pressed_enter = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.clicked, "Button should be clicked by Enter key");
     }
 
@@ -631,7 +667,7 @@ mod tests {
     fn test_hover_and_press_state() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
@@ -640,27 +676,51 @@ mod tests {
             mouse_pos: Vec2::new(150.0, 150.0),
             ..Default::default()
         };
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(!res.input.hovered);
         assert!(!res.input.pressed);
 
         // Frame 2: Mouse inside, not down
         input.mouse_pos = Vec2::new(50.0, 25.0);
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.hovered, "Should be hovered");
         assert!(!res.input.pressed, "Should not be pressed");
 
         // Frame 3: Mouse down inside
         input.mouse_down = true;
         input.mouse_pressed = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.hovered, "Should be hovered while pressed down");
         assert!(res.input.pressed, "Should be pressed");
 
         // Frame 4: Drag outside
         input.mouse_pos = Vec2::new(150.0, 150.0);
         input.mouse_pressed = false;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(!res.input.hovered, "Should lose hover when dragged out");
         assert!(
             !res.input.pressed,
@@ -672,20 +732,32 @@ mod tests {
     fn test_spacebar_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Focus
         let mut input = Input::default();
-        raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         // Frame 2: Space down
         input.key_down_space = true;
         input.key_pressed_space = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(
             res.input.pressed,
             "Button should be visually pressed while space is down"
@@ -694,14 +766,26 @@ mod tests {
 
         // Frame 3: Space held
         input.key_pressed_space = false;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.pressed, "Button should remain pressed");
         assert!(!res.input.clicked, "Button should not be clicked yet");
 
         // Frame 4: Space released
         input.key_down_space = false;
         input.key_released_space = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(!res.input.pressed, "Button should not be pressed");
         assert!(res.input.clicked, "Button should be clicked on release");
     }
@@ -710,28 +794,46 @@ mod tests {
     fn test_spacebar_loses_focus_does_not_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
 
         let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
 
         // Frame 1: Focus
         let mut input = Input::default();
-        raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         // Frame 2: Space down
         input.key_down_space = true;
         input.key_pressed_space = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.input.pressed);
 
         // Frame 3: Lose focus!
         input.key_pressed_space = false;
-        focus_sys.take_focus(FocusId::new()); // Give focus to something else
-        focus_sys.end_frame();
+        focus_system.take_focus(FocusId::new()); // Give focus to something else
+        focus_system.end_frame();
 
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(
             !res.input.pressed,
             "Should lose pressed state when focus lost"
@@ -740,7 +842,13 @@ mod tests {
         // Frame 4: Release space
         input.key_down_space = false;
         input.key_released_space = true;
-        let res = raw::button(spec(), &mut state, &input, &mut focus_sys, &mut text_system);
+        let res = raw::button(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(!res.input.clicked, "Should not click because it lost focus");
     }
 
@@ -748,16 +856,22 @@ mod tests {
 
     #[test]
     fn test_button_visual_normal() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut state = state;
-        focus_sys.begin_frame();
-        let res = raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        let res = raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         let ButtonStyle {
             background,
@@ -790,17 +904,23 @@ mod tests {
 
     #[test]
     fn test_button_visual_hovered() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut state = state;
-        focus_sys.begin_frame();
-        let res = raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        let res = raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         let ButtonStyle {
             hovered,
@@ -833,8 +953,8 @@ mod tests {
 
     #[test]
     fn test_button_visual_pressed() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0);
@@ -844,9 +964,15 @@ mod tests {
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut state = state;
-        focus_sys.begin_frame();
-        let res = raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        let res = raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         let ButtonStyle {
             pressed,
@@ -879,23 +1005,23 @@ mod tests {
 
     #[test]
     fn test_button_visual_focused() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
-        focus_sys.take_focus(state.focus_id);
+        focus_system.take_focus(state.focus_id);
 
         let mut state = state;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         let res = raw::button(
             spec,
             &mut state,
             &Input::default(),
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         let ButtonStyle {
             background,
@@ -939,8 +1065,8 @@ mod tests {
 
     #[test]
     fn test_button_visual_disabled() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let spec = ButtonSpec {
             disabled: true,
@@ -948,15 +1074,15 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         let res = raw::button(
             spec,
             &mut state,
             &Input::default(),
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         let alpha = 0.32_f32;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -989,8 +1115,8 @@ mod tests {
 
     #[test]
     fn test_regression_custom_style_no_theme_lookup() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
 
@@ -1018,9 +1144,15 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
-        let res = raw::button(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        let res = raw::button(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
             res.draw,
@@ -1070,7 +1202,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1078,7 +1210,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

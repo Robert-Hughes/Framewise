@@ -71,7 +71,7 @@ struct App {
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
     text_system: Option<SampleTextSystem>,
-    focus_sys: framewise::focus::FocusSystem,
+    focus_system: framewise::focus::FocusSystem,
     start_time: std::time::Instant,
     click_tracker: framewise::input::ClickTracker,
     text_edit_state: framewise::widgets::text_edit::TextEditState,
@@ -155,7 +155,7 @@ impl App {
             window: None,
             gpu: None,
             text_system: Some(SampleTextSystem::new()),
-            focus_sys: framewise::focus::FocusSystem::new(),
+            focus_system: framewise::focus::FocusSystem::new(),
             start_time: std::time::Instant::now(),
             click_tracker: framewise::input::ClickTracker::new(),
             text_edit_state: framewise::widgets::text_edit::TextEditState::new("Search..."),
@@ -206,26 +206,26 @@ impl App {
             .unwrap_or((1600.0, 1200.0));
 
         if self.active_page == AppPage::WidgetSpec {
-            self.focus_sys.begin_frame();
+            self.focus_system.begin_frame();
             let cmds = spec_page::draw_spec_page(
                 text_system,
-                &mut self.focus_sys,
+                &mut self.focus_system,
                 &mut self.spec_page_state,
                 &self.input,
                 self.start_time.elapsed().as_secs_f64(),
                 win_size.0,
                 win_size.1,
             );
-            self.focus_sys.end_frame();
+            self.focus_system.end_frame();
             return cmds;
         }
 
-        self.focus_sys.begin_frame();
+        self.focus_system.begin_frame();
         let mut cmds = framewise::DrawCommands::new();
         let mut ctx = WidgetContext::root(
             Theme::default(),
             text_system,
-            &mut self.focus_sys,
+            &mut self.focus_system,
             &self.input,
             framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_size.0, win_size.1)),
             &mut cmds,
@@ -1039,7 +1039,7 @@ impl App {
         };
 
         ctx.finish();
-        self.focus_sys.end_frame();
+        self.focus_system.end_frame();
         cmds
     }
 }

@@ -66,7 +66,7 @@ pub struct WidgetContext<
 
     // System resources
     pub text_system: &'a mut T,
-    pub focus_sys: &'a mut FocusSystem,
+    pub focus_system: &'a mut FocusSystem,
     pub input: &'a Input,
     cmds: &'a mut DrawCommands,
 
@@ -80,7 +80,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
     pub fn root(
         theme: Theme,
         text_system: &'a mut T,
-        focus_sys: &'a mut FocusSystem,
+        focus_system: &'a mut FocusSystem,
         input: &'a Input,
         layout_state: LS,
         cmds: &'a mut DrawCommands,
@@ -90,7 +90,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
             clip_rect: None,
             theme,
             text_system,
-            focus_sys,
+            focus_system,
             input,
             layout_state,
             cmds,
@@ -117,7 +117,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
             time: self.time,
             clip_rect: inner_clip_rect,
             text_system: self.text_system,
-            focus_sys: self.focus_sys,
+            focus_system: self.focus_system,
             input: self.input,
             layout_state: inner_layout_state,
             cmds: self.cmds,
@@ -159,7 +159,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
 
     /// Consume the context, running the on_finish closure and appending its post-commands.
     pub fn finish(self) {
-        let post_cmds = (self.on_finish)(self.focus_sys);
+        let post_cmds = (self.on_finish)(self.focus_system);
         self.cmds.extend(post_cmds);
     }
 

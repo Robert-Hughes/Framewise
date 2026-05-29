@@ -276,7 +276,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -284,7 +284,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
@@ -309,14 +309,14 @@ mod tests {
     fn test_tree_bounds_and_content_bounds() {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

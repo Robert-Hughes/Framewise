@@ -38,7 +38,7 @@ pub mod raw {
         spec: TextEditSpec,
         state: &mut TextEditState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
         text_system: &mut T,
     ) -> TextEditResult {
         let mut cmds = DrawCommands::new();
@@ -78,7 +78,7 @@ pub mod raw {
             };
         }
 
-        let focused = focus_sys.register(state.focus_id, spec.rect, spec.clip_rect);
+        let focused = focus_system.register(state.focus_id, spec.rect, spec.clip_rect);
         let just_focused = focused && !state.was_focused;
 
         let old_caret = state.caret_byte;
@@ -252,7 +252,7 @@ pub mod raw {
 
         // Mouse interaction
         if contains && input.mouse_pressed {
-            focus_sys.take_focus(state.focus_id);
+            focus_system.take_focus(state.focus_id);
 
             let relative_x = input.mouse_pos.x - content_rect.x;
             let clicked_byte = text_system.hit_test_x(handle, relative_x);
@@ -409,7 +409,7 @@ pub mod raw {
         }
 
         // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
-        focus_sys.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+        focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
 
         state.was_focused = focused || (contains && input.mouse_pressed);
 
@@ -696,7 +696,7 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> 
         .clip_rect(clip)
         .time(ctx.time)
         .build();
-    let result = raw::text_edit(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::text_edit(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -754,19 +754,25 @@ mod tests {
 
     #[test]
     fn test_typing_and_cursor() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("");
 
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Char('a'));
         input.text_events.push(TextEvent::Char('b'));
         input.text_events.push(TextEvent::Char('c'));
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "abc");
         assert_eq!(state.caret_byte, 3);
 
@@ -776,74 +782,110 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.caret_byte, 2);
 
         // Insert at cursor
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('x'));
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "abxc");
         assert_eq!(state.caret_byte, 3);
     }
 
     #[test]
     fn test_backspace_and_delete() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         state.caret_byte = 3;
         state.was_focused = true;
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: false });
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "helo");
         assert_eq!(state.caret_byte, 2);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: false });
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
     }
 
     #[test]
     fn test_ctrl_backspace_and_delete() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
         state.caret_byte = 8; // "hello wo|rld"
         state.was_focused = true;
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: true });
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "hello rld");
         assert_eq!(state.caret_byte, 6); // end of "hello "
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: true });
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "hello ");
         assert_eq!(state.caret_byte, 6);
     }
 
     #[test]
     fn test_selection_and_replacement() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         state.caret_byte = 1;
         state.was_focused = true;
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretRight {
@@ -855,13 +897,25 @@ mod tests {
             ctrl: false,
         });
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.selection_byte, Some(1));
         assert_eq!(state.caret_byte, 3);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.value, "halo");
         assert_eq!(state.caret_byte, 2);
         assert_eq!(state.selection_byte, None);
@@ -869,8 +923,8 @@ mod tests {
 
     #[test]
     fn test_mouse_clicking_and_dragging() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
@@ -881,19 +935,37 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
         state.was_focused = true;
 
         input.mouse_pressed = false;
         input.mouse_pos.x += 24.0;
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
 
         input.mouse_down = false;
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(!state.is_dragging);
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
@@ -901,8 +973,8 @@ mod tests {
 
     #[test]
     fn test_double_click_selection_and_drag() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello rust world");
 
         let mut input = Input::default();
@@ -915,7 +987,13 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         // Selection should be "rust" (6 to 10)
         assert_eq!(state.selection_byte, Some(6));
         assert_eq!(state.caret_byte, 10);
@@ -925,14 +1003,26 @@ mod tests {
         // Now drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
         input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
         assert_eq!(state.caret_byte, 16); // end of "world"
 
         // Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
         assert_eq!(state.caret_byte, 0); // start of "hello"
@@ -940,18 +1030,24 @@ mod tests {
 
     #[test]
     fn test_caret_blink_reset_on_move() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         state.caret_byte = 5;
         state.was_focused = true;
 
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         let mut input = Input::default();
 
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
@@ -962,8 +1058,8 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should be hidden during off phase");
@@ -979,8 +1075,8 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
         assert_eq!(state.last_caret_move_time, 0.6);
 
@@ -998,8 +1094,8 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
@@ -1011,8 +1107,8 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
@@ -1039,16 +1135,22 @@ mod tests {
 
     #[test]
     fn test_focus_select_all() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
         let input = Input::default();
 
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, Some(0));
         assert_eq!(state.caret_byte, 11);
@@ -1056,8 +1158,8 @@ mod tests {
 
     #[test]
     fn test_mouse_focus_no_select_all() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
         let mut input = Input::default();
@@ -1068,13 +1170,25 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
-        focus_sys.end_frame();
-        focus_sys.begin_frame();
+        focus_system.end_frame();
+        focus_system.begin_frame();
         input.mouse_pressed = false;
 
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, None);
@@ -1083,8 +1197,8 @@ mod tests {
 
     #[test]
     fn test_text_edit_click_takes_focus() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
 
         let mut input = Input::default();
@@ -1092,12 +1206,18 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
 
-        focus_sys.begin_frame();
-        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking text edit must request focus"
         );
@@ -1105,8 +1225,8 @@ mod tests {
 
     #[test]
     fn test_text_edit_clipped_click_does_not_take_focus() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
 
         // Mouse is inside the widget rect but outside the clip_rect.
@@ -1120,18 +1240,18 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
 
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::text_edit(
             clipped_spec,
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away text edit must not take focus"
         );
@@ -1139,12 +1259,12 @@ mod tests {
 
     #[test]
     fn test_clipboard_actions() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
 
         state.selection_byte = Some(6);
         state.caret_byte = 11;
@@ -1152,13 +1272,25 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
         assert_eq!(state.value, "hello world");
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
         assert_eq!(state.selection_byte, None);
@@ -1166,7 +1298,13 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
         assert_eq!(state.caret_byte, 10);
@@ -1176,11 +1314,17 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_normal() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let input = Input::default();
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
         assert_eq!(
             res.draw,
@@ -1205,17 +1349,23 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_focused_caret() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
-        focus_sys.begin_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
 
         state.was_focused = true; // ensure state knows
 
         let input = Input::default();
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
         assert_eq!(
             res.draw,
@@ -1244,19 +1394,25 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_focused_selection() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.end_frame();
-        focus_sys.begin_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
 
         state.was_focused = true;
         state.selection_byte = Some(0);
         state.caret_byte = 5;
 
         let input = Input::default();
-        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
 
         assert_eq!(
             res.draw,
@@ -1285,8 +1441,8 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_error() {
-        let mut text_sys = DummyTextSys;
-        let mut focus_sys = FocusSystem::new();
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let mut sp = spec();
         sp.error = true;
@@ -1296,8 +1452,8 @@ mod tests {
             sp.clone(),
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
 
         assert_eq!(
@@ -1328,7 +1484,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1336,7 +1492,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

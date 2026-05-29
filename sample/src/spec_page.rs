@@ -719,7 +719,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawC
 
 pub fn draw_spec_page(
     ts: &mut SampleTextSystem,
-    focus_sys: &mut FocusSystem,
+    focus_system: &mut FocusSystem,
     state: &mut SpecPageState,
     input: &Input,
     time: f64,
@@ -735,7 +735,7 @@ pub fn draw_spec_page(
     let mut cmds = DrawCommands::new();
     let mut b = {
         let layout_state = ManualLayout.begin(win_rect);
-        let mut w_ctx = WidgetContext::root(t, ts, focus_sys, input, layout_state, &mut cmds);
+        let mut w_ctx = WidgetContext::root(t, ts, focus_system, input, layout_state, &mut cmds);
         w_ctx.theme.sans_font = t.mono_font;
         w_ctx
     };

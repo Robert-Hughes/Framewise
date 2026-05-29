@@ -430,7 +430,7 @@ pub fn handle_widget_focus(
     rect: Rect,
     clip_rect: ClipRect,
     input: &Input,
-    focus_sys: &mut FocusSystem,
+    focus_system: &mut FocusSystem,
     keys: FocusTraversalKeys,
     disabled: bool,
 ) -> (bool, bool) {
@@ -439,7 +439,7 @@ pub fn handle_widget_focus(
     }
 
     // 1. Register with the central FocusSystem
-    let focused = focus_sys.register(focus_id, rect, clip_rect);
+    let focused = focus_system.register(focus_id, rect, clip_rect);
 
     // 2. Perform clip-safe hover/press hit testing
     let is_visible = clip_rect.is_none_or(|clip| clip.contains(input.mouse_pos));
@@ -448,11 +448,11 @@ pub fn handle_widget_focus(
 
     // 3. Take focus on mouse press
     if clicked {
-        focus_sys.take_focus(focus_id);
+        focus_system.take_focus(focus_id);
     }
 
     // 4. Handle keyboard focus shifts
-    focus_sys.handle_traversal(focused, input, keys);
+    focus_system.handle_traversal(focused, input, keys);
 
     (focused, clicked)
 }

@@ -110,9 +110,9 @@ Framewise has two layers:
 Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct and return a `raw::*Result` containing draw commands and interaction info. Every input is explicit; the cost is strictly local.
 
 ```rust
-pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
+pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
 pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> raw::LabelResult;
-pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::TextEditResult;
+pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::TextEditResult;
 ```
 
 Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
@@ -259,7 +259,7 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_sys: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
+pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
 pub fn button<T, S, CF>(
@@ -273,7 +273,7 @@ pub fn button<T, S, CF>(
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .build();
-    let r = raw::button(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
     ctx.append_cmds(r.draw.0);
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -399,7 +399,7 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 
 - **Decorator Layouts**: Layouts like `OffsetLayout<L>` are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
 
-- **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`) return a child `WidgetContext` with their cleanup logic embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. Commands accumulate directly into the shared buffer and cleanup runs automatically — no explicit high-level `end_*` call or manual command threading needed. The raw layer still exposes `raw::end_scroll_area(token, focus_sys)` and `raw::end_window()` for callers that bypass the context system.
+- **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`) return a child `WidgetContext` with their cleanup logic embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. Commands accumulate directly into the shared buffer and cleanup runs automatically — no explicit high-level `end_*` call or manual command threading needed. The raw layer still exposes `raw::end_scroll_area(token, focus_system)` and `raw::end_window()` for callers that bypass the context system.
 
 - **Shared Command Buffer**: Each `WidgetContext` holds `cmds: &'a mut DrawCommands`, a mutable reference into a buffer that ultimately belongs to the root caller. Child contexts are constructed by reborrowing the parent's `cmds` reference, so all contexts in a tree write into the same buffer in evaluation order. `finish()` returns `()` — there is no `DrawCommands` to thread back up the call stack.
 
@@ -411,7 +411,7 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 
 - **Why `finish()` vs. explicit `end_scroll_area` — two API layers, two contracts**:
 
-  | | High-level (`WidgetContext::finish()`) | Low-level (`raw::end_scroll_area(token, focus_sys)`) |
+  | | High-level (`WidgetContext::finish()`) | Low-level (`raw::end_scroll_area(token, focus_system)`) |
   |---|---|---|
   | **Who calls it** | App code using the context API | Widget authors writing raw widget functions |
   | **What it knows** | Nothing about scroll areas specifically — just "run cleanup and close this scope" | Exactly what scroll area cleanup requires: pop clip, pop keyboard scope, make focus claims |
@@ -419,7 +419,7 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
   | **Why explicit, not RAII** | `Drop` can't receive `&mut FocusSystem`; borrowing it for the token's lifetime would pollute every widget call site | Same reason |
   | **Ordering guarantee** | Borrow checker enforces sequential children; `finish()` appends directly into the shared buffer | Caller is responsible for matching `begin`/`end` calls; `debug_assert` checks order at runtime |
 
-  At the high level, `finish()` is a uniform teardown verb — the caller doesn't need to know whether the context wraps a scroll area, a window, or nothing. At the raw level, `end_scroll_area(token, focus_sys)` is explicit because raw callers have all the information and are expected to manage lifecycle manually.
+  At the high level, `finish()` is a uniform teardown verb — the caller doesn't need to know whether the context wraps a scroll area, a window, or nothing. At the raw level, `end_scroll_area(token, focus_system)` is explicit because raw callers have all the information and are expected to manage lifecycle manually.
 
 - **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because contexts are finished bottom-up, innermost scroll areas always get first pick of the claim.
 

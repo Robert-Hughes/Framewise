@@ -37,7 +37,7 @@ pub mod raw {
         spec: TabsSpec<'a>,
         state: &mut TabsState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
         text_system: &mut T,
     ) -> TabsResult {
         let mut cmds = DrawCommands::new();
@@ -62,7 +62,7 @@ pub mod raw {
                 Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
                 spec.clip_rect,
                 input,
-                focus_sys,
+                focus_system,
                 crate::focus::FocusTraversalKeys::all(),
                 spec.disabled,
             )
@@ -299,7 +299,7 @@ pub fn tabs<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> D
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::tabs(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::tabs(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -383,10 +383,10 @@ mod tests {
             active_index: 1,
             ..Default::default()
         };
-        let mut focus_sys = FocusSystem::new();
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.begin_frame();
-        let mut text_sys = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        focus_system.take_focus(state.focus_id);
+        focus_system.begin_frame();
+        let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -400,10 +400,10 @@ mod tests {
             spec,
             &mut state,
             &Input::default(),
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         assert_eq!(
             res.draw,
@@ -447,13 +447,13 @@ mod tests {
 
     #[test]
     fn test_tabs_click_takes_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -463,12 +463,18 @@ mod tests {
             clip_rect: None,
         };
 
-        focus_sys.begin_frame();
-        raw::tabs(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::tabs(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking tabs must request focus"
         );
@@ -476,13 +482,13 @@ mod tests {
 
     #[test]
     fn test_tabs_clipped_click_does_not_take_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -492,12 +498,18 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
         };
 
-        focus_sys.begin_frame();
-        raw::tabs(spec, &mut state, &input, &mut focus_sys, &mut text_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::tabs(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+        );
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away tabs widget must not take focus"
         );
@@ -505,18 +517,18 @@ mod tests {
 
     #[test]
     fn test_tabs_keyboard_navigation() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
 
         // Focus the widget
-        focus_sys.take_focus(state.focus_id);
+        focus_system.take_focus(state.focus_id);
 
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::tabs(
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -527,17 +539,17 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
         input.key_pressed_right = false;
 
         assert_eq!(state.active_index, 1);
 
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
-        focus_sys.begin_frame();
+        focus_system.begin_frame();
         raw::tabs(
             TabsSpec {
                 rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -548,10 +560,10 @@ mod tests {
             },
             &mut state,
             &input,
-            &mut focus_sys,
-            &mut text_sys,
+            &mut focus_system,
+            &mut text_system,
         );
-        focus_sys.end_frame();
+        focus_system.end_frame();
 
         assert_eq!(state.active_index, 0);
     }
@@ -578,7 +590,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -586,7 +598,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

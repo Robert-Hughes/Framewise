@@ -36,7 +36,7 @@ pub mod raw {
         spec: CheckboxSpec,
         state: &mut CheckboxState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
     ) -> CheckboxResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -46,7 +46,7 @@ pub mod raw {
                 spec.rect,
                 spec.clip_rect,
                 input,
-                focus_sys,
+                focus_system,
                 crate::focus::FocusTraversalKeys::all(),
                 spec.disabled,
             )
@@ -278,7 +278,7 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> D
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_sys);
+    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_system);
 
     ctx.append_cmds(result.draw);
 
@@ -408,9 +408,9 @@ mod tests {
     #[test]
     fn test_checkbox_visual_focused() {
         let state = CheckboxState::default();
-        let mut focus_sys = FocusSystem::new();
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.begin_frame();
+        let mut focus_system = FocusSystem::new();
+        focus_system.take_focus(state.focus_id);
+        focus_system.begin_frame();
         let spec = CheckboxSpec {
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
@@ -420,8 +420,8 @@ mod tests {
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let mut state = state;
-        let res = raw::checkbox(spec, &mut state, &Input::default(), &mut focus_sys);
-        focus_sys.end_frame();
+        let res = raw::checkbox(spec, &mut state, &Input::default(), &mut focus_system);
+        focus_system.end_frame();
         assert_eq!(
             res.draw,
             DrawCommands(vec![
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_click_takes_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let state = CheckboxState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -488,12 +488,12 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::checkbox(spec, &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking checkbox must request focus"
         );
@@ -501,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_clipped_click_does_not_take_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let state = CheckboxState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -515,12 +515,12 @@ mod tests {
         };
 
         let mut state = state;
-        focus_sys.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::checkbox(spec, &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away checkbox must not take focus"
         );
@@ -528,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_keyboard_toggle() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = CheckboxState::default();
         let mut input = Input::default();
 
@@ -540,25 +540,25 @@ mod tests {
         };
 
         // Frame 1: Explicitly focus the checkbox
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.begin_frame();
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
-        focus_sys.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         // Frame 3: Release Space key
         input.key_down_space = false;
         input.key_pressed_space = false;
         input.key_released_space = true;
-        focus_sys.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert_eq!(
             state.check,
@@ -590,7 +590,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -598,7 +598,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),

@@ -36,7 +36,7 @@ pub mod raw {
         spec: SwitchSpec,
         state: &mut SwitchState,
         input: &Input,
-        focus_sys: &mut FocusSystem,
+        focus_system: &mut FocusSystem,
     ) -> SwitchResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -46,7 +46,7 @@ pub mod raw {
                 spec.rect,
                 spec.clip_rect,
                 input,
-                focus_sys,
+                focus_system,
                 crate::focus::FocusTraversalKeys::all(),
                 spec.disabled,
             )
@@ -247,7 +247,7 @@ pub fn switch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Dra
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .build();
-    let result = raw::switch(spec, state, ctx.input, ctx.focus_sys);
+    let result = raw::switch(spec, state, ctx.input, ctx.focus_system);
 
     ctx.append_cmds(result.draw);
 
@@ -341,9 +341,9 @@ mod tests {
     #[test]
     fn test_switch_visual_focused() {
         let mut state = SwitchState::default();
-        let mut focus_sys = FocusSystem::new();
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.begin_frame();
+        let mut focus_system = FocusSystem::new();
+        focus_system.take_focus(state.focus_id);
+        focus_system.begin_frame();
         let spec = SwitchSpec {
             rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: false,
@@ -351,8 +351,8 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = raw::switch(spec, &mut state, &Input::default(), &mut focus_sys);
-        focus_sys.end_frame();
+        let res = raw::switch(spec, &mut state, &Input::default(), &mut focus_system);
+        focus_system.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         assert_eq!(
             res.draw,
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_switch_click_takes_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = SwitchState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -427,12 +427,12 @@ mod tests {
             clip_rect: None,
         };
 
-        focus_sys.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::switch(spec, &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             Some(state.focus_id),
             "Clicking switch must request focus"
         );
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_switch_clipped_click_does_not_take_focus() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = SwitchState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
@@ -453,12 +453,12 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
         };
 
-        focus_sys.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::switch(spec, &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert_eq!(
-            focus_sys.current_focus(),
+            focus_system.current_focus(),
             None,
             "Clicking a clipped-away switch must not take focus"
         );
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_switch_keyboard_toggle() {
-        let mut focus_sys = FocusSystem::new();
+        let mut focus_system = FocusSystem::new();
         let mut state = SwitchState::default();
         let mut input = Input::default();
 
@@ -478,25 +478,25 @@ mod tests {
         };
 
         // Frame 1: Focus switch
-        focus_sys.take_focus(state.focus_id);
-        focus_sys.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.take_focus(state.focus_id);
+        focus_system.begin_frame();
+        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         // Frame 2: Press Space
         input.key_down_space = true;
         input.key_pressed_space = true;
-        focus_sys.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         // Frame 3: Release Space
         input.key_down_space = false;
         input.key_pressed_space = false;
         input.key_released_space = true;
-        focus_sys.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_sys);
-        focus_sys.end_frame();
+        focus_system.begin_frame();
+        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        focus_system.end_frame();
 
         assert!(state.on, "Spacebar release must toggle switch state");
     }
@@ -524,7 +524,7 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
-        let mut text_sys = DummyTextSys;
+        let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -532,7 +532,7 @@ mod tests {
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_sys,
+            &mut text_system,
             &mut focus,
             &input,
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
