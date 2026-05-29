@@ -126,8 +126,8 @@ High-level widget APIs are freestanding, highly ergonomic functions that accept 
 ```rust
 pub fn button<T, S, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: ButtonSpecBuilder,
+    layout_params: S::Params,
     state: &mut ButtonState,
 ) -> ButtonResult;
 ```
@@ -264,9 +264,9 @@ pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &
 // High-level: uses builder to resolve defaults
 pub fn button<T, S, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut ButtonState,
-    layout_params: S::Params,
     builder: ButtonSpecBuilder,
+    layout_params: S::Params,
+    state: &mut ButtonState,
 ) -> ButtonResult {
     let rect = ctx.layout(layout_params);
     let spec = builder

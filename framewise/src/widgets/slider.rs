@@ -517,24 +517,6 @@ pub struct SliderStyle {
     pub scrollbar_mode: bool,
 }
 
-impl SliderStyle {
-    pub fn scrollbar() -> Self {
-        let ink = Color::from_srgb_u8(21, 19, 15, 255);
-        Self {
-            track_color: Color::linear_rgba(ink.r, ink.g, ink.b, 0.04),
-            thumb_color: ink,
-            thumb_border_color: Color::TRANSPARENT,
-            thumb_border_width: 0.0,
-            thumb_hover_color: Color::from_srgb_u8(194, 90, 44, 255),
-            thumb_drag_color: Color::from_srgb_u8(194, 90, 44, 255),
-            focus_outline_color: Color::from_srgb_u8(194, 90, 44, 255),
-            thickness: 1.5,
-            thumb_size: 12.0,
-            scrollbar_mode: true,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Orientation {
     Vertical,

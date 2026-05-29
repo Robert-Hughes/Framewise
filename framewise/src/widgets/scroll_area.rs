@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::Layout,
     types::{ClipRect, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{LayoutInfo, WidgetContext}, widgets::SliderStyle,
 };
 
 pub mod raw {
@@ -18,6 +18,7 @@ pub mod raw {
         pub v_vis: super::ScrollbarVisibility,
         pub clip_rect: ClipRect,
         pub time: f64,
+        pub scrollbar_style: SliderStyle,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -161,7 +162,7 @@ pub mod raw {
                 page_step: content_bounds.h,
                 step: 40.0,
                 thumb_size_ratio: Some(view_ratio),
-                style: crate::widgets::slider::SliderStyle::scrollbar(),
+                style: spec.scrollbar_style,
                 clip_rect: spec.clip_rect,
                 claim_scroll_at_ends: false,
                 time: spec.time,
@@ -199,7 +200,7 @@ pub mod raw {
                 page_step: content_bounds.w,
                 step: 40.0,
                 thumb_size_ratio: Some(view_ratio),
-                style: crate::widgets::slider::SliderStyle::scrollbar(),
+                style: spec.scrollbar_style,
                 clip_rect: spec.clip_rect,
                 claim_scroll_at_ends: false,
                 time: spec.time,
@@ -463,6 +464,7 @@ pub struct ScrollAreaSpecBuilder {
     pub v_vis: Option<ScrollbarVisibility>,
     pub clip_rect: Option<ClipRect>,
     pub time: Option<f64>,
+    pub scrollbar_style: Option<SliderStyle>,
 }
 
 impl ScrollAreaSpecBuilder {
@@ -499,6 +501,15 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
+    /// Fills unset fields from `theme`. Called automatically by high-level context
+    /// functions — only needed when using the raw API directly.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.scrollbar_style.is_none() {
+            self.scrollbar_style = Some(theme.scrollbar_style());
+        }
+        self
+    }
+
     pub fn build(self) -> raw::ScrollAreaSpec {
         raw::ScrollAreaSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
@@ -511,6 +522,9 @@ impl ScrollAreaSpecBuilder {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect()"),
             time: self.time.unwrap_or(0.0),
+            scrollbar_style: self
+                .scrollbar_style
+                .expect("scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()"),
         }
     }
 }
@@ -589,7 +603,7 @@ pub fn begin_scroll_area<
     let layout_bounds = ctx.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder.rect(bounds).clip_rect(clip).time(ctx.time).build();
+    let spec = builder.rect(bounds).clip_rect(clip).time(ctx.time).defaults_from_theme(&ctx.theme).build();
     let raw::ScrollAreaResult {
         draw,
         token,
@@ -669,6 +683,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Auto,
             clip_rect,
             time,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let r = raw::begin_scroll_area(spec, state, input, focus_sys);
         let mut pre_cmds = r.draw;
@@ -726,6 +741,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_r = begin_scroll_area(outer_spec, outer_state, &input, &mut focus_sys);
 
@@ -736,6 +752,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_r = begin_scroll_area(inner_spec, inner_state, &input, &mut focus_sys);
             raw::end_scroll_area(inner_r.token, &mut focus_sys);
@@ -792,6 +809,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
 
@@ -843,6 +861,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
             crate::widgets::button::raw::button(
@@ -907,6 +926,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
             raw::end_scroll_area(token, &mut focus_sys);
@@ -941,6 +961,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -960,6 +981,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -997,6 +1019,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys).token;
@@ -1008,6 +1031,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys).token;
@@ -1043,6 +1067,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_sys).token;
@@ -1054,6 +1079,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_sys).token;
@@ -1086,6 +1112,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1113,6 +1140,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token_a = begin_scroll_area(spec_a, &mut a, &input, fs).token;
             raw::end_scroll_area(token_a, fs);
@@ -1124,6 +1152,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token_b = begin_scroll_area(spec_b, &mut b, &input, fs).token;
             raw::end_scroll_area(token_b, fs);
@@ -1155,6 +1184,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1184,6 +1214,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1216,6 +1247,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_sys);
             let token = sa_r.token;
@@ -1246,6 +1278,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2).token;
             raw::end_scroll_area(token, &mut focus_sys2);
@@ -1278,6 +1311,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1315,6 +1349,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: Some(clip),
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, fs);
@@ -1369,6 +1404,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys);
             let token = sa_r.token;
@@ -1473,6 +1509,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys);
             let token = sa_r.token;
@@ -1537,6 +1574,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1555,6 +1593,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1582,6 +1621,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1600,6 +1640,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1630,6 +1671,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1647,6 +1689,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1667,6 +1710,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
         raw::end_scroll_area(token, &mut focus_sys);
@@ -1707,6 +1751,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1717,6 +1762,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1751,6 +1797,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1761,6 +1808,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1795,6 +1843,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1805,6 +1854,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1839,6 +1889,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1849,6 +1900,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1887,6 +1939,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1897,6 +1950,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1947,6 +2001,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -1957,6 +2012,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -1999,6 +2055,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2021,6 +2078,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2031,6 +2089,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2058,6 +2117,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2080,6 +2140,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2090,6 +2151,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2138,6 +2200,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2148,6 +2211,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2198,6 +2262,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2208,6 +2273,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2252,6 +2318,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2262,6 +2329,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2308,6 +2376,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2330,6 +2399,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2340,6 +2410,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2408,6 +2479,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2418,6 +2490,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2428,6 +2501,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2479,6 +2553,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2489,6 +2564,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2499,6 +2575,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2549,6 +2626,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2559,6 +2637,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2569,6 +2648,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2625,6 +2705,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2648,6 +2729,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2658,6 +2740,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2668,6 +2751,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2739,6 +2823,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2749,6 +2834,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2759,6 +2845,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2809,6 +2896,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2819,6 +2907,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2829,6 +2918,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2878,6 +2968,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2888,6 +2979,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2898,6 +2990,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2952,6 +3045,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -2975,6 +3069,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -2985,6 +3080,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_sys).token;
@@ -2995,6 +3091,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3055,6 +3152,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3065,6 +3163,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3108,6 +3207,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3118,6 +3218,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3171,6 +3272,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3181,6 +3283,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3218,6 +3321,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3228,6 +3332,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3270,6 +3375,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3280,6 +3386,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3311,6 +3418,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3332,6 +3440,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3342,6 +3451,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3376,6 +3486,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3397,6 +3508,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3407,6 +3519,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3448,6 +3561,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3458,6 +3572,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
@@ -3512,6 +3627,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_sys).token;
@@ -3522,6 +3638,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_sys).token;
