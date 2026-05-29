@@ -12,7 +12,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct KeycapSpec<'a> {
         pub rect: Rect,
-        pub label: &'a str,
+        pub text: &'a str,
         /// Background fill (default: paper_elev).
         pub background: Color,
         /// Border color.
@@ -60,9 +60,9 @@ pub mod raw {
             color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
         });
 
-        // Label, centered
-        if !spec.label.is_empty() {
-            let layout = text_system.prepare(spec.label, spec.text_size, spec.font);
+        // text, centered
+        if !spec.text.is_empty() {
+            let layout = text_system.prepare(spec.text, spec.text_size, spec.font);
             let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
             let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
             draw.push(DrawCmd::Text {
@@ -82,7 +82,7 @@ pub struct KeycapResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {
-    pub label: Option<&'a str>,
+    pub text: Option<&'a str>,
     pub background: Option<Color>,
     pub border: Option<Color>,
     pub text_color: Option<Color>,
@@ -96,8 +96,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         Self::default()
     }
 
-    pub fn label(mut self, label: &'a str) -> Self {
-        self.label = Some(label);
+    pub fn text(mut self, text: &'a str) -> Self {
+        self.text = Some(text);
         self
     }
     pub fn background(mut self, background: Color) -> Self {
@@ -142,7 +142,7 @@ impl<'a> KeycapSpecBuilder<'a> {
             rect: self
                 .rect
                 .expect("rect not set — call .rect()"),
-            label: self.label.expect("label not set — call .label()"),
+            text: self.text.expect("text not set — call .text()"),
             background: self.background.expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),
             text_color: self
@@ -198,7 +198,7 @@ mod tests {
         let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
         let spec = KeycapSpec {
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
-            label: "K",
+            text: "K",
             background: custom_bg,
             border: custom_border,
             text_color: custom_text,
@@ -270,7 +270,7 @@ mod tests {
         let result = super::keycap(
             &mut ctx,
             KeycapSpecBuilder::new()
-                .label("X")
+                .text("X")
                 .background(Color::WHITE)
                 .border(Color::WHITE)
                 .text_color(Color::WHITE)

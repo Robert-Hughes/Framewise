@@ -424,8 +424,8 @@ impl<'a> SelectSpecBuilder<'a> {
 
 pub fn select<
     'a,
-    S: crate::layout::LayoutState,
     T: crate::text::TextSystem,
+    S: crate::layout::LayoutState,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,

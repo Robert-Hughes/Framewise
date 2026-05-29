@@ -14,7 +14,7 @@ pub mod raw {
     pub struct DragNumberSpec<'a> {
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
-        pub label: &'a str,
+        pub text: &'a str,
         pub font: FontId,
         pub value: f32,
         pub min: f32,
@@ -63,10 +63,10 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let label_layout = text_system.prepare(spec.label, s.text_size, spec.font);
-        let label_w = label_layout.size.x + s.label_pad_x * 2.0;
-        let value_x = spec.rect.x + label_w;
-        let value_w = (spec.rect.w - label_w).max(20.0);
+        let text_layout = text_system.prepare(spec.text, s.text_size, spec.font);
+        let text_w = text_layout.size.x + s.text_pad_x * 2.0;
+        let value_x = spec.rect.x + text_w;
+        let value_w = (spec.rect.w - text_w).max(20.0);
 
         // Mouse drag interaction
         if !spec.disabled {
@@ -132,28 +132,28 @@ pub mod raw {
             width: s.border_width,
         });
 
-        // Label section (ink/rust bg, paper text).
-        let label_rect = Rect::new(spec.rect.x, spec.rect.y, label_w, spec.rect.h);
-        let label_bg = if visually_active {
-            s.active_label_bg
+        // text section (ink/rust bg, paper text).
+        let text_rect = Rect::new(spec.rect.x, spec.rect.y, text_w, spec.rect.h);
+        let text_bg = if visually_active {
+            s.active_text_bg
         } else {
-            s.label_bg
+            s.text_bg
         };
         cmds.push(DrawCmd::FillRect {
-            rect: label_rect,
-            color: tint(label_bg),
+            rect: text_rect,
+            color: tint(text_bg),
         });
 
-        let lty = spec.rect.y + (spec.rect.h - label_layout.size.y) * 0.5;
+        let lty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
-                spec.rect.x + s.label_pad_x,
+                spec.rect.x + s.text_pad_x,
                 lty,
-                label_layout.size.x,
-                label_layout.size.y,
+                text_layout.size.x,
+                text_layout.size.y,
             ),
-            color: tint(s.label_text),
-            handle: label_layout.handle,
+            color: tint(s.text_text),
+            handle: text_layout.handle,
         });
 
         // Value area: rust_soft fill proportional to value fraction.
@@ -191,13 +191,13 @@ pub mod raw {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DragNumberStyle {
     pub text_size: f32,
-    pub label_pad_x: f32,
+    pub text_pad_x: f32,
     pub background: Color,
     pub border: Color,
     pub focus: Color,
-    pub label_bg: Color,
-    pub active_label_bg: Color,
-    pub label_text: Color,
+    pub text_bg: Color,
+    pub active_text_bg: Color,
+    pub text_text: Color,
     pub value_text: Color,
     pub value_fill: Color,
     pub border_width: f32,
@@ -247,7 +247,7 @@ impl DragNumberResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {
-    pub label: Option<&'a str>,
+    pub text: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<DragNumberStyle>,
     pub value: Option<f32>,
@@ -263,8 +263,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
         Self::default()
     }
 
-    pub fn label(mut self, label: &'a str) -> Self {
-        self.label = Some(label);
+    pub fn text(mut self, text: &'a str) -> Self {
+        self.text = Some(text);
         self
     }
     pub fn font(mut self, font: FontId) -> Self {
@@ -321,7 +321,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
             rect: self
                 .rect
                 .expect("rect not set — call .rect()"),
-            label: self.label.expect("label not set — call .label()"),
+            text: self.text.expect("text not set — call .text()"),
             font: self
                 .font
                 .expect("font not set — call .font() or defaults_from_theme()"),
@@ -395,7 +395,7 @@ mod tests {
     fn test_drag_number_visual_normal() {
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-            label: "X",
+            text: "X",
             font: FontId(1),
             value: 50.0,
             min: 0.0,
@@ -422,11 +422,11 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
-                    color: style.label_bg,
+                    color: style.text_bg,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
-                    color: style.label_text,
+                    color: style.text_text,
                     handle: crate::text::TextHandle(0),
                 },
                 DrawCmd::FillRect {
@@ -449,7 +449,7 @@ mod tests {
         state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-            label: "X",
+            text: "X",
             font: FontId(1),
             value: 50.0,
             min: 0.0,
@@ -490,11 +490,11 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
-                    color: style.active_label_bg,
+                    color: style.active_text_bg,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
-                    color: style.label_text,
+                    color: style.text_text,
                     handle: crate::text::TextHandle(0),
                 },
                 DrawCmd::FillRect {
@@ -515,7 +515,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-            label: "X",
+            text: "X",
             font: FontId(1),
             value: 0.0,
             min: 0.0,
@@ -548,11 +548,11 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
-                    color: style.label_bg,
+                    color: style.text_bg,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
-                    color: style.label_text,
+                    color: style.text_text,
                     handle: crate::text::TextHandle(0),
                 },
                 DrawCmd::Text {
@@ -575,7 +575,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-            label: "X",
+            text: "X",
             font: FontId(1),
             value: 50.0,
             min: 0.0,
@@ -608,7 +608,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = DragNumberSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-            label: "X",
+            text: "X",
             font: FontId(1),
             value: 50.0,
             min: 0.0,
@@ -646,7 +646,7 @@ mod tests {
         raw::drag_number(
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-                label: "X",
+                text: "X",
                 font: FontId(1),
                 value: 50.0,
                 min: 0.0,
@@ -671,7 +671,7 @@ mod tests {
         raw::drag_number(
             DragNumberSpec {
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-                label: "X",
+                text: "X",
                 font: FontId(1),
                 value: 51.0,
                 min: 0.0,
@@ -735,7 +735,7 @@ mod tests {
         let result = super::drag_number(
             &mut ctx,
             DragNumberSpecBuilder::new()
-                .label("x")
+                .text("x")
                 .value(0.0)
                 .rect(custom_rect),
             layout_rect,

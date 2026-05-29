@@ -40,12 +40,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn slider<T: crate::text::TextSystem>(
+    pub fn slider(
         spec: SliderSpec,
         state: &mut SliderState,
         input: &Input,
         focus_sys: &mut FocusSystem,
-        _text_system: &mut T,
     ) -> SliderResult {
         let mut cmds = Vec::new();
 
@@ -684,7 +683,7 @@ pub fn slider<
         .clip_rect(clip)
         .time(ctx.time)
         .build();
-    let result = raw::slider(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
+    let result = raw::slider(spec, state, ctx.input, ctx.focus_sys);
     ctx.append_cmds(result.draw);
     SliderResult {
         layout: LayoutInfo::tight(rect),
@@ -695,7 +694,6 @@ pub fn slider<
 mod tests {
     use super::raw::SliderSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_slider_page_up_down_keyboard() {
@@ -705,7 +703,6 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // Must be focused to receive keyboard events
         focus_sys.take_focus(state.focus_id);
@@ -717,7 +714,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -729,7 +725,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 30.0);
         focus_sys.end_frame();
@@ -743,7 +738,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 50.0);
         focus_sys.end_frame();
@@ -755,7 +749,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 0.0);
 
@@ -766,7 +759,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 100.0);
     }
@@ -781,7 +773,6 @@ mod tests {
             },
             ..test_spec(0.0, 100.0, true)
         };
-        let mut text_system = DummyTextSys;
         // Thumb is 20px high. Usable track = 100 - 20 = 80px.
         // So moving 40px down should increase value by 50.
 
@@ -798,7 +789,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_coord, 10.0);
@@ -811,7 +801,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
 
         // 40 / 80 usable track = 0.5 ratio = 50 value
@@ -824,7 +813,6 @@ mod tests {
         let spec = test_spec(0.0, 100.0, true);
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // 1. Initial click at bottom of track (y=80)
         input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
@@ -837,7 +825,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 20.0);
         assert!(state.is_track_clicking);
@@ -850,7 +837,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 20.0);
 
@@ -860,7 +846,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
@@ -871,7 +856,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 60.0);
 
@@ -882,7 +866,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(!state.is_track_clicking);
     }
@@ -895,7 +878,6 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state.focus_id);
 
@@ -906,7 +888,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 45.0);
         assert_eq!(
@@ -923,7 +904,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 50.0);
         assert_eq!(
@@ -940,7 +920,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 45.0);
         assert_eq!(
@@ -957,7 +936,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 50.0);
         assert_eq!(
@@ -983,7 +961,6 @@ mod tests {
             &mut horiz_state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(horiz_state.value, 45.0);
 
@@ -994,7 +971,6 @@ mod tests {
             &mut horiz_state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(horiz_state.value, 50.0);
     }
@@ -1007,7 +983,6 @@ mod tests {
         state_b.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state_a.focus_id);
 
@@ -1020,14 +995,12 @@ mod tests {
             &mut state_a,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         raw::slider(
             spec.clone(),
             &mut state_b,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1038,14 +1011,12 @@ mod tests {
             &mut state_a,
             &crate::input::Input::new(),
             &mut focus_sys,
-            &mut text_system,
         );
         raw::slider(
             spec.clone(),
             &mut state_b,
             &crate::input::Input::new(),
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
         assert_eq!(
@@ -1062,7 +1033,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         // Click on the track
         let mut input = crate::input::Input::new();
@@ -1075,7 +1045,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1091,7 +1060,6 @@ mod tests {
         let mut state = SliderState::default();
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // Mouse is inside the widget rect but outside the clip_rect.
         let mut spec = test_spec(0.0, 100.0, true);
@@ -1102,7 +1070,7 @@ mod tests {
         input.mouse_pressed = true;
 
         focus_sys.begin_frame();
-        raw::slider(spec, &mut state, &input, &mut focus_sys, &mut text_system);
+        raw::slider(spec, &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1120,7 +1088,6 @@ mod tests {
 
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // Hover over the slider track
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
@@ -1132,7 +1099,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1146,7 +1112,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1171,7 +1136,6 @@ mod tests {
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // Frame 1: click empty track at y=50 (thumb is at y=0..20) → page step
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1182,7 +1146,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             state.is_track_clicking,
@@ -1199,7 +1162,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             state.is_dragging,
@@ -1216,7 +1178,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!((state.value - 68.75).abs() < 0.01, "drag to 68.75, got {}", state.value);
     }
@@ -1242,7 +1203,6 @@ mod tests {
         };
         let mut input = Input::new();
         let mut focus_sys = FocusSystem::new();
-        let mut text_system = DummyTextSys;
 
         // Frame 1: initial click at y=70 (well below thumb at y=0..20).
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
@@ -1253,7 +1213,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
@@ -1266,7 +1225,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert_eq!(state.value, 60.0);
 
@@ -1278,7 +1236,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             (state.value - 87.5).abs() < 0.01,
@@ -1293,7 +1250,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             (state.value - 87.5).abs() < 0.01,
@@ -1315,7 +1271,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             state.is_dragging,
@@ -1336,7 +1291,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         assert!(
             (state.value - 93.75).abs() < 0.01,
@@ -1371,7 +1325,6 @@ mod tests {
         let mut state = SliderState::default();
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1388,7 +1341,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1407,7 +1359,6 @@ mod tests {
         state.value = 100.0; // already at max
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1421,7 +1372,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1441,7 +1391,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1455,7 +1404,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1477,7 +1425,6 @@ mod tests {
         // value = 0.0 — at min, can't scroll up
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1493,7 +1440,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1511,7 +1457,6 @@ mod tests {
         state.value = 100.0; // at max — can't scroll down
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1525,7 +1470,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1544,7 +1488,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let parent_id = FocusId::new();
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1558,7 +1501,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1580,7 +1522,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         let input = Input::new();
         focus_sys.begin_frame();
@@ -1589,7 +1530,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1623,7 +1563,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
@@ -1634,7 +1573,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1669,7 +1607,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         let mut input = Input::new();
         input.mouse_down = true;
@@ -1679,7 +1616,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 
@@ -1713,7 +1649,6 @@ mod tests {
         state.value = 50.0;
         let mut focus_sys = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
-        let mut text_system = DummyTextSys;
 
         focus_sys.take_focus(state.focus_id);
 
@@ -1724,7 +1659,6 @@ mod tests {
             &mut state,
             &input,
             &mut focus_sys,
-            &mut text_system,
         );
         focus_sys.end_frame();
 

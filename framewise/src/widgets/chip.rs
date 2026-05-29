@@ -14,7 +14,7 @@ pub mod raw {
     pub struct ChipSpec<'a> {
         /// Top-left origin. Height is fixed at 22.
         pub rect: Rect,
-        pub label: &'a str,
+        pub text: &'a str,
         pub font: FontId,
         pub disabled: bool,
         pub style: super::ChipStyle,
@@ -81,7 +81,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = text_system.prepare(spec.label, s.text_size, spec.font);
+        let layout = text_system.prepare(spec.text, s.text_size, spec.font);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -164,7 +164,7 @@ pub struct ChipResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChipSpecBuilder<'a> {
-    pub label: Option<&'a str>,
+    pub text: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<ChipStyle>,
     pub disabled: Option<bool>,
@@ -177,8 +177,8 @@ impl<'a> ChipSpecBuilder<'a> {
         Self::default()
     }
 
-    pub fn label(mut self, label: &'a str) -> Self {
-        self.label = Some(label);
+    pub fn text(mut self, text: &'a str) -> Self {
+        self.text = Some(text);
         self
     }
     pub fn font(mut self, font: FontId) -> Self {
@@ -223,7 +223,7 @@ impl<'a> ChipSpecBuilder<'a> {
             rect: self
                 .rect
                 .expect("rect not set — call .rect()"),
-            label: self.label.expect("label not set — call .label()"),
+            text: self.text.expect("text not set — call .text()"),
             font: self
                 .font
                 .expect("font not set — call .font() or defaults_from_theme()"),
@@ -294,7 +294,7 @@ mod tests {
     fn test_chip_visual_normal() {
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-            label: "Tag",
+            text: "Tag",
             font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
@@ -331,7 +331,7 @@ mod tests {
         state.active = true;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-            label: "Tag",
+            text: "Tag",
             font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
@@ -377,7 +377,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-            label: "Tag",
+            text: "Tag",
             font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
@@ -433,7 +433,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-            label: "Tag",
+            text: "Tag",
             font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
@@ -463,7 +463,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-            label: "Tag",
+            text: "Tag",
             font: FontId(0),
             disabled: false,
             style: crate::theme::Theme::framewise().chip_style(),
@@ -495,7 +495,7 @@ mod tests {
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-                label: "Tag",
+                text: "Tag",
                 font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
@@ -515,7 +515,7 @@ mod tests {
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-                label: "Tag",
+                text: "Tag",
                 font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
@@ -536,7 +536,7 @@ mod tests {
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-                label: "Tag",
+                text: "Tag",
                 font: FontId(0),
                 disabled: false,
                 style: crate::theme::Theme::framewise().chip_style(),
@@ -594,7 +594,7 @@ mod tests {
         let mut chip_state = ChipState::default();
         let result = super::chip(
             &mut ctx,
-            ChipSpecBuilder::new().label("X").rect(custom_rect),
+            ChipSpecBuilder::new().text("X").rect(custom_rect),
             layout_rect,
             &mut chip_state,
         );

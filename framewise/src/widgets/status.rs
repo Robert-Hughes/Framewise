@@ -12,7 +12,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct StatusSpec<'a> {
         pub rect: Rect,
-        pub label: &'a str,
+        pub text: &'a str,
         pub font: FontId,
         pub variant: super::StatusVariant,
         pub style: super::StatusStyle,
@@ -50,8 +50,8 @@ pub mod raw {
             color: dot_color,
         });
 
-        let label_upper = spec.label.to_uppercase();
-        let layout = text_system.prepare(&label_upper, s.text_size, spec.font);
+        let text_upper = spec.text.to_uppercase();
+        let layout = text_system.prepare(&text_upper, s.text_size, spec.font);
         let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(
@@ -96,7 +96,7 @@ pub struct StatusResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StatusSpecBuilder<'a> {
-    pub label: Option<&'a str>,
+    pub text: Option<&'a str>,
     pub font: Option<FontId>,
     pub style: Option<StatusStyle>,
     pub variant: Option<StatusVariant>,
@@ -108,8 +108,8 @@ impl<'a> StatusSpecBuilder<'a> {
         Self::default()
     }
 
-    pub fn label(mut self, label: &'a str) -> Self {
-        self.label = Some(label);
+    pub fn text(mut self, text: &'a str) -> Self {
+        self.text = Some(text);
         self
     }
     pub fn font(mut self, font: FontId) -> Self {
@@ -149,7 +149,7 @@ impl<'a> StatusSpecBuilder<'a> {
             rect: self
                 .rect
                 .expect("rect not set — call .rect()"),
-            label: self.label.expect("label not set — call .label()"),
+            text: self.text.expect("text not set — call .text()"),
             font: self
                 .font
                 .expect("font not set — call .font() or defaults_from_theme()"),
@@ -198,7 +198,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
-            label: "Online",
+            text: "Online",
             font: FontId(0),
             variant: StatusVariant::Ok,
             style: crate::theme::Theme::framewise().status_style(),
@@ -227,7 +227,7 @@ mod tests {
         let mut text_sys = DummyTextSys;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
-            label: "Warning",
+            text: "Warning",
             font: FontId(0),
             variant: StatusVariant::Warn,
             style: crate::theme::Theme::framewise().status_style(),
@@ -295,7 +295,7 @@ mod tests {
         super::status(
             &mut ctx,
             StatusSpecBuilder::new()
-                .label("ok")
+                .text("ok")
                 .variant(StatusVariant::Ok)
                 .rect(custom_rect),
             layout_rect,
