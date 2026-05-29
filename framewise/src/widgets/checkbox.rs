@@ -184,6 +184,7 @@ pub struct CheckboxStyle {
     pub disabled_alpha: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

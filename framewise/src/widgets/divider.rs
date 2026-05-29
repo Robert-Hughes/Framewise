@@ -37,6 +37,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DividerResult {
     pub layout: LayoutInfo,
 }

@@ -158,6 +158,7 @@ pub struct ChipState {
     pub focus_id: crate::focus::FocusId,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChipResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

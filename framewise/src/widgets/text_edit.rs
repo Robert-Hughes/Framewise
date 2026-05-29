@@ -4,7 +4,7 @@ use crate::{
     input::{Input, TextEvent},
     text::{FontId, TextSystem},
     types::{ClipRect, Color, Rect},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -20,11 +20,13 @@ pub mod raw {
         pub time: f64,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditResult {
         pub draw: DrawCommands,
         pub content_bounds: Rect,
         pub clipboard_action: Option<ClipboardAction>,
+        pub focused: bool,
+        pub input: InputInfo,
     }
 
     /// Low-level text edit widget function.
@@ -70,6 +72,8 @@ pub mod raw {
                 draw,
                 content_bounds: content_rect,
                 clipboard_action: None,
+                focused: false,
+                input: InputInfo::default(),
             };
         }
 
@@ -407,6 +411,12 @@ pub mod raw {
             draw,
             content_bounds: content_rect,
             clipboard_action,
+            focused,
+            input: InputInfo {
+                hovered: contains,
+                pressed: input.mouse_down && contains,
+                clicked: input.mouse_clicked && contains,
+            },
         }
     }
 }
@@ -479,15 +489,18 @@ impl TextEditState {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardAction {
     Copy(String),
     Cut(String),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextEditResult {
     pub layout: LayoutInfo,
     pub clipboard_action: Option<ClipboardAction>,
+    pub input: InputInfo,
+    pub focused: bool,
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -698,6 +711,8 @@ pub fn text_edit<
     TextEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
         clipboard_action: result.clipboard_action,
+        input: result.input,
+        focused: result.focused,
     }
 }
 

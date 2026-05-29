@@ -125,6 +125,7 @@ pub struct SpinnerStyle {
     pub highlight_fraction: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpinnerResult {
     pub layout: LayoutInfo,
 }

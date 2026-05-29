@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     types::{ClipRect, Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
 pub mod raw {
@@ -34,6 +34,8 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
         pub draw: DrawCommands,
+        pub focused: bool,
+        pub input: InputInfo,
     }
 
     /// Low-level slider widget function.
@@ -484,6 +486,12 @@ pub mod raw {
 
         SliderResult {
             draw: DrawCommands(cmds),
+            focused,
+            input: InputInfo {
+                hovered: track_rect.contains(input.mouse_pos) && is_visible,
+                pressed: state.is_dragging || state.is_track_clicking,
+                clicked: false,
+            },
         }
     }
 }
@@ -558,8 +566,11 @@ impl Default for SliderState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SliderResult {
     pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub focused: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -689,6 +700,8 @@ pub fn slider<
     ctx.append_cmds(result.draw);
     SliderResult {
         layout: LayoutInfo::tight(rect),
+        input: result.input,
+        focused: result.focused,
     }
 }
 

@@ -40,6 +40,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColorSwatchResult {
     pub layout: LayoutInfo,
 }

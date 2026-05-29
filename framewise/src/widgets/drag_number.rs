@@ -229,6 +229,7 @@ impl Default for DragNumberState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DragNumberResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

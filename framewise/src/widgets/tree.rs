@@ -159,6 +159,7 @@ pub struct TreeStyle {
     pub border_width: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TreeResult {
     pub layout: LayoutInfo,
 }

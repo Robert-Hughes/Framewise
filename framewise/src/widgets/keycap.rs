@@ -80,6 +80,7 @@ pub mod raw {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeycapResult {
     pub layout: LayoutInfo,
 }

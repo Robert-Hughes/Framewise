@@ -9,7 +9,7 @@ use crate::Input;
 // ── Common result fragments ───────────────────────────────────────────────────
 
 /// Resolved geometry returned by every widget.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LayoutInfo {
     /// The outer bounding box of the widget including any border / padding.
     pub bounds: Rect,

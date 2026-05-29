@@ -101,6 +101,7 @@ pub struct TooltipStyle {
     pub arrow_width: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TooltipResult {
     pub layout: LayoutInfo,
 }

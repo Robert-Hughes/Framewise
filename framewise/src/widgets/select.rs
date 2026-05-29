@@ -322,6 +322,7 @@ pub struct SelectState {
     pub focus_id: crate::focus::FocusId,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SelectResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

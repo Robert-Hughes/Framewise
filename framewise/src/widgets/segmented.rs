@@ -211,6 +211,7 @@ pub struct SegmentedState {
     pub focus_id: crate::focus::FocusId,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SegmentedResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

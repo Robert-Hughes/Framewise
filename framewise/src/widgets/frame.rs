@@ -64,6 +64,7 @@ pub struct FrameStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FrameResult {
     pub layout: LayoutInfo,
 }

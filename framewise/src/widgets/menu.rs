@@ -185,6 +185,7 @@ pub struct MenuStyle {
     pub border_width: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct MenuResult {
     pub layout: LayoutInfo,
 }

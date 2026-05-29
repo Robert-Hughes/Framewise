@@ -90,6 +90,7 @@ pub struct StatusStyle {
     pub text: Color,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct StatusResult {
     pub layout: LayoutInfo,
 }

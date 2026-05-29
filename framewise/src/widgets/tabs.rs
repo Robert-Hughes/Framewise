@@ -206,6 +206,7 @@ pub struct TabsState {
     pub focus_id: crate::focus::FocusId,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TabsResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

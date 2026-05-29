@@ -86,6 +86,7 @@ pub struct ProgressBarStyle {
     pub indeterminate_fraction: f32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarResult {
     pub layout: LayoutInfo,
 }

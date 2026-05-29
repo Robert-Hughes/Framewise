@@ -19,6 +19,7 @@ pub mod raw {
         pub disabled: bool,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonResult {
         pub draw: DrawCommands,
         pub input: InputInfo,
@@ -207,6 +208,7 @@ pub struct ButtonState {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ButtonResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,

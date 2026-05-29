@@ -56,6 +56,7 @@ pub mod raw {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct LabelResult {
     pub layout: LayoutInfo,
 }
