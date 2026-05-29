@@ -2598,12 +2598,7 @@ pub fn draw_spec_page(
                         let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
                         keycap(
                             b,
-                            framewise::widgets::KeycapSpecBuilder::new()
-                                .text(key)
-                                .background(t.paper_elev)
-                                .border(t.line)
-                                .text_color(t.ink)
-                                .text_size(t.text_sm),
+                            framewise::widgets::KeycapSpecBuilder::new().text(key),
                             Rect::new(kx, y, kw, 22.0),
                         );
                         kx += kw + 4.0;

@@ -14,18 +14,7 @@ pub mod raw {
     pub struct KeycapSpec<'a> {
         pub rect: Rect,
         pub text: &'a str,
-        /// Background fill (default: paper_elev).
-        pub background: Color,
-        pub shadow: Color,
-        pub shadow_offset: f32,
-        pub shadow_height: f32,
-        /// Border color.
-        pub border: Color,
-        pub border_width: f32,
-        /// Label text color.
-        pub text_color: Color,
-        pub text_size: f32,
-        pub font: FontId,
+        pub style: super::KeycapStyle,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -44,33 +33,33 @@ pub mod raw {
         // Background + border
         draw.push(DrawCmd::FillRect {
             rect: spec.rect,
-            color: spec.background,
+            color: spec.style.background,
         });
         draw.push(DrawCmd::StrokeRect {
             rect: spec.rect,
-            color: spec.border,
-            width: spec.border_width,
+            color: spec.style.border,
+            width: spec.style.border_width,
         });
         // Bottom shadow line
         let shadow_rect = Rect::new(
-            spec.rect.x + spec.shadow_offset,
+            spec.rect.x + spec.style.shadow_offset,
             spec.rect.y + spec.rect.h,
-            spec.rect.w - spec.shadow_offset,
-            spec.shadow_height,
+            spec.rect.w - spec.style.shadow_offset,
+            spec.style.shadow_height,
         );
         draw.push(DrawCmd::FillRect {
             rect: shadow_rect,
-            color: spec.shadow,
+            color: spec.style.shadow,
         });
 
         // text, centered
         if !spec.text.is_empty() {
-            let layout = text_system.prepare(spec.text, spec.text_size, spec.font);
+            let layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
             let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
             let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
             draw.push(DrawCmd::Text {
                 rect: Rect::new(tx, ty, layout.size.x, layout.size.y),
-                color: spec.text_color,
+                color: spec.style.text_color,
                 handle: layout.handle,
             });
         }
@@ -80,6 +69,22 @@ pub mod raw {
             content_bounds: spec.rect.inset(1.0),
         }
     }
+}
+
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+/// Visual configuration for a keycap.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct KeycapStyle {
+    pub background: Color,
+    pub shadow: Color,
+    pub shadow_offset: f32,
+    pub shadow_height: f32,
+    pub border: Color,
+    pub border_width: f32,
+    pub text_color: Color,
+    pub text_size: f32,
+    pub font: FontId,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -95,15 +100,7 @@ pub struct KeycapResult {
 pub struct KeycapSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
-    pub background: Option<Color>,
-    pub shadow: Option<Color>,
-    pub shadow_offset: Option<f32>,
-    pub shadow_height: Option<f32>,
-    pub border: Option<Color>,
-    pub border_width: Option<f32>,
-    pub text_color: Option<Color>,
-    pub text_size: Option<f32>,
-    pub font: Option<FontId>,
+    pub style: Option<KeycapStyle>,
 }
 
 impl<'a> KeycapSpecBuilder<'a> {
@@ -115,40 +112,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         self.text = Some(text);
         self
     }
-    pub fn background(mut self, background: Color) -> Self {
-        self.background = Some(background);
-        self
-    }
-    pub fn shadow(mut self, shadow: Color) -> Self {
-        self.shadow = Some(shadow);
-        self
-    }
-    pub fn shadow_offset(mut self, shadow_offset: f32) -> Self {
-        self.shadow_offset = Some(shadow_offset);
-        self
-    }
-    pub fn shadow_height(mut self, shadow_height: f32) -> Self {
-        self.shadow_height = Some(shadow_height);
-        self
-    }
-    pub fn border(mut self, border: Color) -> Self {
-        self.border = Some(border);
-        self
-    }
-    pub fn border_width(mut self, border_width: f32) -> Self {
-        self.border_width = Some(border_width);
-        self
-    }
-    pub fn text_color(mut self, text_color: Color) -> Self {
-        self.text_color = Some(text_color);
-        self
-    }
-    pub fn text_size(mut self, text_size: f32) -> Self {
-        self.text_size = Some(text_size);
-        self
-    }
-    pub fn font(mut self, font: FontId) -> Self {
-        self.font = Some(font);
+    pub fn style(mut self, style: KeycapStyle) -> Self {
+        self.style = Some(style);
         self
     }
 
@@ -162,8 +127,8 @@ impl<'a> KeycapSpecBuilder<'a> {
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.font.is_none() {
-            self.font = Some(theme.mono_font);
+        if self.style.is_none() {
+            self.style = Some(theme.keycap_style());
         }
         self
     }
@@ -172,29 +137,9 @@ impl<'a> KeycapSpecBuilder<'a> {
         raw::KeycapSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            background: self
-                .background
-                .expect("background not set — call .background()"),
-            border: self.border.expect("border not set — call .border()"),
-            border_width: self
-                .border_width
-                .expect("border_width not set — call .border_width()"),
-            shadow: self.shadow.expect("shadow not set — call .shadow()"),
-            shadow_offset: self
-                .shadow_offset
-                .expect("shadow_offset not set — call .shadow_offset()"),
-            shadow_height: self
-                .shadow_height
-                .expect("shadow_height not set — call .shadow_height()"),
-            text_color: self
-                .text_color
-                .expect("text_color not set — call .text_color()"),
-            text_size: self
-                .text_size
-                .expect("text_size not set — call .text_size()"),
-            font: self
-                .font
-                .expect("font not set — call .font() or defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
         }
     }
 }
@@ -236,15 +181,17 @@ mod tests {
         let spec = KeycapSpec {
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
             text: "K",
-            background: custom_bg,
-            border: custom_border,
-            border_width: 1.0,
-            shadow: custom_shadow,
-            shadow_offset: 1.0,
-            shadow_height: 2.0,
-            text_color: custom_text,
-            text_size: 14.0,
-            font: FontId(0),
+            style: KeycapStyle {
+                background: custom_bg,
+                border: custom_border,
+                border_width: 1.0,
+                shadow: custom_shadow,
+                shadow_offset: 1.0,
+                shadow_height: 2.0,
+                text_color: custom_text,
+                text_size: 14.0,
+                font: FontId(0),
+            },
         };
         let res = raw::keycap(spec, &mut text_sys);
 
@@ -274,20 +221,31 @@ mod tests {
     }
 
     #[test]
-    fn test_builder_defaults_from_theme_fills_unset_font() {
+    fn test_builder_defaults_from_theme_fills_unset_style() {
         let theme = crate::theme::Theme::framewise();
         let builder = KeycapSpecBuilder::new();
-        assert!(builder.font.is_none());
+        assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.font, Some(theme.mono_font));
+        assert_eq!(builder.style.unwrap().font, theme.mono_font);
     }
 
     #[test]
-    fn test_builder_defaults_from_theme_preserves_explicit_font() {
+    fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let builder = KeycapSpecBuilder::new().font(FontId(99));
+        let explicit_style = KeycapStyle {
+            background: Color::WHITE,
+            shadow: Color::BLACK,
+            shadow_offset: 1.0,
+            shadow_height: 2.0,
+            border: Color::WHITE,
+            border_width: 1.0,
+            text_color: Color::WHITE,
+            text_size: 14.0,
+            font: FontId(99),
+        };
+        let builder = KeycapSpecBuilder::new().style(explicit_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.font, Some(FontId(99)));
+        assert_eq!(builder.style, Some(explicit_style));
     }
 
     #[test]
@@ -312,14 +270,17 @@ mod tests {
             &mut ctx,
             KeycapSpecBuilder::new()
                 .text("X")
-                .background(Color::WHITE)
-                .shadow(Color::BLACK)
-                .shadow_offset(1.0)
-                .shadow_height(2.0)
-                .border(Color::WHITE)
-                .border_width(1.0)
-                .text_color(Color::WHITE)
-                .text_size(14.0)
+                .style(KeycapStyle {
+                    background: Color::WHITE,
+                    shadow: Color::BLACK,
+                    shadow_offset: 1.0,
+                    shadow_height: 2.0,
+                    border: Color::WHITE,
+                    border_width: 1.0,
+                    text_color: Color::WHITE,
+                    text_size: 14.0,
+                    font: FontId(0),
+                })
                 .rect(custom_rect),
             layout_rect,
         );

@@ -3,11 +3,11 @@ use crate::{
     types::Color,
     widgets::{
         button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle,
-        drag_number::DragNumberStyle, frame::FrameStyle, menu::MenuStyle, meter::MeterStyle,
-        progress_bar::ProgressBarStyle, radio::RadioStyle, segmented::SegmentedStyle,
-        select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle, status::StatusStyle,
-        switch::SwitchStyle, tabs::TabsStyle, text_edit::TextEditStyle, tooltip::TooltipStyle,
-        tree::TreeStyle, window::WindowStyle,
+        drag_number::DragNumberStyle, frame::FrameStyle, keycap::KeycapStyle, menu::MenuStyle,
+        meter::MeterStyle, progress_bar::ProgressBarStyle, radio::RadioStyle,
+        segmented::SegmentedStyle, select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle,
+        status::StatusStyle, switch::SwitchStyle, tabs::TabsStyle, text_edit::TextEditStyle,
+        tooltip::TooltipStyle, tree::TreeStyle, window::WindowStyle,
     },
 };
 
@@ -94,6 +94,20 @@ impl Theme {
             border: self.ink,
             border_width: self.border,
             padding: 4.0,
+        }
+    }
+
+    pub fn keycap_style(&self) -> KeycapStyle {
+        KeycapStyle {
+            background: self.paper_elev,
+            shadow: self.line,
+            shadow_offset: 1.0,
+            shadow_height: 2.0,
+            border: self.line,
+            border_width: self.border,
+            text_color: self.ink,
+            text_size: self.text_sm,
+            font: self.mono_font,
         }
     }
 
