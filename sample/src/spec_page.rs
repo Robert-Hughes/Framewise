@@ -246,7 +246,7 @@ fn draw_drag_number_fake_state<
     let dummy_input = Input::default();
     let spec = DragNumberSpec {
         rect,
-        label,
+        text: label,
         font: b.theme.sans_font,
         value: val,
         min,
@@ -1705,7 +1705,7 @@ pub fn draw_spec_page(
                     let state = &mut state.dn_showcase[0];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
-                        .label("X")
+                        .text("X")
                         .value(state.value)
                         .max(800.0);
                     drag_number(this, spec_builder, layout_params, state)
@@ -1717,7 +1717,7 @@ pub fn draw_spec_page(
                     let state = &mut state.dn_showcase[1];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
-                        .label("Y")
+                        .text("Y")
                         .value(state.value)
                         .max(600.0);
                     drag_number(this, spec_builder, layout_params, state)
@@ -1741,7 +1741,7 @@ pub fn draw_spec_page(
                     let state = &mut state.dn_showcase[2];
                     let layout_params = Rect::new(bx, y, 100.0, t.h_md);
                     let spec_builder = DragNumberSpecBuilder::new()
-                        .label("H")
+                        .text("H")
                         .value(state.value)
                         .max(600.0);
                     drag_number(this, spec_builder, layout_params, state)
@@ -1979,7 +1979,7 @@ pub fn draw_spec_page(
                         let state = &mut state.chip_states[i];
                         let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
                         let spec_builder = ChipSpecBuilder::new()
-                            .label(label)
+                            .text(label)
                             .font(this.theme.sans_font);
                         chip(this, spec_builder, layout_params, state)
                     };
@@ -1994,7 +1994,7 @@ pub fn draw_spec_page(
                     let state = &mut state.chip_states[4];
                     let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
                     let spec_builder = ChipSpecBuilder::new()
-                        .label("+ add backend")
+                        .text("+ add backend")
                         .font(this.theme.sans_font);
                     chip(this, spec_builder, layout_params, state)
                 };
@@ -2138,11 +2138,11 @@ pub fn draw_spec_page(
                     let code_lines = [
                         "fn frame(ctx: &mut Ctx) {",
                         "  ctx.window(\"Inspector\", |w| {",
-                        "    w.label(\"position\");",
+                        "    w.text(\"position\");",
                         "    w.drag(\"x\", &mut pos.x);",
                         "    w.drag(\"y\", &mut pos.y);",
                         "    w.separator();",
-                        "    w.label(\"size\");",
+                        "    w.text(\"size\");",
                         "    w.drag(\"w\", &mut size.w);",
                         "    w.drag(\"h\", &mut size.h);",
                         "    w.slider(\"alpha\", &mut a, 0..1);",
@@ -2519,7 +2519,7 @@ pub fn draw_spec_page(
                     status(
                         b,
                         framewise::widgets::StatusSpecBuilder::new()
-                            .label(label)
+                            .text(label)
                             .variant(*variant),
                         Rect::new(sx, y + 1.0, 120.0, 12.0),
                     );
@@ -2717,7 +2717,7 @@ pub fn draw_spec_page(
                         keycap(
                             b,
                             framewise::widgets::KeycapSpecBuilder::new()
-                                .label(key)
+                                .text(key)
                                 .background(t.paper_elev)
                                 .border(t.line)
                                 .text_color(t.ink)
@@ -2777,7 +2777,7 @@ pub fn draw_spec_page(
                         let max = *max;
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
-                            .label(label)
+                            .text(label)
                             .value(state.value)
                             .min(min)
                             .max(max);
@@ -2798,7 +2798,7 @@ pub fn draw_spec_page(
                         let max = *max;
                         let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
                         let spec_builder = DragNumberSpecBuilder::new()
-                            .label(label)
+                            .text(label)
                             .value(state.value)
                             .min(min)
                             .max(max);
@@ -3228,7 +3228,7 @@ pub fn draw_spec_page(
                     let state = &mut state.iu_vp_w;
                     let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
                     let spec_builder = DragNumberSpecBuilder::new()
-                        .label("W")
+                        .text("W")
                         .value(state.value)
                         .max(7680.0);
                     drag_number(this, spec_builder, layout_params, state)
@@ -3244,7 +3244,7 @@ pub fn draw_spec_page(
                         row_h,
                     );
                     let spec_builder = DragNumberSpecBuilder::new()
-                        .label("H")
+                        .text("H")
                         .value(state.value)
                         .max(7680.0);
                     drag_number(this, spec_builder, layout_params, state)

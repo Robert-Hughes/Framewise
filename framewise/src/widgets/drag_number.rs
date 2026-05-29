@@ -29,6 +29,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level drag number widget function.
@@ -184,6 +185,7 @@ pub mod raw {
                 clicked: clicked && !state.is_dragging,
             },
             focused,
+            content_bounds: spec.rect.inset(s.border_width),
         }
     }
 }
@@ -318,9 +320,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
     pub fn build(self) -> raw::DragNumberSpec<'a> {
         raw::DragNumberSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             font: self
                 .font
@@ -368,7 +368,7 @@ pub fn drag_number<
     ctx.append_cmds(result.draw);
 
     DragNumberResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

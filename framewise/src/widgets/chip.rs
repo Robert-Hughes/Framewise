@@ -26,6 +26,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level chip widget function.
@@ -128,6 +129,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: r.inset(s.border_width),
         }
     }
 }
@@ -220,9 +222,7 @@ impl<'a> ChipSpecBuilder<'a> {
 
     pub fn build(self) -> raw::ChipSpec<'a> {
         raw::ChipSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             font: self
                 .font
@@ -267,7 +267,7 @@ pub fn chip<
     ctx.append_cmds(result.draw);
 
     ChipResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

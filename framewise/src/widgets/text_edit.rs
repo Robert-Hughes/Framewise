@@ -44,7 +44,8 @@ pub mod raw {
 
         // Disabled: draw at reduced alpha, no interaction.
         if spec.disabled {
-            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
+            let tint =
+                |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             // Transparent bg per mockup, just border.
             if spec.style.border_width > 0.0 {
                 draw.push(DrawCmd::StrokeRect {
@@ -408,7 +409,6 @@ pub mod raw {
             clipboard_action,
         }
     }
-
 }
 
 // ── Style ─────────────────────────────────────────────────────────────────────
@@ -653,9 +653,7 @@ impl TextEditSpecBuilder {
 
     pub fn build(self) -> raw::TextEditSpec {
         raw::TextEditSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -693,13 +691,7 @@ pub fn text_edit<
         .clip_rect(clip)
         .time(ctx.time)
         .build();
-    let result = raw::text_edit(
-        spec,
-        state,
-        ctx.input,
-        ctx.focus_sys,
-        ctx.text_system,
-    );
+    let result = raw::text_edit(spec, state, ctx.input, ctx.focus_sys, ctx.text_system);
 
     ctx.append_cmds(result.draw);
 
@@ -767,13 +759,7 @@ mod tests {
         input.text_events.push(TextEvent::Char('b'));
         input.text_events.push(TextEvent::Char('c'));
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "abc");
         assert_eq!(state.caret_byte, 3);
 
@@ -783,25 +769,13 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.caret_byte, 2);
 
         // Insert at cursor
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('x'));
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "abxc");
         assert_eq!(state.caret_byte, 3);
     }
@@ -819,25 +793,13 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: false });
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "helo");
         assert_eq!(state.caret_byte, 2);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: false });
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
     }
@@ -855,25 +817,13 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: true });
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "hello rld");
         assert_eq!(state.caret_byte, 6); // end of "hello "
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: true });
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "hello ");
         assert_eq!(state.caret_byte, 6);
     }
@@ -898,25 +848,13 @@ mod tests {
             ctrl: false,
         });
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.selection_byte, Some(1));
         assert_eq!(state.caret_byte, 3);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.value, "halo");
         assert_eq!(state.caret_byte, 2);
         assert_eq!(state.selection_byte, None);
@@ -936,37 +874,19 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
         state.was_focused = true;
 
         input.mouse_pressed = false;
         input.mouse_pos.x += 24.0;
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
 
         input.mouse_down = false;
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert!(!state.is_dragging);
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
@@ -988,13 +908,7 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         // Selection should be "rust" (6 to 10)
         assert_eq!(state.selection_byte, Some(6));
         assert_eq!(state.caret_byte, 10);
@@ -1004,26 +918,14 @@ mod tests {
         // Now drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
         input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
         assert_eq!(state.caret_byte, 16); // end of "world"
 
         // Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
         assert_eq!(state.caret_byte, 0); // start of "hello"
@@ -1042,18 +944,15 @@ mod tests {
 
         let mut input = Input::default();
 
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
         assert!(has_caret, "Caret should be visible initially");
 
         let res = raw::text_edit(
-            TextEditSpec { time: 0.6, ..spec() },
+            TextEditSpec {
+                time: 0.6,
+                ..spec()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1067,7 +966,10 @@ mod tests {
             ctrl: false,
         });
         let res = raw::text_edit(
-            TextEditSpec { time: 0.6, ..spec() },
+            TextEditSpec {
+                time: 0.6,
+                ..spec()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1083,7 +985,10 @@ mod tests {
 
         input.text_events.clear();
         let res = raw::text_edit(
-            TextEditSpec { time: 1.0, ..spec() },
+            TextEditSpec {
+                time: 1.0,
+                ..spec()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1093,7 +998,10 @@ mod tests {
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
         let res = raw::text_edit(
-            TextEditSpec { time: 1.2, ..spec() },
+            TextEditSpec {
+                time: 1.2,
+                ..spec()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1133,13 +1041,7 @@ mod tests {
         focus_sys.take_focus(state.focus_id);
         focus_sys.end_frame();
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, Some(0));
         assert_eq!(state.caret_byte, 11);
@@ -1159,25 +1061,13 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         focus_sys.end_frame();
         focus_sys.begin_frame();
         input.mouse_pressed = false;
 
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, None);
@@ -1196,13 +1086,7 @@ mod tests {
         input.mouse_down = true;
 
         focus_sys.begin_frame();
-        raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1261,25 +1145,13 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
         assert_eq!(state.value, "hello world");
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
         assert_eq!(state.selection_byte, None);
@@ -1287,13 +1159,7 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
         assert_eq!(state.caret_byte, 10);
@@ -1307,13 +1173,7 @@ mod tests {
         let mut focus_sys = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let input = Input::default();
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -1348,13 +1208,7 @@ mod tests {
         state.was_focused = true; // ensure state knows
 
         let input = Input::default();
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert_eq!(
             res.draw,
@@ -1395,13 +1249,7 @@ mod tests {
         state.caret_byte = 5;
 
         let input = Input::default();
-        let res = raw::text_edit(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-            &mut text_sys,
-        );
+        let res = raw::text_edit(spec(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert_eq!(
             res.draw,

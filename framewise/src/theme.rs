@@ -105,7 +105,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.ink,
-            disabled_alpha: 0.32f32
+            disabled_alpha: 0.32f32,
         }
     }
 
@@ -120,8 +120,8 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.paper,
-            disabled_alpha: 0.32f32
-       }
+            disabled_alpha: 0.32f32,
+        }
     }
 
     pub fn button_accent_style(&self) -> ButtonStyle {
@@ -135,7 +135,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: Color::WHITE,
-            disabled_alpha: 0.32f32
+            disabled_alpha: 0.32f32,
         }
     }
 
@@ -150,7 +150,7 @@ impl Theme {
             text_size: self.text_md,
             font: self.sans_font,
             text_color: self.ink,
-            disabled_alpha: 0.32f32
+            disabled_alpha: 0.32f32,
         }
     }
 
@@ -406,13 +406,13 @@ impl Theme {
     pub fn drag_number_style(&self) -> DragNumberStyle {
         DragNumberStyle {
             text_size: self.text_md,
-            label_pad_x: 10.0,
+            text_pad_x: 10.0,
             background: self.paper_elev,
             border: self.ink,
             focus: self.rust,
-            label_bg: self.ink,
-            active_label_bg: self.rust,
-            label_text: self.paper,
+            text_bg: self.ink,
+            active_text_bg: self.rust,
+            text_text: self.paper,
             value_text: self.ink,
             value_fill: self.rust_soft,
             border_width: self.border,

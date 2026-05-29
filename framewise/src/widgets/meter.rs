@@ -115,18 +115,10 @@ impl MeterSpecBuilder {
 
     pub fn build(self) -> raw::MeterSpec {
         raw::MeterSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
-            value: self
-                .value
-                .expect("value not set — call .value()"),
-            peak: self
-                .peak
-                .expect("peak not set — call .peak()"),
-            bars: self
-                .bars
-                .expect("bars not set — call .bars()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
+            value: self.value.expect("value not set — call .value()"),
+            peak: self.peak.expect("peak not set — call .peak()"),
+            bars: self.bars.expect("bars not set — call .bars()"),
         }
     }
 }
@@ -236,7 +228,11 @@ mod tests {
         );
         let result = super::meter(
             &mut ctx,
-            MeterSpecBuilder::new().rect(custom_rect).value(0.0).peak(None).bars(10),
+            MeterSpecBuilder::new()
+                .rect(custom_rect)
+                .value(0.0)
+                .peak(None)
+                .bars(10),
             layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);

@@ -39,7 +39,8 @@ pub mod raw {
     ) -> ButtonResult {
         // Disabled: register for layout but skip all interaction.
         if spec.disabled {
-            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
+            let tint =
+                |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             let mut draw = DrawCommands::new();
             draw.push(DrawCmd::FillRect {
                 rect: spec.rect,
@@ -260,9 +261,7 @@ impl<'a> ButtonSpecBuilder<'a> {
     }
     pub fn build(self) -> raw::ButtonSpec<'a> {
         raw::ButtonSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
@@ -998,7 +997,7 @@ mod tests {
             text_size: 19.5,
             font: FontId(0),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
-            disabled_alpha: 0.32f32
+            disabled_alpha: 0.32f32,
         };
 
         let spec = ButtonSpec {
@@ -1054,9 +1053,7 @@ mod tests {
             text_size: 99.0,
             ..theme::Theme::default().button_primary_style()
         };
-        let builder = ButtonSpecBuilder::new()
-            .text("test")
-            .style(custom_style);
+        let builder = ButtonSpecBuilder::new().text("test").style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().text_size, 99.0);
     }

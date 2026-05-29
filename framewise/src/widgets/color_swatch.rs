@@ -85,9 +85,7 @@ impl ColorSwatchSpecBuilder {
 
     pub fn build(self) -> raw::ColorSwatchSpec {
         raw::ColorSwatchSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             color: self
                 .color
                 .expect("color not set — call .color() or defaults_from_theme()"),
@@ -202,7 +200,9 @@ mod tests {
         );
         let result = super::color_swatch(
             &mut ctx,
-            ColorSwatchSpecBuilder::new().rect(custom_rect).color(Color::from_srgb_u8(0, 0, 0, 0)),
+            ColorSwatchSpecBuilder::new()
+                .rect(custom_rect)
+                .color(Color::from_srgb_u8(0, 0, 0, 0)),
             layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);

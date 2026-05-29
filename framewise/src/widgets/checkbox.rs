@@ -24,6 +24,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level checkbox widget function.
@@ -154,6 +155,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: r.inset(s.border_width),
         }
     }
 }
@@ -255,9 +257,7 @@ impl CheckboxSpecBuilder {
 
     pub fn build(self) -> raw::CheckboxSpec {
         raw::CheckboxSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             state: self.state.unwrap_or(CheckState::Off),
             disabled: self.disabled.unwrap_or(false),
             style: self
@@ -298,7 +298,7 @@ pub fn checkbox<
     ctx.append_cmds(result.draw);
 
     CheckboxResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

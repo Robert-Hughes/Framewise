@@ -27,6 +27,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level tabs widget function.
@@ -172,9 +173,14 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: Rect::new(
+                spec.rect.x,
+                spec.rect.y,
+                spec.rect.w,
+                tab_h - s.border_width,
+            ),
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -281,9 +287,7 @@ impl<'a> TabsSpecBuilder<'a> {
 
     pub fn build(self) -> raw::TabsSpec<'a> {
         raw::TabsSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
             font: self
                 .font
@@ -329,7 +333,7 @@ pub fn tabs<
     ctx.append_cmds(result.draw);
 
     TabsResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

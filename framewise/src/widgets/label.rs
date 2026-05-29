@@ -118,9 +118,7 @@ impl<'a> LabelSpecBuilder<'a> {
     }
     pub fn build(self) -> raw::LabelSpec<'a> {
         raw::LabelSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             size: self
                 .size

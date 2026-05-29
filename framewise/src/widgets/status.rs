@@ -146,9 +146,7 @@ impl<'a> StatusSpecBuilder<'a> {
 
     pub fn build(self) -> raw::StatusSpec<'a> {
         raw::StatusSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
             font: self
                 .font

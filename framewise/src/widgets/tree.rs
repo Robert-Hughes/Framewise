@@ -210,9 +210,7 @@ impl<'a> TreeSpecBuilder<'a> {
 
     pub fn build(self) -> raw::TreeSpec<'a> {
         raw::TreeSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             rows: self.rows.expect("rows not set — call .rows()"),
             font: self
                 .font

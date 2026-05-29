@@ -24,6 +24,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level radio widget function.
@@ -129,6 +130,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: spec.rect.inset(s.border_width),
         }
     }
 }
@@ -213,9 +215,7 @@ impl RadioSpecBuilder {
 
     pub fn build(self) -> raw::RadioSpec {
         raw::RadioSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             selected: self.selected.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             style: self
@@ -256,7 +256,7 @@ pub fn radio<
     ctx.append_cmds(result.draw);
 
     RadioResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

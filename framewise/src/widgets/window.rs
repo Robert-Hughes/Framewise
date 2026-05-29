@@ -237,9 +237,7 @@ impl<'a> WindowSpecBuilder<'a> {
 
     pub fn build(self) -> raw::WindowSpec<'a> {
         raw::WindowSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
             font: self

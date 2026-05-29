@@ -27,6 +27,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level select widget function.
@@ -282,6 +283,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: r.inset(s.border_width),
         }
     }
 }
@@ -401,9 +403,7 @@ impl<'a> SelectSpecBuilder<'a> {
 
     pub fn build(self) -> raw::SelectSpec<'a> {
         raw::SelectSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
             font: self
                 .font
@@ -446,7 +446,7 @@ pub fn select<
     ctx.append_cmds(result.draw);
 
     SelectResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

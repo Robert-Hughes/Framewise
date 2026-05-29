@@ -27,6 +27,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level segmented widget function.
@@ -52,6 +53,7 @@ pub mod raw {
                     clicked: false,
                 },
                 focused: false,
+                content_bounds: spec.rect,
             };
         }
 
@@ -181,6 +183,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: outer.inset(s.border_width),
         }
     }
 }
@@ -289,9 +292,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
 
     pub fn build(self) -> raw::SegmentedSpec<'a> {
         raw::SegmentedSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             items: self.items.expect("items not set — call .items()"),
             font: self
                 .font
@@ -337,7 +338,7 @@ pub fn segmented<
     ctx.append_cmds(result.draw);
 
     SegmentedResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

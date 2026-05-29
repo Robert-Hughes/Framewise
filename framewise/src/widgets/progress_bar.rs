@@ -141,9 +141,7 @@ impl ProgressBarSpecBuilder {
 
     pub fn build(self) -> raw::ProgressBarSpec {
         raw::ProgressBarSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
             phase: self.phase.unwrap_or(0.0),
             active: self.active.unwrap_or(false),

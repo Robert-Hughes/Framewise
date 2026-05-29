@@ -276,7 +276,9 @@ pub mod raw {
                     } else {
                         min
                     };
-                    state.value = (state.value - spec.page_step).max(cursor_val).clamp(min, max);
+                    state.value = (state.value - spec.page_step)
+                        .max(cursor_val)
+                        .clamp(min, max);
                     state.next_repeat_time = spec.time + 0.05;
                 } else if mouse_coord > _thumb_end {
                     // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
@@ -285,7 +287,9 @@ pub mod raw {
                     } else {
                         max
                     };
-                    state.value = (state.value + spec.page_step).min(cursor_val).clamp(min, max);
+                    state.value = (state.value + spec.page_step)
+                        .min(cursor_val)
+                        .clamp(min, max);
                     state.next_repeat_time = spec.time + 0.05;
                 }
                 // else: cursor is now inside the thumb; paging stops but keep
@@ -638,9 +642,7 @@ impl SliderSpecBuilder {
 
     pub fn build(self) -> raw::SliderSpec {
         raw::SliderSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             page_step: self.page_step.unwrap_or(10.0),
@@ -709,23 +711,13 @@ mod tests {
 
         // Frame 1: register claims
         focus_sys.begin_frame();
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: Page Up
         focus_sys.begin_frame();
         input.key_pressed_page_up = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 30.0);
         focus_sys.end_frame();
 
@@ -733,33 +725,18 @@ mod tests {
         focus_sys.begin_frame();
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 50.0);
         focus_sys.end_frame();
 
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 0.0);
 
         input.key_pressed_home = false;
         input.key_pressed_end = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 100.0);
     }
 
@@ -784,24 +761,14 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
 
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_coord, 10.0);
 
         // 2. Drag down by 40px (mouse y = 50)
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
 
         // 40 / 80 usable track = 0.5 ratio = 50 value
         assert_eq!(state.value, 50.0);
@@ -820,12 +787,7 @@ mod tests {
         input.mouse_down = true;
 
         // Frame 1: time=0.0. Should page down by 20.0
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 20.0);
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
@@ -833,7 +795,10 @@ mod tests {
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
         raw::slider(
-            SliderSpec { time: 0.4, ..spec.clone() },
+            SliderSpec {
+                time: 0.4,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -842,7 +807,10 @@ mod tests {
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
         raw::slider(
-            SliderSpec { time: 0.5, ..spec.clone() },
+            SliderSpec {
+                time: 0.5,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -852,7 +820,10 @@ mod tests {
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
         raw::slider(
-            SliderSpec { time: 0.6, ..spec.clone() },
+            SliderSpec {
+                time: 0.6,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -862,7 +833,10 @@ mod tests {
         // Release mouse -> track clicking ends
         input.mouse_down = false;
         raw::slider(
-            SliderSpec { time: 0.7, ..spec.clone() },
+            SliderSpec {
+                time: 0.7,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -883,12 +857,7 @@ mod tests {
 
         // Up decrements
         input.key_pressed_up = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 45.0);
         assert_eq!(
             focus_sys.current_focus(),
@@ -899,12 +868,7 @@ mod tests {
         // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 50.0);
         assert_eq!(
             focus_sys.current_focus(),
@@ -915,12 +879,7 @@ mod tests {
         // Left decrements (same as Up)
         input.key_pressed_down = false;
         input.key_pressed_left = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 45.0);
         assert_eq!(
             focus_sys.current_focus(),
@@ -931,12 +890,7 @@ mod tests {
         // Right increments (same as Down)
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 50.0);
         assert_eq!(
             focus_sys.current_focus(),
@@ -956,22 +910,12 @@ mod tests {
         focus_sys.take_focus(horiz_state.focus_id);
 
         input.key_pressed_left = true;
-        raw::slider(
-            horiz_spec.clone(),
-            &mut horiz_state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(horiz_spec.clone(), &mut horiz_state, &input, &mut focus_sys);
         assert_eq!(horiz_state.value, 45.0);
 
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        raw::slider(
-            horiz_spec.clone(),
-            &mut horiz_state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(horiz_spec.clone(), &mut horiz_state, &input, &mut focus_sys);
         assert_eq!(horiz_state.value, 50.0);
     }
 
@@ -990,18 +934,8 @@ mod tests {
         focus_sys.begin_frame();
         let mut input = crate::input::Input::new();
         input.key_pressed_tab = true;
-        raw::slider(
-            spec.clone(),
-            &mut state_a,
-            &input,
-            &mut focus_sys,
-        );
-        raw::slider(
-            spec.clone(),
-            &mut state_b,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state_a, &input, &mut focus_sys);
+        raw::slider(spec.clone(), &mut state_b, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // Frame 2: confirm focus moved to slider_b
@@ -1040,12 +974,7 @@ mod tests {
         input.mouse_pressed = true;
 
         focus_sys.begin_frame();
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1094,12 +1023,7 @@ mod tests {
 
         // Frame 1: Register hover
         focus_sys.begin_frame();
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(state.value, 50.0); // Hasn't scrolled yet, scroll_delta is 0
@@ -1107,12 +1031,7 @@ mod tests {
         // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
         input.scroll_delta.y = 2.0;
         focus_sys.begin_frame();
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         // value = 50.0 - 2.0 * 5.0 = 40.0
@@ -1141,12 +1060,7 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert!(
             state.is_track_clicking,
             "should be track-clicking after initial track click"
@@ -1157,29 +1071,27 @@ mod tests {
         // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert!(
             state.is_dragging,
             "should switch to dragging after threshold exceeded"
         );
         assert!(!state.is_track_clicking, "track clicking should end");
         // snap: thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25
-        assert!((state.value - 56.25).abs() < 0.01, "snap to 56.25, got {}", state.value);
+        assert!(
+            (state.value - 56.25).abs() < 0.01,
+            "snap to 56.25, got {}",
+            state.value
+        );
 
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
+        assert!(
+            (state.value - 68.75).abs() < 0.01,
+            "drag to 68.75, got {}",
+            state.value
         );
-        assert!((state.value - 68.75).abs() < 0.01, "drag to 68.75, got {}", state.value);
     }
 
     // Regression: paging past the cursor causes direction-flip flicker.
@@ -1208,12 +1120,7 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
         input.mouse_pressed = true;
         input.mouse_down = true;
-        raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         assert_eq!(state.value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5);
@@ -1221,7 +1128,10 @@ mod tests {
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
         raw::slider(
-            SliderSpec { time: 0.4, ..spec.clone() },
+            SliderSpec {
+                time: 0.4,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1232,7 +1142,10 @@ mod tests {
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
         raw::slider(
-            SliderSpec { time: 0.5, ..spec.clone() },
+            SliderSpec {
+                time: 0.5,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1246,7 +1159,10 @@ mod tests {
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
         raw::slider(
-            SliderSpec { time: 0.6, ..spec.clone() },
+            SliderSpec {
+                time: 0.6,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1267,7 +1183,10 @@ mod tests {
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
         raw::slider(
-            SliderSpec { time: 0.65, ..spec.clone() },
+            SliderSpec {
+                time: 0.65,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1287,7 +1206,10 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
         raw::slider(
-            SliderSpec { time: 0.7, ..spec.clone() },
+            SliderSpec {
+                time: 0.7,
+                ..spec.clone()
+            },
             &mut state,
             &input,
             &mut focus_sys,
@@ -1525,12 +1447,7 @@ mod tests {
 
         let input = Input::new();
         focus_sys.begin_frame();
-        let result = raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1568,12 +1485,7 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
 
         focus_sys.begin_frame();
-        let result = raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1611,12 +1523,7 @@ mod tests {
         let mut input = Input::new();
         input.mouse_down = true;
         focus_sys.begin_frame();
-        let result = raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(
@@ -1654,12 +1561,7 @@ mod tests {
 
         let input = Input::new();
         focus_sys.begin_frame();
-        let result = raw::slider(
-            spec.clone(),
-            &mut state,
-            &input,
-            &mut focus_sys,
-        );
+        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_sys);
         focus_sys.end_frame();
 
         assert_eq!(

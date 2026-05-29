@@ -26,6 +26,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct KeycapResult {
         pub draw: DrawCommands,
+        pub content_bounds: Rect,
     }
 
     /// Low-level keycap widget function.
@@ -72,7 +73,10 @@ pub mod raw {
             });
         }
 
-        KeycapResult { draw }
+        KeycapResult {
+            draw,
+            content_bounds: spec.rect.inset(1.0),
+        }
     }
 }
 
@@ -139,11 +143,11 @@ impl<'a> KeycapSpecBuilder<'a> {
 
     pub fn build(self) -> raw::KeycapSpec<'a> {
         raw::KeycapSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             text: self.text.expect("text not set — call .text()"),
-            background: self.background.expect("background not set — call .background()"),
+            background: self
+                .background
+                .expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),
             text_color: self
                 .text_color
@@ -180,7 +184,7 @@ pub fn keycap<
     let result = raw::keycap(spec, ctx.text_system);
     ctx.append_cmds(result.draw);
     KeycapResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
     }
 }
 

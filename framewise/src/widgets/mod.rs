@@ -41,7 +41,9 @@ pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
 pub use meter::{meter, MeterResult, MeterSpecBuilder};
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle};
 pub use radio::{radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
-pub use scroll_area::{begin_scroll_area, ScrollAreaResult, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility};
+pub use scroll_area::{
+    begin_scroll_area, ScrollAreaResult, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility,
+};
 pub use segmented::{
     segmented, SegmentedResult, SegmentedSpecBuilder, SegmentedState, SegmentedStyle,
 };

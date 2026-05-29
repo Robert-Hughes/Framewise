@@ -137,8 +137,14 @@ impl Default for NestedRowState {
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
             horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             both_btns: std::array::from_fn(|_| SampleButton::default()),
-            slider_state: SliderState { value: 50.0, ..Default::default() },
-            horiz_slider_state: SliderState { value: 50.0, ..Default::default() },
+            slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
+            horiz_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
         }
     }
 }
@@ -167,7 +173,10 @@ impl App {
             grid_btns: std::array::from_fn(|_| SampleButton::default()),
             top_btn1: SampleButton::default(),
             top_btn2: SampleButton::default(),
-            standalone_slider_state: SliderState { value: 50.0, ..Default::default() },
+            standalone_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
             double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
@@ -180,7 +189,10 @@ impl App {
             triple_middle_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
-            triple_inner_slider_state: SliderState { value: 50.0, ..Default::default() },
+            triple_inner_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
             triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_innermost_btns: std::array::from_fn(|_| SampleButton::default()),
         }
@@ -371,8 +383,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(400.0, 20.0);
-                        let spec_builder =
-                            LabelSpecBuilder::new().text("DASHBOARD GRID");
+                        let spec_builder = LabelSpecBuilder::new().text("DASHBOARD GRID");
                         label(&mut grid_col, spec_builder, layout_params)
                     };
 
@@ -892,8 +903,7 @@ impl App {
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder =
-                            LabelSpecBuilder::new().text("[ horiz padding ]");
+                        let spec_builder = LabelSpecBuilder::new().text("[ horiz padding ]");
                         label(&mut middle_scroll, spec_builder, layout_params)
                     };
 
@@ -977,18 +987,12 @@ impl App {
                             .orientation(SliderOrientation::Vertical)
                             .page_step(step)
                             .step(step);
-                        slider(
-                            &mut middle_scroll,
-                            spec_builder,
-                            layout_params,
-                            state,
-                        );
+                        slider(&mut middle_scroll, spec_builder, layout_params, state);
                     };
 
                     {
                         let layout_params = Vec2::new(200.0, 130.0);
-                        let spec_builder =
-                            LabelSpecBuilder::new().text("[ horiz padding ]");
+                        let spec_builder = LabelSpecBuilder::new().text("[ horiz padding ]");
                         label(&mut middle_scroll, spec_builder, layout_params)
                     };
 

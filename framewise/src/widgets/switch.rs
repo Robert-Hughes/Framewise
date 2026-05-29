@@ -24,6 +24,7 @@ pub mod raw {
         pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
+        pub content_bounds: Rect,
     }
 
     /// Low-level switch widget function.
@@ -129,9 +130,9 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
+            content_bounds: r.inset(s.border_width),
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -216,9 +217,7 @@ impl SwitchSpecBuilder {
 
     pub fn build(self) -> raw::SwitchSpec {
         raw::SwitchSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             on: self.on.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             style: self
@@ -259,7 +258,7 @@ pub fn switch<
     ctx.append_cmds(result.draw);
 
     SwitchResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

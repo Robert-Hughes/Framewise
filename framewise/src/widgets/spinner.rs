@@ -169,9 +169,7 @@ impl SpinnerSpecBuilder {
 
     pub fn build(self) -> raw::SpinnerSpec {
         raw::SpinnerSpec {
-            rect: self
-                .rect
-                .expect("rect not set — call .rect()"),
+            rect: self.rect.expect("rect not set — call .rect()"),
             large: self.large.unwrap_or(false),
             style: self
                 .style
