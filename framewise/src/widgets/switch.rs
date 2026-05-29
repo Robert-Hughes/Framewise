@@ -171,10 +171,9 @@ pub struct SwitchResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SwitchSpecBuilder {
-    pub on: Option<bool>,
+    pub rect: Option<Rect>,
     pub disabled: Option<bool>,
     pub style: Option<SwitchStyle>,
-    pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -234,11 +233,7 @@ impl SwitchSpecBuilder {
 /// High-level switch widget function using WidgetContext.
 ///
 /// This function accepts a SwitchSpec and calls the low-level raw::switch function.
-pub fn switch<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn switch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,
     layout_params: S::Params,
@@ -272,7 +267,10 @@ mod tests {
     fn test_switch(spec: SwitchSpec, on: bool) -> raw::SwitchResult {
         raw::switch(
             spec,
-            &mut SwitchState { on, ..Default::default() },
+            &mut SwitchState {
+                on,
+                ..Default::default()
+            },
             &Input::default(),
             &mut FocusSystem::new(),
         )

@@ -224,12 +224,11 @@ pub struct SegmentedResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SegmentedSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
-    pub style: Option<SegmentedStyle>,
-    pub active_index: Option<usize>,
     pub disabled: Option<bool>,
-    pub rect: Option<Rect>,
+    pub style: Option<SegmentedStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -341,7 +340,10 @@ mod tests {
     fn segmented_dummy<'a>(spec: SegmentedSpec<'a>, active_index: usize) -> raw::SegmentedResult {
         raw::segmented(
             spec,
-            &mut SegmentedState { active_index, ..Default::default()},
+            &mut SegmentedState {
+                active_index,
+                ..Default::default()
+            },
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
@@ -400,7 +402,10 @@ mod tests {
 
     #[test]
     fn test_segmented_visual_focused() {
-        let mut state = SegmentedState { active_index: 1, ..Default::default() };
+        let mut state = SegmentedState {
+            active_index: 1,
+            ..Default::default()
+        };
         let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();

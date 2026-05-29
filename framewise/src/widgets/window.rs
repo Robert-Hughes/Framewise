@@ -1,5 +1,11 @@
 use crate::{
-    TextSystem, draw::{DrawCmd, DrawCommands}, focus::FocusSystem, layout::{Layout, LayoutState}, text::FontId, types::{Color, Rect, Vec2}, widget::{LayoutInfo, WidgetContext}
+    draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
+    layout::{Layout, LayoutState},
+    text::FontId,
+    types::{Color, Rect, Vec2},
+    widget::{LayoutInfo, WidgetContext},
+    TextSystem,
 };
 
 pub mod raw {
@@ -178,13 +184,13 @@ pub struct WindowResult<
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct WindowSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
     pub font: Option<FontId>,
-    pub style: Option<WindowStyle>,
     pub status_bar: Option<bool>,
     pub status_text: Option<&'a str>,
-    pub rect: Option<Rect>,
+    pub style: Option<WindowStyle>,
 }
 
 impl<'a> WindowSpecBuilder<'a> {

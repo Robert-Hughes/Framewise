@@ -82,8 +82,8 @@ impl FrameResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FrameSpecBuilder {
-    pub style: Option<FrameStyle>,
     pub rect: Option<Rect>,
+    pub style: Option<FrameStyle>,
 }
 
 impl FrameSpecBuilder {
@@ -124,11 +124,7 @@ impl FrameSpecBuilder {
 ///
 /// This function accepts a FrameSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::frame function.
-pub fn frame<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn frame<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: FrameSpecBuilder,
     layout_params: S::Params,

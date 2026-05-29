@@ -67,11 +67,11 @@ pub struct LabelResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LabelSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub size: Option<f32>,
     pub font: Option<FontId>,
     pub text_color: Option<Color>,
-    pub rect: Option<Rect>,
     pub rule: Option<bool>,
     pub rule_color: Option<Color>,
 }
@@ -141,7 +141,9 @@ impl<'a> LabelSpecBuilder<'a> {
                 .text_color
                 .expect("text_color not set — call .text_color() or defaults_from_theme()"),
             rule: self.rule.unwrap_or(false),
-            rule_color: self.rule_color.expect("rule_color not set — call .rule_color() or defaults_from_theme()")
+            rule_color: self
+                .rule_color
+                .expect("rule_color not set — call .rule_color() or defaults_from_theme()"),
         }
     }
 }
@@ -152,12 +154,7 @@ impl<'a> LabelSpecBuilder<'a> {
 ///
 /// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::label function.
-pub fn label<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn label<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,

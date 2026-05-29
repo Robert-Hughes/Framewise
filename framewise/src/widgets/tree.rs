@@ -27,10 +27,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: TextSystem>(
-        spec: TreeSpec<'a>,
-        text_system: &mut T,
-    ) -> TreeResult {
+    pub fn tree<'a, T: TextSystem>(spec: TreeSpec<'a>, text_system: &mut T) -> TreeResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -235,12 +232,7 @@ impl<'a> TreeSpecBuilder<'a> {
 /// High-level tree widget function using WidgetContext.
 ///
 /// This function accepts a TreeSpec and calls the low-level raw::tree function.
-pub fn tree<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn tree<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TreeSpecBuilder<'a>,
     layout_params: S::Params,

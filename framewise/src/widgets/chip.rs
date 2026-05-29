@@ -1,11 +1,18 @@
 use crate::{
-    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, text::FontId, types::{ClipRect, Color, Rect}, widget::{InputInfo, LayoutInfo, WidgetContext}
+    draw::{DrawCmd, DrawCommands},
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    layout::LayoutState,
+    text::FontId,
+    types::{ClipRect, Color, Rect},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem,
 };
 
 pub mod raw {
     use crate::TextSystem;
 
-use super::*;
+    use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ChipSpec<'a> {
@@ -172,11 +179,11 @@ pub struct ChipResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ChipSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
-    pub style: Option<ChipStyle>,
     pub disabled: Option<bool>,
-    pub rect: Option<Rect>,
+    pub style: Option<ChipStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -249,12 +256,7 @@ impl<'a> ChipSpecBuilder<'a> {
 /// High-level chip widget function using WidgetContext.
 ///
 /// This function accepts a ChipSpec and calls the low-level raw::chip function.
-pub fn chip<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn chip<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ChipSpecBuilder<'a>,
     layout_params: S::Params,

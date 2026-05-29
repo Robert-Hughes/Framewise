@@ -1,11 +1,18 @@
 use crate::{
-    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, text::FontId, types::{ClipRect, Color, Rect}, widget::{InputInfo, LayoutInfo, WidgetContext}
+    draw::{DrawCmd, DrawCommands},
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    layout::LayoutState,
+    text::FontId,
+    types::{ClipRect, Color, Rect},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem,
 };
 
 pub mod raw {
     use crate::TextSystem;
 
-use super::*;
+    use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonSpec<'a> {
@@ -216,9 +223,9 @@ pub struct ButtonResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ButtonSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<ButtonStyle>,
-    pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
     pub disabled: Option<bool>,
 }
@@ -279,12 +286,7 @@ impl<'a> ButtonSpecBuilder<'a> {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,
     layout_params: S::Params,
@@ -314,11 +316,11 @@ mod tests {
     use super::raw::ButtonSpec;
     use super::*;
 
-    use FocusId;
     use crate::test_utils::DummyTextSys;
     use crate::text::TextHandle;
     use crate::theme;
     use crate::types::Vec2;
+    use FocusId;
     fn btn_spec(rect: Rect) -> ButtonSpec<'static> {
         ButtonSpec {
             rect,

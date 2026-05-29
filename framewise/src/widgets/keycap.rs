@@ -38,10 +38,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<'a, T: TextSystem>(
-        spec: KeycapSpec<'a>,
-        text_system: &mut T,
-    ) -> KeycapResult {
+    pub fn keycap<'a, T: TextSystem>(spec: KeycapSpec<'a>, text_system: &mut T) -> KeycapResult {
         let mut draw = DrawCommands::new();
 
         // Background + border
@@ -96,6 +93,7 @@ pub struct KeycapResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub background: Option<Color>,
     pub shadow: Option<Color>,
@@ -106,7 +104,6 @@ pub struct KeycapSpecBuilder<'a> {
     pub text_color: Option<Color>,
     pub text_size: Option<f32>,
     pub font: Option<FontId>,
-    pub rect: Option<Rect>,
 }
 
 impl<'a> KeycapSpecBuilder<'a> {
@@ -179,13 +176,15 @@ impl<'a> KeycapSpecBuilder<'a> {
                 .background
                 .expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),
-            border_width: self.border_width
+            border_width: self
+                .border_width
                 .expect("border_width not set — call .border_width()"),
             shadow: self.shadow.expect("shadow not set — call .shadow()"),
             shadow_offset: self
                 .shadow_offset
                 .expect("shadow_offset not set — call .shadow_offset()"),
-            shadow_height: self.shadow_height
+            shadow_height: self
+                .shadow_height
                 .expect("shadow_height not set — call .shadow_height()"),
             text_color: self
                 .text_color
@@ -205,12 +204,7 @@ impl<'a> KeycapSpecBuilder<'a> {
 /// High-level keycap widget function using WidgetContext.
 ///
 /// This function accepts a KeycapSpec and calls the low-level raw::keycap function.
-pub fn keycap<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn keycap<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,

@@ -29,10 +29,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: TextSystem>(
-        spec: MenuSpec<'a>,
-        text_system: &mut T,
-    ) -> MenuResult {
+    pub fn menu<'a, T: TextSystem>(spec: MenuSpec<'a>, text_system: &mut T) -> MenuResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -199,11 +196,11 @@ pub struct MenuResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MenuSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub items: Option<&'a [MenuItem<'a>]>,
     pub label_font: Option<FontId>,
     pub meta_font: Option<FontId>,
     pub style: Option<MenuStyle>,
-    pub rect: Option<Rect>,
 }
 
 impl<'a> MenuSpecBuilder<'a> {
@@ -272,12 +269,7 @@ impl<'a> MenuSpecBuilder<'a> {
 /// High-level menu widget function using WidgetContext.
 ///
 /// This function accepts a MenuSpec and calls the low-level raw::menu function.
-pub fn menu<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn menu<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MenuSpecBuilder<'a>,
     layout_params: S::Params,

@@ -50,9 +50,9 @@ pub struct DividerResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DividerSpecBuilder {
+    pub rect: Option<Rect>,
     pub color: Option<Color>,
     pub width: Option<f32>,
-    pub rect: Option<Rect>,
 }
 
 impl DividerSpecBuilder {
@@ -98,11 +98,7 @@ impl DividerSpecBuilder {
 ///
 /// This function accepts a DividerSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::divider function.
-pub fn divider<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn divider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: DividerSpecBuilder,
     layout_params: S::Params,

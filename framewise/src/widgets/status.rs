@@ -28,10 +28,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<'a, T: TextSystem>(
-        spec: StatusSpec<'a>,
-        text_system: &mut T,
-    ) -> StatusResult {
+    pub fn status<'a, T: TextSystem>(spec: StatusSpec<'a>, text_system: &mut T) -> StatusResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -103,11 +100,11 @@ pub struct StatusResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct StatusSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
-    pub style: Option<StatusStyle>,
     pub variant: Option<StatusVariant>,
-    pub rect: Option<Rect>,
+    pub style: Option<StatusStyle>,
 }
 
 impl<'a> StatusSpecBuilder<'a> {
@@ -171,12 +168,7 @@ impl<'a> StatusSpecBuilder<'a> {
 /// High-level status widget function using WidgetContext.
 ///
 /// This function accepts a StatusSpec and calls the low-level raw::status function.
-pub fn status<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn status<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: StatusSpecBuilder<'a>,
     layout_params: S::Params,

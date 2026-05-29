@@ -101,11 +101,11 @@ pub struct ProgressBarResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ProgressBarSpecBuilder {
+    pub rect: Option<Rect>,
     pub value: Option<f32>,
     pub phase: Option<f32>,
     pub active: Option<bool>,
     pub style: Option<ProgressBarStyle>,
-    pub rect: Option<Rect>,
 }
 
 impl ProgressBarSpecBuilder {
@@ -166,11 +166,7 @@ impl ProgressBarSpecBuilder {
 /// High-level progress bar widget function using WidgetContext.
 ///
 /// This function accepts a ProgressBarSpec and calls the low-level raw::progress_bar function.
-pub fn progress_bar<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn progress_bar<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,

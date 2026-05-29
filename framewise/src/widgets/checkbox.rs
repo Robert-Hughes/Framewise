@@ -1,5 +1,11 @@
 use crate::{
-    TextSystem, draw::{DrawCmd, DrawCommands}, focus::{FocusId, FocusSystem}, input::Input, layout::LayoutState, types::{ClipRect, Color, Rect, Vec2}, widget::{InputInfo, LayoutInfo, WidgetContext}
+    draw::{DrawCmd, DrawCommands},
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    layout::LayoutState,
+    types::{ClipRect, Color, Rect, Vec2},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextSystem,
 };
 
 pub mod raw {
@@ -197,9 +203,9 @@ pub struct CheckboxResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxSpecBuilder {
+    pub rect: Option<Rect>,
     pub disabled: Option<bool>,
     pub style: Option<CheckboxStyle>,
-    pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
 impl CheckboxSpecBuilder {
@@ -258,11 +264,7 @@ impl CheckboxSpecBuilder {
 /// High-level checkbox widget function using WidgetContext.
 ///
 /// This function accepts a CheckboxSpec and calls the low-level raw::checkbox function.
-pub fn checkbox<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn checkbox<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: CheckboxSpecBuilder,
     layout_params: S::Params,

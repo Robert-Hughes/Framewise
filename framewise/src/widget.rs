@@ -1,10 +1,10 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::LayoutState;
-use crate::TextSystem;
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect};
 use crate::Input;
+use crate::TextSystem;
 
 // ── Common result fragments ───────────────────────────────────────────────────
 

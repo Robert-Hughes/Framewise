@@ -321,7 +321,12 @@ pub mod raw {
 
         // Error: 4px rust left stripe
         if spec.error {
-            let stripe = Rect::new(spec.rect.x, spec.rect.y, spec.style.error_stripe_width, spec.rect.h);
+            let stripe = Rect::new(
+                spec.rect.x,
+                spec.rect.y,
+                spec.style.error_stripe_width,
+                spec.rect.h,
+            );
             draw.push(DrawCmd::FillRect {
                 rect: stripe,
                 color: spec.style.error_border,
@@ -676,11 +681,7 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 /// High-level text edit widget function using WidgetContext.
 ///
 /// This function accepts a TextEditSpec and calls the low-level raw::text_edit function.
-pub fn text_edit<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn text_edit<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TextEditSpecBuilder,
     layout_params: S::Params,
@@ -1291,7 +1292,13 @@ mod tests {
         sp.error = true;
 
         let input = Input::default();
-        let res = raw::text_edit(sp.clone(), &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(
+            sp.clone(),
+            &mut state,
+            &input,
+            &mut focus_sys,
+            &mut text_sys,
+        );
 
         assert_eq!(
             res.draw,

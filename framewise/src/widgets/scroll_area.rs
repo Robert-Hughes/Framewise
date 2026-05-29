@@ -5,7 +5,8 @@ use crate::{
     layout::{Layout, LayoutState},
     text::TextSystem,
     types::{ClipRect, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext}, widgets::SliderStyle,
+    widget::{LayoutInfo, WidgetContext},
+    widgets::SliderStyle,
 };
 
 pub mod raw {
@@ -247,10 +248,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn end_scroll_area(
-        token: ScrollAreaToken,
-        focus_sys: &mut FocusSystem,
-    ) -> DrawCommands {
+    pub fn end_scroll_area(token: ScrollAreaToken, focus_sys: &mut FocusSystem) -> DrawCommands {
         let post_cmds = DrawCommands(vec![DrawCmd::PopClip]);
 
         let popped = focus_sys.pop_keyboard_scroll_scope();
@@ -328,15 +326,14 @@ pub mod raw {
                 state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
             }
         };
-        let scroll_horiz =
-            |state: &mut ScrollState, focus_sys: &FocusSystem, dx: f32| {
-                if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
-                    state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-                }
-                if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
-                    state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
-                }
-            };
+        let scroll_horiz = |state: &mut ScrollState, focus_sys: &FocusSystem, dx: f32| {
+            if dx > 0.0 && focus_sys.is_active_scroll_left(state.id) {
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+            }
+            if dx < 0.0 && focus_sys.is_active_scroll_right(state.id) {
+                state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
+            }
+        };
 
         match mode {
             ScrollMode::None => {}
@@ -535,12 +532,12 @@ impl ScrollAreaSpecBuilder {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect()"),
             time: self.time.unwrap_or(0.0),
-            scrollbar_width: self
-                .scrollbar_width
-                .expect("scrollbar_width not set — call .scrollbar_width() or defaults_from_theme()"),
-            scrollbar_style: self
-                .scrollbar_style
-                .expect("scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()"),
+            scrollbar_width: self.scrollbar_width.expect(
+                "scrollbar_width not set — call .scrollbar_width() or defaults_from_theme()",
+            ),
+            scrollbar_style: self.scrollbar_style.expect(
+                "scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()",
+            ),
         }
     }
 }
@@ -619,7 +616,12 @@ pub fn begin_scroll_area<
     let layout_bounds = ctx.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder.rect(bounds).clip_rect(clip).time(ctx.time).defaults_from_theme(&ctx.theme).build();
+    let spec = builder
+        .rect(bounds)
+        .clip_rect(clip)
+        .time(ctx.time)
+        .defaults_from_theme(&ctx.theme)
+        .build();
     let raw::ScrollAreaResult {
         draw,
         token,

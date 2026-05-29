@@ -140,9 +140,9 @@ pub struct SpinnerResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpinnerSpecBuilder {
+    pub rect: Option<Rect>,
     pub large: Option<bool>,
     pub style: Option<SpinnerStyle>,
-    pub rect: Option<Rect>,
 }
 
 impl SpinnerSpecBuilder {
@@ -192,11 +192,7 @@ impl SpinnerSpecBuilder {
 /// High-level spinner widget function using WidgetContext.
 ///
 /// This function accepts a SpinnerSpec and calls the low-level raw::spinner function.
-pub fn spinner<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn spinner<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SpinnerSpecBuilder,
     layout_params: S::Params,

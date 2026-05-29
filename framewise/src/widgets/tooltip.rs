@@ -28,10 +28,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<'a, T: TextSystem>(
-        spec: TooltipSpec<'a>,
-        text_system: &mut T,
-    ) -> TooltipResult {
+    pub fn tooltip<'a, T: TextSystem>(spec: TooltipSpec<'a>, text_system: &mut T) -> TooltipResult {
         let mut cmds = DrawCommands::new();
         let s = spec.style;
 
@@ -115,11 +112,11 @@ pub struct TooltipResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TooltipSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
-    pub style: Option<TooltipStyle>,
     pub variant: Option<TooltipVariant>,
-    pub rect: Option<Rect>,
+    pub style: Option<TooltipStyle>,
 }
 
 impl<'a> TooltipSpecBuilder<'a> {
@@ -183,12 +180,7 @@ impl<'a> TooltipSpecBuilder<'a> {
 /// High-level tooltip widget function using WidgetContext.
 ///
 /// This function accepts a TooltipSpec and calls the low-level raw::tooltip function.
-pub fn tooltip<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TooltipSpecBuilder<'a>,
     layout_params: S::Params,

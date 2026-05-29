@@ -219,12 +219,11 @@ pub struct TabsResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TabsSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
     pub font: Option<FontId>,
-    pub style: Option<TabsStyle>,
-    pub active_index: Option<usize>,
     pub disabled: Option<bool>,
-    pub rect: Option<Rect>,
+    pub style: Option<TabsStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -297,12 +296,7 @@ impl<'a> TabsSpecBuilder<'a> {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpec and calls the low-level raw::tabs function.
-pub fn tabs<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn tabs<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TabsSpecBuilder<'a>,
     layout_params: S::Params,
@@ -336,7 +330,10 @@ mod tests {
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> raw::TabsResult {
         raw::tabs(
             spec,
-            &mut TabsState { active_index, ..Default::default() },
+            &mut TabsState {
+                active_index,
+                ..Default::default()
+            },
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
@@ -394,7 +391,10 @@ mod tests {
 
     #[test]
     fn test_tabs_visual_focused() {
-        let mut state = TabsState { active_index: 1, ..Default::default() };
+        let mut state = TabsState {
+            active_index: 1,
+            ..Default::default()
+        };
         let mut focus_sys = FocusSystem::new();
         focus_sys.take_focus(state.focus_id);
         focus_sys.begin_frame();

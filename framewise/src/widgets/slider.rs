@@ -552,6 +552,7 @@ pub struct SliderResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliderSpecBuilder {
+    pub rect: Option<Rect>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub page_step: Option<f32>,
@@ -559,7 +560,6 @@ pub struct SliderSpecBuilder {
     pub orientation: Option<Orientation>,
     pub thumb_size_ratio: Option<f32>,
     pub style: Option<SliderStyle>,
-    pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: Option<bool>,
     pub time: Option<f64>,
@@ -654,11 +654,7 @@ impl SliderSpecBuilder {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpec and calls the low-level raw::slider function.
-pub fn slider<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SliderSpecBuilder,
     layout_params: S::Params,

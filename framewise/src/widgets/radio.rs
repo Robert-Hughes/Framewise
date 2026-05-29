@@ -169,10 +169,9 @@ pub struct RadioResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RadioSpecBuilder {
-    pub selected: Option<bool>,
+    pub rect: Option<Rect>,
     pub disabled: Option<bool>,
     pub style: Option<RadioStyle>,
-    pub rect: Option<Rect>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -232,11 +231,7 @@ impl RadioSpecBuilder {
 /// High-level radio widget function using WidgetContext.
 ///
 /// This function accepts a RadioSpec and calls the low-level raw::radio function.
-pub fn radio<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn radio<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: RadioSpecBuilder,
     layout_params: S::Params,
@@ -269,7 +264,10 @@ mod tests {
     fn test_radio(spec: RadioSpec, selected: bool) -> raw::RadioResult {
         raw::radio(
             spec,
-            &mut RadioState { selected, ..Default::default() },
+            &mut RadioState {
+                selected,
+                ..Default::default()
+            },
             &Input::default(),
             &mut FocusSystem::new(),
         )

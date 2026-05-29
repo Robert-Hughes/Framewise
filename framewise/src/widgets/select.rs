@@ -340,12 +340,12 @@ pub struct SelectResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SelectSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub value: Option<&'a str>,
     pub font: Option<FontId>,
-    pub style: Option<SelectStyle>,
     pub options: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
-    pub rect: Option<Rect>,
+    pub style: Option<SelectStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -420,12 +420,7 @@ impl<'a> SelectSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn select<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SelectSpecBuilder<'a>,
     layout_params: S::Params,

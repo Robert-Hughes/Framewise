@@ -230,14 +230,13 @@ pub struct DragNumberResult {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {
+    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub font: Option<FontId>,
-    pub style: Option<DragNumberStyle>,
-    pub value: Option<f32>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub disabled: Option<bool>,
-    pub rect: Option<Rect>,
+    pub style: Option<DragNumberStyle>,
     pub clip_rect: Option<ClipRect>,
 }
 
@@ -360,7 +359,10 @@ mod tests {
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> raw::DragNumberResult {
         raw::drag_number(
             spec,
-            &mut DragNumberState { value, ..Default::default() },
+            &mut DragNumberState {
+                value,
+                ..Default::default()
+            },
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
@@ -419,7 +421,10 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_active() {
-        let mut state = DragNumberState { value: 50.0, ..Default::default() };
+        let mut state = DragNumberState {
+            value: 50.0,
+            ..Default::default()
+        };
         state.is_dragging = true;
         state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
@@ -540,7 +545,10 @@ mod tests {
     #[test]
     fn test_drag_number_click_takes_focus() {
         let mut focus_sys = FocusSystem::new();
-        let state = DragNumberState { value: 50.0, ..Default::default() };
+        let state = DragNumberState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -572,7 +580,10 @@ mod tests {
     #[test]
     fn test_drag_number_clipped_click_does_not_take_focus() {
         let mut focus_sys = FocusSystem::new();
-        let state = DragNumberState { value: 50.0, ..Default::default() };
+        let state = DragNumberState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
@@ -604,7 +615,10 @@ mod tests {
     #[test]
     fn test_drag_number_keyboard_navigation() {
         let mut focus_sys = FocusSystem::new();
-        let mut state = DragNumberState { value: 50.0, ..Default::default() };
+        let mut state = DragNumberState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut input = Input::default();
         let mut text_sys = DummyTextSys;
 
@@ -703,9 +717,7 @@ mod tests {
         let mut dn_state = DragNumberState::default();
         let result = super::drag_number(
             &mut ctx,
-            DragNumberSpecBuilder::new()
-                .text("x")
-                .rect(custom_rect),
+            DragNumberSpecBuilder::new().text("x").rect(custom_rect),
             layout_rect,
             &mut dn_state,
         );

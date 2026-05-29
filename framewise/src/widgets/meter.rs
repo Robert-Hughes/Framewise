@@ -42,7 +42,12 @@ pub mod raw {
 
         for i in 0..n {
             let x = spec.rect.x + i as f32 * (spec.style.bar_w + spec.style.bar_gap);
-            let bar_rect = Rect::new(x, spec.rect.y + (spec.rect.h - spec.style.bar_h) / 2.0, spec.style.bar_w, spec.style.bar_h);
+            let bar_rect = Rect::new(
+                x,
+                spec.rect.y + (spec.rect.h - spec.style.bar_h) / 2.0,
+                spec.style.bar_w,
+                spec.style.bar_h,
+            );
 
             let color = if peak_idx == Some(i) {
                 spec.style.rust
@@ -138,7 +143,9 @@ impl MeterSpecBuilder {
         raw::MeterSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
-            style: self.style.expect("style not set — call .style() or .defaults_from_theme()"),
+            style: self
+                .style
+                .expect("style not set — call .style() or .defaults_from_theme()"),
             peak: self.peak.expect("peak not set — call .peak()"),
             bars: self.bars.expect("bars not set — call .bars()"),
         }
@@ -150,11 +157,7 @@ impl MeterSpecBuilder {
 /// High-level meter widget function using WidgetContext.
 ///
 /// This function accepts a MeterSpec and calls the low-level raw::meter function.
-pub fn meter<
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn meter<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MeterSpecBuilder,
     layout_params: S::Params,
@@ -175,7 +178,7 @@ mod tests {
     use super::raw::MeterSpec;
     use super::*;
     use crate::test_utils::DummyTextSys;
-use crate::theme;
+    use crate::theme;
 
     #[test]
     fn test_meter_visual_normal() {

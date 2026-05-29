@@ -2,7 +2,12 @@ use crate::{
     text::{FontId, FontRole},
     types::Color,
     widgets::{
-        button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle, drag_number::DragNumberStyle, frame::FrameStyle, menu::MenuStyle, meter::MeterStyle, progress_bar::ProgressBarStyle, radio::RadioStyle, segmented::SegmentedStyle, select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle, status::StatusStyle, switch::SwitchStyle, tabs::TabsStyle, text_edit::TextEditStyle, tooltip::TooltipStyle, tree::TreeStyle, window::WindowStyle
+        button::ButtonStyle, checkbox::CheckboxStyle, chip::ChipStyle,
+        drag_number::DragNumberStyle, frame::FrameStyle, menu::MenuStyle, meter::MeterStyle,
+        progress_bar::ProgressBarStyle, radio::RadioStyle, segmented::SegmentedStyle,
+        select::SelectStyle, slider::SliderStyle, spinner::SpinnerStyle, status::StatusStyle,
+        switch::SwitchStyle, tabs::TabsStyle, text_edit::TextEditStyle, tooltip::TooltipStyle,
+        tree::TreeStyle, window::WindowStyle,
     },
 };
 
