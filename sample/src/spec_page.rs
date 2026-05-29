@@ -749,7 +749,7 @@ pub fn draw_spec_page(
     });
     {
         let cmds = bg.draw;
-        (&mut b).append_cmds(cmds);
+        b.append_cmds(cmds);
     };
 
     // Scroll area provides clip + scroll offset for all page content.
@@ -3018,7 +3018,7 @@ pub fn draw_spec_page(
                     let layout_params = Rect::new(widget_x, fy + 6.0, 30.0, 16.0);
                     {
                         let spec_builder = SwitchSpecBuilder::new();
-                        switch(&mut *&mut win, spec_builder, layout_params, state)
+                        switch(&mut win, spec_builder, layout_params, state)
                     }
                 };
                 {

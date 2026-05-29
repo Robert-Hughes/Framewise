@@ -58,8 +58,7 @@ pub mod raw {
                     width: spec.style.border_width,
                 });
             }
-            let text_layout =
-                text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
+            let text_layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
             let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
             let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
             draw.push(DrawCmd::Text {
@@ -158,7 +157,7 @@ pub mod raw {
         }
 
         // Text centered.
-        let text_layout = text_system.prepare(&spec.text, spec.style.text_size, spec.style.font);
+        let text_layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
         let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
         let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
 

@@ -195,8 +195,7 @@ pub mod raw {
         });
 
         // Selected value text.
-        let display_text = if !spec.items.is_empty() && state.selected_index < spec.items.len()
-        {
+        let display_text = if !spec.items.is_empty() && state.selected_index < spec.items.len() {
             spec.items[state.selected_index]
         } else {
             spec.value

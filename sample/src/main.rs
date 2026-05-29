@@ -353,7 +353,7 @@ impl App {
                         let state = &mut self.top_btn1.state;
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile";
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, spec_builder, layout_params, state)
                     };
 
@@ -361,7 +361,7 @@ impl App {
                         let state = &mut self.top_btn2.state;
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings";
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                         button(&mut header_row, spec_builder, layout_params, state)
                     };
 
@@ -802,7 +802,7 @@ impl App {
                             let state = &mut self.nested_2d_outer_btns[k].state;
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label;
-                            let spec_builder = ButtonSpecBuilder::new().text(&text);
+                            let spec_builder = ButtonSpecBuilder::new().text(text);
                             button(&mut outer, spec_builder, layout_params, state)
                         };
                     }

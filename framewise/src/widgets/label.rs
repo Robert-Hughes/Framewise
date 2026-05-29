@@ -34,7 +34,7 @@ pub mod raw {
     pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
         let mut draw = DrawCommands::new();
 
-        let layout = text_system.prepare(&spec.text, spec.size, spec.font);
+        let layout = text_system.prepare(spec.text, spec.size, spec.font);
 
         draw.push(DrawCmd::Text {
             rect: spec.rect,

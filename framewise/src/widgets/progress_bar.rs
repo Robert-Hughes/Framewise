@@ -173,7 +173,10 @@ pub fn progress_bar<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) 
 ) -> ProgressBarResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let builder = builder.rect(rect).phase(ctx.time as f32).defaults_from_theme(&ctx.theme);
+    let builder = builder
+        .rect(rect)
+        .phase(ctx.time as f32)
+        .defaults_from_theme(&ctx.theme);
     let spec = builder.build();
     let result = raw::progress_bar(spec);
     ctx.append_cmds(result.draw);
