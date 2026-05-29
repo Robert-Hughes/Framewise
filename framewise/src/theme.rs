@@ -43,6 +43,8 @@ pub struct Theme {
     pub text_sm: f32,   // 11 — mono caption
     pub text_md: f32,   // 13 — sans body
     pub text_mono: f32, // 12 — mono body
+
+    pub scrollbar_width: f32,
 }
 
 impl Theme {
@@ -70,6 +72,7 @@ impl Theme {
             text_sm: 11.0,
             text_md: 13.0,
             text_mono: 12.0,
+            scrollbar_width: 12.0,
         }
     }
 
@@ -152,8 +155,11 @@ impl Theme {
     pub fn text_edit_style(&self) -> TextEditStyle {
         TextEditStyle {
             background: self.paper_elev,
+            error_background: self.rust_soft,
             border: self.ink,
             focus_border: self.rust,
+            error_border: self.rust,
+            error_stripe_width: 4.0,
             border_width: self.border,
             padding: 4.0,
             text_size: self.text_mono,

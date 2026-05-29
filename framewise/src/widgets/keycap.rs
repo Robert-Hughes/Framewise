@@ -15,8 +15,12 @@ pub mod raw {
         pub text: &'a str,
         /// Background fill (default: paper_elev).
         pub background: Color,
+        pub shadow: Color,
+        pub shadow_offset: f32,
+        pub shadow_height: f32,
         /// Border color.
         pub border: Color,
+        pub border_width: f32,
         /// Label text color.
         pub text_color: Color,
         pub text_size: f32,
@@ -47,18 +51,18 @@ pub mod raw {
         draw.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: spec.border,
-            width: 1.0,
+            width: spec.border_width,
         });
         // Bottom shadow line
         let shadow_rect = Rect::new(
-            spec.rect.x + 1.0,
+            spec.rect.x + spec.shadow_offset,
             spec.rect.y + spec.rect.h,
-            spec.rect.w - 1.0,
-            2.0,
+            spec.rect.w - spec.shadow_offset,
+            spec.shadow_height,
         );
         draw.push(DrawCmd::FillRect {
             rect: shadow_rect,
-            color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
+            color: spec.shadow,
         });
 
         // text, centered
@@ -93,7 +97,11 @@ pub struct KeycapResult {
 pub struct KeycapSpecBuilder<'a> {
     pub text: Option<&'a str>,
     pub background: Option<Color>,
+    pub shadow: Option<Color>,
+    pub shadow_offset: Option<f32>,
+    pub shadow_height: Option<f32>,
     pub border: Option<Color>,
+    pub border_width: Option<f32>,
     pub text_color: Option<Color>,
     pub text_size: Option<f32>,
     pub font: Option<FontId>,
@@ -113,8 +121,24 @@ impl<'a> KeycapSpecBuilder<'a> {
         self.background = Some(background);
         self
     }
+    pub fn shadow(mut self, shadow: Color) -> Self {
+        self.shadow = Some(shadow);
+        self
+    }
+    pub fn shadow_offset(mut self, shadow_offset: f32) -> Self {
+        self.shadow_offset = Some(shadow_offset);
+        self
+    }
+    pub fn shadow_height(mut self, shadow_height: f32) -> Self {
+        self.shadow_height = Some(shadow_height);
+        self
+    }
     pub fn border(mut self, border: Color) -> Self {
         self.border = Some(border);
+        self
+    }
+    pub fn border_width(mut self, border_width: f32) -> Self {
+        self.border_width = Some(border_width);
         self
     }
     pub fn text_color(mut self, text_color: Color) -> Self {
@@ -154,6 +178,14 @@ impl<'a> KeycapSpecBuilder<'a> {
                 .background
                 .expect("background not set — call .background()"),
             border: self.border.expect("border not set — call .border()"),
+            border_width: self.border_width
+                .expect("border_width not set — call .border_width()"),
+            shadow: self.shadow.expect("shadow not set — call .shadow()"),
+            shadow_offset: self
+                .shadow_offset
+                .expect("shadow_offset not set — call .shadow_offset()"),
+            shadow_height: self.shadow_height
+                .expect("shadow_height not set — call .shadow_height()"),
             text_color: self
                 .text_color
                 .expect("text_color not set — call .text_color()"),
@@ -203,6 +235,7 @@ mod tests {
     fn test_keycap_visual() {
         let mut text_sys = DummyTextSys;
         let custom_bg = Color::from_srgb_u8(240, 240, 240, 255);
+        let custom_shadow = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
         let spec = KeycapSpec {
@@ -210,6 +243,10 @@ mod tests {
             text: "K",
             background: custom_bg,
             border: custom_border,
+            border_width: 1.0,
+            shadow: custom_shadow,
+            shadow_offset: 1.0,
+            shadow_height: 2.0,
             text_color: custom_text,
             text_size: 14.0,
             font: FontId(0),
@@ -230,7 +267,7 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(1.0, 30.0, 29.0, 2.0),
-                    color: Color::linear_rgba(0.0, 0.0, 0.0, 0.18),
+                    color: custom_shadow,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(11.0, 7.0, 8.0, 16.0),
@@ -281,7 +318,11 @@ mod tests {
             KeycapSpecBuilder::new()
                 .text("X")
                 .background(Color::WHITE)
+                .shadow(Color::BLACK)
+                .shadow_offset(1.0)
+                .shadow_height(2.0)
                 .border(Color::WHITE)
+                .border_width(1.0)
                 .text_color(Color::WHITE)
                 .text_size(14.0)
                 .rect(custom_rect),

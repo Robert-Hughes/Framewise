@@ -18,6 +18,7 @@ pub mod raw {
         pub text_color: Color,
         /// Draw a hairline rule at the bottom of the rect.
         pub rule: bool,
+        pub rule_color: Color,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +72,7 @@ pub struct LabelSpecBuilder<'a> {
     pub text_color: Option<Color>,
     pub rect: Option<Rect>,
     pub rule: Option<bool>,
+    pub rule_color: Option<Color>,
 }
 
 impl<'a> LabelSpecBuilder<'a> {
@@ -97,6 +99,10 @@ impl<'a> LabelSpecBuilder<'a> {
         self.rule = Some(rule);
         self
     }
+    pub fn rule_color(mut self, color: Color) -> Self {
+        self.rule_color = Some(color);
+        self
+    }
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
@@ -115,6 +121,9 @@ impl<'a> LabelSpecBuilder<'a> {
         if self.text_color.is_none() {
             self.text_color = Some(theme.ink);
         }
+        if self.rule_color.is_none() {
+            self.rule_color = Some(theme.ink);
+        }
         self
     }
     pub fn build(self) -> raw::LabelSpec<'a> {
@@ -131,6 +140,7 @@ impl<'a> LabelSpecBuilder<'a> {
                 .text_color
                 .expect("text_color not set — call .text_color() or defaults_from_theme()"),
             rule: self.rule.unwrap_or(false),
+            rule_color: self.rule_color.expect("rule_color not set — call .rule_color() or defaults_from_theme()")
         }
     }
 }
@@ -201,6 +211,7 @@ mod tests {
             font: FontId(1),
             text_color: Color::WHITE,
             rule: false,
+            rule_color: Color::WHITE,
         };
         let res = raw::label(spec, &mut sys);
 
@@ -224,6 +235,7 @@ mod tests {
             font: FontId(1),
             text_color: Color::WHITE,
             rule: true,
+            rule_color: Color::WHITE,
         };
         let res = raw::label(spec, &mut sys);
         assert_eq!(
@@ -255,6 +267,7 @@ mod tests {
             font: expected,
             text_color: Color::WHITE,
             rule: false,
+            rule_color: Color::WHITE,
         };
 
         let _ = raw::label(spec, &mut sys);

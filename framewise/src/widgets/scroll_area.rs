@@ -18,6 +18,7 @@ pub mod raw {
         pub v_vis: super::ScrollbarVisibility,
         pub clip_rect: ClipRect,
         pub time: f64,
+        pub scrollbar_width: f32,
         pub scrollbar_style: SliderStyle,
     }
 
@@ -72,14 +73,13 @@ pub mod raw {
             ScrollbarVisibility::Auto => max_scroll.y > 0.0,
         };
 
-        let scrollbar_w = 12.0;
         let content_w = if needs_v {
-            (spec.rect.w - scrollbar_w).max(0.0)
+            (spec.rect.w - spec.scrollbar_width).max(0.0)
         } else {
             spec.rect.w
         };
         let content_h = if needs_h {
-            (spec.rect.h - scrollbar_w).max(0.0)
+            (spec.rect.h - spec.scrollbar_width).max(0.0)
         } else {
             spec.rect.h
         };
@@ -150,7 +150,7 @@ pub mod raw {
             let track_rect = Rect::new(
                 content_bounds.right(),
                 spec.rect.y,
-                scrollbar_w,
+                spec.scrollbar_width,
                 content_bounds.h,
             );
 
@@ -189,7 +189,7 @@ pub mod raw {
                 spec.rect.x,
                 content_bounds.bottom(),
                 content_bounds.w,
-                scrollbar_w,
+                spec.scrollbar_width,
             );
 
             let slider_spec = crate::widgets::slider::raw::SliderSpec {
@@ -464,6 +464,7 @@ pub struct ScrollAreaSpecBuilder {
     pub v_vis: Option<ScrollbarVisibility>,
     pub clip_rect: Option<ClipRect>,
     pub time: Option<f64>,
+    pub scrollbar_width: Option<f32>,
     pub scrollbar_style: Option<SliderStyle>,
 }
 
@@ -493,6 +494,14 @@ impl ScrollAreaSpecBuilder {
         self.time = Some(time);
         self
     }
+    pub fn scrollbar_width(mut self, scrollbar_width: f32) -> Self {
+        self.scrollbar_width = Some(scrollbar_width);
+        self
+    }
+    pub fn scrollbar_style(mut self, scrollbar_style: SliderStyle) -> Self {
+        self.scrollbar_style = Some(scrollbar_style);
+        self
+    }
 
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
@@ -504,6 +513,9 @@ impl ScrollAreaSpecBuilder {
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.scrollbar_width.is_none() {
+            self.scrollbar_width = Some(theme.scrollbar_width);
+        }
         if self.scrollbar_style.is_none() {
             self.scrollbar_style = Some(theme.scrollbar_style());
         }
@@ -522,6 +534,9 @@ impl ScrollAreaSpecBuilder {
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect()"),
             time: self.time.unwrap_or(0.0),
+            scrollbar_width: self
+                .scrollbar_width
+                .expect("scrollbar_width not set — call .scrollbar_width() or defaults_from_theme()"),
             scrollbar_style: self
                 .scrollbar_style
                 .expect("scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()"),
@@ -683,6 +698,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Auto,
             clip_rect,
             time,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let r = raw::begin_scroll_area(spec, state, input, focus_sys);
@@ -741,6 +757,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_r = begin_scroll_area(outer_spec, outer_state, &input, &mut focus_sys);
@@ -752,6 +769,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_r = begin_scroll_area(inner_spec, inner_state, &input, &mut focus_sys);
@@ -809,6 +827,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -861,6 +880,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -926,6 +946,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -961,6 +982,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -981,6 +1003,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1019,6 +1042,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1031,6 +1055,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Auto,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1067,6 +1092,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1079,6 +1105,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1112,6 +1139,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
@@ -1140,6 +1168,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token_a = begin_scroll_area(spec_a, &mut a, &input, fs).token;
@@ -1152,6 +1181,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token_b = begin_scroll_area(spec_b, &mut b, &input, fs).token;
@@ -1184,6 +1214,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
@@ -1214,6 +1245,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1247,6 +1279,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_sys);
@@ -1278,6 +1311,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2).token;
@@ -1311,6 +1345,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
@@ -1349,6 +1384,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: Some(clip),
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
@@ -1404,6 +1440,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys);
@@ -1509,6 +1546,7 @@ mod tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_sys);
@@ -1574,6 +1612,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys).token;
@@ -1593,6 +1632,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1621,6 +1661,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_sys).token;
@@ -1640,6 +1681,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1671,6 +1713,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1689,6 +1732,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1710,6 +1754,7 @@ mod tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_sys).token;
@@ -1751,6 +1796,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1762,6 +1808,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1797,6 +1844,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1808,6 +1856,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1843,6 +1892,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1854,6 +1904,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1889,6 +1940,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1900,6 +1952,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -1939,6 +1992,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -1950,6 +2004,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2001,6 +2056,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2012,6 +2068,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2055,6 +2112,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -2078,6 +2136,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2089,6 +2148,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2117,6 +2177,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -2140,6 +2201,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2151,6 +2213,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2200,6 +2263,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2211,6 +2275,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2262,6 +2327,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2273,6 +2339,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2318,6 +2385,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2329,6 +2397,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2376,6 +2445,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -2399,6 +2469,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2410,6 +2481,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2479,6 +2551,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2490,6 +2563,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2501,6 +2575,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2553,6 +2628,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2564,6 +2640,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2575,6 +2652,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2626,6 +2704,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2637,6 +2716,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2648,6 +2728,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2705,6 +2786,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -2729,6 +2811,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2740,6 +2823,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2751,6 +2835,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2823,6 +2908,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2834,6 +2920,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2845,6 +2932,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2896,6 +2984,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2907,6 +2996,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2918,6 +3008,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -2968,6 +3059,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -2979,6 +3071,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -2990,6 +3083,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3045,6 +3139,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::None,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -3069,6 +3164,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3080,6 +3176,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let middle_token =
@@ -3091,6 +3188,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::None,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3152,6 +3250,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3163,6 +3262,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3207,6 +3307,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3218,6 +3319,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3272,6 +3374,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3283,6 +3386,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3321,6 +3425,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3332,6 +3437,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3375,6 +3481,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3386,6 +3493,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3418,6 +3526,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -3440,6 +3549,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3451,6 +3561,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3486,6 +3597,7 @@ mod nested_bubbling_tests {
             v_vis: ScrollbarVisibility::Always,
             clip_rect: None,
             time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
             scrollbar_style: theme::Theme::default().scrollbar_style(),
         };
         let inner_token =
@@ -3508,6 +3620,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3519,6 +3632,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3561,6 +3675,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3572,6 +3687,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =
@@ -3627,6 +3743,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let outer_token =
@@ -3638,6 +3755,7 @@ mod nested_bubbling_tests {
                 v_vis: ScrollbarVisibility::Always,
                 clip_rect: None,
                 time: 0.0,
+                scrollbar_width: theme::Theme::default().scrollbar_width,
                 scrollbar_style: theme::Theme::default().scrollbar_style(),
             };
             let inner_token =

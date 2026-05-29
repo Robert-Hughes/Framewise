@@ -244,8 +244,8 @@ pub mod raw {
         let mut content_rect = spec.rect.inset(inset);
         if spec.error {
             // shift content right to clear the 4px error stripe
-            content_rect.x += 4.0;
-            content_rect.w -= 4.0;
+            content_rect.x += spec.style.error_stripe_width;
+            content_rect.w -= spec.style.error_stripe_width;
         }
         let text_y = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
 
@@ -309,7 +309,7 @@ pub mod raw {
 
         // Drawing Background
         let bg_color = if spec.error {
-            Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0) // rust_soft
+            spec.style.error_background
         } else {
             spec.style.background
         };
@@ -320,17 +320,17 @@ pub mod raw {
 
         // Error: 4px rust left stripe
         if spec.error {
-            let stripe = Rect::new(spec.rect.x, spec.rect.y, 4.0, spec.rect.h);
+            let stripe = Rect::new(spec.rect.x, spec.rect.y, spec.style.error_stripe_width, spec.rect.h);
             draw.push(DrawCmd::FillRect {
                 rect: stripe,
-                color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+                color: spec.style.error_border,
             });
         }
 
         // Border
         if spec.style.border_width > 0.0 {
             let b_color = if spec.error {
-                Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0) // rust
+                spec.style.error_border
             } else if focused {
                 spec.style.focus_border
             } else {
@@ -393,7 +393,7 @@ pub mod raw {
                     content_rect.x + cursor_x,
                     content_rect.y + 2.0,
                     1.0,
-                    content_rect.h - 4.0,
+                    content_rect.h - spec.style.error_stripe_width,
                 );
                 draw.push(DrawCmd::FillRect {
                     rect: caret_rect,
@@ -426,9 +426,12 @@ pub mod raw {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextEditStyle {
     pub background: Color,
+    pub error_background: Color,
     pub border: Color,
     pub focus_border: Color,
     pub border_width: f32,
+    pub error_border: Color,
+    pub error_stripe_width: f32,
     pub padding: f32,
     pub text_size: f32,
     pub font: FontId,
@@ -1287,22 +1290,22 @@ mod tests {
         sp.error = true;
 
         let input = Input::default();
-        let res = raw::text_edit(sp, &mut state, &input, &mut focus_sys, &mut text_sys);
+        let res = raw::text_edit(sp.clone(), &mut state, &input, &mut focus_sys, &mut text_sys);
 
         assert_eq!(
             res.draw,
             DrawCommands(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                    color: Color::from_srgb_f32(0.961, 0.914, 0.890, 1.0),
+                    color: sp.style.error_background,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 4.0, 30.0),
-                    color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+                    color: sp.style.error_border,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                    color: Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0),
+                    color: sp.style.error_border,
                     width: spec().style.border_width,
                 },
                 DrawCmd::Text {
