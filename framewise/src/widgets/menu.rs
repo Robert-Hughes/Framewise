@@ -271,8 +271,8 @@ pub fn menu<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: MenuSpecBuilder<'a>,
+    layout_params: S::Params,
 ) -> MenuResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -337,8 +337,8 @@ mod tests {
         );
         let result = super::menu(
             &mut ctx,
-            layout_rect,
             MenuSpecBuilder::new().items(&[]).rect(custom_rect),
+            layout_rect,
         );
         // x and y come from the user-provided rect
         assert_eq!(result.layout.bounds.x, custom_rect.x);

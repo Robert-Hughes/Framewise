@@ -250,9 +250,9 @@ pub fn chip<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut ChipState,
-    layout_params: S::Params,
     builder: ChipSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut ChipState,
 ) -> ChipResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -594,9 +594,9 @@ mod tests {
         let mut chip_state = ChipState::default();
         let result = super::chip(
             &mut ctx,
-            &mut chip_state,
-            layout_rect,
             ChipSpecBuilder::new().label("X").rect(custom_rect),
+            layout_rect,
+            &mut chip_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

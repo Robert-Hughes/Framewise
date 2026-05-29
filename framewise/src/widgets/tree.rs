@@ -236,8 +236,8 @@ pub fn tree<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: TreeSpecBuilder<'a>,
+    layout_params: S::Params,
 ) -> TreeResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -296,8 +296,8 @@ mod tests {
         );
         super::tree(
             &mut ctx,
-            layout_rect,
             TreeSpecBuilder::new().rows(&[]).rect(custom_rect),
+            layout_rect,
         );
         // First draw command is FillRect for the outer rect at (custom_rect.x, custom_rect.y)
         match &cmds[0] {

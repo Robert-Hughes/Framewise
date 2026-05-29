@@ -173,8 +173,8 @@ pub fn status<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: StatusSpecBuilder<'a>,
+    layout_params: S::Params,
 ) -> StatusResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -294,11 +294,11 @@ mod tests {
         );
         super::status(
             &mut ctx,
-            layout_rect,
             StatusSpecBuilder::new()
                 .label("ok")
                 .variant(StatusVariant::Ok)
                 .rect(custom_rect),
+            layout_rect,
         );
         // First draw command is FillRect for the dot at (custom_rect.x, custom_rect.y)
         match &cmds[0] {

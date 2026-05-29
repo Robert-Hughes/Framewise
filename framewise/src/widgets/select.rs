@@ -429,9 +429,9 @@ pub fn select<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut SelectState,
-    layout_params: S::Params,
     builder: SelectSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut SelectState,
 ) -> SelectResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -846,12 +846,12 @@ mod tests {
         let mut sel_state = SelectState::default();
         let result = super::select(
             &mut ctx,
-            &mut sel_state,
-            layout_rect,
             SelectSpecBuilder::new()
                 .options(&[])
                 .value("")
                 .rect(custom_rect),
+            layout_rect,
+            &mut sel_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

@@ -271,35 +271,34 @@ pub fn begin_window<
     L: crate::layout::Layout,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
-    parent: &'b mut WidgetContext<'a, T, LS, CF>,
-    layout_params: LS::Params,
+    ctx: &'b mut WidgetContext<'a, T, LS, CF>,
     builder: WindowSpecBuilder<'c>,
+    layout_params: LS::Params,
     inner_layout: L,
 ) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
-    let layout_bounds = parent.layout(layout_params);
+    let layout_bounds = ctx.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
     let buttons = builder.buttons.unwrap_or(&[]);
     let spec = builder
         .rect(bounds)
-        .defaults_from_theme(&parent.theme)
+        .defaults_from_theme(&ctx.theme)
         .buttons(buttons)
         .build();
     let raw::WindowResult {
         draw,
         content_bounds,
-    } = raw::begin_window(spec, parent.text_system);
-    parent.append_cmds(draw);
+    } = raw::begin_window(spec, ctx.text_system);
+    ctx.append_cmds(draw);
 
     let new_clip = Some(
-        parent
-            .clip_rect
+        ctx.clip_rect
             .map_or(content_bounds, |pc| pc.intersect(&content_bounds)),
     );
 
     let on_finish = move |_: &mut FocusSystem| raw::end_window();
 
-    let ctx = parent.child_with_layout_and_on_finish_and_clip_rect(
+    let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
         inner_layout.begin(content_bounds),
         on_finish,
         new_clip,
@@ -307,7 +306,7 @@ pub fn begin_window<
 
     WindowResult {
         layout: LayoutInfo::new(bounds, content_bounds),
-        ctx,
+        ctx: child_ctx,
     }
 }
 
@@ -359,8 +358,8 @@ mod tests {
         );
         let child = super::begin_window(
             &mut ctx,
-            layout_rect,
             WindowSpecBuilder::new().title("T").rect(custom_rect),
+            layout_rect,
             ManualLayout,
         );
         child.ctx.finish();

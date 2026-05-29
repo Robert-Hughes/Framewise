@@ -167,15 +167,16 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
+            state.vert_slider_state.value = state.offset.y;
             let slider_result = crate::widgets::slider::raw::slider(
                 slider_spec,
                 &mut state.vert_slider_state,
-                &mut state.offset.y,
                 time,
                 input,
                 focus_sys,
                 text_system,
             );
+            state.offset.y = state.vert_slider_state.value;
             pre_cmds.extend(slider_result.draw.0);
         }
 
@@ -205,15 +206,16 @@ pub mod raw {
                 claim_scroll_at_ends: false,
             };
 
+            state.horiz_slider_state.value = state.offset.x;
             let slider_result = crate::widgets::slider::raw::slider(
                 slider_spec,
                 &mut state.horiz_slider_state,
-                &mut state.offset.x,
                 time,
                 input,
                 focus_sys,
                 text_system,
             );
+            state.offset.x = state.horiz_slider_state.value;
             pre_cmds.extend(slider_result.draw.0);
         }
 
@@ -575,48 +577,48 @@ pub fn begin_scroll_area<
     L: crate::layout::Layout,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
-    parent: &'b mut WidgetContext<'a, T, S, CF>,
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
+    builder: ScrollAreaSpecBuilder,
     layout_params: S::Params,
     state: &'b mut ScrollState,
     inner_layout: L,
-    builder: ScrollAreaSpecBuilder,
 ) -> ScrollAreaResult<
     'b,
     T,
     crate::layout::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
-    let layout_bounds = parent.layout(layout_params);
+    let layout_bounds = ctx.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
-    let clip = builder.clip_rect.unwrap_or(parent.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder.rect(bounds).clip_rect(clip).build();
     let raw::ScrollAreaResult {
         draw,
         token,
         content_bounds,
         offset,
-    } = raw::begin_scroll_area(spec, state, parent.time, parent.input, parent.focus_sys, parent.text_system);
+    } = raw::begin_scroll_area(spec, state, ctx.time, ctx.input, ctx.focus_sys, ctx.text_system);
 
-    parent.append_cmds(draw);
+    ctx.append_cmds(draw);
 
     let offset_layout = crate::layout::OffsetLayout {
         offset,
         inner: inner_layout,
     };
 
-    let parent_clip = parent.clip_rect;
-    let new_clip = Some(parent_clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
+    let ctx_clip = ctx.clip_rect;
+    let new_clip = Some(ctx_clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
 
     let on_finish = move |focus_sys: &mut FocusSystem| raw::end_scroll_area(token, focus_sys);
 
-    let ctx = parent.child_with_layout_and_on_finish_and_clip_rect(
+    let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
         offset_layout.begin(content_bounds),
         on_finish,
         new_clip,
     );
     ScrollAreaResult {
         layout: LayoutInfo::new(bounds, content_bounds),
-        ctx,
+        ctx: child_ctx,
     }
 }
 
@@ -3507,15 +3509,15 @@ mod nested_bubbling_tests {
         );
         let child = super::begin_scroll_area(
             &mut ctx,
-            layout_rect,
-            &mut scroll_state,
-            ManualLayout,
             // Only vertical overflow so we get a vertical scrollbar at x=content_bounds.right()
             // The vertical scrollbar track starts at y = custom_rect.y
             ScrollAreaSpecBuilder::new()
                 .content_size(Vec2::new(200.0, 400.0))
                 .h_vis(ScrollbarVisibility::None)
                 .rect(custom_rect),
+            layout_rect,
+            &mut scroll_state,
+            ManualLayout,
         );
         child.ctx.finish();
         // The vertical scrollbar track rect has y = custom_rect.y.

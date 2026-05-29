@@ -170,8 +170,8 @@ pub fn keycap<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: KeycapSpecBuilder<'a>,
+    layout_params: S::Params,
 ) -> KeycapResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -269,7 +269,6 @@ mod tests {
         );
         let result = super::keycap(
             &mut ctx,
-            layout_rect,
             KeycapSpecBuilder::new()
                 .label("X")
                 .background(Color::WHITE)
@@ -277,6 +276,7 @@ mod tests {
                 .text_color(Color::WHITE)
                 .text_size(14.0)
                 .rect(custom_rect),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

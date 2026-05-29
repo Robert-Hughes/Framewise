@@ -119,8 +119,8 @@ pub fn color_swatch<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: ColorSwatchSpecBuilder,
+    layout_params: S::Params,
 ) -> ColorSwatchResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -208,8 +208,8 @@ mod tests {
         );
         let result = super::color_swatch(
             &mut ctx,
-            layout_rect,
             ColorSwatchSpecBuilder::new().rect(custom_rect).color(Color::from_srgb_u8(0, 0, 0, 0)),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

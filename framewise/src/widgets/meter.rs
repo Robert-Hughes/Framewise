@@ -153,8 +153,8 @@ pub fn meter<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: MeterSpecBuilder,
+    layout_params: S::Params,
 ) -> MeterResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -247,8 +247,8 @@ mod tests {
         );
         let result = super::meter(
             &mut ctx,
-            layout_rect,
             MeterSpecBuilder::new().rect(custom_rect).value(0.0).peak(None).bars(10),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

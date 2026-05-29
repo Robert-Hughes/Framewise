@@ -165,8 +165,8 @@ pub fn progress_bar<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: ProgressBarSpecBuilder,
+    layout_params: S::Params,
 ) -> ProgressBarResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -304,8 +304,8 @@ mod tests {
         );
         let result = super::progress_bar(
             &mut ctx,
-            layout_rect,
             ProgressBarSpecBuilder::new().value(0.5).rect(custom_rect),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

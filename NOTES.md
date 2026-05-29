@@ -18,9 +18,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Extras from me:
   * Saying "call .label_font() or defaults_from_theme()" - should also mention the high-level API? Or remove the mention of high-level API from the other ones?
-  * Spec structs shouldn't be  implementing Default - this is in DESIGN.md but we violating it
-  * Add a note to DESIGN.md that widgets should follow the above guidance for consistency
-  * Move time to part of spec, not separate param?
+  * Spec structs shouldn't be implementing Default - this is in DESIGN.md but we violating it
+  * Add a note to DESIGN.md that widgets should follow the above guidance about general consistency
+  * Move `time` to part of spec, not separate param?
+  * Document in DESIGN.md that data in *State are ones that the widget is likely to modify based on user input etc., whereas *Spec is for constant things (they can change frame-to-frame like time, but not as a result of calling the widget function).
 
 
 

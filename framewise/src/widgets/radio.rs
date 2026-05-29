@@ -239,9 +239,9 @@ pub fn radio<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut RadioState,
-    layout_params: S::Params,
     builder: RadioSpecBuilder,
+    layout_params: S::Params,
+    state: &mut RadioState,
 ) -> RadioResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -552,9 +552,9 @@ mod tests {
         let mut radio_state = RadioState::default();
         let result = super::radio(
             &mut ctx,
-            &mut radio_state,
-            layout_rect,
             RadioSpecBuilder::new().rect(custom_rect),
+            layout_rect,
+            &mut radio_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

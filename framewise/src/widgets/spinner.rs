@@ -191,8 +191,8 @@ pub fn spinner<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: SpinnerSpecBuilder,
+    layout_params: S::Params,
 ) -> SpinnerResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -401,8 +401,8 @@ mod tests {
         );
         super::spinner(
             &mut ctx,
-            layout_rect,
             SpinnerSpecBuilder::new().rect(custom_rect),
+            layout_rect,
         );
         // First draw command is StrokeLine with p0 at (x, y+arm) and p1 at (x, y)
         // where x = custom_rect.x, y = custom_rect.y

@@ -351,9 +351,9 @@ pub fn drag_number<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut DragNumberState,
-    layout_params: S::Params,
     builder: DragNumberSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut DragNumberState,
 ) -> DragNumberResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -734,12 +734,12 @@ mod tests {
         let mut dn_state = DragNumberState::default();
         let result = super::drag_number(
             &mut ctx,
-            &mut dn_state,
-            layout_rect,
             DragNumberSpecBuilder::new()
                 .label("x")
                 .value(0.0)
                 .rect(custom_rect),
+            layout_rect,
+            &mut dn_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

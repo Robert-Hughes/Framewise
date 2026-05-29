@@ -184,8 +184,8 @@ pub fn tooltip<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: TooltipSpecBuilder<'a>,
+    layout_params: S::Params,
 ) -> TooltipResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -305,11 +305,11 @@ mod tests {
         );
         super::tooltip(
             &mut ctx,
-            layout_rect,
             TooltipSpecBuilder::new()
                 .text("hi")
                 .variant(TooltipVariant::Dark)
                 .rect(custom_rect),
+            layout_rect,
         );
         // First draw command is FillRect for the box at (custom_rect.x, custom_rect.y)
         match &cmds[0] {

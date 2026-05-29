@@ -312,9 +312,9 @@ pub fn tabs<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut TabsState,
-    layout_params: S::Params,
     builder: TabsSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut TabsState,
 ) -> TabsResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -629,9 +629,9 @@ mod tests {
         let mut tabs_state = TabsState::default();
         let result = super::tabs(
             &mut ctx,
-            &mut tabs_state,
-            layout_rect,
             TabsSpecBuilder::new().items(&[]).rect(custom_rect),
+            layout_rect,
+            &mut tabs_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

@@ -281,9 +281,9 @@ pub fn checkbox<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut CheckboxState,
-    layout_params: S::Params,
     builder: CheckboxSpecBuilder,
+    layout_params: S::Params,
+    state: &mut CheckboxState,
 ) -> CheckboxResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -627,9 +627,9 @@ mod tests {
         let mut cb_state = CheckboxState::default();
         let result = super::checkbox(
             &mut ctx,
-            &mut cb_state,
-            layout_rect,
             CheckboxSpecBuilder::new().rect(custom_rect),
+            layout_rect,
+            &mut cb_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

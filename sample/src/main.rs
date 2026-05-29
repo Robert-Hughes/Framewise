@@ -90,7 +90,6 @@ struct App {
     top_btn1: SampleButton,
     top_btn2: SampleButton,
     standalone_slider_state: framewise::widgets::slider::SliderState,
-    standalone_slider_val: f32,
     double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState,
     double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState,
     double_horiz_btns: [SampleButton; 20],
@@ -112,7 +111,6 @@ struct App {
     triple_inner_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_inner_btns: [SampleButton; 12],
     triple_inner_slider_state: framewise::widgets::slider::SliderState,
-    triple_inner_slider_val: f32,
     triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState,
     triple_innermost_btns: [SampleButton; 5],
 }
@@ -126,9 +124,7 @@ struct NestedRowState {
     horiz_btns: [SampleButton; 10],
     both_btns: [SampleButton; 48],
     slider_state: framewise::widgets::slider::SliderState,
-    slider_val: f32,
     horiz_slider_state: framewise::widgets::slider::SliderState,
-    horiz_slider_val: f32,
 }
 
 impl Default for NestedRowState {
@@ -141,10 +137,8 @@ impl Default for NestedRowState {
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
             horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             both_btns: std::array::from_fn(|_| SampleButton::default()),
-            slider_state: Default::default(),
-            slider_val: 50.0,
-            horiz_slider_state: Default::default(),
-            horiz_slider_val: 50.0,
+            slider_state: SliderState { value: 50.0, ..Default::default() },
+            horiz_slider_state: SliderState { value: 50.0, ..Default::default() },
         }
     }
 }
@@ -173,8 +167,7 @@ impl App {
             grid_btns: std::array::from_fn(|_| SampleButton::default()),
             top_btn1: SampleButton::default(),
             top_btn2: SampleButton::default(),
-            standalone_slider_state: framewise::widgets::slider::SliderState::default(),
-            standalone_slider_val: 50.0,
+            standalone_slider_state: SliderState { value: 50.0, ..Default::default() },
             double_horiz_outer_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
@@ -187,8 +180,7 @@ impl App {
             triple_middle_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_inner_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
-            triple_inner_slider_state: framewise::widgets::slider::SliderState::default(),
-            triple_inner_slider_val: 50.0,
+            triple_inner_slider_state: SliderState { value: 50.0, ..Default::default() },
             triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState::default(),
             triple_innermost_btns: std::array::from_fn(|_| SampleButton::default()),
         }
@@ -231,8 +223,8 @@ impl App {
         // Background frame covering the whole window.
         frame(
             &mut ctx,
-            Rect::new(0.0, 0.0, win_size.0, win_size.1),
             FrameSpecBuilder::new(),
+            Rect::new(0.0, 0.0, win_size.0, win_size.1),
         );
 
         // Main container splitting into Sidebar (Left) and Content (Right)
@@ -260,19 +252,19 @@ impl App {
                 {
                     let layout_params = Vec2::new(200.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new().text("NAVIGATION");
-                    label(&mut sidebar_col, layout_params, spec_builder)
+                    label(&mut sidebar_col, spec_builder, layout_params)
                 };
 
                 let content_height = 20.0 * 32.0 + 20.0 * 8.0; // 20 buttons * 32h + 8 spacing
                 let mut sidebar_scroll = begin_scroll_area(
                     &mut sidebar_col,
-                    Vec2::new(200.0, win_size.1 - 60.0),
-                    &mut self.sidebar_scroll,
-                    framewise::layout::ColumnLayout { spacing: 8.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(200.0, content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
+                    Vec2::new(200.0, win_size.1 - 60.0),
+                    &mut self.sidebar_scroll,
+                    framewise::layout::ColumnLayout { spacing: 8.0 },
                 )
                 .ctx;
 
@@ -285,7 +277,7 @@ impl App {
                         let layout_params = Vec2::new(180.0, 32.0);
                         let text = format!("Menu Item {}", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut sidebar_scroll, state, layout_params, spec_builder)
+                        button(&mut sidebar_scroll, spec_builder, layout_params, state)
                     };
                     let clicked = btn.input.clicked;
                     if clicked {
@@ -301,13 +293,13 @@ impl App {
             {
                 let mut content_col = begin_scroll_area(
                     &mut main_row,
-                    Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
-                    &mut self.right_panel_scroll,
-                    framewise::layout::ColumnLayout { spacing: 15.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(win_size.0 - 240.0, 2000.0))
                         .h_vis(ScrollbarVisibility::None)
                         .v_vis(ScrollbarVisibility::Always),
+                    Vec2::new(win_size.0 - 240.0, win_size.1 - 20.0),
+                    &mut self.right_panel_scroll,
+                    framewise::layout::ColumnLayout { spacing: 15.0 },
                 )
                 .ctx;
                 let inner_w = win_size.0 - 240.0 - 15.0;
@@ -329,7 +321,7 @@ impl App {
                         let state = &mut self.text_edit_state;
                         let layout_params = Vec2::new(300.0, 40.0);
                         let spec_builder = TextEditSpecBuilder::new();
-                        text_edit(&mut header_row, state, layout_params, spec_builder)
+                        text_edit(&mut header_row, spec_builder, layout_params, state)
                     };
 
                     if let Some(action) = info.clipboard_action {
@@ -350,7 +342,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Profile";
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut header_row, state, layout_params, spec_builder)
+                        button(&mut header_row, spec_builder, layout_params, state)
                     };
 
                     let _btn2 = {
@@ -358,7 +350,7 @@ impl App {
                         let layout_params = Vec2::new(100.0, 40.0);
                         let text = "Settings";
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut header_row, state, layout_params, spec_builder)
+                        button(&mut header_row, spec_builder, layout_params, state)
                     };
 
                     header_row.finish()
@@ -381,7 +373,7 @@ impl App {
                         let layout_params = Vec2::new(400.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("DASHBOARD GRID");
-                        label(&mut grid_col, layout_params, spec_builder)
+                        label(&mut grid_col, spec_builder, layout_params)
                     };
 
                     for row in 0..4 {
@@ -407,7 +399,7 @@ impl App {
                                     let text = format!("Grid [{},{}]", row, col);
                                     let spec_builder =
                                         ButtonSpecBuilder::new().text(&text).style(button_style);
-                                    button(&mut grid_row, state, layout_params, spec_builder)
+                                    button(&mut grid_row, spec_builder, layout_params, state)
                                 };
                             }
                             grid_row.finish()
@@ -428,21 +420,20 @@ impl App {
                     {
                         let layout_params = Vec2::new(150.0, 20.0);
                         let text: &str =
-                            &format!("Slider Value: {:.1}", self.standalone_slider_val);
+                            &format!("Slider Value: {:.1}", self.standalone_slider_state.value);
                         let spec_builder = LabelSpecBuilder::new().text(text);
-                        label(&mut slider_row, layout_params, spec_builder)
+                        label(&mut slider_row, spec_builder, layout_params)
                     };
 
                     {
                         let state: &mut SliderState = &mut self.standalone_slider_state;
-                        let value: &mut f32 = &mut self.standalone_slider_val;
                         let step = 20.0;
                         let layout_params = Vec2::new(30.0, 100.0);
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(SliderOrientation::Vertical)
                             .page_step(step)
                             .step(step);
-                        slider(&mut slider_row, state, value, layout_params, spec_builder);
+                        slider(&mut slider_row, spec_builder, layout_params, state);
                     };
 
                     slider_row.finish()
@@ -452,18 +443,18 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new().text("MAIN FEED");
-                    label(&mut content_col, layout_params, spec_builder)
+                    label(&mut content_col, spec_builder, layout_params)
                 };
                 let content_height = 30.0 * 50.0 + 30.0 * 10.0;
                 let mut main_scroll = begin_scroll_area(
                     &mut content_col,
-                    Vec2::new(inner_w, 250.0),
-                    &mut self.main_scroll,
-                    framewise::layout::ColumnLayout { spacing: 10.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(inner_w, content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
+                    Vec2::new(inner_w, 250.0),
+                    &mut self.main_scroll,
+                    framewise::layout::ColumnLayout { spacing: 10.0 },
                 )
                 .ctx;
                 let mut button_style = main_scroll.theme.button_secondary_style();
@@ -480,7 +471,7 @@ impl App {
                         let layout_params = Vec2::new(win_size.0 - 280.0, 50.0);
                         let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut main_scroll, state, layout_params, spec_builder)
+                        button(&mut main_scroll, spec_builder, layout_params, state)
                     };
                     let clicked = btn.input.clicked;
                     if clicked {
@@ -493,20 +484,20 @@ impl App {
                 {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder = LabelSpecBuilder::new().text("NESTED SCROLL DEMO  |  Inner area: wheel propagates to outer at ends  |  Slider: always blocks");
-                    label(&mut content_col, layout_params, spec_builder)
+                    label(&mut content_col, spec_builder, layout_params)
                 };
 
                 let row_h = 160.0;
                 let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
                 let mut outer_scroll = begin_scroll_area(
                     &mut content_col,
-                    Vec2::new(inner_w, 300.0),
-                    &mut self.nested_outer_scroll,
-                    framewise::layout::ColumnLayout { spacing: 10.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(800.0, outer_content_height))
                         .h_vis(ScrollbarVisibility::Auto)
                         .v_vis(ScrollbarVisibility::Auto),
+                    Vec2::new(inner_w, 300.0),
+                    &mut self.nested_outer_scroll,
+                    framewise::layout::ColumnLayout { spacing: 10.0 },
                 )
                 .ctx;
 
@@ -537,7 +528,7 @@ impl App {
                         let layout_params = Vec2::new(80.0, row_h);
                         let text = format!("R{} A", i + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut row_builder, state, layout_params, spec_builder)
+                        button(&mut row_builder, spec_builder, layout_params, state)
                     };
                     let clicked1 = btn1.input.clicked;
                     if clicked1 {
@@ -548,13 +539,13 @@ impl App {
                     let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0;
                     let mut inner_scroll = begin_scroll_area(
                         &mut row_builder,
-                        Vec2::new(120.0, row_h),
-                        &mut row_state.inner_scroll,
-                        framewise::layout::ColumnLayout { spacing: 8.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(120.0, inner_content_height))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Auto),
+                        Vec2::new(120.0, row_h),
+                        &mut row_state.inner_scroll,
+                        framewise::layout::ColumnLayout { spacing: 8.0 },
                     )
                     .ctx;
 
@@ -572,7 +563,7 @@ impl App {
                             let text = format!("V {}", j + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut inner_scroll, state, layout_params, spec_builder)
+                            button(&mut inner_scroll, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -585,13 +576,13 @@ impl App {
                     let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;
                     let mut horiz_scroll = begin_scroll_area(
                         &mut row_builder,
-                        Vec2::new(180.0, row_h),
-                        &mut row_state.horiz_scroll,
-                        framewise::layout::RowLayout { spacing: 8.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(horiz_content_width, row_h))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
+                        Vec2::new(180.0, row_h),
+                        &mut row_state.horiz_scroll,
+                        framewise::layout::RowLayout { spacing: 8.0 },
                     )
                     .ctx;
 
@@ -610,7 +601,7 @@ impl App {
                             let text = format!("H {}", j + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut horiz_scroll, state, layout_params, spec_builder)
+                            button(&mut horiz_scroll, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -624,13 +615,13 @@ impl App {
                     let both_height = 6.0 * 45.0 + 5.0 * 8.0;
                     let mut both_scroll = begin_scroll_area(
                         &mut row_builder,
-                        Vec2::new(200.0, row_h),
-                        &mut row_state.both_scroll,
-                        framewise::layout::ManualLayout,
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(both_width, both_height))
                             .h_vis(ScrollbarVisibility::Auto)
                             .v_vis(ScrollbarVisibility::Auto),
+                        Vec2::new(200.0, row_h),
+                        &mut row_state.both_scroll,
+                        framewise::layout::ManualLayout,
                     )
                     .ctx;
 
@@ -652,7 +643,7 @@ impl App {
                             let text = format!("2D {}", j + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut both_scroll, state, layout_params, spec_builder)
+                            button(&mut both_scroll, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -664,24 +655,22 @@ impl App {
                     // Standalone vertical slider
                     {
                         let state: &mut SliderState = &mut row_state.slider_state;
-                        let value: &mut f32 = &mut row_state.slider_val;
                         let step = 20.0;
                         let layout_params = Vec2::new(30.0, row_h);
                         let spec_builder = SliderSpecBuilder::new()
                             .orientation(SliderOrientation::Vertical)
                             .page_step(step)
                             .step(step);
-                        slider(&mut row_builder, state, value, layout_params, spec_builder);
+                        slider(&mut row_builder, spec_builder, layout_params, state);
                     };
 
                     // Standalone horizontal slider
                     {
                         let state: &mut SliderState = &mut row_state.horiz_slider_state;
-                        let value: &mut f32 = &mut row_state.horiz_slider_val;
                         let step = 20.0;
                         let layout_params = Vec2::new(100.0, 30.0);
                         let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
-                        slider(&mut row_builder, state, value, layout_params, spec_builder);
+                        slider(&mut row_builder, spec_builder, layout_params, state);
                     };
 
                     row_builder.finish();
@@ -693,38 +682,38 @@ impl App {
                     let layout_params = Vec2::new(400.0, 20.0);
                     let spec_builder =
                         LabelSpecBuilder::new().text("DOUBLE HORIZONTAL SCROLL DEMO");
-                    label(&mut content_col, layout_params, spec_builder)
+                    label(&mut content_col, spec_builder, layout_params)
                 };
                 let mut d_outer_scroll = begin_scroll_area(
                     &mut content_col,
-                    Vec2::new(inner_w, 150.0),
-                    &mut self.double_horiz_outer_scroll,
-                    framewise::layout::RowLayout { spacing: 20.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(2000.0, 150.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
+                    Vec2::new(inner_w, 150.0),
+                    &mut self.double_horiz_outer_scroll,
+                    framewise::layout::RowLayout { spacing: 20.0 },
                 )
                 .ctx;
 
                 // Left spacer/button
                 button(
                     &mut d_outer_scroll,
-                    &mut framewise::widgets::button::ButtonState::default(),
-                    Vec2::new(100.0, 100.0),
                     ButtonSpecBuilder::new().text("Outer L"),
+                    Vec2::new(100.0, 100.0),
+                    &mut framewise::widgets::button::ButtonState::default(),
                 );
 
                 // Inner horizontal scroll area
                 let mut d_inner_scroll = begin_scroll_area(
                     &mut d_outer_scroll,
-                    Vec2::new(600.0, 120.0),
-                    &mut self.double_horiz_inner_scroll,
-                    framewise::layout::RowLayout { spacing: 8.0 },
                     ScrollAreaSpecBuilder::new()
                         .content_size(Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
+                    Vec2::new(600.0, 120.0),
+                    &mut self.double_horiz_inner_scroll,
+                    framewise::layout::RowLayout { spacing: 8.0 },
                 )
                 .ctx;
 
@@ -734,7 +723,7 @@ impl App {
                         let layout_params = Vec2::new(60.0, 80.0);
                         let text = format!("H {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text);
-                        button(&mut d_inner_scroll, state, layout_params, spec_builder)
+                        button(&mut d_inner_scroll, spec_builder, layout_params, state)
                     };
                 }
                 d_inner_scroll.finish();
@@ -742,9 +731,9 @@ impl App {
                 // Right spacer/button
                 button(
                     &mut d_outer_scroll,
-                    &mut framewise::widgets::button::ButtonState::default(),
-                    Vec2::new(300.0, 100.0),
                     ButtonSpecBuilder::new().text("Outer R"),
+                    Vec2::new(300.0, 100.0),
+                    &mut framewise::widgets::button::ButtonState::default(),
                 );
 
                 d_outer_scroll.finish();
@@ -759,19 +748,19 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
                         let spec_builder = LabelSpecBuilder::new().text("NESTED 2D SCROLL  |  outer[H+V] > inner[H+V]  |  Each axis bubbles independently");
-                        label(&mut content_col, layout_params, spec_builder)
+                        label(&mut content_col, spec_builder, layout_params)
                     };
 
                     // Outer 2D: viewport 420x200, content 840x400
                     let mut outer = begin_scroll_area(
                         &mut content_col,
-                        Vec2::new(inner_w.min(440.0), 200.0),
-                        &mut self.nested_2d_outer_scroll,
-                        framewise::layout::ManualLayout,
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(840.0, 400.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::Always),
+                        Vec2::new(inner_w.min(440.0), 200.0),
+                        &mut self.nested_2d_outer_scroll,
+                        framewise::layout::ManualLayout,
                     )
                     .ctx;
 
@@ -783,7 +772,7 @@ impl App {
                             outer_ox, outer_oy, inner_ox, inner_oy
                         );
                         let spec_builder = LabelSpecBuilder::new().text(text);
-                        label(&mut outer, layout_params, spec_builder)
+                        label(&mut outer, spec_builder, layout_params)
                     };
 
                     // Some outer-only buttons scattered in the far corners to make outer scrollable
@@ -803,20 +792,20 @@ impl App {
                             let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                             let text = label;
                             let spec_builder = ButtonSpecBuilder::new().text(&text);
-                            button(&mut outer, state, layout_params, spec_builder)
+                            button(&mut outer, spec_builder, layout_params, state)
                         };
                     }
 
                     // Inner 2D: viewport 250x150, content 500x300 — 4x5 button grid
                     let mut inner = begin_scroll_area(
                         &mut outer,
-                        Rect::new(80.0, 50.0, 250.0, 150.0),
-                        &mut self.nested_2d_inner_scroll,
-                        framewise::layout::ManualLayout,
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(500.0, 300.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::Always),
+                        Rect::new(80.0, 50.0, 250.0, 150.0),
+                        &mut self.nested_2d_inner_scroll,
+                        framewise::layout::ManualLayout,
                     )
                     .ctx;
 
@@ -840,7 +829,7 @@ impl App {
                             let text = format!("2D {:02}", j + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut inner, state, layout_params, spec_builder)
+                            button(&mut inner, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -862,19 +851,19 @@ impl App {
                     {
                         let layout_params = Vec2::new(inner_w, 20.0);
                         let spec_builder = LabelSpecBuilder::new().text("QUAD NESTED: outer[vert] > middle[horiz] > inner[vert] > innermost[horiz]  |  Explore cross-axis isolation");
-                        label(&mut content_col, layout_params, spec_builder)
+                        label(&mut content_col, spec_builder, layout_params)
                     };
 
                     // Outer vertical scroll area (taller content)
                     let mut outer_scroll = begin_scroll_area(
                         &mut content_col,
-                        Vec2::new(inner_w, 220.0),
-                        &mut self.triple_outer_scroll,
-                        framewise::layout::ColumnLayout { spacing: 10.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(inner_w, 500.0))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
+                        Vec2::new(inner_w, 220.0),
+                        &mut self.triple_outer_scroll,
+                        framewise::layout::ColumnLayout { spacing: 10.0 },
                     )
                     .ctx;
 
@@ -885,19 +874,19 @@ impl App {
                                             outer_y, middle_x, inner_y, innermost_x,
                                         );
                         let spec_builder = LabelSpecBuilder::new().text(text);
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
 
                     // Middle horizontal scroll area inside outer vertical
                     let mut middle_scroll = begin_scroll_area(
                         &mut outer_scroll,
-                        Vec2::new(inner_w - 15.0, 160.0),
-                        &mut self.triple_middle_scroll,
-                        framewise::layout::RowLayout { spacing: 10.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(1400.0, 160.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
+                        Vec2::new(inner_w - 15.0, 160.0),
+                        &mut self.triple_middle_scroll,
+                        framewise::layout::RowLayout { spacing: 10.0 },
                     )
                     .ctx;
 
@@ -905,20 +894,20 @@ impl App {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ horiz padding ]");
-                        label(&mut middle_scroll, layout_params, spec_builder)
+                        label(&mut middle_scroll, spec_builder, layout_params)
                     };
 
                     // Inner vertical scroll area inside middle horizontal
                     let inner_content_h = 12.0 * 35.0 + 50.0 + 12.0 * 6.0;
                     let mut inner_scroll = begin_scroll_area(
                         &mut middle_scroll,
-                        Vec2::new(200.0, 130.0),
-                        &mut self.triple_inner_scroll,
-                        framewise::layout::ColumnLayout { spacing: 6.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(200.0, inner_content_h))
                             .h_vis(ScrollbarVisibility::None)
                             .v_vis(ScrollbarVisibility::Always),
+                        Vec2::new(200.0, 130.0),
+                        &mut self.triple_inner_scroll,
+                        framewise::layout::ColumnLayout { spacing: 6.0 },
                     )
                     .ctx;
 
@@ -935,7 +924,7 @@ impl App {
                             let text = format!("Inner V {}", j + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut inner_scroll, state, layout_params, spec_builder)
+                            button(&mut inner_scroll, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -947,13 +936,13 @@ impl App {
                     let innermost_content_w = 5.0 * 80.0 + 4.0 * 6.0;
                     let mut innermost_scroll = begin_scroll_area(
                         &mut inner_scroll,
-                        Vec2::new(165.0, 50.0),
-                        &mut self.triple_innermost_scroll,
-                        framewise::layout::RowLayout { spacing: 6.0 },
                         ScrollAreaSpecBuilder::new()
                             .content_size(Vec2::new(innermost_content_w, 50.0))
                             .h_vis(ScrollbarVisibility::Always)
                             .v_vis(ScrollbarVisibility::None),
+                        Vec2::new(165.0, 50.0),
+                        &mut self.triple_innermost_scroll,
+                        framewise::layout::RowLayout { spacing: 6.0 },
                     )
                     .ctx;
                     for k in 0..5 {
@@ -968,7 +957,7 @@ impl App {
                             let text = format!("IH {}", k + 1);
                             let spec_builder =
                                 ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut innermost_scroll, state, layout_params, spec_builder)
+                            button(&mut innermost_scroll, spec_builder, layout_params, state)
                         };
                         let clicked = btn.input.clicked;
                         if clicked {
@@ -982,7 +971,6 @@ impl App {
                     // Inner vertical slider
                     {
                         let state: &mut SliderState = &mut self.triple_inner_slider_state;
-                        let value: &mut f32 = &mut self.triple_inner_slider_val;
                         let step = 20.0;
                         let layout_params = Vec2::new(30.0, 130.0);
                         let spec_builder = SliderSpecBuilder::new()
@@ -991,10 +979,9 @@ impl App {
                             .step(step);
                         slider(
                             &mut middle_scroll,
-                            state,
-                            value,
-                            layout_params,
                             spec_builder,
+                            layout_params,
+                            state,
                         );
                     };
 
@@ -1002,7 +989,7 @@ impl App {
                         let layout_params = Vec2::new(200.0, 130.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ horiz padding ]");
-                        label(&mut middle_scroll, layout_params, spec_builder)
+                        label(&mut middle_scroll, spec_builder, layout_params)
                     };
 
                     middle_scroll.finish();
@@ -1011,31 +998,31 @@ impl App {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ outer vert padding row ]");
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ outer vert padding row ]");
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ outer vert padding row ]");
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ outer vert padding row ]");
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
                     {
                         let layout_params = Vec2::new(inner_w - 15.0, 20.0);
                         let spec_builder =
                             LabelSpecBuilder::new().text("[ outer vert padding row ]");
-                        label(&mut outer_scroll, layout_params, spec_builder)
+                        label(&mut outer_scroll, spec_builder, layout_params)
                     };
 
                     outer_scroll.finish();

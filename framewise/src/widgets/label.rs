@@ -149,8 +149,8 @@ pub fn label<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
+    builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,
-builder: LabelSpecBuilder<'a>,
 ) -> LabelResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -309,8 +309,8 @@ mod tests {
         );
         let result = super::label(
             &mut ctx,
-            layout_rect,
             LabelSpecBuilder::new().text("X".into()).rect(custom_rect),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

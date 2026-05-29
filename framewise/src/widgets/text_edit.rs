@@ -674,9 +674,9 @@ pub fn text_edit<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut TextEditState,
-    layout_params: S::Params,
     builder: TextEditSpecBuilder,
+    layout_params: S::Params,
+    state: &mut TextEditState,
 ) -> TextEditResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -1508,9 +1508,9 @@ mod tests {
         let mut te_state = TextEditState::default();
         let result = super::text_edit(
             &mut ctx,
-            &mut te_state,
-            layout_rect,
             TextEditSpecBuilder::new().rect(custom_rect),
+            layout_rect,
+            &mut te_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

@@ -320,9 +320,9 @@ pub fn segmented<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut SegmentedState,
-    layout_params: S::Params,
     builder: SegmentedSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut SegmentedState,
 ) -> SegmentedResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -641,9 +641,9 @@ mod tests {
         let mut seg_state = SegmentedState::default();
         let result = super::segmented(
             &mut ctx,
-            &mut seg_state,
-            layout_rect,
             SegmentedSpecBuilder::new().items(&[]).rect(custom_rect),
+            layout_rect,
+            &mut seg_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

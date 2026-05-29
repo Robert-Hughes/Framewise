@@ -288,9 +288,9 @@ pub fn button<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut ButtonState,
-    layout_params: S::Params,
     builder: ButtonSpecBuilder<'a>,
+    layout_params: S::Params,
+    state: &mut ButtonState,
 ) -> ButtonResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -1081,9 +1081,9 @@ mod tests {
         let mut btn_state = ButtonState::default();
         let result = super::button(
             &mut ctx,
-            &mut btn_state,
-            layout_rect,
             ButtonSpecBuilder::new().text("X".into()).rect(custom_rect),
+            layout_rect,
+            &mut btn_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

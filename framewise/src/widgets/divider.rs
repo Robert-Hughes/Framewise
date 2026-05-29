@@ -101,8 +101,8 @@ pub fn divider<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    layout_params: S::Params,
     builder: DividerSpecBuilder,
+    layout_params: S::Params,
 ) -> DividerResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -179,8 +179,8 @@ mod tests {
         );
         let result = super::divider(
             &mut ctx,
-            layout_rect,
             DividerSpecBuilder::new().rect(custom_rect),
+            layout_rect,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }

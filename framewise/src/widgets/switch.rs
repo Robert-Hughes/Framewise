@@ -242,9 +242,9 @@ pub fn switch<
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
     ctx: &mut WidgetContext<T, S, CF>,
-    state: &mut SwitchState,
-    layout_params: S::Params,
     builder: SwitchSpecBuilder,
+    layout_params: S::Params,
+    state: &mut SwitchState,
 ) -> SwitchResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
@@ -552,9 +552,9 @@ mod tests {
         let mut sw_state = SwitchState::default();
         let result = super::switch(
             &mut ctx,
-            &mut sw_state,
-            layout_rect,
             SwitchSpecBuilder::new().rect(custom_rect),
+            layout_rect,
+            &mut sw_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
     }
