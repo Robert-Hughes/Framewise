@@ -27,15 +27,15 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn divider(spec: DividerSpec) -> DividerResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
-        draw.push(DrawCmd::StrokeLine {
+        cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(spec.rect.x, mid_y),
             p1: Vec2::new(spec.rect.x + spec.rect.w, mid_y),
             color: spec.color,
             width: spec.width,
         });
-        DividerResult { draw }
+        DividerResult { draw: cmds }
     }
 }
 

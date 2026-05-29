@@ -50,7 +50,7 @@ pub mod raw {
         input: &Input,
         focus_sys: &mut FocusSystem,
     ) -> SliderResult {
-        let mut cmds = Vec::new();
+        let mut cmds = DrawCommands::new();
 
         // Safety clamp min/max
         let min = spec.min.min(spec.max);
@@ -487,7 +487,7 @@ pub mod raw {
         }
 
         SliderResult {
-            draw: DrawCommands(cmds),
+            draw: cmds,
             focused,
             input: InputInfo {
                 hovered: track_rect.contains(input.mouse_pos) && is_visible,

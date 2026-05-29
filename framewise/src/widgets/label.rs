@@ -27,11 +27,11 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
         let layout = text_system.prepare(spec.text, spec.style.size, spec.style.font);
 
-        draw.push(DrawCmd::Text {
+        cmds.push(DrawCmd::Text {
             rect: spec.rect,
             color: spec.style.text_color,
             handle: layout.handle,
@@ -39,7 +39,7 @@ pub mod raw {
 
         if spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
-            draw.push(DrawCmd::StrokeLine {
+            cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(spec.rect.x, y),
                 p1: Vec2::new(spec.rect.x + spec.rect.w, y),
                 color: Color::linear_rgba(0.0, 0.0, 0.0, 0.12),
@@ -47,7 +47,7 @@ pub mod raw {
             });
         }
 
-        LabelResult { draw }
+        LabelResult { draw: cmds }
     }
 }
 

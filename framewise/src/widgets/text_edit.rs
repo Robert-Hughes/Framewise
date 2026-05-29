@@ -41,7 +41,7 @@ pub mod raw {
         focus_sys: &mut FocusSystem,
         text_system: &mut T,
     ) -> TextEditResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
         let mut clipboard_action = None;
 
@@ -51,7 +51,7 @@ pub mod raw {
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             // Transparent bg per mockup, just border.
             if spec.style.border_width > 0.0 {
-                draw.push(DrawCmd::StrokeRect {
+                cmds.push(DrawCmd::StrokeRect {
                     rect: spec.rect,
                     color: tint(spec.style.border),
                     width: spec.style.border_width,
@@ -63,14 +63,14 @@ pub mod raw {
                 let layout =
                     text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
                 let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
-                draw.push(DrawCmd::Text {
+                cmds.push(DrawCmd::Text {
                     rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
                     color: tint(spec.style.text_color),
                     handle: layout.handle,
                 });
             }
             return TextEditResult {
-                draw,
+                draw: cmds,
                 content_bounds: content_rect,
                 clipboard_action: None,
                 focused: false,
@@ -314,7 +314,7 @@ pub mod raw {
         } else {
             spec.style.background
         };
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: bg_color,
         });
@@ -327,7 +327,7 @@ pub mod raw {
                 spec.style.error_stripe_width,
                 spec.rect.h,
             );
-            draw.push(DrawCmd::FillRect {
+            cmds.push(DrawCmd::FillRect {
                 rect: stripe,
                 color: spec.style.error_border,
             });
@@ -342,7 +342,7 @@ pub mod raw {
             } else {
                 spec.style.border
             };
-            draw.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::StrokeRect {
                 rect: spec.rect,
                 color: b_color,
                 width: spec.style.border_width,
@@ -366,7 +366,7 @@ pub mod raw {
                         content_rect.h,
                     );
 
-                    draw.push(DrawCmd::FillRect {
+                    cmds.push(DrawCmd::FillRect {
                         rect: sel_rect,
                         color: spec.style.select_color,
                     });
@@ -376,7 +376,7 @@ pub mod raw {
 
         // Text
         if !state.value.is_empty() {
-            draw.push(DrawCmd::Text {
+            cmds.push(DrawCmd::Text {
                 rect: Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
                 color: spec.style.text_color,
                 handle,
@@ -401,7 +401,7 @@ pub mod raw {
                     1.0,
                     content_rect.h - spec.style.error_stripe_width,
                 );
-                draw.push(DrawCmd::FillRect {
+                cmds.push(DrawCmd::FillRect {
                     rect: caret_rect,
                     color: spec.style.caret_color,
                 });
@@ -414,7 +414,7 @@ pub mod raw {
         state.was_focused = focused || (contains && input.mouse_pressed);
 
         TextEditResult {
-            draw,
+            draw: cmds,
             content_bounds: content_rect,
             clipboard_action,
             focused,

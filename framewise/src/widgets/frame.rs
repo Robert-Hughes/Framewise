@@ -27,15 +27,15 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn frame(spec: FrameSpec) -> FrameResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.style.background,
         });
 
         if spec.style.border_width > 0.0 {
-            draw.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::StrokeRect {
                 rect: spec.rect,
                 color: spec.style.border,
                 width: spec.style.border_width,
@@ -46,7 +46,7 @@ pub mod raw {
         let content = spec.rect.inset(inset);
 
         FrameResult {
-            draw,
+            draw: cmds,
             content_bounds: content,
         }
     }

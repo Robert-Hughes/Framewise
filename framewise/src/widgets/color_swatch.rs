@@ -29,18 +29,18 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn color_swatch(spec: ColorSwatchSpec) -> ColorSwatchResult {
-        let mut draw = DrawCommands::new();
-        draw.push(DrawCmd::FillRect {
+        let mut cmds = DrawCommands::new();
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.color,
         });
-        draw.push(DrawCmd::StrokeRect {
+        cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: spec.border,
             width: 1.0,
         });
         ColorSwatchResult {
-            draw,
+            draw: cmds,
             content_bounds: spec.rect.inset(1.0),
         }
     }

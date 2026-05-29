@@ -32,7 +32,7 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn meter(spec: MeterSpec) -> MeterResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
         let n = spec.bars.max(1);
         let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;
@@ -57,13 +57,13 @@ pub mod raw {
                 spec.style.unlit
             };
 
-            draw.push(DrawCmd::FillRect {
+            cmds.push(DrawCmd::FillRect {
                 rect: bar_rect,
                 color,
             });
         }
 
-        MeterResult { draw }
+        MeterResult { draw: cmds }
     }
 }
 

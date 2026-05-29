@@ -35,7 +35,7 @@ pub mod raw {
         spec: WindowSpec<'a>,
         text_system: &mut T,
     ) -> WindowResult {
-        let mut draw = Vec::new();
+        let mut cmds = DrawCommands::new();
         let s = spec.style;
 
         let title_h = s.title_height;
@@ -47,11 +47,11 @@ pub mod raw {
         };
 
         // Body.
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: s.background,
         });
-        draw.push(DrawCmd::StrokeRect {
+        cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: s.border,
             width: s.border_width,
@@ -59,14 +59,14 @@ pub mod raw {
 
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: title_rect,
             color: s.title_bg,
         });
 
         let title_layout = text_system.prepare(spec.title, s.text_size, spec.style.font);
         let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
-        draw.push(DrawCmd::Text {
+        cmds.push(DrawCmd::Text {
             rect: Rect::new(
                 spec.rect.x + s.text_pad_x,
                 tty,
@@ -83,7 +83,7 @@ pub mod raw {
             btn_x -= btn_size + s.button_gap;
             let btn_layout = text_system.prepare(btn.symbol, s.text_size, spec.style.font);
             let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
-            draw.push(DrawCmd::Text {
+            cmds.push(DrawCmd::Text {
                 rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
                 color: s.title_text,
                 handle: btn_layout.handle,
@@ -93,7 +93,7 @@ pub mod raw {
         // Status bar.
         if spec.status_bar {
             let bar_y = spec.rect.y + spec.rect.h - status_h;
-            draw.push(DrawCmd::StrokeLine {
+            cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(spec.rect.x, bar_y),
                 p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
                 color: s.status_border,
@@ -102,7 +102,7 @@ pub mod raw {
             let status_layout =
                 text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.style.font);
             let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
-            draw.push(DrawCmd::Text {
+            cmds.push(DrawCmd::Text {
                 rect: Rect::new(
                     spec.rect.x + s.text_pad_x,
                     sty,
@@ -123,10 +123,10 @@ pub mod raw {
             (content_bottom - content_top).max(0.0),
         );
 
-        draw.push(DrawCmd::PushClip { rect: content });
+        cmds.push(DrawCmd::PushClip { rect: content });
 
         WindowResult {
-            draw: DrawCommands(draw),
+            draw: cmds,
             content_bounds: content,
         }
     }

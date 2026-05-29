@@ -46,13 +46,13 @@ pub mod raw {
         if spec.disabled {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
-            let mut draw = DrawCommands::new();
-            draw.push(DrawCmd::FillRect {
+            let mut cmds = DrawCommands::new();
+            cmds.push(DrawCmd::FillRect {
                 rect: spec.rect,
                 color: tint(spec.style.background),
             });
             if spec.style.border_width > 0.0 {
-                draw.push(DrawCmd::StrokeRect {
+                cmds.push(DrawCmd::StrokeRect {
                     rect: spec.rect,
                     color: tint(spec.style.border),
                     width: spec.style.border_width,
@@ -61,13 +61,13 @@ pub mod raw {
             let text_layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
             let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
             let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
-            draw.push(DrawCmd::Text {
+            cmds.push(DrawCmd::Text {
                 rect: Rect::new(tx, ty, text_layout.size.x, text_layout.size.y),
                 color: tint(spec.style.text_color),
                 handle: text_layout.handle,
             });
             return ButtonResult {
-                draw,
+                draw: cmds,
                 content_bounds: spec.rect.inset(spec.style.border_width),
                 input: InputInfo {
                     hovered: false,
@@ -130,11 +130,11 @@ pub mod raw {
             spec.style.background
         };
 
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
         // Focus ring drawn first (outset — sits outside the button bounds).
         if focused {
-            draw.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::StrokeRect {
                 rect: spec
                     .rect
                     .inset(-(spec.style.border_width + spec.style.focus_offset)),
@@ -144,14 +144,14 @@ pub mod raw {
         }
 
         // Background fill.
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: fill,
         });
 
         // Border.
         if spec.style.border_width > 0.0 {
-            draw.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::StrokeRect {
                 rect: spec.rect,
                 color: spec.style.border,
                 width: spec.style.border_width,
@@ -163,14 +163,14 @@ pub mod raw {
         let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
         let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
 
-        draw.push(DrawCmd::Text {
+        cmds.push(DrawCmd::Text {
             rect: Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
             color: spec.style.text_color,
             handle: text_layout.handle,
         });
 
         ButtonResult {
-            draw,
+            draw: cmds,
             content_bounds: spec.rect.inset(spec.style.border_width),
             input: InputInfo {
                 hovered,

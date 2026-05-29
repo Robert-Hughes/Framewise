@@ -52,7 +52,7 @@ pub mod raw {
         input: &Input,
         focus_sys: &mut FocusSystem,
     ) -> ScrollAreaResult {
-        let mut pre_cmds = Vec::new();
+        let mut cmds = DrawCommands::new();
 
         focus_sys.push_keyboard_scroll_scope(state.id);
 
@@ -178,7 +178,7 @@ pub mod raw {
                 focus_sys,
             );
             state.offset.y = state.vert_slider_state.value;
-            pre_cmds.extend(slider_result.draw.0);
+            cmds.extend(slider_result.draw);
         }
 
         if needs_h {
@@ -216,10 +216,10 @@ pub mod raw {
                 focus_sys,
             );
             state.offset.x = state.horiz_slider_state.value;
-            pre_cmds.extend(slider_result.draw.0);
+            cmds.extend(slider_result.draw);
         }
 
-        pre_cmds.push(DrawCmd::PushClip {
+        cmds.push(DrawCmd::PushClip {
             rect: content_bounds,
         });
 
@@ -237,7 +237,7 @@ pub mod raw {
         };
 
         ScrollAreaResult {
-            draw: DrawCommands(pre_cmds),
+            draw: cmds,
             token,
             content_bounds,
             offset: state.offset,

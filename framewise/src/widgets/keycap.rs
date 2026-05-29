@@ -28,14 +28,14 @@ pub mod raw {
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn keycap<'a, T: TextSystem>(spec: KeycapSpec<'a>, text_system: &mut T) -> KeycapResult {
-        let mut draw = DrawCommands::new();
+        let mut cmds = DrawCommands::new();
 
         // Background + border
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.style.background,
         });
-        draw.push(DrawCmd::StrokeRect {
+        cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: spec.style.border,
             width: spec.style.border_width,
@@ -47,7 +47,7 @@ pub mod raw {
             spec.rect.w - spec.style.shadow_offset,
             spec.style.shadow_height,
         );
-        draw.push(DrawCmd::FillRect {
+        cmds.push(DrawCmd::FillRect {
             rect: shadow_rect,
             color: spec.style.shadow,
         });
@@ -57,7 +57,7 @@ pub mod raw {
             let layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
             let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
             let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
-            draw.push(DrawCmd::Text {
+            cmds.push(DrawCmd::Text {
                 rect: Rect::new(tx, ty, layout.size.x, layout.size.y),
                 color: spec.style.text_color,
                 handle: layout.handle,
@@ -65,7 +65,7 @@ pub mod raw {
         }
 
         KeycapResult {
-            draw,
+            draw: cmds,
             content_bounds: spec.rect.inset(spec.style.border_width),
         }
     }
