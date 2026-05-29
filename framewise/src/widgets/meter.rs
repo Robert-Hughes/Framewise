@@ -13,6 +13,7 @@ pub mod raw {
         pub rect: Rect,
         /// 0.0 – 1.0 fill level.
         pub value: f32,
+        pub style: super::MeterStyle,
         /// 0.0 – 1.0 peak marker position (draw a rust bar at this level; None to skip).
         pub peak: Option<f32>,
         /// Number of bars to display.
@@ -31,10 +32,6 @@ pub mod raw {
     pub fn meter(spec: MeterSpec) -> MeterResult {
         let mut draw = DrawCommands::new();
 
-        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
-        let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
-        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
-
         let n = spec.bars.max(1);
         let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;
         let peak_idx = spec
@@ -42,15 +39,15 @@ pub mod raw {
             .map(|p| (p.clamp(0.0, 1.0) * (n - 1) as f32).round() as usize);
 
         for i in 0..n {
-            let x = spec.rect.x + i as f32 * (BAR_W + BAR_GAP);
-            let bar_rect = Rect::new(x, spec.rect.y + (spec.rect.h - BAR_H) / 2.0, BAR_W, BAR_H);
+            let x = spec.rect.x + i as f32 * (spec.style.bar_w + spec.style.bar_gap);
+            let bar_rect = Rect::new(x, spec.rect.y + (spec.rect.h - spec.style.bar_h) / 2.0, spec.style.bar_w, spec.style.bar_h);
 
             let color = if peak_idx == Some(i) {
-                rust
+                spec.style.rust
             } else if i < lit {
-                ink
+                spec.style.ink
             } else {
-                unlit
+                spec.style.unlit
             };
 
             draw.push(DrawCmd::FillRect {
@@ -63,10 +60,18 @@ pub mod raw {
     }
 }
 
-// Bar dimensions matching the CSS spec: 6px wide, 14px tall, 2px gap.
-const BAR_W: f32 = 6.0;
-const BAR_H: f32 = 14.0;
-const BAR_GAP: f32 = 2.0;
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+/// Visual configuration for a meter.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MeterStyle {
+    pub bar_w: f32,
+    pub bar_h: f32,
+    pub bar_gap: f32,
+    pub ink: Color,
+    pub rust: Color,
+    pub unlit: Color,
+}
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
@@ -81,6 +86,7 @@ pub struct MeterResult {
 pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
     pub value: Option<f32>,
+    pub style: Option<MeterStyle>,
     pub peak: Option<Option<f32>>,
     pub bars: Option<usize>,
 }
@@ -92,6 +98,11 @@ impl MeterSpecBuilder {
 
     pub fn value(mut self, value: f32) -> Self {
         self.value = Some(value);
+        self
+    }
+
+    pub fn style(mut self, style: MeterStyle) -> Self {
+        self.style = Some(style);
         self
     }
 
@@ -114,7 +125,10 @@ impl MeterSpecBuilder {
 
     /// Fills unset fields from `theme`. Called automatically by high-level context
     /// functions — only needed when using the raw API directly.
-    pub fn defaults_from_theme(self, _theme: &crate::theme::Theme) -> Self {
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(theme.meter_style());
+        }
         self
     }
 
@@ -122,6 +136,7 @@ impl MeterSpecBuilder {
         raw::MeterSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
             value: self.value.expect("value not set — call .value()"),
+            style: self.style.expect("style not set — call .style() or .defaults_from_theme()"),
             peak: self.peak.expect("peak not set — call .peak()"),
             bars: self.bars.expect("bars not set — call .bars()"),
         }
@@ -158,18 +173,20 @@ mod tests {
     use super::raw::MeterSpec;
     use super::*;
     use crate::test_utils::DummyTextSys;
+use crate::theme;
 
     #[test]
     fn test_meter_visual_normal() {
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
+            style: theme::Theme::default().meter_style(),
             peak: None,
             bars: 10,
         };
+        let ink = spec.style.ink;
+        let unlit = spec.style.unlit;
         let res = raw::meter(spec);
-        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
-        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
         let mut expected = Vec::new();
         for i in 0..10 {
@@ -188,13 +205,14 @@ mod tests {
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
+            style: theme::Theme::default().meter_style(),
             peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
             bars: 10,
         };
+        let ink = spec.style.ink;
+        let rust = spec.style.rust;
+        let unlit = spec.style.unlit;
         let res = raw::meter(spec);
-        let ink = Color::from_srgb_f32(0.082, 0.075, 0.059, 1.0);
-        let rust = Color::from_srgb_f32(0.761, 0.353, 0.173, 1.0);
-        let unlit = Color::from_srgb_f32(0.082, 0.075, 0.059, 0.15);
 
         let mut expected = Vec::new();
         for i in 0..10 {
