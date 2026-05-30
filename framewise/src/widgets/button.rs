@@ -31,6 +31,23 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
+    /// Measure a button's intrinsic size from its label and style.
+    ///
+    /// The preferred width is the label width plus horizontal padding; the
+    /// preferred height is the larger of the standard control height and the
+    /// padded label height. Independent of `raw::button` — it only shares text
+    /// shaping, which (for now) is repeated when the button is actually drawn.
+    pub fn calc_button_intrinsic_size<T: TextSystem>(
+        text: &str,
+        style: &super::ButtonStyle,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let t = text_system.prepare(text, style.text_size, style.font);
+        let w = t.size.x + 2.0 * style.pad_x;
+        let h = (t.size.y + 2.0 * style.pad_y).max(style.min_height);
+        crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
+    }
+
     /// Low-level button widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -199,6 +216,13 @@ pub struct ButtonStyle {
     pub font: FontId,
     pub text_color: Color,
     pub disabled_alpha: f32,
+    /// Horizontal padding each side of the label, used for intrinsic width.
+    pub pad_x: f32,
+    /// Vertical padding above/below the label, used for intrinsic height.
+    pub pad_y: f32,
+    /// Minimum intrinsic height (the standard control height); the preferred
+    /// height is the larger of this and the padded text height.
+    pub min_height: f32,
 }
 
 impl ButtonStyle {
@@ -216,6 +240,9 @@ impl ButtonStyle {
             font: theme.sans_font,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
+            pad_x: 14.0,
+            pad_y: 6.0,
+            min_height: theme.h_md,
         }
     }
 
@@ -233,6 +260,9 @@ impl ButtonStyle {
             font: theme.sans_font,
             text_color: theme.paper,
             disabled_alpha: 0.32f32,
+            pad_x: 14.0,
+            pad_y: 6.0,
+            min_height: theme.h_md,
         }
     }
 
@@ -250,6 +280,9 @@ impl ButtonStyle {
             font: theme.sans_font,
             text_color: Color::WHITE,
             disabled_alpha: 0.32f32,
+            pad_x: 14.0,
+            pad_y: 6.0,
+            min_height: theme.h_md,
         }
     }
 
@@ -267,6 +300,9 @@ impl ButtonStyle {
             font: theme.sans_font,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
+            pad_x: 14.0,
+            pad_y: 6.0,
+            min_height: theme.h_md,
         }
     }
 }
@@ -365,16 +401,18 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
     layout_params: S::Params,
     state: &mut ButtonState,
 ) -> ButtonResult {
-    let layout_rect = ctx
-        .layout_state
-        .layout(layout_params, crate::layout::IntrinsicSize::UNKNOWN);
+    // Resolve style and label up front so we can measure the intrinsic size,
+    // which intrinsic-aware layouts (column/row/wrap) use to size the button.
+    let style = builder
+        .style
+        .unwrap_or_else(|| ButtonStyle::secondary_from_theme(&ctx.theme));
+    let text = builder.text.expect("text not set — call .text()");
+    let intrinsic = raw::calc_button_intrinsic_size(text, &style, ctx.text_system);
+
+    let layout_rect = ctx.layout_state.layout(layout_params, intrinsic);
     let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .build();
+    let spec = builder.rect(rect).style(style).clip_rect(clip).build();
     let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 
     ctx.append_cmds(r.draw);
@@ -1206,6 +1244,9 @@ mod tests {
             font: FontId(0),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
             disabled_alpha: 0.32f32,
+            pad_x: 14.0,
+            pad_y: 6.0,
+            min_height: 28.0,
         };
 
         let spec = ButtonSpec {
@@ -1297,5 +1338,44 @@ mod tests {
             &mut btn_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
+    }
+
+    #[test]
+    fn test_calc_button_intrinsic_size() {
+        let mut ts = DummyTextSys;
+        let style = ButtonStyle::primary_from_theme(&theme::Theme::default());
+        // "Btn" = 3 chars * 8px = 24 wide, 16 tall (DummyTextSys).
+        // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
+        let i = raw::calc_button_intrinsic_size("Btn", &style, &mut ts);
+        assert_eq!(i.preferred, Some(Vec2::new(52.0, 28.0)));
+    }
+
+    #[test]
+    fn test_button_auto_layout_uses_intrinsic_size() {
+        use crate::layout::{ColumnLayout, Layout, ManualLayout, SizeReq};
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        let mut col =
+            ctx.child_with_layout(Rect::new(10.0, 10.0, 300.0, 400.0), ColumnLayout { spacing: 0.0 });
+        let mut st = ButtonState::default();
+        // Auto on both axes → the button sizes to its label intrinsic.
+        // "Save" = 4*8 = 32 wide; width = 32 + 28 = 60; height = 28.
+        let r = super::button(
+            &mut col,
+            ButtonSpecBuilder::new().text("Save"),
+            SizeReq::auto(),
+            &mut st,
+        );
+        assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 60.0, 28.0));
     }
 }
