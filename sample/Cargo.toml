@@ -7,15 +7,52 @@ edition = "2021"
 name = "sample"
 path = "src/main.rs"
 
+[features]
+default = ["page_scroll_demo", "page_spec"]
+
+button       = ["framewise/button"]
+checkbox     = ["framewise/checkbox"]
+chip         = ["framewise/chip"]
+color_swatch = ["framewise/color_swatch"]
+divider      = ["framewise/divider"]
+drag_number  = ["framewise/drag_number"]
+frame        = ["framewise/frame"]
+keycap       = ["framewise/keycap"]
+label        = ["framewise/label"]
+menu         = ["framewise/menu"]
+meter        = ["framewise/meter"]
+progress_bar = ["framewise/progress_bar"]
+radio        = ["framewise/radio"]
+scroll_area  = ["framewise/scroll_area"]
+segmented    = ["framewise/segmented"]
+select       = ["framewise/select"]
+slider       = ["framewise/slider"]
+spinner      = ["framewise/spinner"]
+status       = ["framewise/status"]
+switch       = ["framewise/switch"]
+tabs         = ["framewise/tabs"]
+text_edit    = ["framewise/text_edit"]
+tooltip      = ["framewise/tooltip"]
+tree         = ["framewise/tree"]
+window       = ["framewise/window"]
+
+page_scroll_demo = ["button", "frame", "label", "scroll_area", "slider", "text_edit"]
+page_spec = [
+    "button", "checkbox", "chip", "color_swatch", "divider", "drag_number",
+    "frame", "keycap", "label", "menu", "meter", "progress_bar", "radio",
+    "scroll_area", "segmented", "select", "slider", "spinner", "status",
+    "switch", "tabs", "text_edit", "tooltip", "tree", "window",
+]
+
 [dependencies]
 framewise = { path = "../framewise" }
-winit    = "0.30"
-wgpu     = "24"
-pollster = "0.4"
-bytemuck = { version = "1", features = ["derive"] }
-log      = "0.4"
+winit      = "0.30"
+wgpu       = "24"
+pollster   = "0.4"
+bytemuck   = { version = "1", features = ["derive"] }
+log        = "0.4"
 env_logger = "0.11"
-fontdue = "0.9.3"
-arboard = "3.4"
-resvg = "0.41.0"
-usvg = "0.41.0"
+fontdue    = "0.9.3"
+arboard    = "3.4"
+resvg      = "0.41.0"
+usvg       = "0.41.0"
