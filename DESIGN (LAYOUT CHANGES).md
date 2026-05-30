@@ -139,6 +139,8 @@ This begin→end rebalance is the bulk of the implementation effort; the sizing 
 3. **Deferred scroll content** — Reserve policy, begin→end rebalance, 1-frame clamp lag.
 4. **Declared-structure helpers** — fixed arity, declared count/slots, weighted distribution, grid via measure-all-then-place.
 
+** DESIGN.md should be updated as each phase is complete!
+
 ## Supported layout cases
 
 First phase at which each case works. `—` = unchanged from the prior column. ⚠ = works with a caveat.

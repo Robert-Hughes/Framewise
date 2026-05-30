@@ -85,7 +85,7 @@ This separation means adding a new layout type (e.g. `GridLayout`) requires zero
 
 We define two traits:
 
-1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(bounds)` method to instantiate the layout's state.
+1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a fully-bounded space (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
 The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`. It merges three inputs: the caller's `params` (intent — fixed/auto/fill), the widget's `intrinsic` measurement (reported by a `calc_*` companion, see [Intrinsic Sizing](#intrinsic-sizing)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** — the only extra work is the cheap, explicit `calc_*` spec measurement.
@@ -95,7 +95,7 @@ The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`
 - **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles; ignores `intrinsic`. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent. This is also the sanctioned way to place a *high-level* widget at an explicit rect (the rect is the `Params`).
 - **`ColumnLayout`**: `Params = SizeReq`. Stacks widgets vertically, keeping a Y-axis cursor. Cross axis (width) may `Fill` the bounds; main axis (height) is typically `Auto` (from intrinsic) or `Fixed`.
 - **`RowLayout`**: `Params = SizeReq`. Stacks widgets horizontally, keeping an X-axis cursor.
-- **`WrapLayout`**: `Params = SizeReq`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the bounds width. Never wraps a child already at the start of a line.
+- **`WrapLayout`**: `Params = SizeReq`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the available width. Never wraps a child already at the start of a line; an unbounded width has no edge to overflow, so the flow stays on one line.
 - **`OffsetLayout<L>`**: A decorator that shifts the inner layout's `Rect`s by a `Vec2` offset (used by scroll areas). It forwards `Params` and `intrinsic` to the inner layout. Scroll areas wrap their content layout in `OffsetLayout { offset, inner }` and push a scissor `clip_rect`.
 
 Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
@@ -105,8 +105,17 @@ Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pa
 Intrinsic-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model.
 
 - **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
-- **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's bounds extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
+- **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
 - **`LAYOUT_FALLBACK_SIZE`** — a library-global size an intrinsic-aware layout falls back to when it needs a measurement that was never reported (e.g. `Auto` against a widget that returns no `preferred`). Deliberately large and obvious so missing measurements surface during development.
+
+### Unbounded Axes
+
+The space a parent hands down is a `LayoutSpace { x, y, width: AxisBound, height: AxisBound }`, where `AxisBound` is `Bounded(f32)` or `Unbounded`. Position is always concrete — a layout always knows *where* a child starts — so only the *extent* can be unknown. An `Unbounded` axis means "as much as the content wants": the space a deferred scroll area lays its content into, or a panel told to grow with no enclosing limit. A `Rect` converts to a fully-`Bounded` space, so most layouts never see an unbounded axis.
+
+Two rules keep this from leaking infinity into geometry:
+
+1. **`Fill` on an unbounded axis is undefined.** There is no extent to fill, so the layout silently falls back to the widget's intrinsic size on that axis (then `LAYOUT_FALLBACK_SIZE`) — exactly as `Auto` would. (A future version may log when this fallback is hit.)
+2. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully-`Bounded` `Rect`, and the layout's running cursor stays a concrete `f32`. The accumulated extent is therefore always bounded — which is precisely what a deferred scroll area will read as its content size. No infinity ever reaches a `Rect`.
 
 **The `calc_*_intrinsic_size` companion.** Each raw widget that participates gains an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes the widget's `*Spec` so its signature stays stable as size-relevant fields are added (they live in the spec/style), but it **must not read `spec.rect`**: the rect is the *output* of the layout step that consumes the intrinsic size, so it isn't known yet. Structurally, `rect` is the *only* spec field that is unknowable before `calc` runs — everything else (content, style, clip, disabled) is an input. Callers therefore build the spec with `Rect::PLACEHOLDER` (NaN) before measuring; any arithmetic on it yields NaN, making accidental use loud rather than silent.
 

@@ -1,5 +1,83 @@
 use crate::types::{Rect, Vec2};
 
+// ── Available space ────────────────────────────────────────────────────────
+
+/// The extent of one axis of a [`LayoutSpace`].
+///
+/// Position is always concrete (a layout always knows *where* a child starts),
+/// so only the *extent* can be unknown. `Unbounded` means "as much as the
+/// content wants" — the space a deferred scroll area lays its content into, or a
+/// panel told to grow without an enclosing limit.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AxisBound {
+    /// A known extent in pixels.
+    Bounded(f32),
+    /// No limit on this axis. A child still resolves to a concrete `Rect`; the
+    /// running cursor stays a concrete `f32`, so the accumulated extent is
+    /// `Bounded` even though the space it grew into was not (see the two
+    /// unbounded rules in the layout design).
+    Unbounded,
+}
+
+/// The available space a parent hands **down** to a layout. Carries an
+/// [`AxisBound`] per axis: the origin (`x`, `y`) is always concrete, but either
+/// extent may be [`AxisBound::Unbounded`].
+///
+/// A plain [`Rect`] converts via [`From`] to a fully-`Bounded` space — this is
+/// the common case, and is why `Layout::begin` accepts `impl Into<LayoutSpace>`
+/// (every `begin(some_rect)` call keeps working unchanged).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutSpace {
+    pub x: f32,
+    pub y: f32,
+    pub width: AxisBound,
+    pub height: AxisBound,
+}
+
+impl LayoutSpace {
+    pub fn new(x: f32, y: f32, width: AxisBound, height: AxisBound) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// A space bounded in width but unbounded in height — the shape a vertically
+    /// scrolling content region is laid out into.
+    pub fn unbounded_height(x: f32, y: f32, width: f32) -> Self {
+        Self {
+            x,
+            y,
+            width: AxisBound::Bounded(width),
+            height: AxisBound::Unbounded,
+        }
+    }
+
+    /// A space bounded in height but unbounded in width.
+    pub fn unbounded_width(x: f32, y: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width: AxisBound::Unbounded,
+            height: AxisBound::Bounded(height),
+        }
+    }
+}
+
+/// A fully-specified `Rect` is a fully-`Bounded` space.
+impl From<Rect> for LayoutSpace {
+    fn from(r: Rect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            width: AxisBound::Bounded(r.w),
+            height: AxisBound::Bounded(r.h),
+        }
+    }
+}
+
 // ── Intrinsic sizing ──────────────────────────────────────────────────────
 
 /// A widget's own size measurement, reported up to an intrinsic-aware layout.
@@ -59,11 +137,17 @@ pub enum Extent {
 impl Extent {
     /// Resolve this extent to concrete pixels given the widget's intrinsic value
     /// on this axis (if any), the layout's fillable extent, and the fallback.
-    fn resolve(self, intrinsic_axis: Option<f32>, fill_extent: f32, fallback: f32) -> f32 {
+    fn resolve(self, intrinsic_axis: Option<f32>, fill: AxisBound, fallback: f32) -> f32 {
         match self {
             Extent::Fixed(px) => px,
             Extent::Auto => intrinsic_axis.unwrap_or(fallback),
-            Extent::Fill => fill_extent,
+            Extent::Fill => match fill {
+                AxisBound::Bounded(px) => px,
+                // Rule 1: filling an unbounded axis is undefined — there is no
+                // extent to fill. Fall back to the intrinsic size (then the
+                // global fallback), matching `Auto`.
+                AxisBound::Unbounded => intrinsic_axis.unwrap_or(fallback),
+            },
         }
     }
 }
@@ -106,8 +190,11 @@ pub trait Layout {
     type Params;
     type State: LayoutState<Params = Self::Params>;
 
-    /// Initializes the mutable layout state, given the bounds allocated by the parent.
-    fn begin(self, bounds: Rect) -> Self::State;
+    /// Initializes the mutable layout state, given the space allocated by the
+    /// parent. Accepts anything convertible to a [`LayoutSpace`]; a plain
+    /// [`Rect`] is a fully-bounded space, so existing `begin(rect)` calls are
+    /// unchanged.
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State;
 }
 
 pub trait LayoutState {
@@ -130,25 +217,30 @@ impl Layout for ManualLayout {
     type Params = Rect;
     type State = ManualState;
 
-    fn begin(self, bounds: Rect) -> Self::State {
-        ManualState { bounds }
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        let space = space.into();
+        ManualState {
+            origin: Vec2::new(space.x, space.y),
+        }
     }
 }
 
 pub struct ManualState {
-    bounds: Rect,
+    origin: Vec2,
 }
 
 impl LayoutState for ManualState {
     type Params = Rect;
 
     fn layout(&mut self, layout_params: Rect, _intrinsic: IntrinsicSize) -> Rect {
-        // Offset the requested rect by the layout's bounding box top-left.
-        // This ensures if ManualLayout is nested inside a scroll view (or any other layout), the explicit rects
-        // still shift correctly relative to the parent.
+        // Offset the requested rect by the layout's origin. This ensures if
+        // ManualLayout is nested inside a scroll view (or any other layout), the
+        // explicit rects still shift correctly relative to the parent. The
+        // explicit size is independent of the available extent, so ManualLayout
+        // is unaffected by an unbounded axis.
         Rect::new(
-            self.bounds.x + layout_params.x,
-            self.bounds.y + layout_params.y,
+            self.origin.x + layout_params.x,
+            self.origin.y + layout_params.y,
             layout_params.w,
             layout_params.h,
         )
@@ -165,17 +257,18 @@ impl Layout for ColumnLayout {
     type Params = SizeReq;
     type State = ColumnState;
 
-    fn begin(self, bounds: Rect) -> Self::State {
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        let space = space.into();
         ColumnState {
-            bounds,
+            current_y: space.y,
+            space,
             spacing: self.spacing,
-            current_y: bounds.y,
         }
     }
 }
 
 pub struct ColumnState {
-    bounds: Rect,
+    space: LayoutSpace,
     spacing: f32,
     current_y: f32,
 }
@@ -185,14 +278,15 @@ impl LayoutState for ColumnState {
 
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
-        // Cross axis (width) fills the column bounds; main axis (height) stacks.
+        // Cross axis (width) fills the column space; main axis (height) stacks.
+        // A `Fill` height (or unbounded height) falls back to intrinsic per Rule 1.
         let w = layout_params
             .width
-            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
         let h = layout_params
             .height
-            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
-        let r = Rect::new(self.bounds.x, self.current_y, w, h);
+            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
+        let r = Rect::new(self.space.x, self.current_y, w, h);
         self.current_y += h + self.spacing;
         r
     }
@@ -208,17 +302,18 @@ impl Layout for RowLayout {
     type Params = SizeReq;
     type State = RowState;
 
-    fn begin(self, bounds: Rect) -> Self::State {
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        let space = space.into();
         RowState {
-            bounds,
+            current_x: space.x,
+            space,
             spacing: self.spacing,
-            current_x: bounds.x,
         }
     }
 }
 
 pub struct RowState {
-    bounds: Rect,
+    space: LayoutSpace,
     spacing: f32,
     current_x: f32,
 }
@@ -228,14 +323,15 @@ impl LayoutState for RowState {
 
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
-        // Main axis (width) advances the cursor; cross axis (height) fills bounds.
+        // Main axis (width) advances the cursor; cross axis (height) fills space.
+        // A `Fill` width (or unbounded width) falls back to intrinsic per Rule 1.
         let w = layout_params
             .width
-            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
         let h = layout_params
             .height
-            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
-        let r = Rect::new(self.current_x, self.bounds.y, w, h);
+            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
+        let r = Rect::new(self.current_x, self.space.y, w, h);
         self.current_x += w + self.spacing;
         r
     }
@@ -253,10 +349,10 @@ impl<L: Layout> Layout for OffsetLayout<L> {
     type Params = L::Params;
     type State = OffsetState<L::State>;
 
-    fn begin(self, bounds: Rect) -> Self::State {
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
         OffsetState {
             offset: self.offset,
-            inner: self.inner.begin(bounds),
+            inner: self.inner.begin(space.into()),
         }
     }
 }
@@ -294,20 +390,21 @@ impl Layout for WrapLayout {
     type Params = SizeReq;
     type State = WrapState;
 
-    fn begin(self, bounds: Rect) -> Self::State {
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        let space = space.into();
         WrapState {
-            bounds,
+            current_x: space.x,
+            current_y: space.y,
+            space,
             spacing: self.spacing,
             line_spacing: self.line_spacing,
-            current_x: bounds.x,
-            current_y: bounds.y,
             line_height: 0.0,
         }
     }
 }
 
 pub struct WrapState {
-    bounds: Rect,
+    space: LayoutSpace,
     spacing: f32,
     line_spacing: f32,
     current_x: f32,
@@ -323,16 +420,21 @@ impl LayoutState for WrapState {
         let pref = intrinsic.preferred;
         let w = layout_params
             .width
-            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
         let h = layout_params
             .height
-            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
+            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
-        let at_line_start = self.current_x == self.bounds.x;
-        if !at_line_start && self.current_x + w > self.bounds.x + self.bounds.w {
-            self.current_x = self.bounds.x;
+        // An unbounded width has no edge to overflow, so the flow never wraps.
+        let at_line_start = self.current_x == self.space.x;
+        let overflows = match self.space.width {
+            AxisBound::Bounded(width) => self.current_x + w > self.space.x + width,
+            AxisBound::Unbounded => false,
+        };
+        if !at_line_start && overflows {
+            self.current_x = self.space.x;
             self.current_y += self.line_height + self.line_spacing;
             self.line_height = 0.0;
         }
@@ -470,6 +572,86 @@ mod tests {
         .begin(Rect::new(0.0, 0.0, 30.0, 500.0));
         let r = state.layout(SizeReq::auto(), IntrinsicSize::preferred(Vec2::new(80.0, 16.0)));
         assert_eq!(r, Rect::new(0.0, 0.0, 80.0, 16.0));
+    }
+
+    #[test]
+    fn test_rect_converts_to_bounded_space() {
+        let space: LayoutSpace = Rect::new(1.0, 2.0, 30.0, 40.0).into();
+        assert_eq!(
+            space,
+            LayoutSpace {
+                x: 1.0,
+                y: 2.0,
+                width: AxisBound::Bounded(30.0),
+                height: AxisBound::Bounded(40.0),
+            }
+        );
+    }
+
+    #[test]
+    fn test_column_unbounded_height_resolves_concrete() {
+        // Rule 2: a child laid out in an unbounded main axis still resolves to a
+        // concrete Rect, and the cursor advances by a concrete f32.
+        let mut state = ColumnLayout { spacing: 5.0 }
+            .begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
+        let req = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Auto,
+        };
+        let r1 = state.layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 24.0)));
+        // Fill width uses the bounded width; Auto height uses intrinsic.
+        assert_eq!(r1, Rect::new(0.0, 0.0, 200.0, 24.0));
+        let r2 = state.layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 30.0)));
+        // Cursor advanced concretely by 24 + spacing(5) = 29.
+        assert_eq!(r2, Rect::new(0.0, 29.0, 200.0, 30.0));
+        assert!(r2.y.is_finite());
+    }
+
+    #[test]
+    fn test_fill_on_unbounded_axis_falls_back_to_intrinsic() {
+        // Rule 1: Fill on an unbounded axis is undefined — falls back to intrinsic.
+        let mut state = ColumnLayout { spacing: 0.0 }
+            .begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
+        let req = SizeReq {
+            width: Extent::Fixed(50.0),
+            height: Extent::Fill,
+        };
+        let r = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 18.0)));
+        // Fill height has no extent to fill → intrinsic 18.
+        assert_eq!(r, Rect::new(0.0, 0.0, 50.0, 18.0));
+    }
+
+    #[test]
+    fn test_fill_on_unbounded_axis_without_intrinsic_uses_fallback() {
+        let mut state =
+            RowLayout { spacing: 0.0 }.begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
+        let req = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Fixed(40.0),
+        };
+        // Fill width on the unbounded axis, no intrinsic → global fallback.
+        let r = state.layout(req, IntrinsicSize::UNKNOWN);
+        assert_eq!(r, Rect::new(0.0, 0.0, LAYOUT_FALLBACK_SIZE.x, 40.0));
+    }
+
+    #[test]
+    fn test_wrap_unbounded_width_never_wraps() {
+        // An unbounded width has no edge to overflow: every item stays on line 0.
+        let mut state = WrapLayout {
+            spacing: 0.0,
+            line_spacing: 5.0,
+        }
+        .begin(LayoutSpace::unbounded_width(0.0, 0.0, 500.0));
+        let item = SizeReq {
+            width: Extent::Fixed(40.0),
+            height: Extent::Fixed(20.0),
+        };
+        let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r3 = state.layout(item, IntrinsicSize::UNKNOWN);
+        assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0));
+        assert_eq!(r2, Rect::new(40.0, 0.0, 40.0, 20.0));
+        assert_eq!(r3, Rect::new(80.0, 0.0, 40.0, 20.0));
     }
 
     #[test]
