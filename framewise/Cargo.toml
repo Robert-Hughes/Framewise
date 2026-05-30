@@ -5,12 +5,10 @@ edition = "2021"
 description = "A Rust GUI library where the app is always in control."
 
 [features]
-default = [
-    "button", "checkbox", "chip", "color_swatch", "divider", "drag_number",
-    "frame", "keycap", "label", "menu", "meter", "progress_bar", "radio",
-    "scroll_area", "segmented", "select", "slider", "spinner", "status",
-    "switch", "tabs", "text_edit", "tooltip", "tree", "window",
-]
+# Phase 1 intrinsic-sizing work iterates on button only; other widgets are
+# temporarily out of the default set until they are migrated to the new
+# layout(params, intrinsic) signature. Re-add them as each is updated.
+default = ["button"]
 button       = []
 checkbox     = []
 chip         = []

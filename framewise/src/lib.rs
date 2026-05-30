@@ -43,6 +43,9 @@ pub use types::{ClipRect, Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, WidgetContext};
 
 // Widget functions (low-level API)
+#[cfg(feature = "button")]
 pub use widgets::button::{button, ButtonResult, ButtonStyle};
+#[cfg(feature = "frame")]
 pub use widgets::frame::{frame, FrameResult, FrameStyle};
+#[cfg(feature = "label")]
 pub use widgets::label::{label, LabelResult};
