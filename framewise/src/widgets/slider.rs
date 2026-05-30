@@ -40,6 +40,20 @@ pub mod raw {
         pub focused: bool,
     }
 
+    /// Measure a slider's intrinsic size from its spec.
+    ///
+    /// A slider's extent is caller-driven: the track length comes from the layout,
+    /// not from content, so there is nothing to report yet — this returns
+    /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a cross-axis minimum
+    /// derived from `style.thumb_size`.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
+    pub fn calc_slider_intrinsic_size(spec: &SliderSpec) -> crate::layout::IntrinsicSize {
+        let _ = spec;
+        crate::layout::IntrinsicSize::UNKNOWN
+    }
+
     /// Low-level slider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -698,15 +712,23 @@ pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Dra
     layout_params: S::Params,
     state: &mut SliderState,
 ) -> SliderResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .time(ctx.time)
+        .rect(Rect::PLACEHOLDER)
         .build();
+
+    let intrinsic = raw::calc_slider_intrinsic_size(&spec);
+    let rect = ctx.layout_state.layout(layout_params, intrinsic);
+    spec.rect = rect;
+
     let result = raw::slider(spec, state, ctx.input, ctx.focus_system);
     ctx.append_cmds(result.draw);
     SliderResult {
@@ -1647,15 +1669,14 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
+    fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layout::{Layout, ManualLayout};
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
@@ -1665,19 +1686,26 @@ mod tests {
             &mut cmds,
         );
         let mut state = SliderState::default();
-        super::slider(
-            &mut ctx,
-            SliderSpecBuilder::new().rect(custom_rect),
-            layout_rect,
-            &mut state,
-        );
-        // First draw command for horizontal slider is FillRect for the track line,
-        // which starts at track_rect.x = custom_rect.x
+        // Under ManualLayout the layout param *is* the rect — the sanctioned way
+        // to place a high-level widget explicitly.
+        super::slider(&mut ctx, SliderSpecBuilder::new(), placement, &mut state);
+        // First draw command for a horizontal slider is the track-line FillRect,
+        // whose x starts at the resolved track rect's x = placement.x.
         match &cmds[0] {
             crate::draw::DrawCmd::FillRect { rect, .. } => {
-                assert_eq!(rect.x, custom_rect.x);
+                assert_eq!(rect.x, placement.x);
             }
             other => panic!("Expected FillRect, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_calc_slider_intrinsic_size() {
+        // A slider's size is caller-driven; it reports no intrinsic measurement.
+        let spec = test_spec(0.0, 100.0, true);
+        assert_eq!(
+            raw::calc_slider_intrinsic_size(&spec),
+            crate::layout::IntrinsicSize::UNKNOWN
+        );
     }
 }

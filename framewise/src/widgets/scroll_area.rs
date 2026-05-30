@@ -42,6 +42,20 @@ pub mod raw {
         pub offset: Vec2,
     }
 
+    /// Measure a scroll area's intrinsic size from its spec.
+    ///
+    /// A scroll area's outer extent is caller-driven (the viewport bounds come
+    /// from the layout), so there is nothing to report yet — this returns
+    /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a minimum viewport
+    /// size derived from the reserved scrollbar widths.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
+    pub fn calc_scroll_area_intrinsic_size(spec: &ScrollAreaSpec) -> crate::layout::IntrinsicSize {
+        let _ = spec;
+        crate::layout::IntrinsicSize::UNKNOWN
+    }
+
     /// Low-level scroll area begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -613,15 +627,22 @@ pub fn begin_scroll_area<
     crate::layout::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
-    let layout_bounds = ctx.layout_state.layout(layout_params);
-    let bounds = builder.rect.unwrap_or(layout_bounds);
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real bounds are then determined by the layout system
+    // and assigned below. Any `rect` set on the builder is ignored by the
+    // high-level path — placement is the layout's job (use `ManualLayout`, or the
+    // raw fn, for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(bounds)
+    let mut spec = builder
         .clip_rect(clip)
         .time(ctx.time)
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .build();
+
+    let intrinsic = raw::calc_scroll_area_intrinsic_size(&spec);
+    let bounds = ctx.layout_state.layout(layout_params, intrinsic);
+    spec.rect = bounds;
     let raw::ScrollAreaResult {
         draw,
         token,
@@ -3778,14 +3799,13 @@ mod nested_bubbling_tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
+    fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 80.0);
-        let custom_rect = Rect::new(10.0, 20.0, 200.0, 40.0);
+        let placement = Rect::new(10.0, 20.0, 200.0, 40.0);
         let mut scroll_state = ScrollState::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
@@ -3795,21 +3815,21 @@ mod nested_bubbling_tests {
             ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
             &mut cmds,
         );
+        // Under ManualLayout the layout param *is* the rect — the sanctioned way
+        // to place a high-level widget explicitly.
         let child = super::begin_scroll_area(
             &mut ctx,
-            // Only vertical overflow so we get a vertical scrollbar at x=content_bounds.right()
-            // The vertical scrollbar track starts at y = custom_rect.y
+            // Only vertical overflow so we get a vertical scrollbar whose track
+            // starts at y = placement.y.
             ScrollAreaSpecBuilder::new()
                 .content_size(Vec2::new(200.0, 400.0))
-                .h_vis(ScrollbarVisibility::None)
-                .rect(custom_rect),
-            layout_rect,
+                .h_vis(ScrollbarVisibility::None),
+            placement,
             &mut scroll_state,
             ManualLayout,
         );
         child.ctx.finish();
-        // The vertical scrollbar track rect has y = custom_rect.y.
-        // Its FillRect (scrollbar_mode track) has rect.y == custom_rect.y
-        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if rect.y == custom_rect.y)));
+        // The vertical scrollbar track (a scrollbar_mode FillRect) has rect.y == placement.y.
+        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if rect.y == placement.y)));
     }
 }
