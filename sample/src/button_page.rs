@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, Layout, RowLayout},
+    layout::{ColumnLayout, Extent, Layout, RowLayout, SizeReq},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -24,6 +24,8 @@ pub struct ButtonPageState {
     // Section 4: 3×3 action grid
     pub grid_btns: [ButtonState; 9],
     pub grid_clicks: [u32; 9],
+    // Section 5: intrinsic sizing — auto-width row + fill-width column
+    pub intrinsic_btns: [ButtonState; 5],
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -238,6 +240,50 @@ pub fn draw_button_page(
         }
 
         row.finish();
+    }
+
+    // ── Section 5: Intrinsic sizing ───────────────────────────────────────────
+    // Auto-width buttons (each hugs its own label) in a row, then a fill-width
+    // button in a column — sized by the layout from the button's intrinsic size,
+    // no explicit widths.
+    {
+        let mut col = outer
+            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), ColumnLayout { spacing: 12.0 });
+
+        {
+            let mut row =
+                col.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout { spacing: 10.0 });
+
+            // Each button's width comes from its label; height is fixed.
+            let auto = SizeReq {
+                width: Extent::Auto,
+                height: Extent::Fixed(40.0),
+            };
+            let labels = ["OK", "Cancel", "Apply to All", "Don't Save"];
+            for (i, label) in labels.iter().enumerate() {
+                button(
+                    &mut row,
+                    ButtonSpecBuilder::new().text(label).style(secondary),
+                    auto,
+                    &mut state.intrinsic_btns[i],
+                );
+            }
+            row.finish();
+        }
+
+        // A button that fills the column's full width, intrinsic height.
+        let fill = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Auto,
+        };
+        button(
+            &mut col,
+            ButtonSpecBuilder::new().text("Fills the row width").style(primary),
+            fill,
+            &mut state.intrinsic_btns[4],
+        );
+
+        col.finish();
     }
 
     outer.finish();
