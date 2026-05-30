@@ -596,7 +596,7 @@ pub struct SliderSpecBuilder {
     pub page_step: Option<f32>,
     pub step: Option<f32>,
     pub orientation: Option<Orientation>,
-    pub thumb_size_ratio: Option<f32>,
+    pub thumb_size_ratio: Option<Option<f32>>,
     pub style: Option<SliderStyle>,
     pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: Option<bool>,
@@ -629,7 +629,7 @@ impl SliderSpecBuilder {
         self
     }
     pub fn thumb_size_ratio(mut self, thumb_size_ratio: Option<f32>) -> Self {
-        self.thumb_size_ratio = thumb_size_ratio;
+        self.thumb_size_ratio = Some(thumb_size_ratio);
         self
     }
     pub fn style(mut self, style: SliderStyle) -> Self {
@@ -674,7 +674,7 @@ impl SliderSpecBuilder {
             page_step: self.page_step.unwrap_or(10.0),
             step: self.step.unwrap_or(1.0),
             orientation: self.orientation.unwrap_or(Orientation::Horizontal),
-            thumb_size_ratio: self.thumb_size_ratio,
+            thumb_size_ratio: self.thumb_size_ratio.unwrap_or(None),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),

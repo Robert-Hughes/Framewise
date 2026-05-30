@@ -237,6 +237,24 @@ The only authoritative source of style defaults is the `*Style::from_theme()` (o
 
 Because every builder field is `Option<T>`, `derive(Default)` produces exactly an all-`None` struct — identical to a hand-written `new()`. All builder structs therefore `#[derive(Default)]` and keep a `new()` constructor that forwards to `Self::default()`. This gives callers both spellings (`ButtonSpecBuilder::new()` and `ButtonSpecBuilder::default()`) with zero drift risk: there is only one source of truth.
 
+**When a `*Spec` field is itself `Option<T>`, the builder field is `Option<Option<T>>`**
+
+Some `*Spec` fields are `Option<T>` not because they are unresolved, but because `None` is a meaningful resolved value (e.g. `thumb_size_ratio: Option<f32>` where `None` means "no scrollbar thumb", or `peak: Option<f32>` where `None` means "no peak marker"). The builder must still distinguish "caller never set this" from "caller explicitly set this to `None`". The solution is `Option<Option<T>>` in the builder:
+
+- **Outer `None`** — field not yet set; `build()` or `defaults_from_theme` may supply a fallback.
+- **Inner `None`** — caller explicitly set the field to the "absent" semantic value.
+
+The setter follows the same convention as every other field: it takes `T` (here `Option<f32>`) and wraps it in `Some`:
+
+```rust
+pub fn peak(mut self, peak: Option<f32>) -> Self {
+    self.peak = Some(peak);  // outer Some = "was set"; inner Option = semantic value
+    self
+}
+```
+
+`build()` unwraps the outer layer with `.unwrap_or(<default>)` to recover the `Option<T>` the spec expects.
+
 **The asymmetry between `*Spec` and `*SpecBuilder` is intentional**
 
 `*Spec` is fully resolved — no partial state, no `Option<>`, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: every field is `Option<T>` and `None` means "not yet set". This distinction enables a three-stage default precedence chain:
