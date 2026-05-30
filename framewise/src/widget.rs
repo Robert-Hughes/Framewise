@@ -208,10 +208,18 @@ mod tests {
         // then a row nested at the column's first slot.
         let mut col = ctx.child_with_layout(
             Rect::new(10.0, 10.0, 200.0, 400.0),
-            ColumnLayout { spacing: 5.0 },
+            ColumnLayout {
+                spacing: 5.0,
+                align: crate::layout::CrossAlign::Start,
+            },
         );
-        let mut row =
-            col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout { spacing: 4.0 });
+        let mut row = col.child_with_layout(
+            Vec2::new(200.0, 30.0).into(),
+            RowLayout {
+                spacing: 4.0,
+                align: crate::layout::CrossAlign::Start,
+            },
+        );
 
         // The row sits at the column's origin (10,10); its first child lands there.
         let first = row

@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Layout, SizeReq},
+    layout::{CrossAlign, Layout, SizeReq},
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -156,7 +156,10 @@ pub fn draw_scroll_demo(
     {
         let mut main_row = {
             let layout_params = Rect::new(10.0, 10.0, win_w - 20.0, win_h - 20.0);
-            let layout = framewise::layout::RowLayout { spacing: 10.0 };
+            let layout = framewise::layout::RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            };
             ctx.child_with_layout(layout_params, layout)
         };
 
@@ -164,7 +167,10 @@ pub fn draw_scroll_demo(
         {
             let mut sidebar_col = {
                 let layout_params = SizeReq::fixed(200.0, win_h - 20.0);
-                let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
+                let layout = framewise::layout::ColumnLayout {
+                    spacing: 10.0,
+                    align: CrossAlign::Start,
+                };
                 main_row.child_with_layout(layout_params, layout)
             };
             let mut button_style =
@@ -180,7 +186,10 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
-                framewise::layout::ColumnLayout { spacing: 8.0 },
+                framewise::layout::ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
             )
             .ctx;
 
@@ -214,16 +223,22 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(win_w - 240.0, win_h - 20.0),
                 &mut state.right_panel_scroll,
-                framewise::layout::ColumnLayout { spacing: 15.0 },
+                framewise::layout::ColumnLayout {
+                    spacing: 15.0,
+                    align: CrossAlign::Start,
+                },
             )
             .ctx;
             let inner_w = win_w - 240.0 - 15.0;
 
-            // Top Header Row
+            // Top Header Row - Centered vertically (cross axis)
             {
                 let mut header_row = {
                     let layout_params = SizeReq::fixed(inner_w, 40.0);
-                    let layout = framewise::layout::RowLayout { spacing: 10.0 };
+                    let layout = framewise::layout::RowLayout {
+                        spacing: 10.0,
+                        align: CrossAlign::Center,
+                    };
                     content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style =
@@ -236,7 +251,7 @@ pub fn draw_scroll_demo(
 
                 let _btn1 = {
                     let btn_state = &mut state.top_btn1.state;
-                    let layout_params = SizeReq::fixed(100.0, 40.0);
+                    let layout_params = SizeReq::fixed(100.0, 30.0); // 30px height centered vertically in 40px row
                     let text = "Profile";
                     let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                     button(&mut header_row, spec_builder, layout_params, btn_state)
@@ -244,7 +259,7 @@ pub fn draw_scroll_demo(
 
                 let _btn2 = {
                     let btn_state = &mut state.top_btn2.state;
-                    let layout_params = SizeReq::fixed(100.0, 40.0);
+                    let layout_params = SizeReq::fixed(100.0, 30.0); // 30px height centered vertically in 40px row
                     let text = "Settings";
                     let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                     button(&mut header_row, spec_builder, layout_params, btn_state)
@@ -257,7 +272,10 @@ pub fn draw_scroll_demo(
             {
                 let mut grid_col = {
                     let layout_params = SizeReq::fixed(inner_w, 200.0);
-                    let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
+                    let layout = framewise::layout::ColumnLayout {
+                        spacing: 10.0,
+                        align: CrossAlign::Start,
+                    };
                     content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style =
@@ -270,7 +288,10 @@ pub fn draw_scroll_demo(
                     {
                         let mut grid_row = {
                             let layout_params = SizeReq::fixed(inner_w, 32.0);
-                            let layout = framewise::layout::RowLayout { spacing: 10.0 };
+                            let layout = framewise::layout::RowLayout {
+                                spacing: 10.0,
+                                align: CrossAlign::Start,
+                            };
                             grid_col.child_with_layout(layout_params, layout)
                         };
                         for col in 0..4 {
@@ -297,7 +318,10 @@ pub fn draw_scroll_demo(
             {
                 let mut slider_row = {
                     let layout_params = SizeReq::fixed(inner_w, 100.0);
-                    let layout = framewise::layout::RowLayout { spacing: 20.0 };
+                    let layout = framewise::layout::RowLayout {
+                        spacing: 20.0,
+                        align: CrossAlign::Center,
+                    };
                     content_col.child_with_layout(layout_params, layout)
                 };
 
@@ -315,7 +339,7 @@ pub fn draw_scroll_demo(
                 slider_row.finish()
             };
 
-            // Main Scroll Area
+            // Main Scroll Area - Centered feed buttons (cross axis)
             let mut main_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
@@ -323,7 +347,10 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
-                framewise::layout::ColumnLayout { spacing: 10.0 },
+                framewise::layout::ColumnLayout {
+                    spacing: 10.0,
+                    align: CrossAlign::Center,
+                },
             )
             .ctx;
             let mut button_style =
@@ -338,7 +365,7 @@ pub fn draw_scroll_demo(
                     Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
                 let btn = {
                     let btn_state = &mut state.main_btns[i].state;
-                    let layout_params = SizeReq::fixed(win_w - 280.0, 50.0);
+                    let layout_params = SizeReq::fixed(350.0, 50.0); // Narrower width centered in scroll area
                     let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                     button(&mut main_scroll, spec_builder, layout_params, btn_state)
@@ -359,7 +386,10 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
-                framewise::layout::ColumnLayout { spacing: 10.0 },
+                framewise::layout::ColumnLayout {
+                    spacing: 10.0,
+                    align: CrossAlign::Start,
+                },
             )
             .ctx;
 
@@ -368,7 +398,10 @@ pub fn draw_scroll_demo(
 
                 let mut row_builder = {
                     let layout_params = SizeReq::fixed(800.0, row_h);
-                    let layout = framewise::layout::RowLayout { spacing: 10.0 };
+                    let layout = framewise::layout::RowLayout {
+                        spacing: 10.0,
+                        align: CrossAlign::Start,
+                    };
                     outer_scroll.child_with_layout(layout_params, layout)
                 };
                 let (base_r, base_g, base_b) = match i {
@@ -407,7 +440,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
-                    framewise::layout::ColumnLayout { spacing: 8.0 },
+                    framewise::layout::ColumnLayout {
+                        spacing: 8.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
 
@@ -437,7 +473,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(180.0, row_h),
                     &mut row_state.horiz_scroll,
-                    framewise::layout::RowLayout { spacing: 8.0 },
+                    framewise::layout::RowLayout {
+                        spacing: 8.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
 
@@ -533,7 +572,10 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::None),
                 SizeReq::fixed(inner_w, 150.0),
                 &mut state.double_horiz_outer_scroll,
-                framewise::layout::RowLayout { spacing: 20.0 },
+                framewise::layout::RowLayout {
+                    spacing: 20.0,
+                    align: CrossAlign::Start,
+                },
             )
             .ctx;
 
@@ -551,7 +593,10 @@ pub fn draw_scroll_demo(
                     .v_vis(ScrollbarVisibility::None),
                 SizeReq::fixed(600.0, 120.0),
                 &mut state.double_horiz_inner_scroll,
-                framewise::layout::RowLayout { spacing: 8.0 },
+                framewise::layout::RowLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
             )
             .ctx;
 
@@ -660,7 +705,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(inner_w, 220.0),
                     &mut state.triple_outer_scroll,
-                    framewise::layout::ColumnLayout { spacing: 10.0 },
+                    framewise::layout::ColumnLayout {
+                        spacing: 10.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
 
@@ -671,7 +719,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(inner_w - 15.0, 160.0),
                     &mut state.triple_middle_scroll,
-                    framewise::layout::RowLayout { spacing: 10.0 },
+                    framewise::layout::RowLayout {
+                        spacing: 10.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
 
@@ -682,7 +733,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(200.0, 130.0),
                     &mut state.triple_inner_scroll,
-                    framewise::layout::ColumnLayout { spacing: 6.0 },
+                    framewise::layout::ColumnLayout {
+                        spacing: 6.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
 
@@ -716,7 +770,10 @@ pub fn draw_scroll_demo(
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(165.0, 50.0),
                     &mut state.triple_innermost_scroll,
-                    framewise::layout::RowLayout { spacing: 6.0 },
+                    framewise::layout::RowLayout {
+                        spacing: 6.0,
+                        align: CrossAlign::Start,
+                    },
                 )
                 .ctx;
                 for k in 0..5 {

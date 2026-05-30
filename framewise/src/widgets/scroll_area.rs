@@ -118,12 +118,12 @@ pub mod raw {
             width: if needs_h {
                 AxisBound::Unbounded
             } else {
-                AxisBound::Bounded(content_bounds.w)
+                AxisBound::Exact(content_bounds.w)
             },
             height: if needs_v {
                 AxisBound::Unbounded
             } else {
-                AxisBound::Bounded(content_bounds.h)
+                AxisBound::Exact(content_bounds.h)
             },
         };
 

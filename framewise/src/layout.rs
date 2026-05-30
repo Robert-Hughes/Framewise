@@ -10,12 +10,11 @@ use crate::types::{Rect, Vec2};
 /// panel told to grow without an enclosing limit.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AxisBound {
-    /// A known extent in pixels.
-    Bounded(f32),
-    /// No limit on this axis. A child still resolves to a concrete `Rect`; the
-    /// running cursor stays a concrete `f32`, so the accumulated extent is
-    /// `Bounded` even though the space it grew into was not (see the two
-    /// unbounded rules in the layout design).
+    /// "you live in a box of this size" — provides a limit AND anchor frame (e.g. for right-aligning).
+    Exact(f32),
+    /// "choose your own size, but don't exceed this" — limit only, can't right-align.
+    AtMost(f32),
+    /// "no ceiling from me on this axis".
     Unbounded,
 }
 
@@ -50,7 +49,7 @@ impl LayoutSpace {
         Self {
             x,
             y,
-            width: AxisBound::Bounded(width),
+            width: AxisBound::Exact(width),
             height: AxisBound::Unbounded,
         }
     }
@@ -61,7 +60,7 @@ impl LayoutSpace {
             x,
             y,
             width: AxisBound::Unbounded,
-            height: AxisBound::Bounded(height),
+            height: AxisBound::Exact(height),
         }
     }
 }
@@ -72,8 +71,8 @@ impl From<Rect> for LayoutSpace {
         Self {
             x: r.x,
             y: r.y,
-            width: AxisBound::Bounded(r.w),
-            height: AxisBound::Bounded(r.h),
+            width: AxisBound::Exact(r.w),
+            height: AxisBound::Exact(r.h),
         }
     }
 }
@@ -138,15 +137,22 @@ impl Extent {
     /// Resolve this extent to concrete pixels given the widget's intrinsic value
     /// on this axis (if any), the layout's fillable extent, and the fallback.
     fn resolve(self, intrinsic_axis: Option<f32>, fill: AxisBound, fallback: f32) -> f32 {
+        let preferred = intrinsic_axis.unwrap_or(fallback);
         match self {
             Extent::Fixed(px) => px,
-            Extent::Auto => intrinsic_axis.unwrap_or(fallback),
+            Extent::Auto => match fill {
+                AxisBound::Exact(_w) => preferred,
+                AxisBound::AtMost(w) => preferred.min(w),
+                AxisBound::Unbounded => preferred,
+            },
             Extent::Fill => match fill {
-                AxisBound::Bounded(px) => px,
-                // Rule 1: filling an unbounded axis is undefined — there is no
-                // extent to fill. Fall back to the intrinsic size (then the
-                // global fallback), matching `Auto`.
-                AxisBound::Unbounded => intrinsic_axis.unwrap_or(fallback),
+                AxisBound::Exact(w) => w,
+                // Position & distribution policies — fill, right-align, center,
+                // space-between — require Exact: a committed frame with a far edge.
+                // AtMost and Unbounded permit only measurement / shrink-wrap decisions,
+                // so we fall back to Auto.
+                AxisBound::AtMost(w) => preferred.min(w),
+                AxisBound::Unbounded => preferred,
             },
         }
     }
@@ -266,10 +272,19 @@ impl LayoutState for ManualState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CrossAlign {
+    #[default]
+    Start,
+    Center,
+    End,
+}
+
 // ── ColumnLayout ──────────────────────────────────────────────────────────
 
 pub struct ColumnLayout {
     pub spacing: f32,
+    pub align: CrossAlign,
 }
 
 impl Layout for ColumnLayout {
@@ -282,6 +297,7 @@ impl Layout for ColumnLayout {
             current_y: space.y,
             space,
             spacing: self.spacing,
+            align: self.align,
             content_w: 0.0,
             content_h: 0.0,
         }
@@ -292,6 +308,7 @@ pub struct ColumnState {
     space: LayoutSpace,
     spacing: f32,
     current_y: f32,
+    align: CrossAlign,
     /// Widest child placed so far (cross axis).
     content_w: f32,
     /// Bottom edge of the last child relative to the origin (main axis), i.e. the
@@ -316,7 +333,22 @@ impl LayoutState for ColumnState {
             self.space.height,
             LAYOUT_FALLBACK_SIZE.y,
         );
-        let r = Rect::new(self.space.x, self.current_y, w, h);
+
+        let x = match self.align {
+            CrossAlign::Start => self.space.x,
+            CrossAlign::Center => match self.space.width {
+                AxisBound::Exact(width) => self.space.x + (width - w) * 0.5,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+            },
+            CrossAlign::End => match self.space.width {
+                AxisBound::Exact(width) => self.space.x + width - w,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+            },
+        };
+
+        let r = Rect::new(x, self.current_y, w, h);
         self.content_w = self.content_w.max(w);
         self.content_h = (self.current_y + h) - self.space.y;
         self.current_y += h + self.spacing;
@@ -332,6 +364,7 @@ impl LayoutState for ColumnState {
 
 pub struct RowLayout {
     pub spacing: f32,
+    pub align: CrossAlign,
 }
 
 impl Layout for RowLayout {
@@ -344,6 +377,7 @@ impl Layout for RowLayout {
             current_x: space.x,
             space,
             spacing: self.spacing,
+            align: self.align,
             content_w: 0.0,
             content_h: 0.0,
         }
@@ -354,6 +388,7 @@ pub struct RowState {
     space: LayoutSpace,
     spacing: f32,
     current_x: f32,
+    align: CrossAlign,
     /// Right edge of the last child relative to the origin (main axis), i.e. the
     /// consumed width excluding any trailing spacing.
     content_w: f32,
@@ -378,7 +413,22 @@ impl LayoutState for RowState {
             self.space.height,
             LAYOUT_FALLBACK_SIZE.y,
         );
-        let r = Rect::new(self.current_x, self.space.y, w, h);
+
+        let y = match self.align {
+            CrossAlign::Start => self.space.y,
+            CrossAlign::Center => match self.space.height {
+                AxisBound::Exact(height) => self.space.y + (height - h) * 0.5,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+            },
+            CrossAlign::End => match self.space.height {
+                AxisBound::Exact(height) => self.space.y + height - h,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+            },
+        };
+
+        let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
         self.content_h = self.content_h.max(h);
         self.current_x += w + self.spacing;
@@ -496,7 +546,9 @@ impl LayoutState for WrapState {
         // An unbounded width has no edge to overflow, so the flow never wraps.
         let at_line_start = self.current_x == self.space.x;
         let overflows = match self.space.width {
-            AxisBound::Bounded(width) => self.current_x + w > self.space.x + width,
+            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
+                self.current_x + w > self.space.x + width
+            }
             AxisBound::Unbounded => false,
         };
         if !at_line_start && overflows {
@@ -546,7 +598,11 @@ mod tests {
 
     #[test]
     fn test_column_layout() {
-        let mut state = ColumnLayout { spacing: 10.0 }.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let r1 = state.layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
 
@@ -556,7 +612,11 @@ mod tests {
 
     #[test]
     fn test_row_layout() {
-        let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(10.0, 20.0, 100.0, 100.0));
         let r1 = state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
@@ -566,7 +626,11 @@ mod tests {
 
     #[test]
     fn test_column_auto_uses_intrinsic_preferred() {
-        let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 200.0, 500.0));
+        let mut state = ColumnLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 0.0, 200.0, 500.0));
         let req = SizeReq {
             width: Extent::Fixed(120.0),
             height: Extent::Auto,
@@ -579,7 +643,11 @@ mod tests {
 
     #[test]
     fn test_column_fill_cross_axis_uses_bounds_width() {
-        let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(5.0, 0.0, 200.0, 500.0));
+        let mut state = ColumnLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(5.0, 0.0, 200.0, 500.0));
         let req = SizeReq {
             width: Extent::Fill,
             height: Extent::Fixed(30.0),
@@ -591,7 +659,11 @@ mod tests {
 
     #[test]
     fn test_auto_without_intrinsic_falls_back() {
-        let mut state = RowLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        let mut state = RowLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let r = state.layout(SizeReq::auto(), IntrinsicSize::UNKNOWN);
         // No intrinsic reported → both axes use the global fallback.
         assert_eq!(
@@ -602,7 +674,11 @@ mod tests {
 
     #[test]
     fn test_row_auto_width_advances_cursor() {
-        let mut state = RowLayout { spacing: 6.0 }.begin(Rect::new(0.0, 0.0, 400.0, 50.0));
+        let mut state = RowLayout {
+            spacing: 6.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 0.0, 400.0, 50.0));
         let req = SizeReq {
             width: Extent::Auto,
             height: Extent::Fixed(40.0),
@@ -660,8 +736,8 @@ mod tests {
             LayoutSpace {
                 x: 1.0,
                 y: 2.0,
-                width: AxisBound::Bounded(30.0),
-                height: AxisBound::Bounded(40.0),
+                width: AxisBound::Exact(30.0),
+                height: AxisBound::Exact(40.0),
             }
         );
     }
@@ -670,8 +746,11 @@ mod tests {
     fn test_column_unbounded_height_resolves_concrete() {
         // Rule 2: a child laid out in an unbounded main axis still resolves to a
         // concrete Rect, and the cursor advances by a concrete f32.
-        let mut state =
-            ColumnLayout { spacing: 5.0 }.begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
+        let mut state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::Start,
+        }
+        .begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
         let req = SizeReq {
             width: Extent::Fill,
             height: Extent::Auto,
@@ -688,8 +767,11 @@ mod tests {
     #[test]
     fn test_fill_on_unbounded_axis_falls_back_to_intrinsic() {
         // Rule 1: Fill on an unbounded axis is undefined — falls back to intrinsic.
-        let mut state =
-            ColumnLayout { spacing: 0.0 }.begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
+        let mut state = ColumnLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
         let req = SizeReq {
             width: Extent::Fixed(50.0),
             height: Extent::Fill,
@@ -701,8 +783,11 @@ mod tests {
 
     #[test]
     fn test_fill_on_unbounded_axis_without_intrinsic_uses_fallback() {
-        let mut state =
-            RowLayout { spacing: 0.0 }.begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
+        let mut state = RowLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
         let req = SizeReq {
             width: Extent::Fill,
             height: Extent::Fixed(40.0),
@@ -734,7 +819,11 @@ mod tests {
 
     #[test]
     fn test_column_content_extent() {
-        let mut state = ColumnLayout { spacing: 10.0 }.begin(Rect::new(5.0, 7.0, 100.0, 500.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(5.0, 7.0, 100.0, 500.0));
         assert_eq!(state.content_extent(), Vec2::ZERO);
         state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         state.layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN);
@@ -745,7 +834,11 @@ mod tests {
 
     #[test]
     fn test_row_content_extent() {
-        let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         state.layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN);
         // Width = right of last child = 30 + 5 + 20 = 55; height = tallest child (40).
@@ -765,7 +858,10 @@ mod tests {
     fn test_offset_content_extent_ignores_offset() {
         let offset = OffsetLayout {
             offset: Vec2::new(13.0, 27.0),
-            inner: ColumnLayout { spacing: 0.0 },
+            inner: ColumnLayout {
+                spacing: 0.0,
+                align: CrossAlign::Start,
+            },
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
@@ -778,7 +874,10 @@ mod tests {
     fn test_offset_layout() {
         let offset = OffsetLayout {
             offset: Vec2::new(5.0, 15.0),
-            inner: ColumnLayout { spacing: 10.0 },
+            inner: ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            },
         };
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
         let mut state = offset.begin(bounds);
@@ -791,5 +890,148 @@ mod tests {
         let r2 = state.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
         assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
+    }
+
+    #[test]
+    fn test_at_most_resolution() {
+        let fallback = 96.0;
+
+        // Extent::Fixed is always fixed
+        assert_eq!(
+            Extent::Fixed(50.0).resolve(Some(30.0), AxisBound::AtMost(100.0), fallback),
+            50.0
+        );
+        assert_eq!(
+            Extent::Fixed(150.0).resolve(Some(30.0), AxisBound::AtMost(100.0), fallback),
+            150.0
+        );
+
+        // Extent::Auto uses preferred, but caps at AtMost
+        assert_eq!(
+            Extent::Auto.resolve(Some(40.0), AxisBound::AtMost(100.0), fallback),
+            40.0
+        );
+        assert_eq!(
+            Extent::Auto.resolve(Some(120.0), AxisBound::AtMost(100.0), fallback),
+            100.0
+        );
+        assert_eq!(
+            Extent::Auto.resolve(None, AxisBound::AtMost(80.0), fallback),
+            80.0
+        );
+
+        // Extent::Fill acts as Auto under AtMost
+        assert_eq!(
+            Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(100.0), fallback),
+            40.0
+        );
+        assert_eq!(
+            Extent::Fill.resolve(Some(120.0), AxisBound::AtMost(100.0), fallback),
+            100.0
+        );
+        assert_eq!(
+            Extent::Fill.resolve(None, AxisBound::AtMost(80.0), fallback),
+            80.0
+        );
+    }
+
+    #[test]
+    fn test_column_cross_alignment_exact() {
+        // Exact width layout space
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::Exact(100.0), AxisBound::Unbounded);
+
+        // Center alignment
+        let mut center_state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::Center,
+        }
+        .begin(space);
+        let r1 = center_state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        // x = 10.0 + (100.0 - 40.0) * 0.5 = 40.0
+        assert_eq!(r1, Rect::new(40.0, 10.0, 40.0, 20.0));
+
+        // End alignment
+        let mut end_state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::End,
+        }
+        .begin(space);
+        let r2 = end_state.layout(SizeReq::fixed(30.0, 20.0), IntrinsicSize::UNKNOWN);
+        // x = 10.0 + 100.0 - 30.0 = 80.0
+        assert_eq!(r2, Rect::new(80.0, 10.0, 30.0, 20.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "requires AxisBound::Exact")]
+    fn test_column_cross_alignment_panic_at_most() {
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::AtMost(100.0), AxisBound::Unbounded);
+        let mut state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::Center,
+        }
+        .begin(space);
+        let _ = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    #[should_panic(expected = "requires AxisBound::Exact")]
+    fn test_column_cross_alignment_panic_unbounded() {
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let mut state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::End,
+        }
+        .begin(space);
+        let _ = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    fn test_row_cross_alignment_exact() {
+        // Exact height layout space
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Exact(80.0));
+
+        // Center alignment
+        let mut center_state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Center,
+        }
+        .begin(space);
+        let r1 = center_state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        // y = 10.0 + (80.0 - 20.0) * 0.5 = 40.0
+        assert_eq!(r1, Rect::new(10.0, 40.0, 40.0, 20.0));
+
+        // End alignment
+        let mut end_state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::End,
+        }
+        .begin(space);
+        let r2 = end_state.layout(SizeReq::fixed(40.0, 30.0), IntrinsicSize::UNKNOWN);
+        // y = 10.0 + 80.0 - 30.0 = 60.0
+        assert_eq!(r2, Rect::new(10.0, 60.0, 40.0, 30.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "requires AxisBound::Exact")]
+    fn test_row_cross_alignment_panic_at_most() {
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::AtMost(80.0));
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Center,
+        }
+        .begin(space);
+        let _ = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    #[should_panic(expected = "requires AxisBound::Exact")]
+    fn test_row_cross_alignment_panic_unbounded() {
+        let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::End,
+        }
+        .begin(space);
+        let _ = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
     }
 }

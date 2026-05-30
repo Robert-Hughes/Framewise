@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, Extent, Layout, RowLayout, SizeReq, WrapLayout},
+    layout::{ColumnLayout, CrossAlign, Extent, Layout, RowLayout, SizeReq, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -28,6 +28,8 @@ pub struct ButtonPageState {
     pub intrinsic_btns: [ButtonState; 5],
     // Section 6: wrapping flow of auto-width buttons
     pub wrap_btns: [ButtonState; 8],
+    // Section 7: alignment showcase
+    pub align_btns: [ButtonState; 12],
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -56,7 +58,10 @@ pub fn draw_button_page(
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        ColumnLayout { spacing: 24.0 },
+        ColumnLayout {
+            spacing: 24.0,
+            align: CrossAlign::Start,
+        },
     );
 
     let theme = outer.theme;
@@ -70,7 +75,10 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-            RowLayout { spacing: 10.0 },
+            RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            },
         );
 
         let styles = [primary, secondary, accent, ghost];
@@ -95,13 +103,19 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 200.0).into(),
-            RowLayout { spacing: 30.0 },
+            RowLayout {
+                spacing: 30.0,
+                align: CrossAlign::Start,
+            },
         );
 
         {
             let mut col = row.child_with_layout(
                 Vec2::new(260.0, 200.0).into(),
-                ColumnLayout { spacing: 8.0 },
+                ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
             );
 
             let entries = [
@@ -127,7 +141,10 @@ pub fn draw_button_page(
         {
             let mut col = row.child_with_layout(
                 Vec2::new(260.0, 200.0).into(),
-                ColumnLayout { spacing: 8.0 },
+                ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
             );
 
             let entries = [
@@ -160,7 +177,10 @@ pub fn draw_button_page(
     {
         let mut outer_row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            RowLayout { spacing: 10.0 },
+            RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            },
         );
 
         button(
@@ -173,12 +193,20 @@ pub fn draw_button_page(
         {
             let mut col = outer_row.child_with_layout(
                 Vec2::new(420.0, 96.0).into(),
-                ColumnLayout { spacing: 12.0 },
+                ColumnLayout {
+                    spacing: 12.0,
+                    align: CrossAlign::Start,
+                },
             );
 
             {
-                let mut inner_row = col
-                    .child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
+                let mut inner_row = col.child_with_layout(
+                    Vec2::new(420.0, 48.0).into(),
+                    RowLayout {
+                        spacing: 12.0,
+                        align: CrossAlign::Start,
+                    },
+                );
 
                 let r = button(
                     &mut inner_row,
@@ -235,7 +263,10 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 124.0).into(),
-            RowLayout { spacing: 20.0 },
+            RowLayout {
+                spacing: 20.0,
+                align: CrossAlign::Start,
+            },
         );
 
         let group_labels = [
@@ -249,7 +280,10 @@ pub fn draw_button_page(
         for g in 0..3 {
             let mut col = row.child_with_layout(
                 Vec2::new(180.0, 124.0).into(),
-                ColumnLayout { spacing: 8.0 },
+                ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
             );
 
             for j in 0..3 {
@@ -279,13 +313,19 @@ pub fn draw_button_page(
     {
         let mut col = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            ColumnLayout { spacing: 12.0 },
+            ColumnLayout {
+                spacing: 12.0,
+                align: CrossAlign::Start,
+            },
         );
 
         {
             let mut row = col.child_with_layout(
                 Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-                RowLayout { spacing: 10.0 },
+                RowLayout {
+                    spacing: 10.0,
+                    align: CrossAlign::Start,
+                },
             );
 
             // Each button's width comes from its label; height is fixed.
@@ -357,6 +397,147 @@ pub fn draw_button_page(
             );
         }
         wrap.finish();
+    }
+
+    // ── Section 7: Alignment Showcase ──────────────────────────────────────────
+    // Stacks centered and end-aligned columns and rows side-by-side to verify
+    // cross-axis alignment math under Exact bounds.
+    {
+        let mut row = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 180.0).into(),
+            RowLayout {
+                spacing: 20.0,
+                align: CrossAlign::Start,
+            },
+        );
+
+        // Sub-column 1: Centered column (Exact width 200, contains 3 different width buttons)
+        {
+            let mut col = row.child_with_layout(
+                Vec2::new(200.0, 180.0).into(),
+                ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Center,
+                },
+            );
+
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("Center S").style(accent),
+                Vec2::new(80.0, 36.0).into(),
+                &mut state.align_btns[0],
+            );
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("Center Med").style(secondary),
+                Vec2::new(140.0, 36.0).into(),
+                &mut state.align_btns[1],
+            );
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("Center Lrg").style(primary),
+                Vec2::new(180.0, 36.0).into(),
+                &mut state.align_btns[2],
+            );
+
+            col.finish();
+        }
+
+        // Sub-column 2: End-aligned column (Exact width 200, contains 3 different width buttons)
+        {
+            let mut col = row.child_with_layout(
+                Vec2::new(200.0, 180.0).into(),
+                ColumnLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::End,
+                },
+            );
+
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("End S").style(accent),
+                Vec2::new(80.0, 36.0).into(),
+                &mut state.align_btns[3],
+            );
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("End Med").style(secondary),
+                Vec2::new(140.0, 36.0).into(),
+                &mut state.align_btns[4],
+            );
+            button(
+                &mut col,
+                ButtonSpecBuilder::new().text("End Lrg").style(primary),
+                Vec2::new(180.0, 36.0).into(),
+                &mut state.align_btns[5],
+            );
+
+            col.finish();
+        }
+
+        // Sub-column 3: Row alignment demonstration (Vertical alignment)
+        // Stacks centered and end-aligned rows nested in a Start-aligned column.
+        {
+            let mut col = row.child_with_layout(
+                Vec2::new(300.0, 180.0).into(),
+                ColumnLayout {
+                    spacing: 12.0,
+                    align: CrossAlign::Start,
+                },
+            );
+
+            // Centered Row (Exact height 60)
+            {
+                let mut inner_row = col.child_with_layout(
+                    Vec2::new(300.0, 60.0).into(),
+                    RowLayout {
+                        spacing: 8.0,
+                        align: CrossAlign::Center,
+                    },
+                );
+                button(
+                    &mut inner_row,
+                    ButtonSpecBuilder::new().text("Row C1").style(primary),
+                    Vec2::new(80.0, 30.0).into(),
+                    &mut state.align_btns[6],
+                );
+                button(
+                    &mut inner_row,
+                    ButtonSpecBuilder::new().text("Row C2").style(secondary),
+                    Vec2::new(100.0, 48.0).into(),
+                    &mut state.align_btns[7],
+                );
+                inner_row.finish();
+            }
+
+            // End-Aligned Row (Exact height 60)
+            {
+                let mut inner_row = col.child_with_layout(
+                    Vec2::new(300.0, 60.0).into(),
+                    RowLayout {
+                        spacing: 8.0,
+                        align: CrossAlign::End,
+                    },
+                );
+                button(
+                    &mut inner_row,
+                    ButtonSpecBuilder::new().text("Row E1").style(primary),
+                    Vec2::new(80.0, 30.0).into(),
+                    &mut state.align_btns[8],
+                );
+                button(
+                    &mut inner_row,
+                    ButtonSpecBuilder::new().text("Row E2").style(secondary),
+                    Vec2::new(100.0, 48.0).into(),
+                    &mut state.align_btns[9],
+                );
+                inner_row.finish();
+            }
+
+            col.finish();
+        }
+
+        row.finish();
     }
 
     outer.finish();

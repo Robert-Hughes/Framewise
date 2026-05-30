@@ -5,6 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
+ Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar?
+
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
