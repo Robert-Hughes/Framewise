@@ -343,7 +343,7 @@ pub fn draw_scroll_demo(
             let mut main_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::Always)
+                    .h_vis(ScrollbarVisibility::None)
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
