@@ -63,6 +63,24 @@ impl LayoutSpace {
             height: AxisBound::Exact(height),
         }
     }
+
+    /// Subtract margins from a space constraint (analogous to Rect::inset).
+    pub fn inset(self, amount: f32) -> Self {
+        Self {
+            x: self.x + amount,
+            y: self.y + amount,
+            width: match self.width {
+                AxisBound::Exact(w) => AxisBound::Exact((w - amount * 2.0).max(0.0)),
+                AxisBound::AtMost(w) => AxisBound::AtMost((w - amount * 2.0).max(0.0)),
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+            height: match self.height {
+                AxisBound::Exact(h) => AxisBound::Exact((h - amount * 2.0).max(0.0)),
+                AxisBound::AtMost(h) => AxisBound::AtMost((h - amount * 2.0).max(0.0)),
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        }
+    }
 }
 
 /// A fully-specified `Rect` is a fully-`Bounded` space.

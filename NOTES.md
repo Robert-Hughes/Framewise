@@ -17,6 +17,8 @@ as these weren't in the original table.
 
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
 
+* Want to make sure that user's can create custom Layouts, not just custom Widgets. Add this to DESIGN.md.
+
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
@@ -61,6 +63,8 @@ Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw are
 
 
 ## Things Still to Figure Out
+
+- **Z-ordering for fit-to-children containers** — fit-to-children containers only discover their final outer size at `finish()` time (after their children have run). Because immediate-mode rendering relies on emit order, drawing the container background/border *after* its children causes the background to render on top of the children, covering them. We need a mechanism to allow containers to append backgrounds *under* children, possibly by separate command list buffering or vector slot reservation. For now in Phase 6, we leave the layering "incorrect" in the implementation, as we don't draw container backgrounds just yet.
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual
   stack) overlaps one drawn earlier, the earlier widget's hit region may still be tested
