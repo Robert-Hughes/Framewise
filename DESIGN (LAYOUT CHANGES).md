@@ -224,3 +224,115 @@ The reorder trick (emit autos to measure, distribute, place, `override_next`) is
 - **Layout stays a `WidgetContext`-level concept.** Raw widgets receive fully-resolved `Rect`s and never see `LayoutSpace`, `IntrinsicSize`, or `AxisBound`.
 - **Determinism and locality.** Every placement depends only on parent space, caller intent, this widget's measurement, and earlier siblings — never later ones.
 - **Three orderings stay independent.** Emit, visual, and focus order are decoupled; reordering emit (within a DAG) is the sanctioned bridge from the Declare tier down into Automate.
+
+---
+
+## Phase 5 — Three-state axis bounds (`Exact` / `AtMost` / `Unbounded`)
+
+Phases 1–4 use a binary `AxisBound` (`Bounded(f32) | Unbounded`). Phase 5 splits the bounded case into two semantically distinct kinds of parent knowledge:
+
+```rust
+pub enum AxisBound {
+    Exact(f32),     // "you live in a box of this width" — limit AND anchor frame
+    AtMost(f32),    // "choose your own width, but don't exceed this" — limit only
+    Unbounded,      // "no ceiling from me on this axis"
+}
+```
+
+(`Exact` replaces the old `Bounded`; rename rather than reuse the name, so "concrete resolved extent" never blurs with "constraint ceiling".)
+
+### Why three, not two
+
+`AtMost` is the missing middle between "totally fixed" and "infinite", and it covers very common container semantics that neither `Exact` nor `Unbounded` expresses honestly:
+
+- "Wrap within the panel if needed, but don't force full width."
+- "Hug contents, but never grow beyond the viewport."
+- Text especially: it rarely wants *infinite* width (which produces pathological preferred sizes) — it wants "measure as naturally as you can, but under this maximum line length." That is `AtMost`, not `Unbounded`.
+
+### The distinction that matters: anchor vs ceiling
+
+`Exact(w)` answers two questions; `AtMost(w)` answers only the first:
+
+1. **How much space may the child consume?** — both answer this.
+2. **Relative to what concrete box may it position itself?** — only `Exact` answers this.
+
+`AtMost` is a ceiling with no committed far edge. `Exact` is a ceiling plus an anchor frame. Many simple widgets (a plain label) measure identically under both, but an aligning layout or decorator does not: a right edge only exists if the parent has already committed to one.
+
+So `AtMost` is **not** a weaker `Exact` — it is a different kind of knowledge. The layout API should branch on it explicitly, never silently coerce, or layouts risk doing alignment math against a width that was only ever a cap.
+
+### Unifying rule (generalizes the Phase 2 "fill + Unbounded is illegal")
+
+> **Position & distribution policies — fill, right-align, center, space-between — require `Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` permit only measurement / shrink-wrap decisions.**
+
+The Phase 2 rule "fill + Unbounded is illegal" is now just one case of this. Mental model:
+
+- `Exact(w)` — "You live in a box of width w." (alignment, fill, distribution legal)
+- `AtMost(w)` — "Choose your own width, up to w." (measure / shrink-wrap only)
+- `Unbounded` — "No width ceiling from me." (accumulation / scroll extent only)
+
+### Resolution semantics
+
+- `Exact(w)` → child uses `w` (or aligns/fills within it).
+- `AtMost(w)` → child measures intrinsic, resolves to `min(preferred, w)`.
+- `Unbounded` → child resolves to intrinsic `preferred`; the parent accumulates a concrete f32 extent (the Phase 2 accumulation rule). No infinity reaches a `Rect`.
+
+### Invariant preserved
+
+`AxisBound` (all three states) lives in `LayoutSpace` only. By the time a raw widget is called, the high-level path has already resolved a concrete `Rect`. Raw widgets never see `Exact`/`AtMost`/`Unbounded`. The flow:
+
+1. Parent provides `LayoutSpace` with `Exact` / `AtMost` / `Unbounded`.
+2. Intrinsic measurement is queried under those constraints.
+3. Layout resolves a concrete `Rect`.
+4. Raw widget is called with only that `Rect`.
+
+---
+
+## Phase 6 — Fit-to-children containers (extent-only deferral)
+
+A container that sizes itself to its children. Viable in **one direction only**: a container may report its own final outer bounds *after* children run, provided its children did not need those final bounds to lay themselves out.
+
+### Two kinds of fit — only the first is supported
+
+- **Extent-only fit (supported).** `begin` opens a child context with a partially-unbounded `LayoutSpace` (e.g. bounded/`AtMost` on the cross axis, `Unbounded` on the main axis). Children resolve to concrete `Rect`s from known constraints. `end` computes the container's outer bounds from the accumulated extent (cursor / union of child bounds) plus padding/border. Children needed parent *constraints*, never parent *final size*.
+- **Constraint-affecting fit (refused).** Children need the fitted result as an input to their own measurement or placement — wrapping text to the fitted width, distributing leftover relative to the final extent, centering against the final far edge. Here child size depends on parent size while parent size depends on children: a self-dependency. This is the same width ↔ content loop already in the Tier 3 non-goals (square-ish captions, text-hugging tooltips). Not supported without buffering or a second pass.
+
+The dividing line is exactly the headline rule: if the container's size is "the union of child bounds after layout," deferral is valid; if the fitted size is *also* an input to child measurement, it is self-referential and refused.
+
+### Relationship to scroll (Phase 3)
+
+This is conceptually closer to the Phase 3 scroll begin→end rebalance than to a generic begin/end widget split: `begin` establishes a provisional coordinate space, `end` seals the container from accumulated child extent. A fit-children container is essentially "the scroll rebalance minus the scrollbar and clip." Phase 6 reuses that machinery.
+
+### API shape
+
+Fit-children is a **container layout primitive**, not a "widgets may lack bounds until end" relaxation. `begin` returns a child context whose `LayoutSpace` is partially unbounded; raw leaf widgets still receive concrete `Rect`s at call time. The strong invariant holds: **containers may defer their own outer rect, but never the child rects passed to raw widgets.**
+
+### Worked example
+
+A bordered box hugging a vertical stack of intrinsic-width labels plus padding: children emitted in an unbounded vertical flow, width = max child width (under the cross-axis cap), height = accumulated cursor, border rect finalized at `end`. (The Tier 1 table already lists "a bordered box that hugs its single child plus padding" as viable once intrinsic sizing + unbounded axes exist — Phase 6 generalizes it to multi-child.)
+
+By contrast, a box that wants to shrink-wrap text *after* wrapping it to the box width does not work: the wrapped-text measurement needs the width the box is trying to discover from that same wrapped text. Tier 3 non-goal.
+
+### Open question (resolve at implementation)
+
+The deferral itself is straightforward. The new machinery is **feeding the fitted extent back into the parent layout** — this is the part to design when we get here:
+
+- A fit-box's top-left is known at `begin` (the parent cursor position) — `Exact`-anchored. Its extent is unknown until `box.finish()`.
+- The parent's **next** sibling needs the box's extent to position itself (a past-sibling dependency once the box is emitted — legal by the headline, but mechanically new).
+- Today a sequential layout (`ColumnLayout`/`RowLayout`) advances its cursor inside `layout()`, at the child's *begin* — when a fit-box's extent is still unknown. And `finish()` currently returns `()`.
+- So Phase 6 needs: **(a)** a fit container's `finish()` to surface its resolved outer bounds, and **(b)** a sequential parent layout to defer cursor-advance for a container child to that child's `finish()` time, using the reported extent.
+- Nested fit (box-in-box) chains this bottom-up: inner finishes first (borrow-enforced sequential children), reports extent, outer accumulates, outer finishes, reports to *its* parent. All past-only, so legal — but every level's parent-cursor-advance is deferred to child-finish.
+
+Exact mechanism for (a)/(b) is **deferred to implementation** — flagged here so it is not forgotten.
+
+Another thing to figure out - PushClip would be run as part of begin(), but we don't know the rect yet!
+
+---
+
+## Phase summary (updated)
+
+1. Widget intrinsic size reporting.
+2. Unbounded axes (`Bounded` / `Unbounded`).
+3. Deferred scroll content (Reserve policy, begin→end rebalance).
+4. Declared-structure helpers.
+5. Three-state axis bounds (`Exact` / `AtMost` / `Unbounded`) + the position-policy-requires-`Exact` rule.
+6. Fit-to-children containers (extent-only deferral) — open question on parent-cursor propagation, to resolve at implementation.
