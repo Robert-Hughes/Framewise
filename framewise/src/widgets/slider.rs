@@ -1308,18 +1308,18 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         input.scroll_delta.y = 1.0; // scroll up
 
-        // Frame 1: both register
+        // Frame 1: slider registers first (inner), parent second (outer)
         focus_system.begin_frame();
-        // Parent registers first (outer)
-        focus_system.claim_scroll_up(parent_id);
-        focus_system.claim_scroll_down(parent_id);
-        // Standalone slider registers second (inner) — overwrites both
+        // Standalone slider registers first (inner)
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
             &input,
             &mut focus_system,
         );
+        // Parent registers after (outer, simulating parent's end())
+        focus_system.claim_scroll_up(parent_id);
+        focus_system.claim_scroll_down(parent_id);
         focus_system.end_frame();
 
         // Frame 2: parent checks — it should NOT have won either direction
@@ -1343,14 +1343,15 @@ mod tests {
         input.scroll_delta.y = -1.0; // scroll down
 
         focus_system.begin_frame();
-        focus_system.claim_scroll_up(parent_id);
-        focus_system.claim_scroll_down(parent_id);
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
             &input,
             &mut focus_system,
         );
+        // Parent claims after (simulating parent's end())
+        focus_system.claim_scroll_up(parent_id);
+        focus_system.claim_scroll_down(parent_id);
         focus_system.end_frame();
 
         assert!(
@@ -1375,14 +1376,15 @@ mod tests {
         input.scroll_delta.x = 3.0; // horizontal scroll only
 
         focus_system.begin_frame();
-        focus_system.claim_scroll_left(parent_id);
-        focus_system.claim_scroll_right(parent_id);
         raw::slider(
             test_spec(0.0, 100.0, true),
             &mut state,
             &input,
             &mut focus_system,
         );
+        // Parent claims after (simulating parent's end())
+        focus_system.claim_scroll_left(parent_id);
+        focus_system.claim_scroll_right(parent_id);
         focus_system.end_frame();
 
         assert!(
@@ -1408,10 +1410,8 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         input.scroll_delta.y = 1.0; // scroll up
 
-        // Frame 1: parent claims, then inner propagating slider
+        // Frame 1: inner propagating slider first, then parent claims simulating parent's end()
         focus_system.begin_frame();
-        focus_system.claim_scroll_up(parent_id); // parent can scroll up
-        focus_system.claim_scroll_down(parent_id);
         // Inner propagating slider at min: skips claim_scroll_up
         raw::slider(
             test_spec(0.0, 100.0, false),
@@ -1419,6 +1419,9 @@ mod tests {
             &input,
             &mut focus_system,
         );
+        // Parent claims after (simulating parent's end())
+        focus_system.claim_scroll_up(parent_id); // parent can scroll up
+        focus_system.claim_scroll_down(parent_id);
         focus_system.end_frame();
 
         // Parent should have retained the scroll-up claim
@@ -1441,14 +1444,15 @@ mod tests {
         input.scroll_delta.y = -1.0; // scroll down
 
         focus_system.begin_frame();
-        focus_system.claim_scroll_up(parent_id);
-        focus_system.claim_scroll_down(parent_id); // parent can scroll down
         raw::slider(
             test_spec(0.0, 100.0, false),
             &mut state,
             &input,
             &mut focus_system,
         );
+        // Parent claims after (simulating parent's end())
+        focus_system.claim_scroll_up(parent_id);
+        focus_system.claim_scroll_down(parent_id); // parent can scroll down
         focus_system.end_frame();
 
         assert!(
@@ -1472,14 +1476,15 @@ mod tests {
         input.scroll_delta.y = 1.0;
 
         focus_system.begin_frame();
-        focus_system.claim_scroll_up(parent_id);
-        focus_system.claim_scroll_down(parent_id);
         raw::slider(
             test_spec(0.0, 100.0, false),
             &mut state,
             &input,
             &mut focus_system,
         );
+        // Parent claims after (simulating parent's end())
+        focus_system.claim_scroll_up(parent_id);
+        focus_system.claim_scroll_down(parent_id);
         focus_system.end_frame();
 
         assert!(

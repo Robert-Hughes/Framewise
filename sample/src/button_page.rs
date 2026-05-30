@@ -59,17 +59,19 @@ pub fn draw_button_page(
         ColumnLayout { spacing: 24.0 },
     );
 
-    let theme = outer.theme.clone();
-    let primary   = ButtonStyle::primary_from_theme(&theme);
+    let theme = outer.theme;
+    let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
-    let accent    = ButtonStyle::accent_from_theme(&theme);
-    let ghost     = ButtonStyle::ghost_from_theme(&theme);
+    let accent = ButtonStyle::accent_from_theme(&theme);
+    let ghost = ButtonStyle::ghost_from_theme(&theme);
 
     // ── Section 1: Toolbar row — one button per style ─────────────────────────
     // Nesting: root col > row
     {
-        let mut row =
-            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout { spacing: 10.0 });
+        let mut row = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 40.0).into(),
+            RowLayout { spacing: 10.0 },
+        );
 
         let styles = [primary, secondary, accent, ghost];
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
@@ -91,23 +93,30 @@ pub fn draw_button_page(
     // Nesting: root col > row > [col, col]
     // Left col: primary + secondary; right col: accent + ghost; each with disabled variant
     {
-        let mut row = outer
-            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 200.0).into(), RowLayout { spacing: 30.0 });
+        let mut row = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 200.0).into(),
+            RowLayout { spacing: 30.0 },
+        );
 
         {
-            let mut col =
-                row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout { spacing: 8.0 });
+            let mut col = row.child_with_layout(
+                Vec2::new(260.0, 200.0).into(),
+                ColumnLayout { spacing: 8.0 },
+            );
 
             let entries = [
-                ("Primary",            primary,   false),
-                ("Primary Disabled",   primary,   true),
-                ("Secondary",          secondary, false),
+                ("Primary", primary, false),
+                ("Primary Disabled", primary, true),
+                ("Secondary", secondary, false),
                 ("Secondary Disabled", secondary, true),
             ];
             for (i, (text, style, disabled)) in entries.iter().enumerate() {
                 button(
                     &mut col,
-                    ButtonSpecBuilder::new().text(text).style(*style).disabled(*disabled),
+                    ButtonSpecBuilder::new()
+                        .text(text)
+                        .style(*style)
+                        .disabled(*disabled),
                     Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[i],
                 );
@@ -116,19 +125,24 @@ pub fn draw_button_page(
         }
 
         {
-            let mut col =
-                row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout { spacing: 8.0 });
+            let mut col = row.child_with_layout(
+                Vec2::new(260.0, 200.0).into(),
+                ColumnLayout { spacing: 8.0 },
+            );
 
             let entries = [
-                ("Accent",          accent, false),
+                ("Accent", accent, false),
                 ("Accent Disabled", accent, true),
-                ("Ghost",           ghost,  false),
-                ("Ghost Disabled",  ghost,  true),
+                ("Ghost", ghost, false),
+                ("Ghost Disabled", ghost, true),
             ];
             for (i, (text, style, disabled)) in entries.iter().enumerate() {
                 button(
                     &mut col,
-                    ButtonSpecBuilder::new().text(text).style(*style).disabled(*disabled),
+                    ButtonSpecBuilder::new()
+                        .text(text)
+                        .style(*style)
+                        .disabled(*disabled),
                     Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[4 + i],
                 );
@@ -144,8 +158,10 @@ pub fn draw_button_page(
     // Outer row: [label btn | control column]
     // Control column: [dec/display/inc row | reset btn]
     {
-        let mut outer_row =
-            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), RowLayout { spacing: 10.0 });
+        let mut outer_row = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 96.0).into(),
+            RowLayout { spacing: 10.0 },
+        );
 
         button(
             &mut outer_row,
@@ -155,12 +171,14 @@ pub fn draw_button_page(
         );
 
         {
-            let mut col =
-                outer_row.child_with_layout(Vec2::new(420.0, 96.0).into(), ColumnLayout { spacing: 12.0 });
+            let mut col = outer_row.child_with_layout(
+                Vec2::new(420.0, 96.0).into(),
+                ColumnLayout { spacing: 12.0 },
+            );
 
             {
-                let mut inner_row =
-                    col.child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
+                let mut inner_row = col
+                    .child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
 
                 let r = button(
                     &mut inner_row,
@@ -175,7 +193,10 @@ pub fn draw_button_page(
                 let count_text = state.counter.to_string();
                 button(
                     &mut inner_row,
-                    ButtonSpecBuilder::new().text(&count_text).style(ghost).disabled(true),
+                    ButtonSpecBuilder::new()
+                        .text(&count_text)
+                        .style(ghost)
+                        .disabled(true),
                     Vec2::new(120.0, 48.0).into(),
                     &mut state.counter_btns[2],
                 );
@@ -212,25 +233,32 @@ pub fn draw_button_page(
     // ── Section 4: Action grid — row containing three styled columns ──────────
     // Nesting: root col > row > [col, col, col]
     {
-        let mut row = outer
-            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 124.0).into(), RowLayout { spacing: 20.0 });
+        let mut row = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 124.0).into(),
+            RowLayout { spacing: 20.0 },
+        );
 
         let group_labels = [
-            ["Save",  "Save As", "Export"],
-            ["Cut",   "Copy",    "Paste"],
-            ["Undo",  "Redo",    "Clear"],
+            ["Save", "Save As", "Export"],
+            ["Cut", "Copy", "Paste"],
+            ["Undo", "Redo", "Clear"],
         ];
         let group_styles = [primary, secondary, accent];
 
+        #[allow(clippy::needless_range_loop)]
         for g in 0..3 {
-            let mut col =
-                row.child_with_layout(Vec2::new(180.0, 124.0).into(), ColumnLayout { spacing: 8.0 });
+            let mut col = row.child_with_layout(
+                Vec2::new(180.0, 124.0).into(),
+                ColumnLayout { spacing: 8.0 },
+            );
 
             for j in 0..3 {
                 let idx = g * 3 + j;
                 let r = button(
                     &mut col,
-                    ButtonSpecBuilder::new().text(group_labels[g][j]).style(group_styles[g]),
+                    ButtonSpecBuilder::new()
+                        .text(group_labels[g][j])
+                        .style(group_styles[g]),
                     Vec2::new(160.0, 36.0).into(),
                     &mut state.grid_btns[idx],
                 );
@@ -249,12 +277,16 @@ pub fn draw_button_page(
     // button in a column — sized by the layout from the button's intrinsic size,
     // no explicit widths.
     {
-        let mut col = outer
-            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), ColumnLayout { spacing: 12.0 });
+        let mut col = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 96.0).into(),
+            ColumnLayout { spacing: 12.0 },
+        );
 
         {
-            let mut row =
-                col.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout { spacing: 10.0 });
+            let mut row = col.child_with_layout(
+                Vec2::new(win_w - 2.0 * pad, 40.0).into(),
+                RowLayout { spacing: 10.0 },
+            );
 
             // Each button's width comes from its label; height is fixed.
             let auto = SizeReq {
@@ -280,7 +312,9 @@ pub fn draw_button_page(
         };
         button(
             &mut col,
-            ButtonSpecBuilder::new().text("Fills the row width").style(primary),
+            ButtonSpecBuilder::new()
+                .text("Fills the row width")
+                .style(primary),
             fill,
             &mut state.intrinsic_btns[4],
         );
@@ -305,7 +339,14 @@ pub fn draw_button_page(
             height: Extent::Fixed(32.0),
         };
         let labels = [
-            "New", "Open", "Save", "Save As…", "Close", "Print Preview", "Export", "Quit",
+            "New",
+            "Open",
+            "Save",
+            "Save As…",
+            "Close",
+            "Print Preview",
+            "Export",
+            "Quit",
         ];
         for (i, label) in labels.iter().enumerate() {
             button(

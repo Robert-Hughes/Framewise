@@ -109,7 +109,11 @@ pub mod raw {
         } else {
             r.x + s.border_width
         };
-        let dot_color = if state.checked { s.on_thumb } else { s.off_thumb };
+        let dot_color = if state.checked {
+            s.on_thumb
+        } else {
+            s.off_thumb
+        };
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
             color: tint(dot_color),

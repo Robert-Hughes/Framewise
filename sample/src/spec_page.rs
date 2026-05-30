@@ -14,7 +14,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::{button, ButtonState, ButtonStyle},
-        checkbox::{checkbox, raw::CheckboxSpec, CheckedState, CheckboxSpecBuilder, CheckboxState},
+        checkbox::{checkbox, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState, CheckedState},
         chip::{chip, ChipSpecBuilder, ChipState, ChipStyle},
         color_swatch::color_swatch,
         divider::divider,
@@ -929,10 +929,26 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let styles: &[(&str, ButtonStyle, bool)] = &[
-                    ("Apply changes", framewise::widgets::button::ButtonStyle::primary_from_theme(&t), false),
-                    ("Cancel", framewise::widgets::button::ButtonStyle::primary_from_theme(&t), false),
-                    ("Reset", framewise::widgets::button::ButtonStyle::ghost_from_theme(&t), false),
-                    ("Publish v0.2", framewise::widgets::button::ButtonStyle::accent_from_theme(&t), false),
+                    (
+                        "Apply changes",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                        false,
+                    ),
+                    (
+                        "Cancel",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                        false,
+                    ),
+                    (
+                        "Reset",
+                        framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
+                        false,
+                    ),
+                    (
+                        "Publish v0.2",
+                        framewise::widgets::button::ButtonStyle::accent_from_theme(&t),
+                        false,
+                    ),
                 ];
                 let mut bx = lx;
                 for (i, (label, style, _)) in styles.iter().enumerate() {
@@ -1058,9 +1074,21 @@ pub fn draw_spec_page(
             y += 20.0;
             {
                 let size_defs: &[(&str, f32, ButtonStyle)] = &[
-                    ("22 px", t.h_sm, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("28 px", t.h_md, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("36 px", t.h_lg, framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    (
+                        "22 px",
+                        t.h_sm,
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "28 px",
+                        t.h_md,
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "36 px",
+                        t.h_lg,
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
                 ];
                 let mut bx = lx;
                 for (i, (label, h, style)) in size_defs.iter().enumerate() {
@@ -1079,9 +1107,18 @@ pub fn draw_spec_page(
 
                 // button group 1: ← | Frame 248 | →
                 let grp1: &[(&str, ButtonStyle)] = &[
-                    ("←", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("Frame 248", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("→", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    (
+                        "←",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "Frame 248",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "→",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
                 ];
                 // draw group border
                 for (i, (label, style)) in grp1.iter().enumerate() {
@@ -1100,9 +1137,18 @@ pub fn draw_spec_page(
 
                 // button group 2: Build | Run | Ship
                 let grp2: &[(&str, ButtonStyle)] = &[
-                    ("Build", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("Run", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("Ship", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
+                    (
+                        "Build",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "Run",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "Ship",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
                 ];
                 for (i, (label, style)) in grp2.iter().enumerate() {
                     let w = label.len() as f32 * 7.0 + 20.0;
@@ -3310,9 +3356,18 @@ pub fn draw_spec_page(
                 // button row
                 let mut btn_x = cr_w;
                 let btns: &[(&str, ButtonStyle)] = &[
-                    ("Apply", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("Cancel", framewise::widgets::button::ButtonStyle::primary_from_theme(&t)),
-                    ("Reset", framewise::widgets::button::ButtonStyle::ghost_from_theme(&t)),
+                    (
+                        "Apply",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "Cancel",
+                        framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
+                    ),
+                    (
+                        "Reset",
+                        framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
+                    ),
                 ];
                 for (i, (label, style)) in btns.iter().enumerate() {
                     let bw = label.len() as f32 * 7.0 + 20.0;
@@ -3607,4 +3662,3 @@ fn hero_logo(t: &Theme, lx: f32, y0: f32) -> DrawCommands {
 fn opts_dropdown_h(n: usize) -> f32 {
     n as f32 * 26.0 + 8.0
 }
-

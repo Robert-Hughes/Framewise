@@ -44,8 +44,14 @@ impl Default for NestedRowState {
             inner_btns: std::array::from_fn(|_| SampleButton::default()),
             horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             both_btns: std::array::from_fn(|_| SampleButton::default()),
-            slider_state: SliderState { value: 50.0, ..Default::default() },
-            horiz_slider_state: SliderState { value: 50.0, ..Default::default() },
+            slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
+            horiz_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
         }
     }
 }
@@ -92,7 +98,10 @@ impl Default for ScrollDemoState {
             grid_btns: std::array::from_fn(|_| SampleButton::default()),
             top_btn1: SampleButton::default(),
             top_btn2: SampleButton::default(),
-            standalone_slider_state: SliderState { value: 50.0, ..Default::default() },
+            standalone_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
             double_horiz_outer_scroll: Default::default(),
             double_horiz_inner_scroll: Default::default(),
             double_horiz_btns: std::array::from_fn(|_| SampleButton::default()),
@@ -105,7 +114,10 @@ impl Default for ScrollDemoState {
             triple_middle_scroll: Default::default(),
             triple_inner_scroll: Default::default(),
             triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
-            triple_inner_slider_state: SliderState { value: 50.0, ..Default::default() },
+            triple_inner_slider_state: SliderState {
+                value: 50.0,
+                ..Default::default()
+            },
             triple_innermost_scroll: Default::default(),
             triple_innermost_btns: std::array::from_fn(|_| SampleButton::default()),
         }
@@ -155,7 +167,8 @@ pub fn draw_scroll_demo(
                 let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                 main_row.child_with_layout(layout_params, layout)
             };
-            let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
+            let mut button_style =
+                framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
             button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
             button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
             button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
@@ -213,7 +226,10 @@ pub fn draw_scroll_demo(
                     let layout = framewise::layout::RowLayout { spacing: 10.0 };
                     content_col.child_with_layout(layout_params, layout)
                 };
-                let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&header_row.theme);
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &header_row.theme,
+                    );
                 button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
                 button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
                 button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
@@ -244,7 +260,8 @@ pub fn draw_scroll_demo(
                     let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
                     content_col.child_with_layout(layout_params, layout)
                 };
-                let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
                 button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
                 button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
                 button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
@@ -259,12 +276,8 @@ pub fn draw_scroll_demo(
                         for col in 0..4 {
                             let idx = row * 4 + col;
                             let shade = ((row + col) % 2) as f32 * 0.15;
-                            button_style.background = Color::from_srgb_f32(
-                                0.00 + shade,
-                                0.60 + shade,
-                                0.70 + shade,
-                                1.0,
-                            );
+                            button_style.background =
+                                Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
                             let _btn = {
                                 let btn_state = &mut state.grid_btns[idx].state;
                                 let layout_params = SizeReq::fixed(120.0, 32.0);
@@ -313,7 +326,8 @@ pub fn draw_scroll_demo(
                 framewise::layout::ColumnLayout { spacing: 10.0 },
             )
             .ctx;
-            let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&main_scroll.theme);
+            let mut button_style =
+                framewise::widgets::button::ButtonStyle::secondary_from_theme(&main_scroll.theme);
             button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
             button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
             button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
@@ -362,7 +376,10 @@ pub fn draw_scroll_demo(
                     1 => (0.90, 0.20, 0.60),
                     _ => (0.10, 0.50, 0.90),
                 };
-                let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&row_builder.theme);
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &row_builder.theme,
+                    );
                 button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
                 button_style.hovered =
                     Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
@@ -396,18 +413,13 @@ pub fn draw_scroll_demo(
 
                 for j in 0..6 {
                     let shade = (j % 2) as f32 * 0.15;
-                    button_style.background = Color::from_srgb_f32(
-                        base_r + shade,
-                        base_g + shade,
-                        base_b + shade,
-                        1.0,
-                    );
+                    button_style.background =
+                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                     let btn = {
                         let btn_state = &mut row_state.inner_btns[j].state;
                         let layout_params = SizeReq::fixed(100.0, 45.0);
                         let text = format!("V {}", j + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut inner_scroll, spec_builder, layout_params, btn_state)
                     };
                     let clicked = btn.input.clicked;
@@ -431,19 +443,17 @@ pub fn draw_scroll_demo(
 
                 for j in 0..10 {
                     let shade = (j % 2) as f32 * 0.15;
-                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&horiz_scroll.theme);
-                    button_style.background = Color::from_srgb_f32(
-                        base_r + shade,
-                        base_g + shade,
-                        base_b + shade,
-                        1.0,
-                    );
+                    let mut button_style =
+                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                            &horiz_scroll.theme,
+                        );
+                    button_style.background =
+                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                     let btn = {
                         let btn_state = &mut row_state.horiz_btns[j].state;
                         let layout_params = SizeReq::fixed(80.0, row_h - 25.0);
                         let text = format!("H {}", j + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut horiz_scroll, spec_builder, layout_params, btn_state)
                     };
                     let clicked = btn.input.clicked;
@@ -469,20 +479,18 @@ pub fn draw_scroll_demo(
                     let x = (j % 8) as f32 * 88.0;
                     let y = (j / 8) as f32 * 53.0;
                     let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
-                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&both_scroll.theme);
-                    button_style.background = Color::from_srgb_f32(
-                        base_r + shade,
-                        base_g + shade,
-                        base_b + shade,
-                        1.0,
-                    );
+                    let mut button_style =
+                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                            &both_scroll.theme,
+                        );
+                    button_style.background =
+                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
 
                     let btn = {
                         let btn_state = &mut row_state.both_btns[j].state;
                         let layout_params = Rect::new(x, y, 80.0, 45.0);
                         let text = format!("2D {}", j + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut both_scroll, spec_builder, layout_params, btn_state)
                     };
                     let clicked = btn.input.clicked;
@@ -615,7 +623,8 @@ pub fn draw_scroll_demo(
                     let col = j % 4;
                     let row = j / 4;
                     let shade = ((col + row) % 2) as f32 * 0.12;
-                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner.theme);
+                    let mut button_style =
+                        framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner.theme);
                     button_style.background =
                         Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
                     button_style.hovered =
@@ -629,8 +638,7 @@ pub fn draw_scroll_demo(
                             48.0,
                         );
                         let text = format!("2D {:02}", j + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut inner, spec_builder, layout_params, btn_state)
                     };
                     let clicked = btn.input.clicked;
@@ -680,7 +688,10 @@ pub fn draw_scroll_demo(
 
                 for j in 0..12 {
                     let shade = (j % 2) as f32 * 0.12;
-                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner_scroll.theme);
+                    let mut button_style =
+                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                            &inner_scroll.theme,
+                        );
                     button_style.background =
                         Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
                     button_style.hovered =
@@ -689,8 +700,7 @@ pub fn draw_scroll_demo(
                         let btn_state = &mut state.triple_inner_btns[j].state;
                         let layout_params = SizeReq::fixed(165.0, 35.0);
                         let text = format!("Inner V {}", j + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut inner_scroll, spec_builder, layout_params, btn_state)
                     };
                     let clicked = btn.input.clicked;
@@ -710,7 +720,10 @@ pub fn draw_scroll_demo(
                 )
                 .ctx;
                 for k in 0..5 {
-                    let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&innermost_scroll.theme);
+                    let mut button_style =
+                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                            &innermost_scroll.theme,
+                        );
                     button_style.background =
                         Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
                     button_style.hovered =
@@ -719,9 +732,13 @@ pub fn draw_scroll_demo(
                         let btn_state = &mut state.triple_innermost_btns[k].state;
                         let layout_params = SizeReq::fixed(80.0, 26.0);
                         let text = format!("IH {}", k + 1);
-                        let spec_builder =
-                            ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut innermost_scroll, spec_builder, layout_params, btn_state)
+                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                        button(
+                            &mut innermost_scroll,
+                            spec_builder,
+                            layout_params,
+                            btn_state,
+                        )
                     };
                     let clicked = btn.input.clicked;
                     if clicked {
@@ -740,7 +757,12 @@ pub fn draw_scroll_demo(
                         .orientation(SliderOrientation::Vertical)
                         .page_step(step)
                         .step(step);
-                    slider(&mut middle_scroll, spec_builder, layout_params, slider_state);
+                    slider(
+                        &mut middle_scroll,
+                        spec_builder,
+                        layout_params,
+                        slider_state,
+                    );
                 };
 
                 middle_scroll.finish();

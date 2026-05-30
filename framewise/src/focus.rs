@@ -275,30 +275,40 @@ impl FocusSystem {
         }
     }
 
-    // ── Hover-scroll claims (last-caller-wins) ────────────────────────────────
+    // ── Hover-scroll claims (first-caller-wins) ──────────────────────────────
     //
-    // Scroll claims (up/down/left/right) are checked during widget evaluation
-    // (begin_scroll_area's hover block). The traversal is OUTER-FIRST, so each
-    // inner widget can overwrite an outer claim — the deepest hovered widget
-    // that can scroll wins. A widget should only call these if it can actually
-    // scroll on that axis (not at its limit), so a child at its limit lets the
-    // parent retain the claim and bubbling works naturally.
+    // Scroll claims (up/down/left/right) are made during scope teardown
+    // (end_scroll_area and the slider's hover block), which runs INNER-FIRST.
+    // So "first caller" means the innermost hovered scrollable area — exactly
+    // the scope that should win the wheel event. Outer scopes calling later
+    // are silently ignored, which is why a parent's claim doesn't override an
+    // inner child's: when the inner claimed (has room to scroll), the slot is
+    // already taken. When the inner skips (at its limit), no claim was made
+    // yet, so the outer's call goes through — natural bubbling.
     //
-    // Contrast with pg* claims below (first-caller-wins).
+    // Same convention as pg* claims below.
     pub fn claim_scroll_up(&mut self, id: FocusId) {
-        self.next_scroll_up_id = Some(id);
+        if self.next_scroll_up_id.is_none() {
+            self.next_scroll_up_id = Some(id);
+        }
     }
 
     pub fn claim_scroll_down(&mut self, id: FocusId) {
-        self.next_scroll_down_id = Some(id);
+        if self.next_scroll_down_id.is_none() {
+            self.next_scroll_down_id = Some(id);
+        }
     }
 
     pub fn claim_scroll_left(&mut self, id: FocusId) {
-        self.next_scroll_left_id = Some(id);
+        if self.next_scroll_left_id.is_none() {
+            self.next_scroll_left_id = Some(id);
+        }
     }
 
     pub fn claim_scroll_right(&mut self, id: FocusId) {
-        self.next_scroll_right_id = Some(id);
+        if self.next_scroll_right_id.is_none() {
+            self.next_scroll_right_id = Some(id);
+        }
     }
 
     /// Returns true if this widget won the upward-scroll claim in the previous frame.

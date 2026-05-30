@@ -306,12 +306,16 @@ impl LayoutState for ColumnState {
         let pref = intrinsic.preferred;
         // Cross axis (width) fills the column space; main axis (height) stacks.
         // A `Fill` height (or unbounded height) falls back to intrinsic per Rule 1.
-        let w = layout_params
-            .width
-            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
-        let h = layout_params
-            .height
-            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
         let r = Rect::new(self.space.x, self.current_y, w, h);
         self.content_w = self.content_w.max(w);
         self.content_h = (self.current_y + h) - self.space.y;
@@ -364,12 +368,16 @@ impl LayoutState for RowState {
         let pref = intrinsic.preferred;
         // Main axis (width) advances the cursor; cross axis (height) fills space.
         // A `Fill` width (or unbounded width) falls back to intrinsic per Rule 1.
-        let w = layout_params
-            .width
-            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
-        let h = layout_params
-            .height
-            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
         let r = Rect::new(self.current_x, self.space.y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
         self.content_h = self.content_h.max(h);
@@ -472,12 +480,16 @@ impl LayoutState for WrapState {
 
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
-        let w = layout_params
-            .width
-            .resolve(pref.map(|p| p.x), self.space.width, LAYOUT_FALLBACK_SIZE.x);
-        let h = layout_params
-            .height
-            .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
@@ -502,7 +514,10 @@ impl LayoutState for WrapState {
 
     fn content_extent(&self) -> Vec2 {
         // Width: the widest line. Height: the bottom of the current (last) line.
-        Vec2::new(self.content_w, (self.current_y + self.line_height) - self.space.y)
+        Vec2::new(
+            self.content_w,
+            (self.current_y + self.line_height) - self.space.y,
+        )
     }
 }
 
@@ -630,7 +645,10 @@ mod tests {
             line_spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 30.0, 500.0));
-        let r = state.layout(SizeReq::auto(), IntrinsicSize::preferred(Vec2::new(80.0, 16.0)));
+        let r = state.layout(
+            SizeReq::auto(),
+            IntrinsicSize::preferred(Vec2::new(80.0, 16.0)),
+        );
         assert_eq!(r, Rect::new(0.0, 0.0, 80.0, 16.0));
     }
 
@@ -652,8 +670,8 @@ mod tests {
     fn test_column_unbounded_height_resolves_concrete() {
         // Rule 2: a child laid out in an unbounded main axis still resolves to a
         // concrete Rect, and the cursor advances by a concrete f32.
-        let mut state = ColumnLayout { spacing: 5.0 }
-            .begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
+        let mut state =
+            ColumnLayout { spacing: 5.0 }.begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
         let req = SizeReq {
             width: Extent::Fill,
             height: Extent::Auto,
@@ -670,8 +688,8 @@ mod tests {
     #[test]
     fn test_fill_on_unbounded_axis_falls_back_to_intrinsic() {
         // Rule 1: Fill on an unbounded axis is undefined — falls back to intrinsic.
-        let mut state = ColumnLayout { spacing: 0.0 }
-            .begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
+        let mut state =
+            ColumnLayout { spacing: 0.0 }.begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
         let req = SizeReq {
             width: Extent::Fixed(50.0),
             height: Extent::Fill,

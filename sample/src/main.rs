@@ -1,10 +1,10 @@
 #[cfg(feature = "page_button_demo")]
 mod button_page;
+mod renderer;
 #[cfg(feature = "page_scroll_demo")]
 mod scroll_demo;
 #[cfg(feature = "page_spec")]
 mod spec_page;
-mod renderer;
 mod text;
 
 use framewise::input::Input;

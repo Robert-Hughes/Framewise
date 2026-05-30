@@ -395,12 +395,7 @@ pub mod raw {
 
             if blink_on {
                 let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
-                let caret_rect = Rect::new(
-                    content_rect.x + cursor_x,
-                    text_y,
-                    1.0,
-                    layout.size.y,
-                );
+                let caret_rect = Rect::new(content_rect.x + cursor_x, text_y, 1.0, layout.size.y);
                 cmds.push(DrawCmd::FillRect {
                     rect: caret_rect,
                     color: spec.style.caret_color,
@@ -743,7 +738,10 @@ mod tests {
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
-        assert_eq!(builder.style.unwrap().font, TextEditStyle::from_theme(&theme).font);
+        assert_eq!(
+            builder.style.unwrap().font,
+            TextEditStyle::from_theme(&theme).font
+        );
         assert_eq!(
             builder.style.unwrap().text_size,
             TextEditStyle::from_theme(&theme).text_size

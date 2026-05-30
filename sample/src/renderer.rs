@@ -217,6 +217,7 @@ impl Renderer {
     }
 
     /// Convert a list of `DrawCmd`s into vertices and render them.
+    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &mut self,
         device: &wgpu::Device,

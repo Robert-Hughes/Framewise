@@ -27,9 +27,9 @@ pub struct Theme {
     pub press: Color,      // ink @ 14% α — button press tint
 
     // Height grid
-    pub h_sm: f32,    // 22 px
-    pub h_md: f32,    // 28 px
-    pub h_lg: f32,    // 36 px
+    pub h_sm: f32,       // 22 px
+    pub h_md: f32,       // 28 px
+    pub h_lg: f32,       // 36 px
     pub row_height: f32, // 26 px — menu / dropdown rows
 
     // Border / focus ring

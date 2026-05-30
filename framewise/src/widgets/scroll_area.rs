@@ -77,16 +77,12 @@ pub mod raw {
     pub fn begin_scroll_area(
         spec: ScrollAreaSpec,
         state: &mut ScrollState,
-        input: &Input,
+        _input: &Input,
         focus_system: &mut FocusSystem,
     ) -> ScrollAreaResult {
         let mut cmds = DrawCommands::new();
 
         focus_system.push_keyboard_scroll_scope(state.id);
-
-        let is_visible = spec
-            .clip_rect
-            .is_none_or(|clip| clip.contains(input.mouse_pos));
 
         // Reserve policy: a scrollbar's gutter is reserved whenever its axis is
         // enabled, independent of whether the content turns out to overflow. This
@@ -106,65 +102,6 @@ pub mod raw {
             spec.rect.h
         };
         let content_bounds = Rect::new(spec.rect.x, spec.rect.y, content_w, content_h);
-
-        // Hover scroll claims must be made here, before children run, so the
-        // outer-first / inner-overwrites ordering (last-caller-wins) holds. They
-        // need `at_*`, which needs the content extent — not known until `end`. So
-        // claims are decided from *last frame's* measured extent (persisted in
-        // `state.content_size`); the wheel application also happens at `end`. This
-        // one-frame staleness is the deferred-content lag.
-        let max_scroll_prev = Vec2::new(
-            (state.content_size.x - content_bounds.w).max(0.0),
-            (state.content_size.y - content_bounds.h).max(0.0),
-        );
-        let mode_prev = ScrollMode::resolve(needs_v, needs_h, max_scroll_prev);
-
-        if content_bounds.contains(input.mouse_pos) && is_visible {
-            let at_top = state.offset.y <= 0.0;
-            let at_bottom = state.offset.y >= max_scroll_prev.y;
-            let at_left = state.offset.x <= 0.0;
-            let at_right = state.offset.x >= max_scroll_prev.x;
-
-            // Same-axis: conditional on having room. Cross-axis: unconditional, to
-            // block a parent of the other orientation from stealing the wheel.
-            match mode_prev {
-                ScrollMode::None => {}
-                ScrollMode::Vert => {
-                    if !at_top {
-                        focus_system.claim_scroll_up(state.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_scroll_down(state.id);
-                    }
-                    focus_system.claim_scroll_left(state.id);
-                    focus_system.claim_scroll_right(state.id);
-                }
-                ScrollMode::Horiz => {
-                    if !at_left {
-                        focus_system.claim_scroll_left(state.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_scroll_right(state.id);
-                    }
-                    focus_system.claim_scroll_up(state.id);
-                    focus_system.claim_scroll_down(state.id);
-                }
-                ScrollMode::Both => {
-                    if !at_top {
-                        focus_system.claim_scroll_up(state.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_scroll_down(state.id);
-                    }
-                    if !at_left {
-                        focus_system.claim_scroll_left(state.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_scroll_right(state.id);
-                    }
-                }
-            }
-        }
 
         // Children are clipped to the viewport. Scrollbars are drawn at `end`
         // (after PopClip), so they sit on top of and outside the content clip.
@@ -215,10 +152,9 @@ pub mod raw {
     ///
     /// Receives the children's measured `content_extent` and resolves every
     /// content-dependent computation: max scroll, offset clamp, wheel/page-key
-    /// application, scrollbar thumbs, and the pg* claims. Scrollbars are drawn
-    /// here — after `PopClip` — so they render on top of (and outside the clip of)
-    /// the content. The persisted `state.content_size` is updated for next frame's
-    /// `begin` claim decisions.
+    /// application, scrollbar thumbs, hover-scroll claims, and the pg* claims.
+    /// Scrollbars are drawn here — after `PopClip` — so they render on top of
+    /// (and outside the clip of) the content.
     pub fn end_scroll_area(
         token: ScrollAreaToken,
         content_extent: Vec2,
@@ -227,9 +163,6 @@ pub mod raw {
         focus_system: &mut FocusSystem,
     ) -> DrawCommands {
         let mut cmds = DrawCommands::new();
-
-        // Persist this frame's measured extent for next frame's begin claims.
-        state.content_size = content_extent;
 
         let max_scroll = Vec2::new(
             (content_extent.x - token.content_bounds.w).max(0.0),
@@ -346,6 +279,52 @@ pub mod raw {
         let at_bottom = state.offset.y >= max_scroll.y;
         let at_left = state.offset.x <= 0.0;
         let at_right = state.offset.x >= max_scroll.x;
+
+        // Hover scroll claims — made at end (inner-first) so the deepest hovered
+        // scrollable area wins via first-caller-wins. Claims use this frame's true
+        // max_scroll (no one-frame lag).
+        let is_visible = token
+            .clip_rect
+            .is_none_or(|clip| clip.contains(input.mouse_pos));
+        if token.content_bounds.contains(input.mouse_pos) && is_visible {
+            match mode {
+                ScrollMode::None => {}
+                ScrollMode::Vert => {
+                    if !at_top {
+                        focus_system.claim_scroll_up(token.id);
+                    }
+                    if !at_bottom {
+                        focus_system.claim_scroll_down(token.id);
+                    }
+                    focus_system.claim_scroll_left(token.id);
+                    focus_system.claim_scroll_right(token.id);
+                }
+                ScrollMode::Horiz => {
+                    if !at_left {
+                        focus_system.claim_scroll_left(token.id);
+                    }
+                    if !at_right {
+                        focus_system.claim_scroll_right(token.id);
+                    }
+                    focus_system.claim_scroll_up(token.id);
+                    focus_system.claim_scroll_down(token.id);
+                }
+                ScrollMode::Both => {
+                    if !at_top {
+                        focus_system.claim_scroll_up(token.id);
+                    }
+                    if !at_bottom {
+                        focus_system.claim_scroll_down(token.id);
+                    }
+                    if !at_left {
+                        focus_system.claim_scroll_left(token.id);
+                    }
+                    if !at_right {
+                        focus_system.claim_scroll_right(token.id);
+                    }
+                }
+            }
+        }
 
         if focus_system.focused_scroll_path().contains(&token.id) {
             // Same-axis claims are conditional on having room to scroll, so a
@@ -530,11 +509,6 @@ pub struct ScrollState {
     pub offset: Vec2,
     pub vert_slider_state: crate::widgets::slider::SliderState,
     pub horiz_slider_state: crate::widgets::slider::SliderState,
-    /// The content extent measured at the end of the previous frame. Used at
-    /// `begin` to decide hover scroll claims before this frame's extent is known
-    /// (the deferred-content one-frame lag). Resolves to the true extent after the
-    /// first frame.
-    pub content_size: Vec2,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -607,7 +581,9 @@ impl ScrollAreaSpecBuilder {
             self.scrollbar_width = Some(theme.scrollbar_width);
         }
         if self.scrollbar_style.is_none() {
-            self.scrollbar_style = Some(crate::widgets::slider::SliderStyle::scrollbar_from_theme(theme));
+            self.scrollbar_style = Some(crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                theme,
+            ));
         }
         self
     }
@@ -804,7 +780,9 @@ mod tests {
             clip_rect,
             time,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let r = raw::begin_scroll_area(spec, state, input, focus_system);
         let mut pre_cmds = r.draw;
@@ -853,11 +831,6 @@ mod tests {
         input.mouse_pos = mouse_pos;
         let mut focus_system = FocusSystem::new();
 
-        // Seed last-frame extent so claims fire on the first frame (the
-        // deferred-content path is one frame cold otherwise).
-        outer_state.content_size = Vec2::new(outer_bounds.w, outer_content_h);
-        inner_state.content_size = Vec2::new(inner_bounds.w, inner_content_h);
-
         for _ in 0..2 {
             focus_system.begin_frame();
             let outer_spec = ScrollAreaSpec {
@@ -867,7 +840,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_r = begin_scroll_area(outer_spec, outer_state, &input, &mut focus_system);
 
@@ -878,11 +853,25 @@ mod tests {
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_r = begin_scroll_area(inner_spec, inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(inner_r.token, Vec2::new(inner_bounds.w, inner_content_h), inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_r.token, Vec2::new(outer_bounds.w, outer_content_h), outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_r.token,
+                Vec2::new(inner_bounds.w, inner_content_h),
+                inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_r.token,
+                Vec2::new(outer_bounds.w, outer_content_h),
+                outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
     }
@@ -935,7 +924,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
 
@@ -943,7 +934,9 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -953,7 +946,13 @@ mod tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(token, Vec2::new(400.0, 200.0), &mut state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(400.0, 200.0),
+                &mut state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
 
@@ -987,14 +986,18 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1004,7 +1007,13 @@ mod tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(token, Vec2::new(1000.0, 1000.0), &mut state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(1000.0, 1000.0),
+                &mut state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -1035,7 +1044,9 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1052,10 +1063,18 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-            raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(200.0, 1000.0),
+                &mut state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -1087,10 +1106,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         assert!(state.vert_slider_state.is_dragging, "Drag must be active");
 
@@ -1107,10 +1134,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         // drag: usable_track = 200 - (200 * 200/1000).max(20) = 200-40=160. delta=45 → val_delta=(45/160)*800≈225.
         let expected = (45.0 / 160.0) * 800.0;
@@ -1132,10 +1167,6 @@ mod tests {
         let mut inner = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Seed last-frame extent so claims fire on the first frame.
-        outer.content_size = Vec2::new(400.0, 1000.0);
-        inner.content_size = Vec2::new(200.0, 200.0);
-
         for frame in 0..3 {
             focus_system.begin_frame();
             let mut input = Input::new();
@@ -1149,7 +1180,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system).token;
@@ -1162,12 +1195,26 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 200.0), &mut inner, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 1000.0), &mut outer, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 200.0),
+                &mut inner,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 1000.0),
+                &mut outer,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner.offset.y, 0.0);
@@ -1187,8 +1234,6 @@ mod tests {
 
         // Seed last-frame extent so claims fire on the first frame. Inner content
         // (150) fits inside its reserved content_bounds (188), so it stays a no-op.
-        outer.content_size = Vec2::new(400.0, 1000.0);
-        inner.content_size = Vec2::new(150.0, 150.0);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -1203,7 +1248,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system).token;
@@ -1215,12 +1262,26 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(150.0, 150.0), &mut inner, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 1000.0), &mut outer, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(150.0, 150.0),
+                &mut inner,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 1000.0),
+                &mut outer,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner.offset.y, 0.0);
@@ -1248,7 +1309,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, fs);
@@ -1264,10 +1327,6 @@ mod tests {
         let mut b = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Seed last-frame extent so claims fire on the first frame.
-        a.content_size = Vec2::new(200.0, 1000.0);
-        b.content_size = Vec2::new(200.0, 1000.0);
-
         frames(&mut focus_system, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside A only
@@ -1280,7 +1339,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token_a = begin_scroll_area(spec_a, &mut a, &input, fs).token;
             raw::end_scroll_area(token_a, Vec2::new(200.0, 1000.0), &mut a, &input, fs);
@@ -1292,7 +1353,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token_b = begin_scroll_area(spec_b, &mut b, &input, fs).token;
             raw::end_scroll_area(token_b, Vec2::new(200.0, 1000.0), &mut b, &input, fs);
@@ -1309,9 +1372,6 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Seed last-frame extent so claims fire on the first frame.
-        state.content_size = Vec2::new(1000.0, 1000.0);
-
         frames(&mut focus_system, 3, |frame, fs| {
             let mut input = Input::new();
             input.mouse_pos = Vec2::new(50.0, 50.0);
@@ -1327,7 +1387,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, Vec2::new(1000.0, 1000.0), &mut state, &input, fs);
@@ -1357,11 +1419,19 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         // content shrunk: content_extent.y = 250 → max_scroll.y = 50
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 250.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 250.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         assert_eq!(
             state.offset.y, 50.0,
@@ -1378,9 +1448,6 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Seed last-frame extent so claims fire on the first frame.
-        state.content_size = Vec2::new(200.0, 1000.0);
-
         for frame in 0..3 {
             focus_system.begin_frame();
             let mut input = Input::new();
@@ -1394,7 +1461,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1402,7 +1471,13 @@ mod tests {
             // content_bounds origin must follow bounds origin.
             assert_eq!(cb.x, 100.0);
             assert_eq!(cb.y, 200.0);
-            raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(200.0, 1000.0),
+                &mut state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert!(
@@ -1425,10 +1500,18 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2).token;
-            raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state2, &input, &mut focus_sys2);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(200.0, 1000.0),
+                &mut state2,
+                &input,
+                &mut focus_sys2,
+            );
             focus_sys2.end_frame();
         }
         assert_eq!(
@@ -1458,7 +1541,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, Vec2::new(1000.0, 1000.0), &mut state, &input, fs);
@@ -1496,7 +1581,9 @@ mod tests {
                 clip_rect: Some(clip),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let token = raw::begin_scroll_area(spec, &mut state, &input, fs).token;
             raw::end_scroll_area(token, Vec2::new(200.0, 400.0), &mut state, &input, fs);
@@ -1550,7 +1637,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1561,7 +1650,9 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1578,7 +1669,9 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1588,14 +1681,22 @@ mod tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(token, Vec2::new(200.0, 300.0), &mut scroll_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(200.0, 300.0),
+                &mut scroll_state,
+                &input,
+                &mut focus_system,
+            );
 
             // btn_start: below the scroll area, no clip.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1654,7 +1755,9 @@ mod tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let sa_r = begin_scroll_area(scroll_spec, &mut scroll_state, &input, &mut focus_system);
             let token = sa_r.token;
@@ -1666,7 +1769,9 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
                 },
@@ -1676,14 +1781,22 @@ mod tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(token, Vec2::new(200.0, 300.0), &mut scroll_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                token,
+                Vec2::new(200.0, 300.0),
+                &mut scroll_state,
+                &input,
+                &mut focus_system,
+            );
 
             // btn_start: below the scroll area.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -1719,10 +1832,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &Input::new(), &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &Input::new(),
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         // Click on the vertical scrollbar track (at x=194, y=10 - within the scrollbar area)
@@ -1738,10 +1859,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1766,10 +1895,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &Input::new(), &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &Input::new(), &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &Input::new(),
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         // Mouse is on the scrollbar track but the clip_rect is far away — widget is hidden.
@@ -1785,10 +1922,18 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1816,10 +1961,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         focus_system.take_focus(state.vert_slider_state.focus_id);
 
@@ -1834,10 +1987,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         assert_eq!(
             state.offset.y, 800.0,
@@ -1855,10 +2016,18 @@ mod tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system).token;
-        raw::end_scroll_area(token, Vec2::new(200.0, 1000.0), &mut state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         assert_eq!(state.offset.y, 0.0, "Home on focused slider jumps to 0");
     }
@@ -1881,11 +2050,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(200.0, 400.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0); // Hover content
@@ -1901,7 +2065,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1912,12 +2078,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 400.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 400.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0);
@@ -1931,11 +2111,6 @@ mod nested_bubbling_tests {
         let mut input = Input::new();
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
-
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -1952,7 +2127,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -1963,12 +2140,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0);
@@ -1982,11 +2173,6 @@ mod nested_bubbling_tests {
         let mut input = Input::new();
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
-
-        inner_state.content_size = Vec2::new(200.0, 400.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2003,7 +2189,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2014,12 +2202,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 400.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 400.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0);
@@ -2033,11 +2235,6 @@ mod nested_bubbling_tests {
         let mut input = Input::new();
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
-
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2054,7 +2251,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2065,12 +2264,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0);
@@ -2090,11 +2303,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(200.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = if frame == 1 { true } else { false };
@@ -2109,7 +2317,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2121,7 +2331,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2129,7 +2341,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2139,8 +2353,20 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 100.0);
@@ -2158,11 +2384,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(300.0, 200.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = if frame == 1 { true } else { false };
@@ -2177,7 +2398,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2188,7 +2411,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2196,7 +2421,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2206,8 +2433,20 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(300.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(300.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 100.0);
@@ -2231,19 +2470,22 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(200.0, 300.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         focus_system.take_focus(inner_state.vert_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(200.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2259,7 +2501,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2270,12 +2514,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 100.0);
@@ -2298,19 +2556,22 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(300.0, 200.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(300.0, 200.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(300.0, 200.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2326,7 +2587,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2337,12 +2600,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(300.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(300.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 100.0);
@@ -2371,10 +2648,6 @@ mod nested_bubbling_tests {
         // inner: (0,0,200,200) vert-only,  content 400h; content_bounds=(0,0,188,200)
         // mouse (50,50): inside both content areas
         // inner.offset.y=0 (at_top): content block skips claim_scroll_up → outer retains it
-        inner_state.content_size = Vec2::new(200.0, 400.0);
-        outer_state.content_size = Vec2::new(800.0, 200.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2391,7 +2664,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2402,12 +2677,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 400.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 200.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 400.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 200.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -2438,10 +2727,6 @@ mod nested_bubbling_tests {
         // inner vert slider track: x=188..200, y=0..200
         // mouse (195,50): in outer content_bounds (0,0,400,188), outside inner content_bounds (0,0,188,200)
         // inner.offset.y=0 (at_min): slider skips claim_scroll_up → outer retains active_scroll_up
-        inner_state.content_size = Vec2::new(200.0, 400.0);
-        outer_state.content_size = Vec2::new(800.0, 200.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2458,7 +2743,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2469,12 +2756,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 400.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 200.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 400.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 200.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -2500,11 +2801,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(200.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 200.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
@@ -2519,7 +2815,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2530,7 +2828,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2538,7 +2838,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2548,8 +2850,20 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 200.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 200.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 100.0, "Inner vert already at bottom");
@@ -2577,19 +2891,22 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(200.0, 300.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         focus_system.take_focus(inner_state.vert_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(200.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 200.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2605,7 +2922,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2616,12 +2935,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 200.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 200.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -2669,12 +3002,6 @@ mod nested_bubbling_tests {
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(200.0, 600.0);
-        middle_state.content_size = Vec2::new(800.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside all three content areas
@@ -2691,7 +3018,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2702,7 +3031,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2713,13 +3044,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 600.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(800.0, 300.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 600.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(800.0, 300.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
@@ -2749,11 +3100,6 @@ mod nested_bubbling_tests {
 
         // mouse (195,50): inside outer (0,0,388,400) and middle (0,0,388,288) content areas,
         //                 outside inner content (0,0,188,288), on inner slider track (188,0,12,288)
-        inner_state.content_size = Vec2::new(200.0, 600.0);
-        middle_state.content_size = Vec2::new(800.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2771,7 +3117,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2782,7 +3130,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2793,13 +3143,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 600.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(800.0, 300.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 600.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(800.0, 300.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner vert already at top");
@@ -2829,12 +3199,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(200.0, 600.0);
-        middle_state.content_size = Vec2::new(800.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
@@ -2850,7 +3214,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2861,7 +3227,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2872,7 +3240,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -2880,7 +3250,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -2890,9 +3262,27 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 600.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(800.0, 300.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 600.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(800.0, 300.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 312.0, "Inner vert already at bottom");
@@ -2929,20 +3319,22 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(200.0, 600.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(200.0, 600.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         focus_system.take_focus(inner_state.vert_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(200.0, 600.0);
-        middle_state.content_size = Vec2::new(800.0, 300.0);
-        outer_state.content_size = Vec2::new(400.0, 800.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -2959,7 +3351,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -2970,7 +3364,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -2981,13 +3377,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(200.0, 600.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(800.0, 300.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(400.0, 800.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(200.0, 600.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(800.0, 300.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(400.0, 800.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 312.0, "Inner slider already at max");
@@ -3037,11 +3453,6 @@ mod nested_bubbling_tests {
 
         // mouse (50,50): inside all three content areas
         // inner.offset.x=0 (at_left): content block skips scroll_left → middle absorbs it
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        middle_state.content_size = Vec2::new(400.0, 800.0);
-        outer_state.content_size = Vec2::new(800.0, 400.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3059,7 +3470,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3070,7 +3483,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3081,13 +3496,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(400.0, 800.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 400.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(400.0, 800.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 400.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
@@ -3116,11 +3551,6 @@ mod nested_bubbling_tests {
         // inner horiz slider track: x=0..388, y=188..200
         // mouse (50,195): inside outer (0,0,400,388) and middle (0,0,388,388) content areas,
         //                 outside inner content (0,0,388,188), on inner horiz slider track
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        middle_state.content_size = Vec2::new(400.0, 800.0);
-        outer_state.content_size = Vec2::new(800.0, 400.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3138,7 +3568,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3149,7 +3581,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3160,13 +3594,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(400.0, 800.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 400.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(400.0, 800.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 400.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner horiz already at left");
@@ -3195,12 +3649,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        middle_state.content_size = Vec2::new(400.0, 800.0);
-        outer_state.content_size = Vec2::new(800.0, 400.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
@@ -3216,7 +3664,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3227,7 +3677,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3238,7 +3690,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3246,7 +3700,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3256,9 +3712,27 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(400.0, 800.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 400.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(400.0, 800.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 400.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 412.0, "Inner horiz already at right");
@@ -3293,20 +3767,22 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(800.0, 200.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
 
         focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(800.0, 200.0);
-        middle_state.content_size = Vec2::new(400.0, 800.0);
-        outer_state.content_size = Vec2::new(800.0, 400.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3323,7 +3799,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3334,7 +3812,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let middle_token =
                 begin_scroll_area(middle_spec, &mut middle_state, &input, &mut focus_system).token;
@@ -3345,13 +3825,33 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(800.0, 200.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(middle_token, Vec2::new(400.0, 800.0), &mut middle_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 400.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(800.0, 200.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                middle_token,
+                Vec2::new(400.0, 800.0),
+                &mut middle_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 400.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 412.0, "Inner slider already at max");
@@ -3391,11 +3891,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0);
@@ -3411,7 +3906,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3422,12 +3919,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner already at top");
@@ -3451,10 +3962,6 @@ mod nested_bubbling_tests {
         // inner_2d has both axes (needs_h=true, needs_v=true), so it's NOT a horiz_uses_vert_wheel
         // area. Horizontal scroll_delta.x is needed to drive the horizontal axis.
         // Use scroll_delta.x to drive horizontal scrolling directly.
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3471,7 +3978,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3482,12 +3991,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.x, 0.0, "Inner already at left");
@@ -3521,11 +4044,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(194.0, 50.0); // on inner vert slider track
@@ -3541,7 +4059,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3552,12 +4072,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner at top, should not change");
@@ -3575,11 +4109,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 144.0); // on inner horiz slider track
@@ -3595,7 +4124,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3606,12 +4137,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -3634,11 +4179,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0); // inside inner content_bounds
@@ -3654,7 +4194,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3665,12 +4207,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(inner_state.offset.y, 0.0, "Inner at top, should not change");
@@ -3697,18 +4253,21 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(400.0, 300.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         focus_system.take_focus(inner_state.vert_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3724,7 +4283,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3735,12 +4296,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -3770,18 +4345,21 @@ mod nested_bubbling_tests {
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
         };
         let inner_token =
             begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-        raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
+        raw::end_scroll_area(
+            inner_token,
+            Vec2::new(400.0, 300.0),
+            &mut inner_state,
+            &input,
+            &mut focus_system,
+        );
         focus_system.end_frame();
         focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
-
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3797,7 +4375,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3808,12 +4388,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -3836,11 +4430,6 @@ mod nested_bubbling_tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         focus_system.take_focus(btn_state.focus_id);
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
@@ -3855,7 +4444,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3866,7 +4457,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
@@ -3874,7 +4467,9 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
-                    style: crate::widgets::button::ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                    style: crate::widgets::button::ButtonStyle::primary_from_theme(
+                        &theme::Theme::default(),
+                    ),
                     clip_rect: None,
                     disabled: false,
                 },
@@ -3884,8 +4479,20 @@ mod nested_bubbling_tests {
                 &mut text_system,
             );
 
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert_eq!(
@@ -3905,11 +4512,6 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
 
-        inner_state.content_size = Vec2::new(400.0, 300.0);
-        outer_state.content_size = Vec2::new(800.0, 600.0);
-        // Seed last-frame extent so claims fire on the first frame
-        // (the deferred-content path is one frame cold otherwise).
-
         for frame in 0..3 {
             focus_system.begin_frame();
             input.mouse_pos = Vec2::new(50.0, 50.0);
@@ -3926,7 +4528,9 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let outer_token =
                 begin_scroll_area(outer_spec, &mut outer_state, &input, &mut focus_system).token;
@@ -3937,12 +4541,26 @@ mod nested_bubbling_tests {
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(&theme::Theme::default()),
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
             };
             let inner_token =
                 begin_scroll_area(inner_spec, &mut inner_state, &input, &mut focus_system).token;
-            raw::end_scroll_area(inner_token, Vec2::new(400.0, 300.0), &mut inner_state, &input, &mut focus_system);
-            raw::end_scroll_area(outer_token, Vec2::new(800.0, 600.0), &mut outer_state, &input, &mut focus_system);
+            raw::end_scroll_area(
+                inner_token,
+                Vec2::new(400.0, 300.0),
+                &mut inner_state,
+                &input,
+                &mut focus_system,
+            );
+            raw::end_scroll_area(
+                outer_token,
+                Vec2::new(800.0, 600.0),
+                &mut outer_state,
+                &input,
+                &mut focus_system,
+            );
             focus_system.end_frame();
         }
         assert!(

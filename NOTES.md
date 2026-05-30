@@ -7,6 +7,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
+* Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
+
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.

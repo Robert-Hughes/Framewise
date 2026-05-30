@@ -1,34 +1,59 @@
-#[cfg(feature = "button")]      pub mod button;
-#[cfg(feature = "checkbox")]    pub mod checkbox;
-#[cfg(feature = "chip")]        pub mod chip;
-#[cfg(feature = "color_swatch")] pub mod color_swatch;
-#[cfg(feature = "divider")]     pub mod divider;
-#[cfg(feature = "drag_number")] pub mod drag_number;
-#[cfg(feature = "frame")]       pub mod frame;
-#[cfg(feature = "keycap")]      pub mod keycap;
-#[cfg(feature = "label")]       pub mod label;
-#[cfg(feature = "menu")]        pub mod menu;
-#[cfg(feature = "meter")]       pub mod meter;
-#[cfg(feature = "progress_bar")] pub mod progress_bar;
-#[cfg(feature = "radio")]       pub mod radio;
-#[cfg(feature = "scroll_area")] pub mod scroll_area;
-#[cfg(feature = "segmented")]   pub mod segmented;
-#[cfg(feature = "select")]      pub mod select;
-#[cfg(feature = "slider")]      pub mod slider;
-#[cfg(feature = "spinner")]     pub mod spinner;
-#[cfg(feature = "status")]      pub mod status;
-#[cfg(feature = "switch")]      pub mod switch;
-#[cfg(feature = "tabs")]        pub mod tabs;
-#[cfg(feature = "text_edit")]   pub mod text_edit;
-#[cfg(feature = "tooltip")]     pub mod tooltip;
-#[cfg(feature = "tree")]        pub mod tree;
-#[cfg(feature = "window")]      pub mod window;
+#[cfg(feature = "button")]
+pub mod button;
+#[cfg(feature = "checkbox")]
+pub mod checkbox;
+#[cfg(feature = "chip")]
+pub mod chip;
+#[cfg(feature = "color_swatch")]
+pub mod color_swatch;
+#[cfg(feature = "divider")]
+pub mod divider;
+#[cfg(feature = "drag_number")]
+pub mod drag_number;
+#[cfg(feature = "frame")]
+pub mod frame;
+#[cfg(feature = "keycap")]
+pub mod keycap;
+#[cfg(feature = "label")]
+pub mod label;
+#[cfg(feature = "menu")]
+pub mod menu;
+#[cfg(feature = "meter")]
+pub mod meter;
+#[cfg(feature = "progress_bar")]
+pub mod progress_bar;
+#[cfg(feature = "radio")]
+pub mod radio;
+#[cfg(feature = "scroll_area")]
+pub mod scroll_area;
+#[cfg(feature = "segmented")]
+pub mod segmented;
+#[cfg(feature = "select")]
+pub mod select;
+#[cfg(feature = "slider")]
+pub mod slider;
+#[cfg(feature = "spinner")]
+pub mod spinner;
+#[cfg(feature = "status")]
+pub mod status;
+#[cfg(feature = "switch")]
+pub mod switch;
+#[cfg(feature = "tabs")]
+pub mod tabs;
+#[cfg(feature = "text_edit")]
+pub mod text_edit;
+#[cfg(feature = "tooltip")]
+pub mod tooltip;
+#[cfg(feature = "tree")]
+pub mod tree;
+#[cfg(feature = "window")]
+pub mod window;
 
 #[cfg(feature = "button")]
 pub use button::{button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 pub use checkbox::{
-    checkbox, CheckedState, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,
+    checkbox, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle, CheckedState,
 };
 #[cfg(feature = "chip")]
 pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
