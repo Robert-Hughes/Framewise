@@ -5,11 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Do a full comprehensive pass comparing all the widget files. In what ways are they inconsistent - naming, ordering of structs/functions/sections within the file, traits derived on structs, publicity, parameter naming, comments & doc-comments, what structs and functions they define etc. Parameter naming or ordering or return types. Handling of default values, use of composition or other patterns, error handling, loggging. Constructor arguments vs. setters. The kinds of fields contained in structs passed into and out of methods (e.g. if one widget returns a layout rect but another doesn't). Anything that a reader of the library might be surprised by, or wonder 'why does widget X do it like this but widget Y does it like that'.
-  - There will be *some* differences due to genuine functional differences between widgets (e.g. if they are a container or not), but the differences in code should be justified by such a difference in functionality, not arbitrary.
-  - Also have a full read of DESIGN.md and see if this design document is coherent and consistent and whether or not the widget code actually matches up with the design.
-
-
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
@@ -32,6 +27,26 @@ Space/Enter activate (~15 lines): repeated verbatim in checkbox, radio, switch, 
 Left/Right arrow nav: repeated near-verbatim in segmented + tabs.
 Up/Down arrow nav: select + drag_number.
 All copy-paste. Surprising that focus is DRY but activation is not.
+
+1. Intrinsic sizing (segmented, tabs)
+
+Widget computes its own width from content — sum of all segment/tab label widths — ignoring the input rect's width entirely. segmented.rs:71 sets outer.w = total_w from summed label widths. tabs.rs:50-55 does the same. Input rect provides position (x, y) and height, but width is overridden.
+
+2. Minimum-width enforcement (menu, select)
+
+Widget clamps upward: drawn_w = input_rect.w.max(min_width). menu.rs:52, select.rs:103-108. If caller passes a small rect, widget silently draws wider.
+
+3. Max-width clamping (tooltip)
+
+Opposite direction — tooltip caps width at s.max_width (tooltip.rs:48-49), so drawn size can be smaller than input rect.
+
+Why tooltip/menu report bounds but segmented/tabs/select don't:
+
+Tooltip and menu must tell the caller their real size — the caller uses it to position adjacent content (e.g., avoid overflow, anchor the tip). So raw result carries bounds: Rect with the actual computed rect.
+
+Segmented/tabs/select also compute a different size, but high-level just passes the original input rect as LayoutInfo.bounds (segmented.rs:338, tabs.rs:328, select.rs:459). The layout system thinks the widget occupies the requested rect. The actual draw spills outside (or under-fills) that box silently.
+
+Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw area. Segmented/tabs/select are "dishonest" — LayoutInfo.bounds is the input rect, not the actual drawn footprint.
 
 
 
