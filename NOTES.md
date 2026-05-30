@@ -9,6 +9,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
 
+
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
@@ -65,6 +66,15 @@ Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw are
 - **`LayoutInfo` bounds redundancy** — is there any point in `LayoutInfo` returning the
   overall bounds, given that's always passed in directly when calling a widget function?
 * Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
+
+- ** Layout directions **
+  Do we want any kind of right-to-left or bottom-to-top layout options? This is related to the option
+  of reordering widget calls to the resolve the "must know info before doing layout"-type questions ('reorder trick').
+  For example if you want to right-align stuff but don't know the widths up-front, using the right edge
+  as the anchor and building from there might be a good solution.
+
+- ** Layout alignment **
+  We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
 
 - **Off-screen draw cost** — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
