@@ -1,5 +1,45 @@
 use crate::types::{Rect, Vec2};
 
+// ── Intrinsic sizing ──────────────────────────────────────────────────────
+
+/// A widget's own size measurement, reported up to an intrinsic-aware layout.
+///
+/// Measurement only — never layout policy. "Fill", "grow", and weights are caller
+/// intent and live in a layout's `Params`, not here. Every field is optional: a
+/// widget may know one axis (or none) and not the other.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct IntrinsicSize {
+    /// Smallest size below which content clips (e.g. the longest unbreakable word).
+    pub min: Option<Vec2>,
+    /// The natural, unconstrained size (e.g. one line of text plus padding).
+    pub preferred: Option<Vec2>,
+    /// The largest useful size.
+    pub max: Option<Vec2>,
+}
+
+impl IntrinsicSize {
+    /// No measurement known on any axis.
+    pub const UNKNOWN: Self = Self {
+        min: None,
+        preferred: None,
+        max: None,
+    };
+
+    /// A measurement that reports only its preferred size.
+    pub fn preferred(size: Vec2) -> Self {
+        Self {
+            preferred: Some(size),
+            ..Self::UNKNOWN
+        }
+    }
+}
+
+/// Size an intrinsic-aware layout falls back to when it needs a measurement that
+/// was never reported (e.g. `Auto` sizing of a widget that returned no
+/// `preferred` size). Deliberately large and obvious so missing measurements are
+/// visible during development; a future version may log when this is hit.
+pub const LAYOUT_FALLBACK_SIZE: Vec2 = Vec2::new(96.0, 96.0);
+
 pub trait Layout {
     type Params;
     type State: LayoutState<Params = Self::Params>;
@@ -170,6 +210,16 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_intrinsic_size_constructors() {
+        assert_eq!(IntrinsicSize::UNKNOWN, IntrinsicSize::default());
+        let i = IntrinsicSize::preferred(Vec2::new(10.0, 20.0));
+        assert_eq!(i.preferred, Some(Vec2::new(10.0, 20.0)));
+        assert_eq!(i.min, None);
+        assert_eq!(i.max, None);
+        assert_eq!(LAYOUT_FALLBACK_SIZE, Vec2::new(96.0, 96.0));
+    }
 
     #[test]
     fn test_manual_layout() {
