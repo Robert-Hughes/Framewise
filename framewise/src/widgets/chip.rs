@@ -74,7 +74,7 @@ pub mod raw {
         }
 
         if is_clicked {
-            state.active = !state.active;
+            state.checked = !state.checked;
         }
 
         let mut cmds = DrawCommands::new();
@@ -98,7 +98,7 @@ pub mod raw {
             });
         }
 
-        let bg = if state.active {
+        let bg = if state.checked {
             s.active_bg
         } else {
             s.background
@@ -113,7 +113,7 @@ pub mod raw {
             width: s.border_width,
         });
 
-        let text_color = if state.active { s.active_text } else { s.text };
+        let text_color = if state.checked { s.active_text } else { s.text };
         let ty = r.y + (h - layout.size.y) * 0.5;
         cmds.push(DrawCmd::Text {
             rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
@@ -180,7 +180,7 @@ impl ChipStyle {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChipState {
-    pub active: bool, // toggle state
+    pub checked: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -343,7 +343,7 @@ mod tests {
     fn test_chip_visual_active() {
         let mut text_system = DummyTextSys;
         let mut state = ChipState::default();
-        state.active = true;
+        state.checked = true;
         let spec = ChipSpec {
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
@@ -569,7 +569,7 @@ mod tests {
         );
         focus_system.end_frame();
 
-        assert!(state.active, "Spacebar release must toggle chip state");
+        assert!(state.checked, "Spacebar release must toggle chip state");
     }
 
     #[test]

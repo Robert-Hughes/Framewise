@@ -131,10 +131,10 @@ pub mod raw {
         }
     }
 
-    // Low-level window end function.
-    //
-    // This is the raw implementation that takes all parameters explicitly.
-    // High-level wrappers should use this internally.
+    /// Low-level window end function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
     pub fn end_window() -> DrawCommands {
         DrawCommands(vec![DrawCmd::PopClip])
     }
@@ -285,13 +285,13 @@ pub fn begin_window<
     'b,
     'c,
     T: TextSystem,
-    LS: LayoutState,
+    S: LayoutState,
     L: Layout,
     CF: FnOnce(&mut FocusSystem) -> DrawCommands,
 >(
-    ctx: &'b mut WidgetContext<'a, T, LS, CF>,
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: WindowSpecBuilder<'c>,
-    layout_params: LS::Params,
+    layout_params: S::Params,
     inner_layout: L,
 ) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
     let layout_bounds = ctx.layout(layout_params);

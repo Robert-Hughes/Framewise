@@ -367,11 +367,11 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
 ) -> ButtonResult {
     let layout_rect = ctx.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
-    let clip_rect = builder.clip_rect.unwrap_or(ctx.clip_rect);
+    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip_rect)
+        .clip_rect(clip)
         .build();
     let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
 

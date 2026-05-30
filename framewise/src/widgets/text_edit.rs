@@ -397,9 +397,9 @@ pub mod raw {
                 let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
                 let caret_rect = Rect::new(
                     content_rect.x + cursor_x,
-                    content_rect.y + 2.0,
+                    text_y,
                     1.0,
-                    content_rect.h - spec.style.error_stripe_width,
+                    layout.size.y,
                 );
                 cmds.push(DrawCmd::FillRect {
                     rect: caret_rect,

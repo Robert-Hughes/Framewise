@@ -69,7 +69,7 @@ pub mod raw {
         }
 
         if is_clicked {
-            state.selected = true;
+            state.checked = true;
         }
 
         let mut cmds = DrawCommands::new();
@@ -107,7 +107,7 @@ pub mod raw {
         });
 
         // Inner dot when selected.
-        if state.selected {
+        if state.checked {
             cmds.push(DrawCmd::FillCircle {
                 center,
                 radius: s.dot_radius,
@@ -166,7 +166,7 @@ impl RadioStyle {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct RadioState {
-    pub selected: bool,
+    pub checked: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -276,11 +276,11 @@ mod tests {
     use super::raw::RadioSpec;
     use super::*;
 
-    fn test_radio(spec: RadioSpec, selected: bool) -> raw::RadioResult {
+    fn test_radio(spec: RadioSpec, checked: bool) -> raw::RadioResult {
         raw::radio(
             spec,
             &mut RadioState {
-                selected,
+                checked,
                 ..Default::default()
             },
             &Input::default(),
@@ -512,7 +512,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            state.selected, true,
+            state.checked, true,
             "Spacebar release must toggle radio state to selected"
         );
     }

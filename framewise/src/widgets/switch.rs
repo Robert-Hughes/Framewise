@@ -69,7 +69,7 @@ pub mod raw {
         }
 
         if is_clicked {
-            state.on = !state.on;
+            state.checked = !state.checked;
         }
 
         let mut cmds = DrawCommands::new();
@@ -89,7 +89,7 @@ pub mod raw {
         }
 
         // Track fill.
-        let track_fill = if state.on { s.on_fill } else { s.off_fill };
+        let track_fill = if state.checked { s.on_fill } else { s.off_fill };
         cmds.push(DrawCmd::FillRect {
             rect: r,
             color: tint(track_fill),
@@ -104,12 +104,12 @@ pub mod raw {
 
         // Thumb dot (10×10, vertically centered, left/right positioned).
         let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
-        let dot_x = if state.on {
+        let dot_x = if state.checked {
             r.x + r.w - s.thumb_size - s.border_width
         } else {
             r.x + s.border_width
         };
-        let dot_color = if state.on { s.on_thumb } else { s.off_thumb };
+        let dot_color = if state.checked { s.on_thumb } else { s.off_thumb };
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
             color: tint(dot_color),
@@ -170,7 +170,7 @@ impl SwitchStyle {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchState {
-    pub on: bool,
+    pub checked: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -281,11 +281,11 @@ mod tests {
     use super::*;
     use crate::types::Vec2;
 
-    fn test_switch(spec: SwitchSpec, on: bool) -> raw::SwitchResult {
+    fn test_switch(spec: SwitchSpec, checked: bool) -> raw::SwitchResult {
         raw::switch(
             spec,
             &mut SwitchState {
-                on,
+                checked,
                 ..Default::default()
             },
             &Input::default(),
@@ -515,7 +515,7 @@ mod tests {
         raw::switch(spec(), &mut state, &input, &mut focus_system);
         focus_system.end_frame();
 
-        assert!(state.on, "Spacebar release must toggle switch state");
+        assert!(state.checked, "Spacebar release must toggle switch state");
     }
 
     #[test]

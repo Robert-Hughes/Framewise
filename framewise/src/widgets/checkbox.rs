@@ -69,10 +69,10 @@ pub mod raw {
         }
 
         if is_clicked {
-            state.check = match state.check {
-                CheckState::Off => CheckState::On,
-                CheckState::On => CheckState::Off,
-                CheckState::Indeterminate => CheckState::On,
+            state.checked = match state.checked {
+                CheckedState::Unchecked => CheckedState::Checked,
+                CheckedState::Checked => CheckedState::Unchecked,
+                CheckedState::Indeterminate => CheckedState::Checked,
             };
         }
 
@@ -93,8 +93,8 @@ pub mod raw {
         }
 
         // Box fill.
-        let fill = match state.check {
-            CheckState::Off => s.background,
+        let fill = match state.checked {
+            CheckedState::Unchecked => s.background,
             _ => s.selected_fill,
         };
         cmds.push(DrawCmd::FillRect {
@@ -110,8 +110,8 @@ pub mod raw {
         });
 
         // Inner mark.
-        match state.check {
-            CheckState::On => {
+        match state.checked {
+            CheckedState::Checked => {
                 // Checkmark: two lines forming a tick (√).
                 let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
                 let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
@@ -130,14 +130,14 @@ pub mod raw {
                     width: s.mark_width,
                 });
             }
-            CheckState::Indeterminate => {
+            CheckedState::Indeterminate => {
                 // Horizontal dash.
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                     color: tint(s.mark),
                 });
             }
-            CheckState::Off => {}
+            CheckedState::Unchecked => {}
         }
 
         CheckboxResult {
@@ -192,16 +192,16 @@ impl CheckboxStyle {
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum CheckState {
+pub enum CheckedState {
     #[default]
-    Off,
-    On,
+    Unchecked,
+    Checked,
     Indeterminate,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CheckboxState {
-    pub check: CheckState,
+    pub checked: CheckedState,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -310,11 +310,11 @@ mod tests {
     use super::raw::CheckboxSpec;
     use super::*;
 
-    fn checkbox_dummy(spec: CheckboxSpec, state: CheckState) -> raw::CheckboxResult {
+    fn checkbox_dummy(spec: CheckboxSpec, state: CheckedState) -> raw::CheckboxResult {
         raw::checkbox(
             spec,
             &mut CheckboxState {
-                check: state,
+                checked: state,
                 ..Default::default()
             },
             &Input::default(),
@@ -331,7 +331,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckState::Off);
+        let res = checkbox_dummy(spec, CheckedState::Unchecked);
         assert_eq!(
             res.draw,
             DrawCommands(vec![
@@ -357,7 +357,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckState::On);
+        let res = checkbox_dummy(spec, CheckedState::Checked);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
         let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
@@ -399,7 +399,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckState::Indeterminate);
+        let res = checkbox_dummy(spec, CheckedState::Indeterminate);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         assert_eq!(
             res.draw,
@@ -468,7 +468,7 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckState::Off);
+        let res = checkbox_dummy(spec, CheckedState::Unchecked);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
@@ -577,8 +577,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            state.check,
-            CheckState::On,
+            state.checked,
+            CheckedState::Checked,
             "Spacebar release must toggle checkbox state"
         );
     }

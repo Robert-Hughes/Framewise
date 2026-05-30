@@ -26,7 +26,7 @@ pub mod window;
 
 pub use button::{button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle};
 pub use checkbox::{
-    checkbox, CheckState, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,
+    checkbox, CheckedState, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,
 };
 pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
 pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpecBuilder};

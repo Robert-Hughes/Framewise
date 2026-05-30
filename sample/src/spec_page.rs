@@ -14,7 +14,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::{button, ButtonState, ButtonStyle},
-        checkbox::{checkbox, raw::CheckboxSpec, CheckState, CheckboxSpecBuilder, CheckboxState},
+        checkbox::{checkbox, raw::CheckboxSpec, CheckedState, CheckboxSpecBuilder, CheckboxState},
         chip::{chip, ChipSpecBuilder, ChipState, ChipStyle},
         color_swatch::color_swatch,
         divider::divider,
@@ -50,13 +50,13 @@ fn draw_checkbox_fake_state<
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
-    state_val: CheckState,
+    state_val: CheckedState,
     is_focused: bool,
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
     let mut state = CheckboxState {
-        check: state_val,
+        checked: state_val,
         ..Default::default()
     };
 
@@ -92,13 +92,13 @@ fn draw_radio_fake_state<
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
-    selected: bool,
+    checked: bool,
     is_focused: bool,
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
     let mut state = RadioState {
-        selected,
+        checked,
         ..Default::default()
     };
 
@@ -130,13 +130,13 @@ fn draw_switch_fake_state<
 >(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
-    on: bool,
+    checked: bool,
     is_focused: bool,
     is_disabled: bool,
 ) {
     let rect = b.layout(layout_params);
     let mut state = SwitchState {
-        on,
+        checked,
         ..Default::default()
     };
 
@@ -401,27 +401,27 @@ impl Default for SpecPageState {
             btn_matrix: (0..8).map(|_| ButtonState::default()).collect(),
             cb_matrix: vec![
                 CheckboxState {
-                    check: CheckState::Off,
+                    checked: CheckedState::Unchecked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::On,
+                    checked: CheckedState::Checked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Indeterminate,
+                    checked: CheckedState::Indeterminate,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Off,
+                    checked: CheckedState::Unchecked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::On,
+                    checked: CheckedState::Checked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Indeterminate,
+                    checked: CheckedState::Indeterminate,
                     ..Default::default()
                 },
             ],
@@ -452,29 +452,29 @@ impl Default for SpecPageState {
             },
             radio_states: vec![
                 RadioState {
-                    selected: true,
+                    checked: true,
                     ..Default::default()
                 },
                 RadioState {
-                    selected: false,
+                    checked: false,
                     ..Default::default()
                 },
                 RadioState {
-                    selected: false,
+                    checked: false,
                     ..Default::default()
                 },
             ],
             switch_states: vec![
                 SwitchState {
-                    on: false,
+                    checked: false,
                     ..Default::default()
                 },
                 SwitchState {
-                    on: true,
+                    checked: true,
                     ..Default::default()
                 },
                 SwitchState {
-                    on: false,
+                    checked: false,
                     ..Default::default()
                 }, // multisampling disabled
             ],
@@ -503,23 +503,23 @@ impl Default for SpecPageState {
             },
             chip_states: vec![
                 ChipState {
-                    active: true,
+                    checked: true,
                     ..Default::default()
                 },
                 ChipState {
-                    active: false,
+                    checked: false,
                     ..Default::default()
                 },
                 ChipState {
-                    active: false,
+                    checked: false,
                     ..Default::default()
                 },
                 ChipState {
-                    active: false,
+                    checked: false,
                     ..Default::default()
                 },
                 ChipState {
-                    active: false,
+                    checked: false,
                     ..Default::default()
                 },
             ],
@@ -551,11 +551,11 @@ impl Default for SpecPageState {
             ],
             win11_cbs: vec![
                 CheckboxState {
-                    check: CheckState::On,
+                    checked: CheckedState::Checked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Off,
+                    checked: CheckedState::Unchecked,
                     ..Default::default()
                 },
             ],
@@ -578,7 +578,7 @@ impl Default for SpecPageState {
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
             iu_log_scroll: ScrollState::default(),
             iu_vsync: SwitchState {
-                on: true,
+                checked: true,
                 ..Default::default()
             },
             iu_msaa: SegmentedState {
@@ -595,15 +595,15 @@ impl Default for SpecPageState {
             },
             iu_options: vec![
                 CheckboxState {
-                    check: CheckState::On,
+                    checked: CheckedState::Checked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Off,
+                    checked: CheckedState::Unchecked,
                     ..Default::default()
                 },
                 CheckboxState {
-                    check: CheckState::Indeterminate,
+                    checked: CheckedState::Indeterminate,
                     ..Default::default()
                 },
             ],
@@ -1355,12 +1355,12 @@ pub fn draw_spec_page(
                     });
                     label(b, spec_builder, layout_params)
                 };
-                let box_specs: &[(CheckState, bool, bool)] = &[
-                    (CheckState::Off, false, false),
-                    (CheckState::On, false, false),
-                    (CheckState::Indeterminate, false, false),
-                    (CheckState::On, true, false),
-                    (CheckState::On, false, true),
+                let box_specs: &[(CheckedState, bool, bool)] = &[
+                    (CheckedState::Unchecked, false, false),
+                    (CheckedState::Checked, false, false),
+                    (CheckedState::Indeterminate, false, false),
+                    (CheckedState::Checked, true, false),
+                    (CheckedState::Checked, false, true),
                 ];
                 for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
                     let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0);
@@ -1442,7 +1442,7 @@ pub fn draw_spec_page(
                         };
                         if info.input.clicked {
                             for j in 0..3 {
-                                state.radio_states[j].selected = j == i;
+                                state.radio_states[j].checked = j == i;
                             }
                         }
                     } else {
