@@ -277,6 +277,73 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     }
 }
 
+// ── WrapLayout ─────────────────────────────────────────────────────────────
+
+/// A flow layout: places children left-to-right, wrapping to the next line when
+/// the next child would overflow the bounds width. Intrinsic-aware — children
+/// are sized from their [`SizeReq`] and reported intrinsic size, exactly like
+/// row/column.
+pub struct WrapLayout {
+    /// Horizontal gap between items on a line.
+    pub spacing: f32,
+    /// Vertical gap between lines.
+    pub line_spacing: f32,
+}
+
+impl Layout for WrapLayout {
+    type Params = SizeReq;
+    type State = WrapState;
+
+    fn begin(self, bounds: Rect) -> Self::State {
+        WrapState {
+            bounds,
+            spacing: self.spacing,
+            line_spacing: self.line_spacing,
+            current_x: bounds.x,
+            current_y: bounds.y,
+            line_height: 0.0,
+        }
+    }
+}
+
+pub struct WrapState {
+    bounds: Rect,
+    spacing: f32,
+    line_spacing: f32,
+    current_x: f32,
+    current_y: f32,
+    /// Tallest item on the current line, used to advance to the next line.
+    line_height: f32,
+}
+
+impl LayoutState for WrapState {
+    type Params = SizeReq;
+
+    fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
+        let pref = intrinsic.preferred;
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
+
+        // Wrap before placing if this item would overflow the line — but never
+        // wrap an item that is already at the start of a line (it just clips).
+        let at_line_start = self.current_x == self.bounds.x;
+        if !at_line_start && self.current_x + w > self.bounds.x + self.bounds.w {
+            self.current_x = self.bounds.x;
+            self.current_y += self.line_height + self.line_spacing;
+            self.line_height = 0.0;
+        }
+
+        let r = Rect::new(self.current_x, self.current_y, w, h);
+        self.current_x += w + self.spacing;
+        self.line_height = self.line_height.max(h);
+        r
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -368,6 +435,41 @@ mod tests {
         let r2 = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)));
         // Cursor advanced by first auto width (70) + spacing (6).
         assert_eq!(r2, Rect::new(76.0, 0.0, 50.0, 40.0));
+    }
+
+    #[test]
+    fn test_wrap_layout_wraps_on_overflow() {
+        // 100px-wide bounds, 40px items, no spacing: two per line, then wrap.
+        let mut state = WrapLayout {
+            spacing: 0.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 500.0));
+        let item = SizeReq {
+            width: Extent::Fixed(40.0),
+            height: Extent::Fixed(20.0),
+        };
+        let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r3 = state.layout(item, IntrinsicSize::UNKNOWN);
+        assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0));
+        assert_eq!(r2, Rect::new(40.0, 0.0, 40.0, 20.0));
+        // Third item (would end at 120 > 100) wraps to the next line at
+        // y = line_height(20) + line_spacing(5) = 25.
+        assert_eq!(r3, Rect::new(0.0, 25.0, 40.0, 20.0));
+    }
+
+    #[test]
+    fn test_wrap_layout_uses_intrinsic_and_does_not_wrap_first_item() {
+        // A single item wider than the bounds stays on the first line (no wrap
+        // at line start); auto width comes from the intrinsic preferred size.
+        let mut state = WrapLayout {
+            spacing: 0.0,
+            line_spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 30.0, 500.0));
+        let r = state.layout(SizeReq::auto(), IntrinsicSize::preferred(Vec2::new(80.0, 16.0)));
+        assert_eq!(r, Rect::new(0.0, 0.0, 80.0, 16.0));
     }
 
     #[test]

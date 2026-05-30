@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, Extent, Layout, RowLayout, SizeReq},
+    layout::{ColumnLayout, Extent, Layout, RowLayout, SizeReq, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -26,6 +26,8 @@ pub struct ButtonPageState {
     pub grid_clicks: [u32; 9],
     // Section 5: intrinsic sizing — auto-width row + fill-width column
     pub intrinsic_btns: [ButtonState; 5],
+    // Section 6: wrapping flow of auto-width buttons
+    pub wrap_btns: [ButtonState; 8],
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -284,6 +286,36 @@ pub fn draw_button_page(
         );
 
         col.finish();
+    }
+
+    // ── Section 6: Wrapping flow ──────────────────────────────────────────────
+    // Auto-width buttons flowed left-to-right, wrapping onto the next line when
+    // the row fills.
+    {
+        let mut wrap = outer.child_with_layout(
+            Vec2::new(win_w - 2.0 * pad, 96.0).into(),
+            WrapLayout {
+                spacing: 8.0,
+                line_spacing: 8.0,
+            },
+        );
+
+        let auto = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fixed(32.0),
+        };
+        let labels = [
+            "New", "Open", "Save", "Save As…", "Close", "Print Preview", "Export", "Quit",
+        ];
+        for (i, label) in labels.iter().enumerate() {
+            button(
+                &mut wrap,
+                ButtonSpecBuilder::new().text(label).style(ghost),
+                auto,
+                &mut state.wrap_btns[i],
+            );
+        }
+        wrap.finish();
     }
 
     outer.finish();
