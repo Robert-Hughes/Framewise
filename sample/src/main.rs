@@ -1,3 +1,5 @@
+#[cfg(feature = "page_button_demo")]
+mod button_page;
 #[cfg(feature = "page_scroll_demo")]
 mod scroll_demo;
 #[cfg(feature = "page_spec")]
@@ -23,6 +25,7 @@ use winit::{
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppPage {
+    ButtonDemo,
     ScrollDemo,
     WidgetSpec,
 }
@@ -61,6 +64,8 @@ struct App {
     input: Input,
     clipboard: Option<arboard::Clipboard>,
     active_page: AppPage,
+    #[cfg(feature = "page_button_demo")]
+    button_page_state: button_page::ButtonPageState,
     #[cfg(feature = "page_scroll_demo")]
     scroll_demo_state: scroll_demo::ScrollDemoState,
     #[cfg(feature = "page_spec")]
@@ -79,7 +84,9 @@ impl App {
             modifiers: winit::keyboard::ModifiersState::default(),
             input: Input::new(),
             clipboard: arboard::Clipboard::new().ok(),
-            active_page: AppPage::ScrollDemo,
+            active_page: AppPage::ButtonDemo,
+            #[cfg(feature = "page_button_demo")]
+            button_page_state: button_page::ButtonPageState::default(),
             #[cfg(feature = "page_scroll_demo")]
             scroll_demo_state: scroll_demo::ScrollDemoState::default(),
             #[cfg(feature = "page_spec")]
@@ -97,6 +104,23 @@ impl App {
         let time = self.start_time.elapsed().as_secs_f64();
 
         match self.active_page {
+            AppPage::ButtonDemo => {
+                #[cfg(feature = "page_button_demo")]
+                {
+                    self.focus_system.begin_frame();
+                    let cmds = button_page::draw_button_page(
+                        &mut self.button_page_state,
+                        &mut self.focus_system,
+                        &self.input,
+                        time,
+                        win_size,
+                        text_system,
+                    );
+                    self.focus_system.end_frame();
+                    return cmds;
+                }
+                framewise::DrawCommands::new()
+            }
             AppPage::WidgetSpec => {
                 #[cfg(feature = "page_spec")]
                 {
@@ -238,15 +262,19 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F2 toggles between scroll-demo and widget-spec pages.
+                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo
                 if event.state == ElementState::Pressed {
-                    if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) =
-                        event.physical_key
-                    {
-                        self.active_page = match self.active_page {
-                            AppPage::ScrollDemo => AppPage::WidgetSpec,
-                            AppPage::WidgetSpec => AppPage::ScrollDemo,
-                        };
+                    match event.physical_key {
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
+                            self.active_page = AppPage::ScrollDemo;
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) => {
+                            self.active_page = AppPage::WidgetSpec;
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F3) => {
+                            self.active_page = AppPage::ButtonDemo;
+                        }
+                        _ => {}
                     }
                 }
 

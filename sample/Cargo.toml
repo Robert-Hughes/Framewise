@@ -8,7 +8,7 @@ name = "sample"
 path = "src/main.rs"
 
 [features]
-default = ["page_scroll_demo", "page_spec"]
+default = ["page_scroll_demo", "page_spec", "page_button_demo"]
 
 button       = ["framewise/button"]
 checkbox     = ["framewise/checkbox"]
@@ -36,6 +36,7 @@ tooltip      = ["framewise/tooltip"]
 tree         = ["framewise/tree"]
 window       = ["framewise/window"]
 
+page_button_demo = ["button"]
 page_scroll_demo = ["button", "frame", "label", "scroll_area", "slider", "text_edit"]
 page_spec = [
     "button", "checkbox", "chip", "color_swatch", "divider", "drag_number",
