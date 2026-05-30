@@ -108,14 +108,29 @@ Intrinsic-aware layouts let a widget be sized from its own content without aband
 - **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
 - **`LAYOUT_FALLBACK_SIZE`** — a library-global size an intrinsic-aware layout falls back to when it needs a measurement that was never reported (e.g. `Auto` against a widget that returns no `preferred`). Deliberately large and obvious so missing measurements surface during development.
 
-### Unbounded Axes
+### Three-State Axis Bounds & Unbounded Axes
 
-The space a parent hands down is a `LayoutSpace { x, y, width: AxisBound, height: AxisBound }`, where `AxisBound` is `Bounded(f32)` or `Unbounded`. Position is always concrete — a layout always knows *where* a child starts — so only the *extent* can be unknown. An `Unbounded` axis means "as much as the content wants": the space a deferred scroll area lays its content into, or a panel told to grow with no enclosing limit. A `Rect` converts to a fully-`Bounded` space, so most layouts never see an unbounded axis.
+The space a parent hands down is a `LayoutSpace { x, y, width: AxisBound, height: AxisBound }`, where `AxisBound` represents the parent's layout knowledge:
 
-Two rules keep this from leaking infinity into geometry:
+* **`AxisBound::Exact(f32)`** — "You live in a box of exactly this size". This acts as both a hard limit and a committed coordinate anchor, permitting positioning, filling, centering, and right-alignment.
+* **`AxisBound::AtMost(f32)`** — "Choose your own size, but do not exceed this maximum". This is a ceiling without a committed far edge. Only measurement and shrink-wrap decisions are permitted.
+* **`AxisBound::Unbounded`** — "No ceiling on this axis". This is typically used inside scroll views, allowing content to grow naturally to its preferred size.
 
-1. **`Fill` on an unbounded axis is undefined.** There is no extent to fill, so the layout silently falls back to the widget's intrinsic size on that axis (then `LAYOUT_FALLBACK_SIZE`) — exactly as `Auto` would. (A future version may log when this fallback is hit.)
-2. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully-`Bounded` `Rect`, and the layout's running cursor stays a concrete `f32`. The accumulated extent is therefore always bounded — which is precisely what a deferred scroll area reads as its content size. No infinity ever reaches a `Rect`.
+Position is always concrete — a layout always knows *where* a child starts — so only the *extent* can be constrained or unbounded. A fully-specified `Rect` converts automatically via `From<Rect>` to a fully `Exact` space, so layouts without dynamic constraints never see `AtMost` or `Unbounded` axes.
+
+#### The Unifying Rule of Alignment and Distribution
+
+> **Position and distribution policies — fill, right-align, center, space-between — require `AxisBound::Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` bounds permit only measurement / shrink-wrap decisions.**
+
+If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, it will **panic** if the cross-axis boundary is `AtMost` or `Unbounded`. This prevents alignment math from running against a boundary that was only ever intended as a maximum ceiling or scroll container extent.
+
+#### Sizing Resolution Rules
+
+Three key rules keep these bounds from leaking infinity into leaf widget geometry:
+
+1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (or `LAYOUT_FALLBACK_SIZE` if none is reported), matching `Extent::Auto` resolution behavior.
+2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's intrinsic size resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
+3. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully concrete `Rect`. The layout's running cursor stays a concrete `f32`, meaning the accumulated extent remains fully bounded (which is precisely what a deferred scroll area reads as its content size). No infinity ever reaches a `Rect`.
 
 **Reading the accumulated extent — `content_extent`.** `LayoutState` exposes `fn content_extent(&self) -> Vec2`: the total extent the layout has consumed so far, measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands it to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the zero vector before any child is placed.
 
