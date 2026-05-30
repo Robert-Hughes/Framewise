@@ -201,18 +201,20 @@ mod tests {
 
         // Place a column at (10,10) sized 200x400 inside the root manual layout,
         // then a row nested at the column's first slot.
-        let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 200.0, 400.0), ColumnLayout { spacing: 5.0 });
-        let mut row = col.child_with_layout(Vec2::new(200.0, 30.0), RowLayout { spacing: 4.0 });
+        let mut col = ctx
+            .child_with_layout(Rect::new(10.0, 10.0, 200.0, 400.0), ColumnLayout { spacing: 5.0 });
+        let mut row =
+            col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout { spacing: 4.0 });
 
         // The row sits at the column's origin (10,10); its first child lands there.
         let first = row
             .layout_state
-            .layout(Vec2::new(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            .layout(Vec2::new(50.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
         // Second row child advances by width + spacing.
         let second = row
             .layout_state
-            .layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
+            .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 }

@@ -65,7 +65,7 @@ pub fn draw_button_page(
     // Nesting: root col > row
     {
         let mut row =
-            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0), RowLayout { spacing: 10.0 });
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout { spacing: 10.0 });
 
         let styles = [primary, secondary, accent, ghost];
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
@@ -73,7 +73,7 @@ pub fn draw_button_page(
             let r = button(
                 &mut row,
                 ButtonSpecBuilder::new().text(labels[i]).style(styles[i]),
-                Vec2::new(160.0, 40.0),
+                Vec2::new(160.0, 40.0).into(),
                 &mut state.toolbar_btns[i],
             );
             if r.input.clicked {
@@ -88,11 +88,11 @@ pub fn draw_button_page(
     // Left col: primary + secondary; right col: accent + ghost; each with disabled variant
     {
         let mut row = outer
-            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 200.0), RowLayout { spacing: 30.0 });
+            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 200.0).into(), RowLayout { spacing: 30.0 });
 
         {
             let mut col =
-                row.child_with_layout(Vec2::new(260.0, 200.0), ColumnLayout { spacing: 8.0 });
+                row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout { spacing: 8.0 });
 
             let entries = [
                 ("Primary",            primary,   false),
@@ -104,7 +104,7 @@ pub fn draw_button_page(
                 button(
                     &mut col,
                     ButtonSpecBuilder::new().text(text).style(*style).disabled(*disabled),
-                    Vec2::new(240.0, 44.0),
+                    Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[i],
                 );
             }
@@ -113,7 +113,7 @@ pub fn draw_button_page(
 
         {
             let mut col =
-                row.child_with_layout(Vec2::new(260.0, 200.0), ColumnLayout { spacing: 8.0 });
+                row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout { spacing: 8.0 });
 
             let entries = [
                 ("Accent",          accent, false),
@@ -125,7 +125,7 @@ pub fn draw_button_page(
                 button(
                     &mut col,
                     ButtonSpecBuilder::new().text(text).style(*style).disabled(*disabled),
-                    Vec2::new(240.0, 44.0),
+                    Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[4 + i],
                 );
             }
@@ -141,27 +141,27 @@ pub fn draw_button_page(
     // Control column: [dec/display/inc row | reset btn]
     {
         let mut outer_row =
-            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0), RowLayout { spacing: 10.0 });
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), RowLayout { spacing: 10.0 });
 
         button(
             &mut outer_row,
             ButtonSpecBuilder::new().text("Counter").style(ghost),
-            Vec2::new(100.0, 96.0),
+            Vec2::new(100.0, 96.0).into(),
             &mut state.counter_btns[0],
         );
 
         {
             let mut col =
-                outer_row.child_with_layout(Vec2::new(420.0, 96.0), ColumnLayout { spacing: 12.0 });
+                outer_row.child_with_layout(Vec2::new(420.0, 96.0).into(), ColumnLayout { spacing: 12.0 });
 
             {
                 let mut inner_row =
-                    col.child_with_layout(Vec2::new(420.0, 48.0), RowLayout { spacing: 12.0 });
+                    col.child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
 
                 let r = button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("−").style(secondary),
-                    Vec2::new(120.0, 48.0),
+                    Vec2::new(120.0, 48.0).into(),
                     &mut state.counter_btns[1],
                 );
                 if r.input.clicked {
@@ -172,14 +172,14 @@ pub fn draw_button_page(
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text(&count_text).style(ghost).disabled(true),
-                    Vec2::new(120.0, 48.0),
+                    Vec2::new(120.0, 48.0).into(),
                     &mut state.counter_btns[2],
                 );
 
                 let r = button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("+").style(accent),
-                    Vec2::new(120.0, 48.0),
+                    Vec2::new(120.0, 48.0).into(),
                     &mut state.counter_btns[3],
                 );
                 if r.input.clicked {
@@ -192,7 +192,7 @@ pub fn draw_button_page(
             let r = button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Reset").style(ghost),
-                Vec2::new(420.0, 36.0),
+                Vec2::new(420.0, 36.0).into(),
                 &mut state.counter_btns[4],
             );
             if r.input.clicked {
@@ -209,7 +209,7 @@ pub fn draw_button_page(
     // Nesting: root col > row > [col, col, col]
     {
         let mut row = outer
-            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 124.0), RowLayout { spacing: 20.0 });
+            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 124.0).into(), RowLayout { spacing: 20.0 });
 
         let group_labels = [
             ["Save",  "Save As", "Export"],
@@ -220,14 +220,14 @@ pub fn draw_button_page(
 
         for g in 0..3 {
             let mut col =
-                row.child_with_layout(Vec2::new(180.0, 124.0), ColumnLayout { spacing: 8.0 });
+                row.child_with_layout(Vec2::new(180.0, 124.0).into(), ColumnLayout { spacing: 8.0 });
 
             for j in 0..3 {
                 let idx = g * 3 + j;
                 let r = button(
                     &mut col,
                     ButtonSpecBuilder::new().text(group_labels[g][j]).style(group_styles[g]),
-                    Vec2::new(160.0, 36.0),
+                    Vec2::new(160.0, 36.0).into(),
                     &mut state.grid_btns[idx],
                 );
                 if r.input.clicked {

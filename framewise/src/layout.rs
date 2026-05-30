@@ -40,6 +40,68 @@ impl IntrinsicSize {
 /// visible during development; a future version may log when this is hit.
 pub const LAYOUT_FALLBACK_SIZE: Vec2 = Vec2::new(96.0, 96.0);
 
+/// How a child is sized along one axis by an intrinsic-aware layout.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Extent {
+    /// Exactly this many pixels.
+    Fixed(f32),
+    /// The widget's intrinsic preferred size on this axis. Falls back to the
+    /// corresponding [`LAYOUT_FALLBACK_SIZE`] axis if the widget reports none.
+    Auto,
+    /// Fill the layout's available space on this axis (its bounds extent).
+    ///
+    /// Meaningful on the *cross* axis (e.g. a column child filling the panel
+    /// width). On the *main* axis of a sequential layout it simply claims the
+    /// full bounds extent — leftover/weighted distribution is a later tier.
+    Fill,
+}
+
+impl Extent {
+    /// Resolve this extent to concrete pixels given the widget's intrinsic value
+    /// on this axis (if any), the layout's fillable extent, and the fallback.
+    fn resolve(self, intrinsic_axis: Option<f32>, fill_extent: f32, fallback: f32) -> f32 {
+        match self {
+            Extent::Fixed(px) => px,
+            Extent::Auto => intrinsic_axis.unwrap_or(fallback),
+            Extent::Fill => fill_extent,
+        }
+    }
+}
+
+/// A per-axis sizing request a caller hands to an intrinsic-aware layout
+/// (column/row/wrap). Axes are absolute (width/height), not main/cross, so the
+/// same request reads identically regardless of layout orientation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SizeReq {
+    pub width: Extent,
+    pub height: Extent,
+}
+
+impl SizeReq {
+    /// Both axes fixed to explicit pixels.
+    pub fn fixed(width: f32, height: f32) -> Self {
+        Self {
+            width: Extent::Fixed(width),
+            height: Extent::Fixed(height),
+        }
+    }
+
+    /// Both axes sized to the widget's intrinsic preferred size.
+    pub fn auto() -> Self {
+        Self {
+            width: Extent::Auto,
+            height: Extent::Auto,
+        }
+    }
+}
+
+/// Back-compat: a plain size is treated as fixed on both axes.
+impl From<Vec2> for SizeReq {
+    fn from(v: Vec2) -> Self {
+        Self::fixed(v.x, v.y)
+    }
+}
+
 pub trait Layout {
     type Params;
     type State: LayoutState<Params = Self::Params>;
@@ -100,7 +162,7 @@ pub struct ColumnLayout {
 }
 
 impl Layout for ColumnLayout {
-    type Params = Vec2;
+    type Params = SizeReq;
     type State = ColumnState;
 
     fn begin(self, bounds: Rect) -> Self::State {
@@ -119,16 +181,19 @@ pub struct ColumnState {
 }
 
 impl LayoutState for ColumnState {
-    type Params = Vec2;
+    type Params = SizeReq;
 
-    fn layout(&mut self, layout_params: Vec2, _intrinsic: IntrinsicSize) -> Rect {
-        let r = Rect::new(
-            self.bounds.x,
-            self.current_y,
-            layout_params.x,
-            layout_params.y,
-        );
-        self.current_y += layout_params.y + self.spacing;
+    fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
+        let pref = intrinsic.preferred;
+        // Cross axis (width) fills the column bounds; main axis (height) stacks.
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
+        let r = Rect::new(self.bounds.x, self.current_y, w, h);
+        self.current_y += h + self.spacing;
         r
     }
 }
@@ -140,7 +205,7 @@ pub struct RowLayout {
 }
 
 impl Layout for RowLayout {
-    type Params = Vec2;
+    type Params = SizeReq;
     type State = RowState;
 
     fn begin(self, bounds: Rect) -> Self::State {
@@ -159,16 +224,19 @@ pub struct RowState {
 }
 
 impl LayoutState for RowState {
-    type Params = Vec2;
+    type Params = SizeReq;
 
-    fn layout(&mut self, layout_params: Vec2, _intrinsic: IntrinsicSize) -> Rect {
-        let r = Rect::new(
-            self.current_x,
-            self.bounds.y,
-            layout_params.x,
-            layout_params.y,
-        );
-        self.current_x += layout_params.x + self.spacing;
+    fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
+        let pref = intrinsic.preferred;
+        // Main axis (width) advances the cursor; cross axis (height) fills bounds.
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.bounds.w, LAYOUT_FALLBACK_SIZE.x);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.bounds.h, LAYOUT_FALLBACK_SIZE.y);
+        let r = Rect::new(self.current_x, self.bounds.y, w, h);
+        self.current_x += w + self.spacing;
         r
     }
 }
@@ -235,21 +303,71 @@ mod tests {
     #[test]
     fn test_column_layout() {
         let mut state = ColumnLayout { spacing: 10.0 }.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
-        let r1 = state.layout(Vec2::new(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
+        let r2 = state.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r2, Rect::new(0.0, 30.0, 40.0, 30.0));
     }
 
     #[test]
     fn test_row_layout() {
         let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(10.0, 20.0, 100.0, 100.0));
-        let r1 = state.layout(Vec2::new(30.0, 20.0), IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(20.0, 30.0), IntrinsicSize::UNKNOWN);
+        let r2 = state.layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(r2, Rect::new(45.0, 20.0, 20.0, 30.0));
+    }
+
+    #[test]
+    fn test_column_auto_uses_intrinsic_preferred() {
+        let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 200.0, 500.0));
+        let req = SizeReq {
+            width: Extent::Fixed(120.0),
+            height: Extent::Auto,
+        };
+        let intrinsic = IntrinsicSize::preferred(Vec2::new(80.0, 24.0));
+        let r = state.layout(req, intrinsic);
+        // Auto height reads intrinsic.preferred.y; width stays fixed.
+        assert_eq!(r, Rect::new(0.0, 0.0, 120.0, 24.0));
+    }
+
+    #[test]
+    fn test_column_fill_cross_axis_uses_bounds_width() {
+        let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(5.0, 0.0, 200.0, 500.0));
+        let req = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Fixed(30.0),
+        };
+        let r = state.layout(req, IntrinsicSize::UNKNOWN);
+        // Fill width spans the column bounds width.
+        assert_eq!(r, Rect::new(5.0, 0.0, 200.0, 30.0));
+    }
+
+    #[test]
+    fn test_auto_without_intrinsic_falls_back() {
+        let mut state = RowLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        let r = state.layout(SizeReq::auto(), IntrinsicSize::UNKNOWN);
+        // No intrinsic reported → both axes use the global fallback.
+        assert_eq!(
+            r,
+            Rect::new(0.0, 0.0, LAYOUT_FALLBACK_SIZE.x, LAYOUT_FALLBACK_SIZE.y)
+        );
+    }
+
+    #[test]
+    fn test_row_auto_width_advances_cursor() {
+        let mut state = RowLayout { spacing: 6.0 }.begin(Rect::new(0.0, 0.0, 400.0, 50.0));
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fixed(40.0),
+        };
+        let r1 = state.layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)));
+        assert_eq!(r1, Rect::new(0.0, 0.0, 70.0, 40.0));
+        let r2 = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)));
+        // Cursor advanced by first auto width (70) + spacing (6).
+        assert_eq!(r2, Rect::new(76.0, 0.0, 50.0, 40.0));
     }
 
     #[test]
@@ -261,12 +379,12 @@ mod tests {
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
         let mut state = offset.begin(bounds);
 
-        let r1 = state.layout(Vec2::new(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
         assert_eq!(r1, Rect::new(5.0, -5.0, 50.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
+        let r2 = state.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
         assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
     }
