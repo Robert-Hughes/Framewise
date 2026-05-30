@@ -258,6 +258,8 @@ pub enum AxisBound {
 
 `AtMost` is a ceiling with no committed far edge. `Exact` is a ceiling plus an anchor frame. Many simple widgets (a plain label) measure identically under both, but an aligning layout or decorator does not: a right edge only exists if the parent has already committed to one.
 
+** We should update some of our Layouts to provide alignment, so that we can test interactions with the different AxisBounds work correctly. **
+
 So `AtMost` is **not** a weaker `Exact` — it is a different kind of knowledge. The layout API should branch on it explicitly, never silently coerce, or layouts risk doing alignment math against a width that was only ever a cap.
 
 ### Unifying rule (generalizes the Phase 2 "fill + Unbounded is illegal")
