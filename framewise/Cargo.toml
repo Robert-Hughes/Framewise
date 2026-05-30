@@ -5,10 +5,10 @@ edition = "2021"
 description = "A Rust GUI library where the app is always in control."
 
 [features]
-# Phase 1 intrinsic-sizing work iterates on button only; other widgets are
-# temporarily out of the default set until they are migrated to the new
-# layout(params, intrinsic) signature. Re-add them as each is updated.
-default = ["button"]
+# Intrinsic-sizing migration: widgets are added back to the default set as each
+# is moved to the new layout(params, intrinsic) signature. button, slider, and
+# scroll_area are migrated; the rest stay out until updated.
+default = ["button", "slider", "scroll_area"]
 button       = []
 checkbox     = []
 chip         = []
