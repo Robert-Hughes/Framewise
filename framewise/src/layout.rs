@@ -51,8 +51,12 @@ pub trait Layout {
 pub trait LayoutState {
     type Params;
 
-    /// Calculate the screen-space rectangle for a widget given the parameters.
-    fn layout(&mut self, layout_params: Self::Params) -> Rect;
+    /// Calculate the screen-space rectangle for a widget given the caller's
+    /// `layout_params` (intent) and the widget's `intrinsic` measurement.
+    ///
+    /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
+    /// `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it.
+    fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect;
 }
 
 // ── ManualLayout ──────────────────────────────────────────────────────────
@@ -76,7 +80,7 @@ pub struct ManualState {
 impl LayoutState for ManualState {
     type Params = Rect;
 
-    fn layout(&mut self, layout_params: Rect) -> Rect {
+    fn layout(&mut self, layout_params: Rect, _intrinsic: IntrinsicSize) -> Rect {
         // Offset the requested rect by the layout's bounding box top-left.
         // This ensures if ManualLayout is nested inside a scroll view (or any other layout), the explicit rects
         // still shift correctly relative to the parent.
@@ -117,7 +121,7 @@ pub struct ColumnState {
 impl LayoutState for ColumnState {
     type Params = Vec2;
 
-    fn layout(&mut self, layout_params: Vec2) -> Rect {
+    fn layout(&mut self, layout_params: Vec2, _intrinsic: IntrinsicSize) -> Rect {
         let r = Rect::new(
             self.bounds.x,
             self.current_y,
@@ -157,7 +161,7 @@ pub struct RowState {
 impl LayoutState for RowState {
     type Params = Vec2;
 
-    fn layout(&mut self, layout_params: Vec2) -> Rect {
+    fn layout(&mut self, layout_params: Vec2, _intrinsic: IntrinsicSize) -> Rect {
         let r = Rect::new(
             self.current_x,
             self.bounds.y,
@@ -197,8 +201,8 @@ pub struct OffsetState<InnerS> {
 impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     type Params = InnerS::Params;
 
-    fn layout(&mut self, layout_params: Self::Params) -> Rect {
-        let mut r = self.inner.layout(layout_params);
+    fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect {
+        let mut r = self.inner.layout(layout_params, intrinsic);
         r.x -= self.offset.x;
         r.y -= self.offset.y;
         r
@@ -224,27 +228,27 @@ mod tests {
     #[test]
     fn test_manual_layout() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 10.0, 100.0, 100.0));
-        let r = state.layout(Rect::new(5.0, 5.0, 20.0, 20.0));
+        let r = state.layout(Rect::new(5.0, 5.0, 20.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r, Rect::new(15.0, 15.0, 20.0, 20.0));
     }
 
     #[test]
     fn test_column_layout() {
         let mut state = ColumnLayout { spacing: 10.0 }.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
-        let r1 = state.layout(Vec2::new(50.0, 20.0));
+        let r1 = state.layout(Vec2::new(50.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(40.0, 30.0));
+        let r2 = state.layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r2, Rect::new(0.0, 30.0, 40.0, 30.0));
     }
 
     #[test]
     fn test_row_layout() {
         let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(10.0, 20.0, 100.0, 100.0));
-        let r1 = state.layout(Vec2::new(30.0, 20.0));
+        let r1 = state.layout(Vec2::new(30.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(20.0, 30.0));
+        let r2 = state.layout(Vec2::new(20.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r2, Rect::new(45.0, 20.0, 20.0, 30.0));
     }
 
@@ -257,12 +261,12 @@ mod tests {
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
         let mut state = offset.begin(bounds);
 
-        let r1 = state.layout(Vec2::new(50.0, 20.0));
+        let r1 = state.layout(Vec2::new(50.0, 20.0), IntrinsicSize::UNKNOWN);
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
         assert_eq!(r1, Rect::new(5.0, -5.0, 50.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(40.0, 30.0));
+        let r2 = state.layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
         assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
     }

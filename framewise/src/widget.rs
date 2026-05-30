@@ -152,7 +152,9 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
         placement: LS::Params,
         inner_layout: L2,
     ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
-        let bounds = self.layout_state.layout(placement);
+        let bounds = self
+            .layout_state
+            .layout(placement, crate::layout::IntrinsicSize::UNKNOWN);
         self.child_with_layout_and_on_finish_and_clip_rect(
             inner_layout.begin(bounds),
             |_| DrawCommands::new(),
@@ -175,7 +177,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{ColumnLayout, Layout, ManualLayout, RowLayout};
+    use crate::layout::{ColumnLayout, IntrinsicSize, Layout, ManualLayout, RowLayout};
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
@@ -203,10 +205,14 @@ mod tests {
         let mut row = col.child_with_layout(Vec2::new(200.0, 30.0), RowLayout { spacing: 4.0 });
 
         // The row sits at the column's origin (10,10); its first child lands there.
-        let first = row.layout_state.layout(Vec2::new(50.0, 30.0));
+        let first = row
+            .layout_state
+            .layout(Vec2::new(50.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
         // Second row child advances by width + spacing.
-        let second = row.layout_state.layout(Vec2::new(40.0, 30.0));
+        let second = row
+            .layout_state
+            .layout(Vec2::new(40.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 }
