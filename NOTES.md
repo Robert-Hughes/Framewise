@@ -6,7 +6,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
- Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar?
+ Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!)
+
+* Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
