@@ -31,18 +31,22 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a button's intrinsic size from its label and style.
+    /// Measure a button's intrinsic size from its spec.
     ///
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
-    /// padded label height. Independent of `raw::button` — it only shares text
-    /// shaping, which (for now) is repeated when the button is actually drawn.
+    /// padded label height.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry. Shares text shaping with
+    /// `raw::button`, which (for now) repeats it when the button is drawn.
     pub fn calc_button_intrinsic_size<T: TextSystem>(
-        text: &str,
-        style: &super::ButtonStyle,
+        spec: &ButtonSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let t = text_system.prepare(text, style.text_size, style.font);
+        let style = &spec.style;
+        let t = text_system.prepare(spec.text, style.text_size, style.font);
         let w = t.size.x + 2.0 * style.pad_x;
         let h = (t.size.y + 2.0 * style.pad_y).max(style.min_height);
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
@@ -401,20 +405,23 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
     layout_params: S::Params,
     state: &mut ButtonState,
 ) -> ButtonResult {
-    // Resolve style and label up front so we can measure the intrinsic size,
-    // which intrinsic-aware layouts (column/row/wrap) use to size the button.
-    let style = builder
-        .style
-        .unwrap_or_else(|| ButtonStyle::secondary_from_theme(&ctx.theme));
-    let text = builder.text.expect("text not set — call .text()");
-    let intrinsic = raw::calc_button_intrinsic_size(text, &style, ctx.text_system);
-
-    let layout_rect = ctx.layout_state.layout(layout_params, intrinsic);
-    let rect = builder.rect.unwrap_or(layout_rect);
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder.rect(rect).style(style).clip_rect(clip).build();
-    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .clip_rect(clip)
+        .rect(Rect::PLACEHOLDER)
+        .build();
 
+    let intrinsic = raw::calc_button_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout_state.layout(layout_params, intrinsic);
+    spec.rect = rect;
+
+    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
     ctx.append_cmds(r.draw);
 
     ButtonResult {
@@ -1314,14 +1321,13 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
+    fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layout::{Layout, ManualLayout};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
@@ -1331,22 +1337,61 @@ mod tests {
             &mut cmds,
         );
         let mut btn_state = ButtonState::default();
+        // Under ManualLayout the layout param *is* the rect — the sanctioned way
+        // to place a high-level widget explicitly.
         let result = super::button(
             &mut ctx,
-            ButtonSpecBuilder::new().text("X".into()).rect(custom_rect),
-            layout_rect,
+            ButtonSpecBuilder::new().text("X"),
+            placement,
             &mut btn_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
+    }
+
+    #[test]
+    fn test_high_level_honors_user_style() {
+        use crate::layout::{Layout, ManualLayout};
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+        // A user-set builder field (style) must be honored, not overwritten by
+        // theme defaults.
+        let custom = ButtonStyle {
+            background: Color::from_srgb_u8(1, 2, 3, 255),
+            ..ButtonStyle::accent_from_theme(&theme::Theme::default())
+        };
+        let mut btn_state = ButtonState::default();
+        // Placed away from the default mouse position (0,0) so it isn't hovered.
+        super::button(
+            &mut ctx,
+            ButtonSpecBuilder::new().text("X").style(custom),
+            Rect::new(100.0, 100.0, 40.0, 28.0),
+            &mut btn_state,
+        );
+        let has_custom_fill = cmds
+            .0
+            .iter()
+            .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.background));
+        assert!(has_custom_fill, "high-level button must honor user-set style");
     }
 
     #[test]
     fn test_calc_button_intrinsic_size() {
         let mut ts = DummyTextSys;
-        let style = ButtonStyle::primary_from_theme(&theme::Theme::default());
+        // Measured from a spec with a placeholder rect — calc must not read it.
+        let spec = btn_spec(Rect::PLACEHOLDER);
         // "Btn" = 3 chars * 8px = 24 wide, 16 tall (DummyTextSys).
         // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
-        let i = raw::calc_button_intrinsic_size("Btn", &style, &mut ts);
+        let i = raw::calc_button_intrinsic_size(&spec, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(52.0, 28.0)));
     }
 

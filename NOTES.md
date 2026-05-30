@@ -49,7 +49,6 @@ Segmented/tabs/select also compute a different size, but high-level just passes 
 Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw area. Segmented/tabs/select are "dishonest" — LayoutInfo.bounds is the input rect, not the actual drawn footprint.
 
 
-
 ## Things Still to Figure Out
 
 - **Hit-testing with overlapping widgets** — if a widget drawn later (higher in the visual

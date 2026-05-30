@@ -48,6 +48,17 @@ impl Rect {
         h: 0.0,
     };
 
+    /// A deliberately-invalid (NaN) rect used as a placeholder when a `*Spec` is
+    /// built only to measure its intrinsic size — before the real geometry is
+    /// known. Intrinsic-size calculations must not read the rect; any arithmetic
+    /// on this value produces NaN, making accidental use loud rather than silent.
+    pub const PLACEHOLDER: Rect = Rect {
+        x: f32::NAN,
+        y: f32::NAN,
+        w: f32::NAN,
+        h: f32::NAN,
+    };
+
     pub const fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
         Self { x, y, w, h }
     }

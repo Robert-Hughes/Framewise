@@ -85,19 +85,32 @@ This separation means adding a new layout type (e.g. `GridLayout`) requires zero
 
 We define two traits:
 
-1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget (e.g. `Vec2` for width/height) and provides a `begin(bounds)` method to instantiate the layout's state.
+1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(bounds)` method to instantiate the layout's state.
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
-Widget functions on the context take `layout_params: S::Params` instead of a hardcoded `Rect`. There is **no explicit measuring pass** required from the widget side — the layout dictates the `Rect` from the provided parameters.
+The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`. It merges three inputs: the caller's `params` (intent — fixed/auto/fill), the widget's `intrinsic` measurement (reported by a `calc_*` companion, see [Intrinsic Sizing](#intrinsic-sizing)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** — the only extra work is the cheap, explicit `calc_*` spec measurement.
 
 ### Built-in Layouts
 
-- **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent.
-- **`ColumnLayout`**: `Params = Vec2`. Stacks widgets vertically, keeping a Y-axis cursor.
-- **`RowLayout`**: `Params = Vec2`. Stacks widgets horizontally, keeping an X-axis cursor.
-- **`ScrollLayout`**: `Params = Vec2`. Takes an external `&mut ScrollState`. Applies the scroll offset to the `Rect`s returned by its internal layout pass, and automatically pushes a scissor `clip_rect` into the drawing commands.
+- **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles; ignores `intrinsic`. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent. This is also the sanctioned way to place a *high-level* widget at an explicit rect (the rect is the `Params`).
+- **`ColumnLayout`**: `Params = SizeReq`. Stacks widgets vertically, keeping a Y-axis cursor. Cross axis (width) may `Fill` the bounds; main axis (height) is typically `Auto` (from intrinsic) or `Fixed`.
+- **`RowLayout`**: `Params = SizeReq`. Stacks widgets horizontally, keeping an X-axis cursor.
+- **`WrapLayout`**: `Params = SizeReq`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the bounds width. Never wraps a child already at the start of a line.
+- **`OffsetLayout<L>`**: A decorator that shifts the inner layout's `Rect`s by a `Vec2` offset (used by scroll areas). It forwards `Params` and `intrinsic` to the inner layout. Scroll areas wrap their content layout in `OffsetLayout { offset, inner }` and push a scissor `clip_rect`.
 
-Because `ScrollLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
+Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
+
+### Intrinsic Sizing
+
+Intrinsic-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model.
+
+- **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
+- **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's bounds extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
+- **`LAYOUT_FALLBACK_SIZE`** — a library-global size an intrinsic-aware layout falls back to when it needs a measurement that was never reported (e.g. `Auto` against a widget that returns no `preferred`). Deliberately large and obvious so missing measurements surface during development.
+
+**The `calc_*_intrinsic_size` companion.** Each raw widget that participates gains an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes the widget's `*Spec` so its signature stays stable as size-relevant fields are added (they live in the spec/style), but it **must not read `spec.rect`**: the rect is the *output* of the layout step that consumes the intrinsic size, so it isn't known yet. Structurally, `rect` is the *only* spec field that is unknowable before `calc` runs — everything else (content, style, clip, disabled) is an input. Callers therefore build the spec with `Rect::PLACEHOLDER` (NaN) before measuring; any arithmetic on it yields NaN, making accidental use loud rather than silent.
+
+**High-level flow.** The high-level widget function: (1) resolves defaults and builds the spec with `Rect::PLACEHOLDER`; (2) calls `calc_*_intrinsic_size(&spec, …)`; (3) calls `layout(params, intrinsic)` to get the real rect; (4) assigns `spec.rect` and calls the raw function. Under `ManualLayout` the intrinsic is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both `calc` and the raw draw); a later `Layout::WANTS_INTRINSIC` const can gate it.
 
 ---
 
@@ -156,7 +169,9 @@ Each widget defines two result structs reflecting the two API layers.
 - **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
 - **Not** `*State` — mutated in-place
 
-The high-level function maps between them: it calls `ctx.layout()` to resolve geometry, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
+The high-level function maps between them: it builds the spec (with a `Rect::PLACEHOLDER`), measures the intrinsic size, resolves the real rect via `ctx.layout_state.layout(params, intrinsic)`, assigns it onto the spec, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
+
+Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. (Container widgets that compute their own bounds — scroll areas, windows — instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.)
 
 ### Spec and SpecBuilder Pattern
 
@@ -200,6 +215,8 @@ This is the only correct behaviour given the call order: the app sets fields on 
 
 **High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
 
+**The `rect` exception.** Fields set by the user on the builder are honored — the high-level widget functions will not overwrite them. The **only** exception is `rect`, which is always determined by the layout system; any user-provided value on the builder is ignored by the high-level path. (Internally the high-level function overwrites it: it builds the spec with `Rect::PLACEHOLDER`, measures the intrinsic size, then assigns the layout-resolved rect.) If explicit placement is wanted, use `ManualLayout` with the high-level functions — its `Params` *is* the rect — or drop to the low-level `raw::` function and set `rect` on the spec directly.
+
 **Raw API callers** must either call `defaults_from_theme` manually or set every field explicitly. Skipping both will cause `build()` to panic on the first unset field:
 
 ```rust
@@ -215,7 +232,7 @@ let spec = builder.rect(rect).build();
 
 ### SpecBuilder Field Visibility
 
-`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard.
+`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard. (For `rect` this is harmless, since the high-level path ignores any builder-set value and resolves the rect from the layout regardless — see "The `rect` exception" above.)
 
 The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the "framework manages this" contract self-enforcing for `rect` and `clip_rect`; all operations are already covered by the existing setter methods.
 
