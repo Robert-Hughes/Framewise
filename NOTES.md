@@ -5,6 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
+as these weren't in the original table.
+
 * Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
  Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!)
 
