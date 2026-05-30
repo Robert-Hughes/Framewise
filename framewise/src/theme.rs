@@ -30,9 +30,10 @@ pub struct Theme {
     pub h_lg: f32, // 36 px
 
     // Border / focus ring
-    pub border: f32,       // 1.0 — standard border width
-    pub focus_width: f32,  // 2.0 — focus ring width
-    pub focus_offset: f32, // 2.0 — focus ring outset gap
+    pub border: f32,             // 1.0 — standard border width
+    pub focus_width: f32,        // 2.0 — focus ring width
+    pub focus_offset: f32,       // 2.0 — focus ring outset gap
+    pub focus_offset_tight: f32, // 1.0 — compact controls (drag_number, select)
 
     // Type scale
     pub text_sm: f32,   // 11 — mono caption
@@ -64,6 +65,7 @@ impl Theme {
             border: 1.0,
             focus_width: 2.0,
             focus_offset: 2.0,
+            focus_offset_tight: 1.0,
             text_sm: 11.0,
             text_md: 13.0,
             text_mono: 12.0,

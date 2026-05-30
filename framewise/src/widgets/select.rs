@@ -172,10 +172,8 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let visually_focused = focused;
-
         // Focus / open ring.
-        if visually_focused || state.open {
+        if focused || state.open {
             cmds.push(DrawCmd::StrokeRect {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
@@ -340,7 +338,7 @@ impl SelectStyle {
             focus: theme.rust,
             border_width: theme.border,
             focus_width: theme.focus_width,
-            focus_offset: 1.0,
+            focus_offset: theme.focus_offset_tight,
             disabled_alpha: 0.35,
         }
     }

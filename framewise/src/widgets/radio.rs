@@ -81,10 +81,8 @@ pub mod raw {
         let cy = spec.rect.y + s.radius;
         let center = Vec2::new(cx, cy);
 
-        let visually_focused = focused;
-
         // Focus ring (outset 2px).
-        if visually_focused {
+        if focused {
             cmds.push(DrawCmd::StrokeCircle {
                 center,
                 radius: s.radius + s.focus_offset,

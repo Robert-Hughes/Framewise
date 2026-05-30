@@ -218,7 +218,7 @@ impl SegmentedStyle {
             focus: theme.rust,
             border_width: theme.border,
             focus_width: theme.focus_width,
-            focus_offset: 2.0,
+            focus_offset: theme.focus_offset,
             disabled_alpha: 0.35,
         }
     }

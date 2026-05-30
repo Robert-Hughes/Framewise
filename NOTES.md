@@ -25,6 +25,14 @@ DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Togg
 3. Keyboard space/enter block — copy-pasted, no helper
 Verbatim space_is_active press/release/activation block duplicated in button, checkbox, radio, switch, chip, select. Should be shared fn. segmented/tabs/drag_number use arrow nav instead (justified).
 
+6. Un-factored activation blocks
+Focus got a shared helper. Activation did NOT:
+
+Space/Enter activate (~15 lines): repeated verbatim in checkbox, radio, switch, chip, select.
+Left/Right arrow nav: repeated near-verbatim in segmented + tabs.
+Up/Down arrow nav: select + drag_number.
+All copy-paste. Surprising that focus is DRY but activation is not.
+
 
 
 ## Things Still to Figure Out

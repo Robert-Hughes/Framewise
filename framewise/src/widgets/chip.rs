@@ -89,10 +89,8 @@ pub mod raw {
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
-        let visually_focused = focused;
-
         // Focus ring.
-        if visually_focused {
+        if focused {
             cmds.push(DrawCmd::StrokeRect {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),

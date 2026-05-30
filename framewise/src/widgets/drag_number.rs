@@ -222,7 +222,7 @@ impl DragNumberStyle {
             value_fill: theme.rust_soft,
             border_width: theme.border,
             focus_width: theme.focus_width,
-            focus_offset: 1.0,
+            focus_offset: theme.focus_offset_tight,
             disabled_alpha: 0.35,
         }
     }
