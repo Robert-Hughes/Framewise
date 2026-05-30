@@ -198,7 +198,7 @@ pub struct WindowResult<
     'b,
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
 > {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
@@ -287,13 +287,13 @@ pub fn begin_window<
     T: TextSystem,
     S: LayoutState,
     L: Layout,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
 >(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: WindowSpecBuilder<'c>,
     layout_params: S::Params,
     inner_layout: L,
-) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
+) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands> {
     let layout_bounds = ctx.layout_state.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
@@ -314,7 +314,8 @@ pub fn begin_window<
             .map_or(content_bounds, |pc| pc.intersect(&content_bounds)),
     );
 
-    let on_finish = move |_: &mut FocusSystem| raw::end_window();
+    // The window's cleanup doesn't depend on its content extent.
+    let on_finish = move |_: &mut FocusSystem, _content_extent: Vec2| raw::end_window();
 
     let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
         inner_layout.begin(content_bounds),

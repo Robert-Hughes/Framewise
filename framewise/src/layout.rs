@@ -206,6 +206,15 @@ pub trait LayoutState {
     /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
     /// `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it.
     fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect;
+
+    /// The total content extent consumed so far, measured from the layout's
+    /// origin (so it is independent of any scroll offset). A deferred scroll area
+    /// reads this at `finish` to discover how large its children turned out — the
+    /// concrete `f32` end of an [`AxisBound::Unbounded`] axis (the "unbounded
+    /// resolves to concrete at accumulation" rule).
+    ///
+    /// Returns the zero vector before any child is placed.
+    fn content_extent(&self) -> Vec2;
 }
 
 // ── ManualLayout ──────────────────────────────────────────────────────────
@@ -221,12 +230,14 @@ impl Layout for ManualLayout {
         let space = space.into();
         ManualState {
             origin: Vec2::new(space.x, space.y),
+            content_extent: Vec2::ZERO,
         }
     }
 }
 
 pub struct ManualState {
     origin: Vec2,
+    content_extent: Vec2,
 }
 
 impl LayoutState for ManualState {
@@ -238,12 +249,20 @@ impl LayoutState for ManualState {
         // explicit rects still shift correctly relative to the parent. The
         // explicit size is independent of the available extent, so ManualLayout
         // is unaffected by an unbounded axis.
+        // The requested rect is origin-relative, so its far edge *is* the content
+        // extent contribution (no need to subtract the origin back out).
+        self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
+        self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
         Rect::new(
             self.origin.x + layout_params.x,
             self.origin.y + layout_params.y,
             layout_params.w,
             layout_params.h,
         )
+    }
+
+    fn content_extent(&self) -> Vec2 {
+        self.content_extent
     }
 }
 
@@ -263,6 +282,8 @@ impl Layout for ColumnLayout {
             current_y: space.y,
             space,
             spacing: self.spacing,
+            content_w: 0.0,
+            content_h: 0.0,
         }
     }
 }
@@ -271,6 +292,11 @@ pub struct ColumnState {
     space: LayoutSpace,
     spacing: f32,
     current_y: f32,
+    /// Widest child placed so far (cross axis).
+    content_w: f32,
+    /// Bottom edge of the last child relative to the origin (main axis), i.e. the
+    /// consumed height excluding any trailing spacing.
+    content_h: f32,
 }
 
 impl LayoutState for ColumnState {
@@ -287,8 +313,14 @@ impl LayoutState for ColumnState {
             .height
             .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
         let r = Rect::new(self.space.x, self.current_y, w, h);
+        self.content_w = self.content_w.max(w);
+        self.content_h = (self.current_y + h) - self.space.y;
         self.current_y += h + self.spacing;
         r
+    }
+
+    fn content_extent(&self) -> Vec2 {
+        Vec2::new(self.content_w, self.content_h)
     }
 }
 
@@ -308,6 +340,8 @@ impl Layout for RowLayout {
             current_x: space.x,
             space,
             spacing: self.spacing,
+            content_w: 0.0,
+            content_h: 0.0,
         }
     }
 }
@@ -316,6 +350,11 @@ pub struct RowState {
     space: LayoutSpace,
     spacing: f32,
     current_x: f32,
+    /// Right edge of the last child relative to the origin (main axis), i.e. the
+    /// consumed width excluding any trailing spacing.
+    content_w: f32,
+    /// Tallest child placed so far (cross axis).
+    content_h: f32,
 }
 
 impl LayoutState for RowState {
@@ -332,8 +371,14 @@ impl LayoutState for RowState {
             .height
             .resolve(pref.map(|p| p.y), self.space.height, LAYOUT_FALLBACK_SIZE.y);
         let r = Rect::new(self.current_x, self.space.y, w, h);
+        self.content_w = (self.current_x + w) - self.space.x;
+        self.content_h = self.content_h.max(h);
         self.current_x += w + self.spacing;
         r
+    }
+
+    fn content_extent(&self) -> Vec2 {
+        Vec2::new(self.content_w, self.content_h)
     }
 }
 
@@ -371,6 +416,12 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
         r.y -= self.offset.y;
         r
     }
+
+    fn content_extent(&self) -> Vec2 {
+        // The content extent is offset-independent: it describes how large the
+        // children are, not where they are scrolled to.
+        self.inner.content_extent()
+    }
 }
 
 // ── WrapLayout ─────────────────────────────────────────────────────────────
@@ -399,6 +450,7 @@ impl Layout for WrapLayout {
             spacing: self.spacing,
             line_spacing: self.line_spacing,
             line_height: 0.0,
+            content_w: 0.0,
         }
     }
 }
@@ -411,6 +463,8 @@ pub struct WrapState {
     current_y: f32,
     /// Tallest item on the current line, used to advance to the next line.
     line_height: f32,
+    /// Widest line right-edge reached relative to the origin (cross-line max).
+    content_w: f32,
 }
 
 impl LayoutState for WrapState {
@@ -440,9 +494,15 @@ impl LayoutState for WrapState {
         }
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
+        self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
         self.current_x += w + self.spacing;
         self.line_height = self.line_height.max(h);
         r
+    }
+
+    fn content_extent(&self) -> Vec2 {
+        // Width: the widest line. Height: the bottom of the current (last) line.
+        Vec2::new(self.content_w, (self.current_y + self.line_height) - self.space.y)
     }
 }
 
@@ -652,6 +712,48 @@ mod tests {
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0));
         assert_eq!(r2, Rect::new(40.0, 0.0, 40.0, 20.0));
         assert_eq!(r3, Rect::new(80.0, 0.0, 40.0, 20.0));
+    }
+
+    #[test]
+    fn test_column_content_extent() {
+        let mut state = ColumnLayout { spacing: 10.0 }.begin(Rect::new(5.0, 7.0, 100.0, 500.0));
+        assert_eq!(state.content_extent(), Vec2::ZERO);
+        state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
+        state.layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        // Width = widest child (60); height = bottom of last child = 20 + 10 + 30 = 60
+        // (no trailing spacing counted).
+        assert_eq!(state.content_extent(), Vec2::new(60.0, 60.0));
+    }
+
+    #[test]
+    fn test_row_content_extent() {
+        let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
+        state.layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN);
+        // Width = right of last child = 30 + 5 + 20 = 55; height = tallest child (40).
+        assert_eq!(state.content_extent(), Vec2::new(55.0, 40.0));
+    }
+
+    #[test]
+    fn test_manual_content_extent() {
+        let mut state = ManualLayout.begin(Rect::new(100.0, 100.0, 0.0, 0.0));
+        state.layout(Rect::new(0.0, 0.0, 50.0, 20.0), IntrinsicSize::UNKNOWN);
+        state.layout(Rect::new(80.0, 40.0, 30.0, 30.0), IntrinsicSize::UNKNOWN);
+        // Extent is origin-relative: max far edges = (80+30, 40+30) = (110, 70).
+        assert_eq!(state.content_extent(), Vec2::new(110.0, 70.0));
+    }
+
+    #[test]
+    fn test_offset_content_extent_ignores_offset() {
+        let offset = OffsetLayout {
+            offset: Vec2::new(13.0, 27.0),
+            inner: ColumnLayout { spacing: 0.0 },
+        };
+        let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+        state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
+        state.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        // Content extent describes child size, not scroll position — offset ignored.
+        assert_eq!(state.content_extent(), Vec2::new(40.0, 50.0));
     }
 
     #[test]

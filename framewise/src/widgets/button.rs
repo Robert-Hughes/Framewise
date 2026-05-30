@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::FontId,
-    types::{ClipRect, Color, Rect},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -399,7 +399,7 @@ impl<'a> ButtonSpecBuilder<'a> {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn button<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,
     layout_params: S::Params,

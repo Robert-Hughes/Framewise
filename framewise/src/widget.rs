@@ -2,7 +2,7 @@ use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::{Layout, LayoutState};
 use crate::theme::Theme;
-use crate::types::{ClipRect, Rect};
+use crate::types::{ClipRect, Rect, Vec2};
 use crate::Input;
 use crate::TextSystem;
 
@@ -57,7 +57,7 @@ pub struct WidgetContext<
     'a,
     T: TextSystem,
     LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
+    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
 > {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
@@ -75,7 +75,7 @@ pub struct WidgetContext<
 }
 
 impl<'a, T: TextSystem, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem) -> DrawCommands>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem, Vec2) -> DrawCommands>
 {
     pub fn root(
         theme: Theme,
@@ -94,18 +94,18 @@ impl<'a, T: TextSystem, LS: LayoutState>
             input,
             layout_state,
             cmds,
-            on_finish: |_| DrawCommands::new(), // No cleanup for root context
+            on_finish: |_, _| DrawCommands::new(), // No cleanup for root context
         }
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands>
     WidgetContext<'a, T, LS, CF>
 {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem) -> DrawCommands,
+        CF2: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -128,7 +128,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem) -> DrawCommands,
+        CF2: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -151,13 +151,13 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands> {
         let bounds = self
             .layout_state
             .layout(placement, crate::layout::IntrinsicSize::UNKNOWN);
         self.child_with_layout_and_on_finish_and_clip_rect(
             inner_layout.begin(bounds),
-            |_| DrawCommands::new(),
+            |_, _| DrawCommands::new(),
             self.clip_rect, // Clip rect is inherited by default
         )
     }
@@ -168,8 +168,13 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
     }
 
     /// Consume the context, running the on_finish closure and appending its post-commands.
+    ///
+    /// The layout's accumulated [`content_extent`](LayoutState::content_extent) is
+    /// passed to the closure so container widgets (e.g. a deferred scroll area) can
+    /// resolve geometry from how large their children turned out.
     pub fn finish(self) {
-        let post_cmds = (self.on_finish)(self.focus_system);
+        let content_extent = self.layout_state.content_extent();
+        let post_cmds = (self.on_finish)(self.focus_system, content_extent);
         self.cmds.extend(post_cmds);
     }
 }

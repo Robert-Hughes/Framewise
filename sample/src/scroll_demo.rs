@@ -4,7 +4,7 @@ use framewise::{
     input::Input,
     layout::{Layout, SizeReq},
     theme::Theme,
-    types::{Color, Rect, Vec2},
+    types::{Color, Rect},
     widget::WidgetContext,
     widgets::{
         button::button,
@@ -160,13 +160,11 @@ pub fn draw_scroll_demo(
             button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
             button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
 
-            let content_height = 20.0 * 32.0 + 20.0 * 8.0;
             let mut sidebar_scroll = begin_scroll_area(
                 &mut sidebar_col,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(200.0, content_height))
-                    .h_vis(ScrollbarVisibility::Auto)
-                    .v_vis(ScrollbarVisibility::Auto),
+                    .h_vis(ScrollbarVisibility::Always)
+                    .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
                 framewise::layout::ColumnLayout { spacing: 8.0 },
@@ -199,7 +197,6 @@ pub fn draw_scroll_demo(
             let mut content_col = begin_scroll_area(
                 &mut main_row,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(win_w - 240.0, 2000.0))
                     .h_vis(ScrollbarVisibility::None)
                     .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(win_w - 240.0, win_h - 20.0),
@@ -306,13 +303,11 @@ pub fn draw_scroll_demo(
             };
 
             // Main Scroll Area
-            let content_height = 30.0 * 50.0 + 30.0 * 10.0;
             let mut main_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(inner_w, content_height))
-                    .h_vis(ScrollbarVisibility::Auto)
-                    .v_vis(ScrollbarVisibility::Auto),
+                    .h_vis(ScrollbarVisibility::Always)
+                    .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
                 framewise::layout::ColumnLayout { spacing: 10.0 },
@@ -343,13 +338,11 @@ pub fn draw_scroll_demo(
 
             // Nested Scroll Area Demo
             let row_h = 160.0;
-            let outer_content_height = 3.0 * row_h + 2.0 * 10.0;
             let mut outer_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(800.0, outer_content_height))
-                    .h_vis(ScrollbarVisibility::Auto)
-                    .v_vis(ScrollbarVisibility::Auto),
+                    .h_vis(ScrollbarVisibility::Always)
+                    .v_vis(ScrollbarVisibility::Always),
                 SizeReq::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
                 framewise::layout::ColumnLayout { spacing: 10.0 },
@@ -390,13 +383,11 @@ pub fn draw_scroll_demo(
                 }
 
                 // 1. Vertical Inner scroll area
-                let inner_content_height = 6.0 * 45.0 + 5.0 * 8.0;
                 let mut inner_scroll = begin_scroll_area(
                     &mut row_builder,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(120.0, inner_content_height))
                         .h_vis(ScrollbarVisibility::None)
-                        .v_vis(ScrollbarVisibility::Auto),
+                        .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
                     framewise::layout::ColumnLayout { spacing: 8.0 },
@@ -427,11 +418,9 @@ pub fn draw_scroll_demo(
                 inner_scroll.finish();
 
                 // 2. Horizontal Inner scroll area
-                let horiz_content_width = 10.0 * 80.0 + 9.0 * 8.0;
                 let mut horiz_scroll = begin_scroll_area(
                     &mut row_builder,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(horiz_content_width, row_h))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(180.0, row_h),
@@ -465,14 +454,11 @@ pub fn draw_scroll_demo(
                 horiz_scroll.finish();
 
                 // 3. Both directions Inner scroll area
-                let both_width = 8.0 * 80.0 + 7.0 * 8.0;
-                let both_height = 6.0 * 45.0 + 5.0 * 8.0;
                 let mut both_scroll = begin_scroll_area(
                     &mut row_builder,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(both_width, both_height))
-                        .h_vis(ScrollbarVisibility::Auto)
-                        .v_vis(ScrollbarVisibility::Auto),
+                        .h_vis(ScrollbarVisibility::Always)
+                        .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(200.0, row_h),
                     &mut row_state.both_scroll,
                     framewise::layout::ManualLayout,
@@ -535,7 +521,6 @@ pub fn draw_scroll_demo(
             let mut d_outer_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(2000.0, 150.0))
                     .h_vis(ScrollbarVisibility::Always)
                     .v_vis(ScrollbarVisibility::None),
                 SizeReq::fixed(inner_w, 150.0),
@@ -554,7 +539,6 @@ pub fn draw_scroll_demo(
             let mut d_inner_scroll = begin_scroll_area(
                 &mut d_outer_scroll,
                 ScrollAreaSpecBuilder::new()
-                    .content_size(Vec2::new(20.0 * 60.0 + 19.0 * 8.0, 120.0))
                     .h_vis(ScrollbarVisibility::Always)
                     .v_vis(ScrollbarVisibility::None),
                 SizeReq::fixed(600.0, 120.0),
@@ -588,7 +572,6 @@ pub fn draw_scroll_demo(
                 let mut outer = begin_scroll_area(
                     &mut content_col,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(840.0, 400.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(inner_w.min(440.0), 200.0),
@@ -620,7 +603,6 @@ pub fn draw_scroll_demo(
                 let mut inner = begin_scroll_area(
                     &mut outer,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(500.0, 300.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::Always),
                     Rect::new(80.0, 50.0, 250.0, 150.0),
@@ -666,7 +648,6 @@ pub fn draw_scroll_demo(
                 let mut outer_scroll = begin_scroll_area(
                     &mut content_col,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(inner_w, 500.0))
                         .h_vis(ScrollbarVisibility::None)
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(inner_w, 220.0),
@@ -678,7 +659,6 @@ pub fn draw_scroll_demo(
                 let mut middle_scroll = begin_scroll_area(
                     &mut outer_scroll,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(1400.0, 160.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(inner_w - 15.0, 160.0),
@@ -687,11 +667,9 @@ pub fn draw_scroll_demo(
                 )
                 .ctx;
 
-                let inner_content_h = 12.0 * 35.0 + 50.0 + 12.0 * 6.0;
                 let mut inner_scroll = begin_scroll_area(
                     &mut middle_scroll,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(200.0, inner_content_h))
                         .h_vis(ScrollbarVisibility::None)
                         .v_vis(ScrollbarVisibility::Always),
                     SizeReq::fixed(200.0, 130.0),
@@ -721,11 +699,9 @@ pub fn draw_scroll_demo(
                     }
                 }
 
-                let innermost_content_w = 5.0 * 80.0 + 4.0 * 6.0;
                 let mut innermost_scroll = begin_scroll_area(
                     &mut inner_scroll,
                     ScrollAreaSpecBuilder::new()
-                        .content_size(Vec2::new(innermost_content_w, 50.0))
                         .h_vis(ScrollbarVisibility::Always)
                         .v_vis(ScrollbarVisibility::None),
                     SizeReq::fixed(165.0, 50.0),

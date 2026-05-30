@@ -706,7 +706,7 @@ impl SliderSpecBuilder {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpecBuilder and calls the low-level raw::slider function.
-pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SliderSpecBuilder,
     layout_params: S::Params,
