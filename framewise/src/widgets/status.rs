@@ -97,9 +97,9 @@ impl StatusStyle {
             text_size: theme.text_sm,
             font: theme.mono_font,
             neutral: theme.muted,
-            ok: Color::from_srgb_f32(0.302, 0.541, 0.227, 1.0),
+            ok: theme.ok,
             warn: theme.rust,
-            err: Color::from_srgb_f32(0.702, 0.145, 0.122, 1.0),
+            err: theme.err,
             live: theme.rust,
             text: theme.muted,
         }

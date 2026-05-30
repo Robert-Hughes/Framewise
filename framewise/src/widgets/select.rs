@@ -319,7 +319,7 @@ impl SelectStyle {
         Self {
             min_width: 180.0,
             height: theme.h_md,
-            row_height: 26.0,
+            row_height: theme.row_height,
             popup_gap: 2.0,
             popup_pad_y: 4.0,
             pad_x: 10.0,

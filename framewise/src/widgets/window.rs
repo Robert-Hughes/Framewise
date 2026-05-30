@@ -171,7 +171,7 @@ pub struct WindowStyle {
 impl WindowStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            title_height: 26.0,
+            title_height: theme.h_md,
             button_size: 16.0,
             button_gap: 2.0,
             button_right_pad: 4.0,

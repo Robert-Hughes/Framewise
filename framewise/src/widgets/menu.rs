@@ -201,7 +201,7 @@ pub struct MenuStyle {
 impl MenuStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            row_height: 26.0,
+            row_height: theme.row_height,
             separator_height: 9.0,
             group_height: 22.0,
             pad_x: 12.0,

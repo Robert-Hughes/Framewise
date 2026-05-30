@@ -17,6 +17,8 @@ pub struct Theme {
     pub paper: Color,      // #f4f1ea — window background
     pub paper_elev: Color, // #fbf9f4 — raised surfaces (inputs, cards)
     pub rust: Color,       // #c25a2c — focus, drag, accent action
+    pub ok: Color,         // #4d8a3a — success / online status
+    pub err: Color,        // #b3251f — error / failure status
     pub muted: Color,      // #8a8378 — secondary text, placeholders
     pub rust_soft: Color,  // rust @ 14% α
     pub line: Color,       // ink @ 20% α — dividers
@@ -25,9 +27,10 @@ pub struct Theme {
     pub press: Color,      // ink @ 14% α — button press tint
 
     // Height grid
-    pub h_sm: f32, // 22 px
-    pub h_md: f32, // 28 px
-    pub h_lg: f32, // 36 px
+    pub h_sm: f32,    // 22 px
+    pub h_md: f32,    // 28 px
+    pub h_lg: f32,    // 36 px
+    pub row_height: f32, // 26 px — menu / dropdown rows
 
     // Border / focus ring
     pub border: f32,             // 1.0 — standard border width
@@ -53,6 +56,8 @@ impl Theme {
             paper: Color::from_srgb_u8(244, 241, 234, 255),
             paper_elev: Color::from_srgb_u8(251, 249, 244, 255),
             rust: Color::from_srgb_u8(194, 90, 44, 255),
+            ok: Color::from_srgb_u8(77, 138, 58, 255),
+            err: Color::from_srgb_u8(179, 37, 31, 255),
             muted: Color::from_srgb_u8(138, 131, 120, 255),
             rust_soft: Color::from_srgb_f32(194.0 / 255.0, 90.0 / 255.0, 44.0 / 255.0, 0.14),
             line: Color::from_srgb_f32(21.0 / 255.0, 19.0 / 255.0, 15.0 / 255.0, 0.20),
@@ -62,6 +67,7 @@ impl Theme {
             h_sm: 22.0,
             h_md: 28.0,
             h_lg: 36.0,
+            row_height: 26.0,
             border: 1.0,
             focus_width: 2.0,
             focus_offset: 2.0,
