@@ -613,7 +613,7 @@ pub fn begin_scroll_area<
     crate::layout::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem) -> DrawCommands,
 > {
-    let layout_bounds = ctx.layout(layout_params);
+    let layout_bounds = ctx.layout_state.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder

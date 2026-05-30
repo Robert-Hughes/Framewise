@@ -54,7 +54,7 @@ fn draw_checkbox_fake_state<
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = CheckboxState {
         checked: state_val,
         ..Default::default()
@@ -96,7 +96,7 @@ fn draw_radio_fake_state<
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = RadioState {
         checked,
         ..Default::default()
@@ -134,7 +134,7 @@ fn draw_switch_fake_state<
     is_focused: bool,
     is_disabled: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = SwitchState {
         checked,
         ..Default::default()
@@ -180,7 +180,7 @@ fn draw_select_fake_state<
     hovered_row: Option<usize>,
     is_disabled: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = SelectState {
         open: is_open,
         hovered: hovered_row,
@@ -228,7 +228,7 @@ fn draw_drag_number_fake_state<
     max: f32,
     is_active: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = framewise::widgets::DragNumberState {
         value: val,
         is_dragging: is_active,
@@ -273,7 +273,7 @@ fn draw_button_fake_state<
     pressed: bool,
     focused: bool,
 ) {
-    let rect = b.layout(layout_params);
+    let rect = b.layout_state.layout(layout_params);
     let mut state = ButtonState::default();
     let mut dummy_focus_sys = FocusSystem::new();
 
@@ -777,7 +777,7 @@ pub fn draw_spec_page(
 
             // ── HERO ─────────────────────────────────────────────────────────────────
             {
-                let rect = b.layout(Rect::new(lx, MARGIN, 96.0, 96.0));
+                let rect = b.layout_state.layout(Rect::new(lx, MARGIN, 96.0, 96.0));
                 b.append_cmds(hero_logo(&t, rect.x, rect.y));
 
                 let tx = lx + 124.0; // 28px gap + 96px logo = 124px
@@ -1237,7 +1237,7 @@ pub fn draw_spec_page(
                 };
                 {
                     let layout_params = Rect::new(pf_x, y + 18.0, 24.0, t.h_md);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect { rect, color: t.ink },
                         DrawCmd::StrokeRect {
@@ -1617,7 +1617,7 @@ pub fn draw_spec_page(
                     let tx = lx + 6.0 + (i as f32 / 9.0) * usable;
                     {
                         let layout_params = Rect::new(tx - 0.5, tick_y, 1.0, tick_h);
-                        let rect = b.layout(layout_params);
+                        let rect = b.layout_state.layout(layout_params);
                         let cmds = DrawCommands(vec![DrawCmd::FillRect {
                             rect,
                             color: t.line,
@@ -1636,7 +1636,7 @@ pub fn draw_spec_page(
                 let mid_y = y + t.h_md * 0.5;
                 {
                     let layout_params = Rect::new(lx, mid_y - 0.75, track_w, 12.0);
-                    let r = b.layout(layout_params);
+                    let r = b.layout_state.layout(layout_params);
                     let cmds = {
                         let lx = r.x;
                         let track_w = r.w;
@@ -1746,7 +1746,7 @@ pub fn draw_spec_page(
                 let stepper_x = lx;
                 {
                     let layout_params = Rect::new(stepper_x, y, 64.0, t.h_md);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
@@ -1773,7 +1773,7 @@ pub fn draw_spec_page(
                 };
                 {
                     let layout_params = Rect::new(stepper_x + 64.0, y, 40.0, t.h_md);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
@@ -1803,7 +1803,7 @@ pub fn draw_spec_page(
                 let sx = stepper_x + 120.0;
                 {
                     let layout_params = Rect::new(sx, y, 84.0, t.h_sm);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
@@ -2095,7 +2095,7 @@ pub fn draw_spec_page(
                 let b1 = Rect::new(lx, y, 180.0, 130.0);
                 let b1_content = Vec2::new(180.0, 320.0);
                 {
-                    let rect = b.layout(b1);
+                    let rect = b.layout_state.layout(b1);
                     let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
@@ -2168,7 +2168,7 @@ pub fn draw_spec_page(
                 let b2 = Rect::new(b2_x, y, 180.0, 130.0);
                 let b2_content = Vec2::new(180.0, 300.0);
                 {
-                    let rect = b.layout(b2);
+                    let rect = b.layout_state.layout(b2);
                     let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
@@ -2226,7 +2226,7 @@ pub fn draw_spec_page(
                 let b3 = Rect::new(b3_x, y + 15.0, 300.0, 100.0);
                 let b3_content = Vec2::new(700.0, 100.0);
                 {
-                    let rect = b.layout(b3);
+                    let rect = b.layout_state.layout(b3);
                     let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
@@ -2283,7 +2283,7 @@ pub fn draw_spec_page(
                 let b4 = Rect::new(b4_x, y, 220.0, 130.0);
                 let b4_content = Vec2::new(320.0, 240.0);
                 {
-                    let rect = b.layout(b4);
+                    let rect = b.layout_state.layout(b4);
                     let cmds = DrawCommands(vec![DrawCmd::StrokeRect {
                         rect,
                         color: t.line,
@@ -2829,7 +2829,7 @@ pub fn draw_spec_page(
                 let muted_l = t.muted;
 
                 {
-                    let rect = b.layout(dw);
+                    let rect = b.layout_state.layout(dw);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
@@ -2876,7 +2876,7 @@ pub fn draw_spec_page(
                 // keycap row
                 {
                     let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
@@ -2938,7 +2938,7 @@ pub fn draw_spec_page(
                 let inp_y = cyw + 28.0;
                 {
                     let layout_params = Rect::new(cx, inp_y, dw.w - 32.0, 26.0);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![
                         DrawCmd::FillRect {
                             rect,
@@ -2970,7 +2970,7 @@ pub fn draw_spec_page(
                 let tab_y = inp_y + 30.0;
                 {
                     let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
-                    let rect = b.layout(layout_params);
+                    let rect = b.layout_state.layout(layout_params);
                     let cmds = DrawCommands(vec![DrawCmd::StrokeLine {
                         p0: Vec2::new(rect.x, rect.y),
                         p1: Vec2::new(rect.x + rect.w, rect.y),
@@ -2996,7 +2996,7 @@ pub fn draw_spec_page(
                     if i == 0 {
                         {
                             let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
-                            let rect = b.layout(layout_params);
+                            let rect = b.layout_state.layout(layout_params);
                             let cmds = DrawCommands(vec![DrawCmd::FillRect {
                                 rect,
                                 color: t.rust,

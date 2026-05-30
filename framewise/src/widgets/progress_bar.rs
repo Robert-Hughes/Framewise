@@ -183,7 +183,7 @@ pub fn progress_bar<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) 
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,
 ) -> ProgressBarResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder
         .rect(rect)

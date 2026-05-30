@@ -103,7 +103,7 @@ pub fn divider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Dr
     builder: DividerSpecBuilder,
     layout_params: S::Params,
 ) -> DividerResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::divider(spec);

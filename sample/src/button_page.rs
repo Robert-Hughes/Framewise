@@ -50,10 +50,10 @@ pub fn draw_button_page(
     );
 
     // Root column — all sections stack vertically with 24px gaps
-    let mut outer = {
-        let bounds = ctx.layout(Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad));
-        ctx.child_with_layout(ColumnLayout { spacing: 24.0 }.begin(bounds))
-    };
+    let mut outer = ctx.child_with_layout(
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        ColumnLayout { spacing: 24.0 },
+    );
 
     let theme = outer.theme.clone();
     let primary   = ButtonStyle::primary_from_theme(&theme);
@@ -64,8 +64,8 @@ pub fn draw_button_page(
     // ── Section 1: Toolbar row — one button per style ─────────────────────────
     // Nesting: root col > row
     {
-        let bounds = outer.layout(Vec2::new(win_w - 2.0 * pad, 40.0));
-        let mut row = outer.child_with_layout(RowLayout { spacing: 10.0 }.begin(bounds));
+        let mut row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0), RowLayout { spacing: 10.0 });
 
         let styles = [primary, secondary, accent, ghost];
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
@@ -87,12 +87,12 @@ pub fn draw_button_page(
     // Nesting: root col > row > [col, col]
     // Left col: primary + secondary; right col: accent + ghost; each with disabled variant
     {
-        let bounds = outer.layout(Vec2::new(win_w - 2.0 * pad, 200.0));
-        let mut row = outer.child_with_layout(RowLayout { spacing: 30.0 }.begin(bounds));
+        let mut row = outer
+            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 200.0), RowLayout { spacing: 30.0 });
 
         {
-            let col_bounds = row.layout(Vec2::new(260.0, 200.0));
-            let mut col = row.child_with_layout(ColumnLayout { spacing: 8.0 }.begin(col_bounds));
+            let mut col =
+                row.child_with_layout(Vec2::new(260.0, 200.0), ColumnLayout { spacing: 8.0 });
 
             let entries = [
                 ("Primary",            primary,   false),
@@ -112,8 +112,8 @@ pub fn draw_button_page(
         }
 
         {
-            let col_bounds = row.layout(Vec2::new(260.0, 200.0));
-            let mut col = row.child_with_layout(ColumnLayout { spacing: 8.0 }.begin(col_bounds));
+            let mut col =
+                row.child_with_layout(Vec2::new(260.0, 200.0), ColumnLayout { spacing: 8.0 });
 
             let entries = [
                 ("Accent",          accent, false),
@@ -140,8 +140,8 @@ pub fn draw_button_page(
     // Outer row: [label btn | control column]
     // Control column: [dec/display/inc row | reset btn]
     {
-        let bounds = outer.layout(Vec2::new(win_w - 2.0 * pad, 96.0));
-        let mut outer_row = outer.child_with_layout(RowLayout { spacing: 10.0 }.begin(bounds));
+        let mut outer_row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0), RowLayout { spacing: 10.0 });
 
         button(
             &mut outer_row,
@@ -151,12 +151,12 @@ pub fn draw_button_page(
         );
 
         {
-            let col_bounds = outer_row.layout(Vec2::new(420.0, 96.0));
-            let mut col = outer_row.child_with_layout(ColumnLayout { spacing: 12.0 }.begin(col_bounds));
+            let mut col =
+                outer_row.child_with_layout(Vec2::new(420.0, 96.0), ColumnLayout { spacing: 12.0 });
 
             {
-                let row_bounds = col.layout(Vec2::new(420.0, 48.0));
-                let mut inner_row = col.child_with_layout(RowLayout { spacing: 12.0 }.begin(row_bounds));
+                let mut inner_row =
+                    col.child_with_layout(Vec2::new(420.0, 48.0), RowLayout { spacing: 12.0 });
 
                 let r = button(
                     &mut inner_row,
@@ -208,8 +208,8 @@ pub fn draw_button_page(
     // ── Section 4: Action grid — row containing three styled columns ──────────
     // Nesting: root col > row > [col, col, col]
     {
-        let bounds = outer.layout(Vec2::new(win_w - 2.0 * pad, 124.0));
-        let mut row = outer.child_with_layout(RowLayout { spacing: 20.0 }.begin(bounds));
+        let mut row = outer
+            .child_with_layout(Vec2::new(win_w - 2.0 * pad, 124.0), RowLayout { spacing: 20.0 });
 
         let group_labels = [
             ["Save",  "Save As", "Export"],
@@ -219,8 +219,8 @@ pub fn draw_button_page(
         let group_styles = [primary, secondary, accent];
 
         for g in 0..3 {
-            let col_bounds = row.layout(Vec2::new(180.0, 124.0));
-            let mut col = row.child_with_layout(ColumnLayout { spacing: 8.0 }.begin(col_bounds));
+            let mut col =
+                row.child_with_layout(Vec2::new(180.0, 124.0), ColumnLayout { spacing: 8.0 });
 
             for j in 0..3 {
                 let idx = g * 3 + j;

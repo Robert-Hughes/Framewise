@@ -170,7 +170,7 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) ->
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> KeycapResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::keycap(spec, ctx.text_system);

@@ -294,7 +294,7 @@ pub fn menu<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> D
     builder: MenuSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> MenuResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::menu(spec, ctx.text_system);

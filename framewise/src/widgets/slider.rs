@@ -698,7 +698,7 @@ pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Dra
     layout_params: S::Params,
     state: &mut SliderState,
 ) -> SliderResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
     let spec = builder

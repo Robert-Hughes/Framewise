@@ -154,8 +154,7 @@ pub fn draw_scroll_demo(
         let mut main_row = {
             let layout_params = Rect::new(10.0, 10.0, win_w - 20.0, win_h - 20.0);
             let layout = framewise::layout::RowLayout { spacing: 10.0 };
-            let bounds = ctx.layout(layout_params);
-            ctx.child_with_layout(layout.begin(bounds))
+            ctx.child_with_layout(layout_params, layout)
         };
 
         // -- SIDEBAR (Left Column) --
@@ -163,8 +162,7 @@ pub fn draw_scroll_demo(
             let mut sidebar_col = {
                 let layout_params = Vec2::new(200.0, win_h - 20.0);
                 let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
-                let bounds = main_row.layout(layout_params);
-                main_row.child_with_layout(layout.begin(bounds))
+                main_row.child_with_layout(layout_params, layout)
             };
             let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
             button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
@@ -231,8 +229,7 @@ pub fn draw_scroll_demo(
                 let mut header_row = {
                     let layout_params = Vec2::new(inner_w, 40.0);
                     let layout = framewise::layout::RowLayout { spacing: 10.0 };
-                    let bounds = content_col.layout(layout_params);
-                    content_col.child_with_layout(layout.begin(bounds))
+                    content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&header_row.theme);
                 button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
@@ -279,8 +276,7 @@ pub fn draw_scroll_demo(
                 let mut grid_col = {
                     let layout_params = Vec2::new(inner_w, 200.0);
                     let layout = framewise::layout::ColumnLayout { spacing: 10.0 };
-                    let bounds = content_col.layout(layout_params);
-                    content_col.child_with_layout(layout.begin(bounds))
+                    content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style = framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
                 button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
@@ -298,8 +294,7 @@ pub fn draw_scroll_demo(
                         let mut grid_row = {
                             let layout_params = Vec2::new(inner_w, 32.0);
                             let layout = framewise::layout::RowLayout { spacing: 10.0 };
-                            let bounds = grid_col.layout(layout_params);
-                            grid_col.child_with_layout(layout.begin(bounds))
+                            grid_col.child_with_layout(layout_params, layout)
                         };
                         for col in 0..4 {
                             let idx = row * 4 + col;
@@ -330,8 +325,7 @@ pub fn draw_scroll_demo(
                 let mut slider_row = {
                     let layout_params = Vec2::new(inner_w, 100.0);
                     let layout = framewise::layout::RowLayout { spacing: 20.0 };
-                    let bounds = content_col.layout(layout_params);
-                    content_col.child_with_layout(layout.begin(bounds))
+                    content_col.child_with_layout(layout_params, layout)
                 };
 
                 {
@@ -424,8 +418,7 @@ pub fn draw_scroll_demo(
                 let mut row_builder = {
                     let layout_params = Vec2::new(800.0, row_h);
                     let layout = framewise::layout::RowLayout { spacing: 10.0 };
-                    let bounds = outer_scroll.layout(layout_params);
-                    outer_scroll.child_with_layout(layout.begin(bounds))
+                    outer_scroll.child_with_layout(layout_params, layout)
                 };
                 let (base_r, base_g, base_b) = match i {
                     0 => (0.40, 0.80, 0.10),

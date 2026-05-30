@@ -175,7 +175,7 @@ pub fn meter<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Draw
     builder: MeterSpecBuilder,
     layout_params: S::Params,
 ) -> MeterResult {
-    let layout_rect = ctx.layout(layout_params);
+    let layout_rect = ctx.layout_state.layout(layout_params);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::meter(spec);

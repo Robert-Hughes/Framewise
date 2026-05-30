@@ -294,7 +294,7 @@ pub fn begin_window<
     layout_params: S::Params,
     inner_layout: L,
 ) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
-    let layout_bounds = ctx.layout(layout_params);
+    let layout_bounds = ctx.layout_state.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
     let buttons = builder.buttons.unwrap_or(&[]);

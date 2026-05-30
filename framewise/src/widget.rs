@@ -1,6 +1,6 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
-use crate::layout::LayoutState;
+use crate::layout::{Layout, LayoutState};
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect};
 use crate::Input;
@@ -141,12 +141,20 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
         )
     }
 
-    pub fn child_with_layout<'c, LS2: LayoutState>(
+    /// Open a child context whose layout is placed within this context's layout.
+    ///
+    /// `placement` is resolved against *this* context's layout to obtain the child's
+    /// bounds, then `inner_layout` is begun at those bounds. This is the standard path
+    /// for nesting layouts (column inside row, etc.) and replaces the old
+    /// `layout(params)` + `inner.begin(bounds)` + `child_with_layout(state)` dance.
+    pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
-        inner_layout_state: LS2,
-    ) -> WidgetContext<'c, T, LS2, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
+        placement: LS::Params,
+        inner_layout: L2,
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem) -> DrawCommands> {
+        let bounds = self.layout_state.layout(placement);
         self.child_with_layout_and_on_finish_and_clip_rect(
-            inner_layout_state,
+            inner_layout.begin(bounds),
             |_| DrawCommands::new(),
             self.clip_rect, // Clip rect is inherited by default
         )
@@ -162,9 +170,43 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCom
         let post_cmds = (self.on_finish)(self.focus_system);
         self.cmds.extend(post_cmds);
     }
+}
 
-    /// Resolve layout using the context's layout state.
-    pub fn layout(&mut self, params: LS::Params) -> Rect {
-        self.layout_state.layout(params)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layout::{ColumnLayout, Layout, ManualLayout, RowLayout};
+    use crate::test_utils::DummyTextSys;
+    use crate::types::Vec2;
+
+    /// `child_with_layout` resolves `placement` against the parent layout, then begins
+    /// the child layout at those bounds — replacing the old layout()/begin() dance.
+    #[test]
+    fn child_with_layout_fuses_placement_and_begin() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            &mut cmds,
+        );
+
+        // Place a column at (10,10) sized 200x400 inside the root manual layout,
+        // then a row nested at the column's first slot.
+        let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 200.0, 400.0), ColumnLayout { spacing: 5.0 });
+        let mut row = col.child_with_layout(Vec2::new(200.0, 30.0), RowLayout { spacing: 4.0 });
+
+        // The row sits at the column's origin (10,10); its first child lands there.
+        let first = row.layout_state.layout(Vec2::new(50.0, 30.0));
+        assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
+        // Second row child advances by width + spacing.
+        let second = row.layout_state.layout(Vec2::new(40.0, 30.0));
+        assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 }
