@@ -174,7 +174,7 @@ impl<'a> StatusSpecBuilder<'a> {
 /// High-level status widget function using WidgetContext.
 ///
 /// This function accepts a StatusSpecBuilder and calls the low-level raw::status function.
-pub fn status<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn status<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: StatusSpecBuilder<'a>,
     layout_params: S::Params,

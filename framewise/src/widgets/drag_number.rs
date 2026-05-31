@@ -330,12 +330,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
 /// High-level drag number widget function using WidgetContext.
 ///
 /// This function accepts a DragNumberSpecBuilder and calls the low-level raw::drag_number function.
-pub fn drag_number<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn drag_number<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: DragNumberSpecBuilder<'a>,
     layout_params: S::Params,

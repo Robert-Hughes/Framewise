@@ -306,7 +306,7 @@ impl<'a> TabsSpecBuilder<'a> {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpecBuilder and calls the low-level raw::tabs function.
-pub fn tabs<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn tabs<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TabsSpecBuilder<'a>,
     layout_params: S::Params,

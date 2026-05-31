@@ -246,7 +246,7 @@ impl RadioSpecBuilder {
 /// High-level radio widget function using WidgetContext.
 ///
 /// This function accepts a RadioSpecBuilder and calls the low-level raw::radio function.
-pub fn radio<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn radio<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: RadioSpecBuilder,
     layout_params: S::Params,

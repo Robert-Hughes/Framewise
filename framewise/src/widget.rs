@@ -53,12 +53,7 @@ pub struct InputInfo {
 /// Can be associated with a 'on_finish' closure, which allows widget cleanup code to be run
 /// when this context is finished (e.g. for nested windows)
 #[must_use = "finish() must be called to run cleanup"]
-pub struct WidgetContext<
-    'a,
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
-> {
+pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
     pub time: f64,
@@ -75,7 +70,7 @@ pub struct WidgetContext<
 }
 
 impl<'a, T: TextSystem, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem, Vec2) -> DrawCommands>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut DrawCommands, Vec2)>
 {
     pub fn root(
         theme: Theme,
@@ -94,18 +89,16 @@ impl<'a, T: TextSystem, LS: LayoutState>
             input,
             layout_state,
             cmds,
-            on_finish: |_, _| DrawCommands::new(), // No cleanup for root context
+            on_finish: |_, _, _| (), // No cleanup for root context
         }
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands>
-    WidgetContext<'a, T, LS, CF>
-{
+impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
+        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -128,7 +121,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> D
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
+        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -151,13 +144,14 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> D
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands> {
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)>
+    {
         let bounds = self
             .layout_state
             .layout(placement, crate::layout::IntrinsicSize::UNKNOWN);
         self.child_with_layout_and_on_finish_and_clip_rect(
             inner_layout.begin(bounds),
-            |_, _| DrawCommands::new(),
+            |_, _, _| (),
             self.clip_rect, // Clip rect is inherited by default
         )
     }
@@ -166,7 +160,11 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> D
     pub fn append_cmds(&mut self, cmds: DrawCommands) {
         self.cmds.extend(cmds);
     }
+}
 
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)>
+    WidgetContext<'a, T, LS, CF>
+{
     /// Consume the context, running the on_finish closure and appending its post-commands.
     ///
     /// The layout's accumulated [`content_extent`](LayoutState::content_extent) is
@@ -174,8 +172,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> D
     /// resolve geometry from how large their children turned out.
     pub fn finish(self) {
         let content_extent = self.layout_state.content_extent();
-        let post_cmds = (self.on_finish)(self.focus_system, content_extent);
-        self.cmds.extend(post_cmds);
+        (self.on_finish)(self.focus_system, self.cmds, content_extent);
     }
 }
 

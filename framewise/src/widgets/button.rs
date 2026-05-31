@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::FontId,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -399,12 +399,7 @@ impl<'a> ButtonSpecBuilder<'a> {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
->(
+pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,
     layout_params: S::Params,
@@ -1004,8 +999,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: background,
@@ -1020,7 +1015,7 @@ mod tests {
                     color: text_color,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1053,8 +1048,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: hovered,
@@ -1069,7 +1064,7 @@ mod tests {
                     color: text_color,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1105,8 +1100,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: pressed,
@@ -1121,7 +1116,7 @@ mod tests {
                     color: text_color,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1160,8 +1155,8 @@ mod tests {
             Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + focus_offset));
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::StrokeRect {
                     rect: expected_focus_rect,
                     color: focus,
@@ -1181,7 +1176,7 @@ mod tests {
                     color: text_color,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1216,8 +1211,8 @@ mod tests {
         let border_width = primary_style.border_width;
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: expected_bg,
@@ -1232,7 +1227,7 @@ mod tests {
                     color: expected_text,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1281,8 +1276,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &res.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                     color: custom_style.background,
@@ -1297,7 +1292,7 @@ mod tests {
                     color: custom_style.text_color,
                     handle: TextHandle(0),
                 },
-            ])
+            ]
         );
     }
 
@@ -1383,7 +1378,6 @@ mod tests {
             &mut btn_state,
         );
         let has_custom_fill = cmds
-            .0
             .iter()
             .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.background));
         assert!(

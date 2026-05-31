@@ -112,7 +112,7 @@ impl ColorSwatchSpecBuilder {
 /// High-level color swatch widget function using WidgetContext.
 ///
 /// This function accepts a ColorSwatchSpecBuilder and calls the low-level raw::color_swatch function.
-pub fn color_swatch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ColorSwatchSpecBuilder,
     layout_params: S::Params,

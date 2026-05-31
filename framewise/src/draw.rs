@@ -66,8 +66,18 @@ pub enum DrawCmd {
 /// Widgets build a `DrawCommands` value and return it as part of their result.
 /// The `Builder` accumulates all commands into a single flat `Vec<DrawCmd>` for
 /// the renderer.
+///
+/// # Index Stability Invariant
+/// Draw commands are strictly appended in order of evaluation. There is no reordering
+/// or removal of commands during a layout pass. This stability is critical for container
+/// widgets (like `frame`) that push placeholder draw commands at the start of execution
+/// and retroactively patch their geometry via stable indices at the end of the pass.
+///
+/// To enforce this index stability invariant, `DrawCommands` does not expose public APIs
+/// that could remove, clear, truncate, or reorder elements (such as `clear`, `remove`,
+/// `truncate`, `swap`, or a `DerefMut` implementation).
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct DrawCommands(pub Vec<DrawCmd>);
+pub struct DrawCommands(Vec<DrawCmd>);
 
 impl DrawCommands {
     pub fn new() -> Self {
@@ -84,6 +94,20 @@ impl DrawCommands {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Returns the number of draw commands in the list.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Mutably borrows a single draw command by its index.
+    ///
+    /// This is the only way to modify an existing command. Since it only allows
+    /// mutating the content of a single command and does not permit removal or
+    /// reordering, it preserves index stability.
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut DrawCmd> {
+        self.0.get_mut(index)
     }
 }
 

@@ -254,7 +254,7 @@ impl SwitchSpecBuilder {
 /// High-level switch widget function using WidgetContext.
 ///
 /// This function accepts a SwitchSpecBuilder and calls the low-level raw::switch function.
-pub fn switch<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn switch<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,
     layout_params: S::Params,

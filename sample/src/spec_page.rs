@@ -43,11 +43,7 @@ use framewise::{
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
-fn draw_checkbox_fake_state<
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     state_val: CheckedState,
@@ -85,11 +81,7 @@ fn draw_checkbox_fake_state<
     };
 }
 
-fn draw_radio_fake_state<
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     checked: bool,
@@ -123,11 +115,7 @@ fn draw_radio_fake_state<
     };
 }
 
-fn draw_switch_fake_state<
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     checked: bool,
@@ -165,12 +153,7 @@ fn draw_switch_fake_state<
     };
 }
 
-fn draw_select_fake_state<
-    's,
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     value: &'s str,
@@ -215,11 +198,7 @@ fn draw_select_fake_state<
     };
 }
 
-fn draw_drag_number_fake_state<
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     label: &str,
@@ -260,11 +239,7 @@ fn draw_drag_number_fake_state<
     };
 }
 
-fn draw_button_fake_state<
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     text: &str,
@@ -622,7 +597,7 @@ pub const CONTENT_HEIGHT: f32 = 5800.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
-fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+fn static_badge<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     x: f32,
@@ -641,7 +616,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> 
     };
 }
 
-fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+fn sec_y<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
@@ -694,7 +669,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCom
     };
 }
 
-fn group_y<LS: LayoutState<Params = Rect>, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+fn group_y<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
     lx: f32,
@@ -741,19 +716,10 @@ pub fn draw_spec_page(
     };
 
     // Background fill (outside clip so it covers the whole viewport).
-    let bg = framewise::widgets::frame::raw::frame(FrameSpec {
+    b.cmds.push(DrawCmd::FillRect {
         rect: win_rect,
-        style: FrameStyle {
-            background: t.paper,
-            border: t.paper,
-            border_width: 0.0,
-            padding: 0.0,
-        },
+        color: t.paper,
     });
-    {
-        let cmds = bg.draw;
-        b.append_cmds(cmds);
-    };
 
     // Scroll area provides clip + scroll offset for all page content.
     let mut should_reset = false;

@@ -10,45 +10,87 @@ use crate::{
 pub mod raw {
     use super::*;
 
+    /// Input specification for a frame.
     #[derive(Debug, Clone, PartialEq)]
     pub struct FrameSpec {
         pub rect: Rect,
         pub style: super::FrameStyle,
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    pub struct FrameToken {
+        pub fill_index: usize,
+        pub stroke_index: Option<usize>,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameResult {
-        pub draw: DrawCommands,
+        pub token: FrameToken,
         pub content_bounds: Rect,
     }
 
-    /// Low-level frame widget function.
+    /// Low-level frame begin function.
     ///
-    /// This is the raw implementation that takes all parameters explicitly.
-    /// High-level wrappers should use this internally.
-    pub fn frame(spec: FrameSpec) -> FrameResult {
-        let mut cmds = DrawCommands::new();
+    /// Pushes placeholder draw commands to the shared command list in-place and returns
+    /// a `FrameResult` with the stable token and content bounds.
+    pub fn begin_frame(spec: FrameSpec, cmds: &mut DrawCommands) -> FrameResult {
+        let rect = spec.rect;
+        let style = spec.style;
+        let fill_index = cmds.len();
+        cmds.push(DrawCmd::FillRect {
+            rect,
+            color: style.background,
+        });
 
-        //TODO: ROB commented out!!
-        // cmds.push(DrawCmd::FillRect {
-        //     rect: spec.rect,
-        //     color: spec.style.background,
-        // });
-
-        if spec.style.border_width > 0.0 {
+        let stroke_index = if style.border_width > 0.0 {
+            let idx = cmds.len();
             cmds.push(DrawCmd::StrokeRect {
-                rect: spec.rect,
-                color: spec.style.border,
-                width: spec.style.border_width,
+                rect,
+                color: style.border,
+                width: style.border_width,
             });
-        }
+            Some(idx)
+        } else {
+            None
+        };
 
-        let inset = spec.style.border_width + spec.style.padding;
-        let content = spec.rect.inset(inset);
+        let inset = style.border_width + style.padding;
+        let content = rect.inset(inset);
 
         FrameResult {
-            draw: cmds,
+            token: FrameToken {
+                fill_index,
+                stroke_index,
+            },
             content_bounds: content,
+        }
+    }
+
+    /// Low-level frame end function.
+    ///
+    /// Patches the placeholder draw commands at the recorded indices in-place
+    /// using the final resolved concrete bounds of the frame.
+    ///
+    /// # Panics
+    /// Panics if the placeholder commands at the recorded indices are missing or
+    /// have had their variants modified, indicating corruption of the command list.
+    pub fn end_frame(token: FrameToken, rect: Rect, cmds: &mut DrawCommands) {
+        match cmds.get_mut(token.fill_index) {
+            Some(DrawCmd::FillRect { rect: r, .. }) => *r = rect,
+            _ => panic!(
+                "DrawCommands corruption detected: placeholder FillRect at index {} was missing or modified!",
+                token.fill_index
+            ),
+        }
+
+        if let Some(stroke_idx) = token.stroke_index {
+            match cmds.get_mut(stroke_idx) {
+                Some(DrawCmd::StrokeRect { rect: r, .. }) => *r = rect,
+                _ => panic!(
+                    "DrawCommands corruption detected: placeholder StrokeRect at index {} was missing or modified!",
+                    stroke_idx
+                ),
+            }
         }
     }
 }
@@ -78,12 +120,7 @@ impl FrameStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct FrameResult<
-    'b,
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
-> {
+pub struct FrameResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
@@ -118,6 +155,7 @@ impl FrameSpecBuilder {
         }
         self
     }
+
     pub fn build(self) -> raw::FrameSpec {
         raw::FrameSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
@@ -149,32 +187,34 @@ impl FrameSpecBuilder {
 /// destructuring the parent `ctx` fields. This disjointly borrows `ctx.layout_state` (held by the `LayoutToken`
 /// inside `on_finish`) separately from `ctx.text_system`, `ctx.focus_system`, etc., resulting in a perfectly
 /// compile-safe cursor-advance deferral.
-pub fn begin_frame<
-    'a,
-    'b,
-    T: TextSystem,
-    S: LayoutState,
-    L: Layout,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
->(
+pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: FrameSpecBuilder,
     layout_params: S::Params,
     inner_layout: L,
-) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands + 'b> {
-    let style = builder
-        .style
-        .unwrap_or_else(|| FrameStyle::from_theme(&ctx.theme));
-    let inset = style.border_width + style.padding;
+) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2) + 'b> {
+    let mut builder = builder.defaults_from_theme(&ctx.theme);
 
     // 1. Begin parent layout deferral to get provisional space and borrow-locking token
     let (outer_space, token) = ctx.layout_state.begin_layout(layout_params);
 
-    // 2. Inset the provisional space by padding + border_width to allocate child bounds
+    // 2. Build the spec using the builder
+    let provisional_rect = Rect::new(outer_space.x, outer_space.y, 0.0, 0.0);
+    builder = builder.rect(provisional_rect);
+    let spec = builder.build();
+    let inset = spec.style.border_width + spec.style.padding;
+
+    // 3. Push placeholder draw commands for the background and border.
+    // They are pushed *before* children are evaluated, so they occupy a lower Z-order.
+    let raw::FrameResult {
+        token: frame_token, ..
+    } = raw::begin_frame(spec, ctx.cmds);
+
+    // 4. Inset the provisional space by padding + border_width to allocate child bounds
     let inner_space = outer_space.inset(inset);
 
-    // 3. Define the finish callback which consumes the borrow token and finalizes the parent layout
-    let on_finish = move |_: &mut FocusSystem, content_extent: Vec2| {
+    // 4. Define the finish callback which consumes the borrow token and finalizes the parent layout
+    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, content_extent: Vec2| {
         // Compute outer size: children extent plus container margins
         let outer_extent = Vec2::new(
             content_extent.x + inset * 2.0,
@@ -184,19 +224,11 @@ pub fn begin_frame<
         // Finalize layout constraints on the parent and advance its cursor
         let bounds = token.end_layout(outer_extent);
 
-        // Visual layering: as Z-ordering for fit containers is deferred to NOTES.md,
-        // we generate and append draw commands inside this finish closure, placing them above children.
-        // Pushing/Popping clip rects isn't necessary because fit-to-children containers always hug
-        // the children's bounds, meaning children can never overflow the container.
-        let spec = raw::FrameSpec {
-            rect: bounds,
-            style,
-        };
-        let r = raw::frame(spec);
-        r.draw
+        // Retroactively patch the placeholder draw commands with the actual resolved bounds!
+        raw::end_frame(frame_token, bounds, cmds);
     };
 
-    // 4. Disjointly construct the child context to keep the borrows separate
+    // 5. Disjointly construct the child context to keep the borrows separate
     let child_ctx = WidgetContext {
         //TODO: should be using the child_with_layout_and_on_finish()?
         theme: ctx.theme,
@@ -221,46 +253,55 @@ pub fn begin_frame<
 
 #[cfg(test)]
 mod tests {
-    use super::raw::FrameSpec;
     use super::*;
     use crate::layout::{ColumnLayout, CrossAlign, Extent, SizeReq};
     use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_frame_layout_and_draw() {
-        let spec = FrameSpec {
-            rect: Rect::new(10.0, 10.0, 100.0, 50.0),
-            style: FrameStyle {
-                background: Color::WHITE,
-                border: Color::linear_rgb(0.5, 0.5, 0.5),
-                border_width: 2.0,
-                padding: 3.0,
-            },
+        let mut cmds = DrawCommands::new();
+        let rect = Rect::new(10.0, 10.0, 100.0, 50.0);
+        let style = FrameStyle {
+            background: Color::WHITE,
+            border: Color::linear_rgb(0.5, 0.5, 0.5),
+            border_width: 2.0,
+            padding: 3.0,
         };
 
-        let res = raw::frame(spec);
+        let spec = raw::FrameSpec { rect, style };
+        let raw::FrameResult {
+            token,
+            content_bounds: content,
+        } = raw::begin_frame(spec, &mut cmds);
 
         // Content rect should be inset by border_width + padding = 5.0
-        let content = res.content_bounds;
         assert_eq!(content.x, 15.0);
         assert_eq!(content.y, 15.0);
         assert_eq!(content.w, 90.0);
         assert_eq!(content.h, 40.0);
 
-        // Should draw background and border
+        // Initially, it should draw placeholders at the end of cmds
+        assert_eq!(cmds.len(), 2);
+        assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
+        assert!(matches!(cmds[1], DrawCmd::StrokeRect { .. }));
+
+        // Patching should update the geometry in-place
+        let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
+        raw::end_frame(token, final_rect, &mut cmds);
+
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            &cmds[..],
+            &[
                 DrawCmd::FillRect {
-                    rect: Rect::new(10.0, 10.0, 100.0, 50.0),
+                    rect: final_rect,
                     color: Color::WHITE,
                 },
                 DrawCmd::StrokeRect {
-                    rect: Rect::new(10.0, 10.0, 100.0, 50.0),
+                    rect: final_rect,
                     color: Color::linear_rgb(0.5, 0.5, 0.5),
                     width: 2.0,
                 },
-            ])
+            ]
         );
     }
 

@@ -437,7 +437,7 @@ impl<'a> SelectSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn select<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SelectSpecBuilder<'a>,
     layout_params: S::Params,

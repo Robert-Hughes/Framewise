@@ -170,7 +170,7 @@ impl MeterSpecBuilder {
 /// High-level meter widget function using WidgetContext.
 ///
 /// This function accepts a MeterSpecBuilder and calls the low-level raw::meter function.
-pub fn meter<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn meter<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MeterSpecBuilder,
     layout_params: S::Params,

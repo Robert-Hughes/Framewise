@@ -257,7 +257,7 @@ impl<'a> TreeSpecBuilder<'a> {
 /// High-level tree widget function using WidgetContext.
 ///
 /// This function accepts a TreeSpecBuilder and calls the low-level raw::tree function.
-pub fn tree<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TreeSpecBuilder<'a>,
     layout_params: S::Params,

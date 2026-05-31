@@ -194,12 +194,7 @@ impl WindowStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct WindowResult<
-    'b,
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
-> {
+pub struct WindowResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
@@ -280,20 +275,12 @@ impl<'a> WindowSpecBuilder<'a> {
 /// and returns a WindowResult containing the layout info and child WidgetContext.
 ///
 /// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
-pub fn begin_window<
-    'a,
-    'b,
-    'c,
-    T: TextSystem,
-    S: LayoutState,
-    L: Layout,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
->(
+pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: WindowSpecBuilder<'c>,
     layout_params: S::Params,
     inner_layout: L,
-) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands> {
+) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)> {
     let layout_bounds = ctx.layout_state.layout(layout_params);
     let bounds = builder.rect.unwrap_or(layout_bounds);
 
@@ -315,7 +302,10 @@ pub fn begin_window<
     );
 
     // The window's cleanup doesn't depend on its content extent.
-    let on_finish = move |_: &mut FocusSystem, _content_extent: Vec2| raw::end_window();
+    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, _content_extent: Vec2| {
+        let post_cmds = raw::end_window();
+        cmds.extend(post_cmds);
+    };
 
     let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
         inner_layout.begin(content_bounds),

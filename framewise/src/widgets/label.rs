@@ -134,7 +134,7 @@ impl<'a> LabelSpecBuilder<'a> {
 ///
 /// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::label function.
-pub fn label<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,

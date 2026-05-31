@@ -513,12 +513,7 @@ pub struct ScrollState {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct ScrollAreaResult<
-    'b,
-    T: TextSystem,
-    LS: LayoutState,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
-> {
+pub struct ScrollAreaResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
@@ -659,14 +654,8 @@ const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 /// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
 ///
 /// Note there is no low-level end_scroll_area - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
-pub fn begin_scroll_area<
-    'a,
-    'b,
-    T: TextSystem,
-    S: LayoutState,
-    L: Layout,
-    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
->(
+#[allow(clippy::type_complexity)]
+pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: ScrollAreaSpecBuilder,
     layout_params: S::Params,
@@ -676,7 +665,7 @@ pub fn begin_scroll_area<
     'b,
     T,
     crate::layout::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands + 'b,
+    impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2) + 'b,
 > {
     // Build the spec up front with a placeholder rect so we can measure the
     // intrinsic size; the real bounds are then determined by the layout system
@@ -716,9 +705,11 @@ pub fn begin_scroll_area<
     // The child context carries `state` and `input` into its cleanup closure;
     // `finish()` supplies the measured `content_extent`, and `end_scroll_area`
     // resolves all deferred scroll geometry (clamp, scrollbars, claims).
-    let on_finish = move |focus_system: &mut FocusSystem, content_extent: Vec2| {
-        raw::end_scroll_area(token, content_extent, state, input, focus_system)
-    };
+    let on_finish =
+        move |focus_system: &mut FocusSystem, cmds: &mut DrawCommands, content_extent: Vec2| {
+            let post_cmds = raw::end_scroll_area(token, content_extent, state, input, focus_system);
+            cmds.extend(post_cmds);
+        };
 
     let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
         offset_layout.begin(inner_space),

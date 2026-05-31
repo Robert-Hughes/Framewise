@@ -311,12 +311,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
 /// High-level segmented widget function using WidgetContext.
 ///
 /// This function accepts a SegmentedSpecBuilder and calls the low-level raw::segmented function.
-pub fn segmented<
-    'a,
-    T: TextSystem,
-    S: LayoutState,
-    CF: FnOnce(&mut FocusSystem) -> DrawCommands,
->(
+pub fn segmented<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SegmentedSpecBuilder<'a>,
     layout_params: S::Params,

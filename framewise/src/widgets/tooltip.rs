@@ -203,7 +203,7 @@ impl<'a> TooltipSpecBuilder<'a> {
 /// High-level tooltip widget function using WidgetContext.
 ///
 /// This function accepts a TooltipSpecBuilder and calls the low-level raw::tooltip function.
-pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TooltipSpecBuilder<'a>,
     layout_params: S::Params,

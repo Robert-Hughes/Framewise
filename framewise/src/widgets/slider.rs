@@ -706,7 +706,7 @@ impl SliderSpecBuilder {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpecBuilder and calls the low-level raw::slider function.
-pub fn slider<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands>(
+pub fn slider<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SliderSpecBuilder,
     layout_params: S::Params,
@@ -1512,8 +1512,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            result.draw.0,
-            vec![
+            &result.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
@@ -1550,8 +1550,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            result.draw.0,
-            vec![
+            &result.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
@@ -1588,8 +1588,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            result.draw.0,
-            vec![
+            &result.draw[..],
+            &[
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
@@ -1626,8 +1626,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            result.draw.0,
-            vec![
+            &result.draw[..],
+            &[
                 DrawCmd::StrokeRect {
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                     color: spec.style.focus,

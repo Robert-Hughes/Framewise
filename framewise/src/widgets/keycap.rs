@@ -165,7 +165,7 @@ impl<'a> KeycapSpecBuilder<'a> {
 /// High-level keycap widget function using WidgetContext.
 ///
 /// This function accepts a KeycapSpecBuilder and calls the low-level raw::keycap function.
-pub fn keycap<'a, T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,

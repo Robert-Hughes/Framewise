@@ -178,7 +178,7 @@ impl ProgressBarSpecBuilder {
 /// High-level progress bar widget function using WidgetContext.
 ///
 /// This function accepts a ProgressBarSpecBuilder and calls the low-level raw::progress_bar function.
-pub fn progress_bar<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
+pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,
