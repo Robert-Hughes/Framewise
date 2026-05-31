@@ -124,6 +124,8 @@ Is useful when using builder cos the rect is calculated by the layout, so then m
 
  * Panic on re-using FocusId should give more helpful guidance?
 
+ * &mut ButtonState::default() — using a temporary state created and dropped every frame makes focus go weird - hard to diagnose bug
+
 ---
 
 ## Feature Checklist

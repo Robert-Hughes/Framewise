@@ -36,6 +36,11 @@ pub struct FrameDemoState {
     pub inner_center_btn: ButtonState,
     pub inner_end_btn: ButtonState,
     pub nested_clicks: [u32; 3],
+
+    // Cross-axis alignment showcase buttons
+    pub align_small_btn: ButtonState,
+    pub align_med_btn: ButtonState,
+    pub align_large_btn: ButtonState,
 }
 
 impl Default for FrameDemoState {
@@ -67,6 +72,10 @@ impl Default for FrameDemoState {
             inner_center_btn: ButtonState::default(),
             inner_end_btn: ButtonState::default(),
             nested_clicks: [0; 3],
+
+            align_small_btn: ButtonState::default(),
+            align_med_btn: ButtonState::default(),
+            align_large_btn: ButtonState::default(),
         }
     }
 }
@@ -630,7 +639,7 @@ pub fn draw_frame_page(
                 &mut fit_centered,
                 ButtonSpecBuilder::new().text("Small Width").style(primary),
                 Vec2::new(120.0, 36.0).into(),
-                &mut ButtonState::default(),
+                &mut state.align_small_btn,
             );
 
             button(
@@ -639,7 +648,7 @@ pub fn draw_frame_page(
                     .text("Medium Width Button")
                     .style(secondary),
                 Vec2::new(240.0, 36.0).into(),
-                &mut ButtonState::default(),
+                &mut state.align_med_btn,
             );
 
             button(
@@ -648,7 +657,7 @@ pub fn draw_frame_page(
                     .text("Large Width Content Button")
                     .style(accent),
                 Vec2::new(360.0, 36.0).into(),
-                &mut ButtonState::default(),
+                &mut state.align_large_btn,
             );
 
             fit_centered.finish();
