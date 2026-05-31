@@ -5,27 +5,28 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Review the wip branch and make sure i'm happy with these phase 6 changes
-
 * Moving all raw widgets to take &mut DrawCommands and append in-place is a superior architectural model. Like raw::begin_frame already does. This completely avoids intermediate vector allocation and copying. Perfect Index Stability & Encapsulation. Direct Viewport Background Push. Update DESIGN.md
 
-* Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
+* Review the wip branch and make sure i'm happy with these phase 6 changes
+  * Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
+  * ColumnLayout (and possibly others) seems to completely ignore its .align field for begin_layout! Possibly it can't do anything reasonable, so then it should error/panic! Update unit tests
+
 
 * For 'container' widgets with the new begin/end thing like frame():
-  - How do their begin() fns (high/low) handle rect - they take a LayoutSpace instead?
+  - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
 * Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
 
 * Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
 as these weren't in the original table.
 
-* Finish implementing layout changes plan (all 6 phases), and review code against it!
-  - Check DESIGN.md has been updated accordingly
-  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
-
 * Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
  Previously the user provided the content_size, so would be nice to retain this option
  Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!).
+
+* Finish implementing layout changes plan (all 6 phases), and review code against it!
+  - Check DESIGN.md has been updated accordingly
+  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
 
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
@@ -34,6 +35,8 @@ as these weren't in the original table.
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+
+
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
 
@@ -121,6 +124,8 @@ Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw are
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
 
 - **Keep checking the design/implementation against the manifesto principles so we don't go off track!**
+
+ * Panic on re-using FocusId should give more helpful guidance?
 
 ---
 

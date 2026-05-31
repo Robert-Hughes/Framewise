@@ -24,6 +24,7 @@ pub struct FrameDemoState {
     pub fixed_btn: ButtonState,
     pub width_auto_btn: ButtonState,
     pub height_auto_btn: ButtonState,
+    pub height_auto_btn2: ButtonState,
     pub fully_auto_btn: ButtonState,
     pub fixed_clicks: u32,
     pub width_auto_clicks: u32,
@@ -55,6 +56,7 @@ impl Default for FrameDemoState {
             fixed_btn: ButtonState::default(),
             width_auto_btn: ButtonState::default(),
             height_auto_btn: ButtonState::default(),
+            height_auto_btn2: ButtonState::default(),
             fully_auto_btn: ButtonState::default(),
             fixed_clicks: 0,
             width_auto_clicks: 0,
@@ -349,7 +351,7 @@ pub fn draw_frame_page(
                     &mut ButtonState::default(),
                 );
 
-                let text = format!("Auto W: {}", state.width_auto_clicks);
+                let text = format!("Auto Width for me! {}", state.width_auto_clicks);
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
@@ -411,6 +413,16 @@ pub fn draw_frame_page(
                     state.height_auto_clicks += 1;
                 }
 
+                button(
+                    &mut sub_frame,
+                    ButtonSpecBuilder::new().text("Height").style(accent),
+                    SizeReq {
+                        width: Extent::Fill,
+                        height: Extent::Auto,
+                    },
+                    &mut state.height_auto_btn2,
+                );
+
                 sub_frame.finish();
             }
 
@@ -442,7 +454,7 @@ pub fn draw_frame_page(
                     &mut ButtonState::default(),
                 );
 
-                let text = format!("Full: {}", state.fully_auto_clicks);
+                let text = format!("Fully Auto: {}", state.fully_auto_clicks);
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
