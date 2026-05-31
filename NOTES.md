@@ -8,7 +8,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Moving all raw widgets to take &mut DrawCommands and append in-place is a superior architectural model. Like raw::begin_frame already does. This completely avoids intermediate vector allocation and copying. Perfect Index Stability & Encapsulation. Direct Viewport Background Push. Update DESIGN.md
 
 * Review the wip branch and make sure i'm happy with these phase 6 changes
-  * Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
   * ColumnLayout (and possibly others) seems to completely ignore its .align field for begin_layout! Possibly it can't do anything reasonable, so then it should error/panic! Update unit tests
 
 
@@ -27,6 +26,7 @@ as these weren't in the original table.
 * Finish implementing layout changes plan (all 6 phases), and review code against it!
   - Check DESIGN.md has been updated accordingly
   - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
+  - consider if the new system is good enough - does it make layout usable/ergonomic yet?
 
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
