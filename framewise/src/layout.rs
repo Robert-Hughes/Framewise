@@ -244,9 +244,13 @@ pub trait LayoutState {
 
     /// Begin a deferred layout (for fit-to-children containers).
     /// Returns a provisional [`LayoutSpace`] and a [`LayoutToken`] that borrows this layout state.
+    ///
+    /// `intrinsic` mirrors the same parameter on [`LayoutState::layout`]; layout
+    /// implementations may use it (e.g. to enforce a minimum size floor) or ignore it.
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
+        intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>)
     where
         Self: Sized;
@@ -309,7 +313,7 @@ impl LayoutState for ManualState {
         )
     }
 
-    fn begin_layout<'a>(&'a mut self, layout_params: Rect) -> (LayoutSpace, LayoutToken<'a, Self>) {
+    fn begin_layout<'a>(&'a mut self, layout_params: Rect, _intrinsic: IntrinsicSize) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let space = LayoutSpace::new(
             self.origin.x + layout_params.x,
             self.origin.y + layout_params.y,
@@ -425,6 +429,7 @@ impl LayoutState for ColumnState {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: SizeReq,
+        _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let width = match layout_params.width {
             Extent::Fixed(w) => AxisBound::Exact(w),
@@ -579,6 +584,7 @@ impl LayoutState for RowState {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: SizeReq,
+        _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let width = match layout_params.width {
             Extent::Fixed(w) => AxisBound::Exact(w),
@@ -693,8 +699,9 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
+        intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
-        let (mut space, _) = self.inner.begin_layout(layout_params.clone());
+        let (mut space, _) = self.inner.begin_layout(layout_params.clone(), intrinsic);
         space.x -= self.offset.x;
         space.y -= self.offset.y;
         let token = LayoutToken {
@@ -803,6 +810,7 @@ impl LayoutState for WrapState {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: SizeReq,
+        _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let width = match layout_params.width {
             Extent::Fixed(w) => AxisBound::Exact(w),
@@ -1363,7 +1371,7 @@ mod tests {
             width: Extent::Fill,
             height: Extent::Auto,
         };
-        let (space, token) = state.begin_layout(req);
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
 
         // Space should start at current_y = 0.0, with unbounded height and exact width
         assert_eq!(space.x, 0.0);
@@ -1387,7 +1395,7 @@ mod tests {
     fn test_deferred_manual_layout_lifecycle() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 10.0, 100.0, 100.0));
         let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
-        let (space, token) = state.begin_layout(layout_param);
+        let (space, token) = state.begin_layout(layout_param, IntrinsicSize::UNKNOWN);
 
         // ManualLayout begins at logically shifted coordinate: (10.0+20.0, 10.0+30.0) = (30.0, 40.0)
         assert_eq!(space.x, 30.0);
@@ -1420,7 +1428,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Fill,
         };
-        let (space, token) = state.begin_layout(req);
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
 
         // Space should start at current_x = 10.0, with unbounded width and exact height
         assert_eq!(space.x, 10.0);
@@ -1458,7 +1466,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Auto,
         };
-        let (space, token) = state.begin_layout(req);
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         // provisional space starts at current_x (50) and current_y (0)
         assert_eq!(space.x, 50.0);
         assert_eq!(space.y, 0.0);
@@ -1469,7 +1477,7 @@ mod tests {
         assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
 
         // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
-        let (space2, token2) = state.begin_layout(req);
+        let (space2, token2) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         assert_eq!(space2.x, 100.0);
         assert_eq!(space2.y, 0.0);
 
@@ -1493,7 +1501,7 @@ mod tests {
             width: Extent::Fixed(50.0),
             height: Extent::Auto,
         };
-        let (space, token) = state.begin_layout(req);
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
 
         // Provisional space should be shifted by offset: space.x = 0.0 - 10.0 = -10.0
         assert_eq!(space.x, -10.0);
@@ -1507,7 +1515,7 @@ mod tests {
     #[test]
     fn test_manual_begin_layout_propagates_exact_bounds() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
-        let (space, _token) = state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0));
+        let (space, _token) = state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), IntrinsicSize::UNKNOWN);
         assert_eq!(space.width, AxisBound::Exact(100.0));
         assert_eq!(space.height, AxisBound::Exact(150.0));
     }
@@ -1527,7 +1535,7 @@ mod tests {
             width: Extent::Fill,
             height: Extent::Fixed(50.0),
         };
-        let (space_f, _token) = state.begin_layout(req_fixed);
+        let (space_f, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
         assert_eq!(space_f.width, AxisBound::Exact(200.0));
         assert_eq!(space_f.height, AxisBound::Exact(50.0));
 
@@ -1540,7 +1548,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Fill,
         };
-        let (space_fill, _token) = state.begin_layout(req_fill);
+        let (space_fill, _token) = state.begin_layout(req_fill, IntrinsicSize::UNKNOWN);
         assert_eq!(space_fill.width, AxisBound::AtMost(200.0));
         assert_eq!(space_fill.height, AxisBound::Exact(240.0));
 
@@ -1549,7 +1557,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Auto,
         };
-        let (space_auto, _token) = state.begin_layout(req_auto);
+        let (space_auto, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
         assert_eq!(space_auto.width, AxisBound::AtMost(200.0));
         assert_eq!(space_auto.height, AxisBound::AtMost(240.0));
     }
@@ -1569,7 +1577,7 @@ mod tests {
             width: Extent::Fill,
             height: Extent::Auto,
         };
-        let (space1, _token) = state.begin_layout(req1);
+        let (space1, _token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
         // Fill width under parent AtMost(150) should propagate AtMost(150)
         assert_eq!(space1.width, AxisBound::AtMost(150.0));
         // Auto height under parent AtMost(250) should propagate AtMost(250)
@@ -1583,7 +1591,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Fill,
         };
-        let (space2, _token) = state.begin_layout(req2);
+        let (space2, _token) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
         // Auto width under parent AtMost(150) should yield AtMost(150)
         assert_eq!(space2.width, AxisBound::AtMost(150.0));
         // Fill height under parent AtMost should yield AtMost(205)
@@ -1605,7 +1613,7 @@ mod tests {
             width: Extent::Fixed(80.0),
             height: Extent::Fill,
         };
-        let (space_f, _token) = state.begin_layout(req_fixed);
+        let (space_f, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
         assert_eq!(space_f.width, AxisBound::Exact(80.0));
         assert_eq!(space_f.height, AxisBound::Exact(150.0));
 
@@ -1618,7 +1626,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Fill,
         };
-        let (space_auto, _token) = state.begin_layout(req_auto);
+        let (space_auto, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
         assert_eq!(space_auto.width, AxisBound::AtMost(315.0));
         assert_eq!(space_auto.height, AxisBound::Exact(150.0));
     }
@@ -1642,7 +1650,7 @@ mod tests {
             width: Extent::Auto,
             height: Extent::Auto,
         };
-        let (space, _token) = state.begin_layout(req);
+        let (space, _token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         assert_eq!(space.width, AxisBound::AtMost(140.0));
         assert_eq!(space.height, AxisBound::AtMost(200.0));
     }

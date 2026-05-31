@@ -7,6 +7,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Review the wip branch and make sure i'm happy with these phase 6 changes
 
+* Does end_layout() need the layout_params again? (Same as begin_layout?)
+
 * Add note to DESIGN.md about frame having a high-level begin/end, but at low-level it's just a single frame(). Not sure if this pattern will be common for containers?
 Not sure if this pattern is even correct, e.g. do we need to PushClip in begin? (even if bottom/right can't be clipped due to unbounded, top/left should be (e.g. if padding))
 
@@ -15,7 +17,6 @@ Not sure if this pattern is even correct, e.g. do we need to PushClip in begin? 
 * Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
 
 * For 'container' widgets with the new begin/end thing like frame():
-  - Will they still have a calc_natural_size? How would this be used? It's still semantically useful (e.g. a min size), but maybe not used in practice yet?
   - How do their begin() fns (high/low) handle rect - they take a LayoutSpace instead?
 
 * Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?

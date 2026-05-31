@@ -194,16 +194,21 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     layout_params: S::Params,
     inner_layout: L,
 ) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2) + 'b> {
-    let mut builder = builder.defaults_from_theme(&ctx.theme);
+    let spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let inset = spec.style.border_width + spec.style.padding;
 
     // 1. Begin parent layout deferral to get provisional space and borrow-locking token
-    let (outer_space, token) = ctx.layout_state.begin_layout(layout_params);
+    let intrinsic = raw::calc_frame_intrinsic_size(&spec);
+    let (outer_space, token) = ctx.layout_state.begin_layout(layout_params, intrinsic);
 
-    // 2. Build the spec using the builder
-    let provisional_rect = Rect::new(outer_space.x, outer_space.y, 0.0, 0.0);
-    builder = builder.rect(provisional_rect);
-    let spec = builder.build();
-    let inset = spec.style.border_width + spec.style.padding;
+    // 2. Assign the provisional rect
+    let spec = raw::FrameSpec {
+        rect: Rect::new(outer_space.x, outer_space.y, 0.0, 0.0),
+        ..spec
+    };
 
     // 3. Push a placeholder FillRect for the background before children so it draws beneath them.
     // The border StrokeRect is pushed in end_frame so it draws on top.
