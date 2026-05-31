@@ -64,7 +64,6 @@ pub mod raw {
         focus_system: &mut FocusSystem,
         cmds: &mut DrawCommands,
     ) -> SliderResult {
-
         // Safety clamp min/max
         let min = spec.min.min(spec.max);
         let max = spec.max.max(spec.min);
@@ -755,13 +754,25 @@ mod tests {
         // Frame 1: register claims
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         // Frame 2: Page Up
         focus_system.begin_frame();
         input.key_pressed_page_up = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 30.0);
         focus_system.end_frame();
 
@@ -769,18 +780,36 @@ mod tests {
         focus_system.begin_frame();
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 50.0);
         focus_system.end_frame();
 
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 0.0);
 
         input.key_pressed_home = false;
         input.key_pressed_end = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 100.0);
     }
 
@@ -806,14 +835,26 @@ mod tests {
         input.mouse_down = true;
 
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert!(state.is_dragging);
         assert_eq!(state.drag_start_mouse_coord, 10.0);
 
         // 2. Drag down by 40px (mouse y = 50)
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
 
         // 40 / 80 usable track = 0.5 ratio = 50 value
         assert_eq!(state.value, 50.0);
@@ -833,7 +874,13 @@ mod tests {
 
         // Frame 1: time=0.0. Should page down by 20.0
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 20.0);
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
@@ -848,7 +895,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(state.value, 20.0);
 
@@ -861,7 +908,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(state.value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
@@ -875,7 +922,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(state.value, 60.0);
 
@@ -889,7 +936,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(!state.is_track_clicking);
     }
@@ -908,7 +955,13 @@ mod tests {
         // Up decrements
         input.key_pressed_up = true;
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 45.0);
         assert_eq!(
             focus_system.current_focus(),
@@ -919,7 +972,13 @@ mod tests {
         // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 50.0);
         assert_eq!(
             focus_system.current_focus(),
@@ -930,7 +989,13 @@ mod tests {
         // Left decrements (same as Up)
         input.key_pressed_down = false;
         input.key_pressed_left = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 45.0);
         assert_eq!(
             focus_system.current_focus(),
@@ -941,7 +1006,13 @@ mod tests {
         // Right increments (same as Down)
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 50.0);
         assert_eq!(
             focus_system.current_focus(),
@@ -966,7 +1037,7 @@ mod tests {
             &mut horiz_state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(horiz_state.value, 45.0);
 
@@ -977,7 +1048,7 @@ mod tests {
             &mut horiz_state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(horiz_state.value, 50.0);
     }
@@ -998,8 +1069,20 @@ mod tests {
         let mut input = crate::input::Input::new();
         input.key_pressed_tab = true;
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state_a, &input, &mut focus_system, &mut cmds);
-        raw::slider(spec.clone(), &mut state_b, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state_a,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        raw::slider(
+            spec.clone(),
+            &mut state_b,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         // Frame 2: confirm focus moved to slider_b
@@ -1009,14 +1092,14 @@ mod tests {
             &mut state_a,
             &crate::input::Input::new(),
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         raw::slider(
             spec.clone(),
             &mut state_b,
             &crate::input::Input::new(),
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
         assert_eq!(
@@ -1041,7 +1124,13 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1092,7 +1181,13 @@ mod tests {
         // Frame 1: Register hover
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(state.value, 50.0); // Hasn't scrolled yet, scroll_delta is 0
@@ -1100,7 +1195,13 @@ mod tests {
         // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
         input.scroll_delta.y = 2.0;
         focus_system.begin_frame();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         // value = 50.0 - 2.0 * 5.0 = 40.0
@@ -1130,7 +1231,13 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert!(
             state.is_track_clicking,
             "should be track-clicking after initial track click"
@@ -1141,7 +1248,13 @@ mod tests {
         // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert!(
             state.is_dragging,
             "should switch to dragging after threshold exceeded"
@@ -1156,7 +1269,13 @@ mod tests {
 
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert!(
             (state.value - 68.75).abs() < 0.01,
             "drag to 68.75, got {}",
@@ -1191,7 +1310,13 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
         let mut cmds = DrawCommands::new();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         assert_eq!(state.value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5);
@@ -1206,7 +1331,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert_eq!(state.value, 60.0);
 
@@ -1221,7 +1346,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             (state.value - 87.5).abs() < 0.01,
@@ -1239,7 +1364,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             (state.value - 87.5).abs() < 0.01,
@@ -1264,7 +1389,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             state.is_dragging,
@@ -1288,7 +1413,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             (state.value - 93.75).abs() < 0.01,
@@ -1337,7 +1462,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent registers after (outer, simulating parent's end())
         focus_system.claim_scroll_up(parent_id);
@@ -1371,7 +1496,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent claims after (simulating parent's end())
         focus_system.claim_scroll_up(parent_id);
@@ -1406,7 +1531,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent claims after (simulating parent's end())
         focus_system.claim_scroll_left(parent_id);
@@ -1445,7 +1570,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent claims after (simulating parent's end())
         focus_system.claim_scroll_up(parent_id); // parent can scroll up
@@ -1478,7 +1603,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent claims after (simulating parent's end())
         focus_system.claim_scroll_up(parent_id);
@@ -1512,7 +1637,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-                &mut cmds,
+            &mut cmds,
         );
         // Parent claims after (simulating parent's end())
         focus_system.claim_scroll_up(parent_id);
@@ -1541,7 +1666,13 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1580,7 +1711,13 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1619,7 +1756,13 @@ mod tests {
         input.mouse_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1658,7 +1801,13 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(

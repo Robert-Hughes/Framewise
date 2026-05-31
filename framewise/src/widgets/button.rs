@@ -416,7 +416,14 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
     let rect = ctx.layout_state.layout(layout_params, intrinsic);
     spec.rect = rect;
 
-    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
+    let r = raw::button(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -461,7 +468,7 @@ mod tests {
             input,
             focus_system,
             &mut ts,
-                &mut cmds,
+            &mut cmds,
         );
         raw::button(
             btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
@@ -469,7 +476,7 @@ mod tests {
             input,
             focus_system,
             &mut ts,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
     }
@@ -581,7 +588,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res1.input.pressed);
 
@@ -594,7 +601,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         let res2 = raw::button(
             btn2_spec(),
@@ -602,7 +609,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
 
         assert!(
@@ -623,7 +630,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
 
         let res2 = raw::button(
@@ -632,7 +639,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
 
         assert!(
@@ -668,7 +675,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.pressed);
 
@@ -682,7 +689,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
 
         assert!(res.input.clicked, "Button should register as clicked");
@@ -709,7 +716,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -747,7 +754,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -775,7 +782,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -788,7 +795,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.clicked, "Button should be clicked by Enter key");
     }
@@ -813,7 +820,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(!res.input.hovered);
         assert!(!res.input.pressed);
@@ -826,7 +833,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.hovered, "Should be hovered");
         assert!(!res.input.pressed, "Should not be pressed");
@@ -840,7 +847,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.hovered, "Should be hovered while pressed down");
         assert!(res.input.pressed, "Should be pressed");
@@ -854,7 +861,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(!res.input.hovered, "Should lose hover when dragged out");
         assert!(
@@ -880,7 +887,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -894,7 +901,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             res.input.pressed,
@@ -910,7 +917,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.pressed, "Button should remain pressed");
         assert!(!res.input.clicked, "Button should not be clicked yet");
@@ -924,7 +931,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(!res.input.pressed, "Button should not be pressed");
         assert!(res.input.clicked, "Button should be clicked on release");
@@ -947,7 +954,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -961,7 +968,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(res.input.pressed);
 
@@ -976,7 +983,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(
             !res.input.pressed,
@@ -992,7 +999,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         assert!(!res.input.clicked, "Should not click because it lost focus");
     }
@@ -1016,7 +1023,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1067,7 +1074,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1121,7 +1128,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1172,7 +1179,7 @@ mod tests {
             &Input::default(),
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1235,7 +1242,7 @@ mod tests {
             &Input::default(),
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1311,7 +1318,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
-                &mut cmds,
+            &mut cmds,
         );
         focus_system.end_frame();
 

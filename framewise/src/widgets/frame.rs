@@ -70,7 +70,10 @@ pub mod raw {
         cmds.push(DrawCmd::PushClip { rect: content });
 
         FrameResult {
-            token: FrameToken { fill_index, clip_index },
+            token: FrameToken {
+                fill_index,
+                clip_index,
+            },
             content_bounds: content,
         }
     }
@@ -253,7 +256,14 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         let bounds = token.end_layout(outer_extent);
 
         // Retroactively patch the placeholder draw commands with the actual resolved bounds!
-        raw::end_frame(frame_token, raw::FrameSpec { rect: bounds, ..spec }, cmds);
+        raw::end_frame(
+            frame_token,
+            raw::FrameSpec {
+                rect: bounds,
+                ..spec
+            },
+            cmds,
+        );
     };
 
     // 5. Disjointly construct the child context to keep the borrows separate
@@ -316,7 +326,14 @@ mod tests {
         // end_frame patches both placeholders, then appends PopClip and StrokeRect
         let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
         let final_content = final_rect.inset(5.0); // border_width(2) + padding(3)
-        raw::end_frame(token, raw::FrameSpec { rect: final_rect, ..spec }, &mut cmds);
+        raw::end_frame(
+            token,
+            raw::FrameSpec {
+                rect: final_rect,
+                ..spec
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             &cmds[..],
@@ -325,7 +342,9 @@ mod tests {
                     rect: final_rect,
                     color: Color::WHITE,
                 },
-                DrawCmd::PushClip { rect: final_content },
+                DrawCmd::PushClip {
+                    rect: final_content
+                },
                 DrawCmd::PopClip,
                 DrawCmd::StrokeRect {
                     rect: final_rect,
