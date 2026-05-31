@@ -50,6 +50,10 @@ pub mod raw {
     /// children and children are clipped to the content area). Both are patched with the final
     /// resolved bounds in `end_frame`. The border `StrokeRect`, if any, is pushed in `end_frame`
     /// after `PopClip` so it draws on top of and outside the clip.
+    ///
+    /// `spec.rect` may be provisional at call time (e.g. zeroed or a placeholder) when the
+    /// frame is auto-sizing — the placeholder commands use it as an initial value only.
+    /// `end_frame` receives the final resolved rect and patches them in-place.
     pub fn begin_frame(spec: FrameSpec, cmds: &mut DrawCommands) -> FrameResult {
         let rect = spec.rect;
         let style = spec.style;
