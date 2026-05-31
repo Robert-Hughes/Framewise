@@ -11,7 +11,7 @@ pub mod raw {
     use super::*;
 
     /// Input specification for a frame.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameSpec {
         pub rect: Rect,
         pub style: super::FrameStyle,
@@ -20,7 +20,6 @@ pub mod raw {
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameToken {
         pub fill_index: usize,
-        pub border: Option<(Color, f32)>,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,30 +42,27 @@ pub mod raw {
             color: style.background,
         });
 
-        let border = if style.border_width > 0.0 {
-            Some((style.border, style.border_width))
-        } else {
-            None
-        };
-
         let inset = style.border_width + style.padding;
         let content = rect.inset(inset);
 
         FrameResult {
-            token: FrameToken { fill_index, border },
+            token: FrameToken { fill_index },
             content_bounds: content,
         }
     }
 
     /// Low-level frame end function.
     ///
-    /// Patches the `FillRect` placeholder with the final resolved bounds, then appends
-    /// a `StrokeRect` on top of all children (if the frame has a border).
+    /// Takes the same `FrameSpec` as `begin_frame` with `.rect` updated to the final resolved
+    /// bounds. Patches the `FillRect` placeholder, then appends a `StrokeRect` on top of all
+    /// children (if the frame has a border).
     ///
     /// # Panics
     /// Panics if the `FillRect` placeholder at the recorded index is missing or modified,
     /// indicating corruption of the command list.
-    pub fn end_frame(token: FrameToken, rect: Rect, cmds: &mut DrawCommands) {
+    pub fn end_frame(token: FrameToken, spec: FrameSpec, cmds: &mut DrawCommands) {
+        let rect = spec.rect;
+        let style = spec.style;
         match cmds.get_mut(token.fill_index) {
             Some(DrawCmd::FillRect { rect: r, .. }) => *r = rect,
             _ => panic!(
@@ -75,8 +71,12 @@ pub mod raw {
             ),
         }
 
-        if let Some((color, width)) = token.border {
-            cmds.push(DrawCmd::StrokeRect { rect, color, width });
+        if style.border_width > 0.0 {
+            cmds.push(DrawCmd::StrokeRect {
+                rect,
+                color: style.border,
+                width: style.border_width,
+            });
         }
     }
 }
@@ -211,7 +211,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         let bounds = token.end_layout(outer_extent);
 
         // Retroactively patch the placeholder draw commands with the actual resolved bounds!
-        raw::end_frame(frame_token, bounds, cmds);
+        raw::end_frame(frame_token, raw::FrameSpec { rect: bounds, ..spec }, cmds);
     };
 
     // 5. Disjointly construct the child context to keep the borrows separate
@@ -272,7 +272,7 @@ mod tests {
 
         // end_frame patches FillRect and appends StrokeRect on top
         let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
-        raw::end_frame(token, final_rect, &mut cmds);
+        raw::end_frame(token, raw::FrameSpec { rect: final_rect, ..spec }, &mut cmds);
 
         assert_eq!(
             &cmds[..],
