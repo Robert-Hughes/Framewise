@@ -5,10 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Moving all raw widgets to take &mut DrawCommands and append in-place is a superior architectural model. Like raw::begin_frame already does. This completely avoids intermediate vector allocation and copying. Perfect Index Stability & Encapsulation. Direct Viewport Background Push. Update DESIGN.md
-
 * Review the wip branch and make sure i'm happy with these phase 6 changes
-  * ColumnLayout (and possibly others) seems to completely ignore its .align field for begin_layout! Possibly it can't do anything reasonable, so then it should error/panic! Update unit tests
 
 
 * For 'container' widgets with the new begin/end thing like frame():
