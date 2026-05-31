@@ -10,7 +10,7 @@ path = "src/main.rs"
 [features]
 # Phase 1 intrinsic-sizing work: only the button page builds against the
 # button-only framewise. Restore the other pages as widgets are migrated.
-default = ["page_button_demo", "page_scroll_demo"]
+default = ["page_button_demo", "page_scroll_demo", "page_frame_demo"]
 
 button       = ["framewise/button"]
 checkbox     = ["framewise/checkbox"]
@@ -40,6 +40,7 @@ window       = ["framewise/window"]
 
 page_button_demo = ["button"]
 page_scroll_demo = ["button", "scroll_area", "slider"]
+page_frame_demo = ["button", "frame"]
 page_spec = [
     "button", "checkbox", "chip", "color_swatch", "divider", "drag_number",
     "frame", "keycap", "label", "menu", "meter", "progress_bar", "radio",

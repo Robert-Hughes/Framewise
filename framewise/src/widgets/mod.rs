@@ -66,7 +66,7 @@ pub use drag_number::{
     drag_number, DragNumberResult, DragNumberSpecBuilder, DragNumberState, DragNumberStyle,
 };
 #[cfg(feature = "frame")]
-pub use frame::{frame, FrameResult, FrameSpecBuilder, FrameStyle};
+pub use frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle};
 #[cfg(feature = "keycap")]
 pub use keycap::{keycap, KeycapResult, KeycapSpecBuilder, KeycapStyle};
 #[cfg(feature = "label")]

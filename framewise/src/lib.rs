@@ -47,6 +47,6 @@ pub use widget::{InputInfo, LayoutInfo, WidgetContext};
 #[cfg(feature = "button")]
 pub use widgets::button::{button, ButtonResult, ButtonStyle};
 #[cfg(feature = "frame")]
-pub use widgets::frame::{frame, FrameResult, FrameStyle};
+pub use widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle};
 #[cfg(feature = "label")]
 pub use widgets::label::{label, LabelResult};

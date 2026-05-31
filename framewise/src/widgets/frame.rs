@@ -1,9 +1,9 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    layout::LayoutState,
+    layout::{Layout, LayoutState},
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -29,10 +29,11 @@ pub mod raw {
     pub fn frame(spec: FrameSpec) -> FrameResult {
         let mut cmds = DrawCommands::new();
 
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: spec.style.background,
-        });
+        //TODO: ROB commented out!!
+        // cmds.push(DrawCmd::FillRect {
+        //     rect: spec.rect,
+        //     color: spec.style.background,
+        // });
 
         if spec.style.border_width > 0.0 {
             cmds.push(DrawCmd::StrokeRect {
@@ -77,16 +78,14 @@ impl FrameStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct FrameResult {
+pub struct FrameResult<
+    'b,
+    T: TextSystem,
+    LS: LayoutState,
+    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
+> {
     pub layout: LayoutInfo,
-}
-
-impl FrameResult {
-    /// The content area inside the frame's border and padding.
-    pub fn content_rect(&self) -> Rect {
-        self.layout.content_bounds
-    }
+    pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
 // ── Spec Builder ───────────────────────────────────────────────────────────────
@@ -129,26 +128,93 @@ impl FrameSpecBuilder {
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// ── High-level container widget function ───────────────────────────────────────────
 
-/// High-level frame widget function using WidgetContext.
+/// High-level frame container widget function using WidgetContext.
 ///
-/// This function accepts a FrameSpecBuilder and layout parameters, resolves layout and styles internally,
-/// and calls the low-level raw::frame function.
-pub fn frame<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> DrawCommands>(
-    ctx: &mut WidgetContext<T, S, CF>,
+/// This function accepts a FrameSpecBuilder, parent layout parameters, and an inner layout,
+/// and returns a FrameResult containing the child WidgetContext.
+///
+/// ### Sizing and fitting
+/// Whether the frame fits to its children or respects a fixed/filled footprint is determined
+/// dynamically via the generic bounds of `LayoutSpace` (translated from `layout_params` by the parent):
+/// - `AxisBound::Exact(w)` -> The frame uses exactly `w` for its extent on that axis.
+/// - `AxisBound::Unbounded` / `AxisBound::AtMost` -> The frame sizes itself to the children's extent plus padding.
+///
+/// ### Lifetime, borrowing, and cursor unlocking
+/// The `begin_layout` call mutably borrows the parent `LayoutState` and returns a `LayoutToken`.
+/// The `on_finish` closure captures this token by value.
+///
+/// To satisfy the Rust borrow checker (avoid E0499), we construct the child context by explicitly
+/// destructuring the parent `ctx` fields. This disjointly borrows `ctx.layout_state` (held by the `LayoutToken`
+/// inside `on_finish`) separately from `ctx.text_system`, `ctx.focus_system`, etc., resulting in a perfectly
+/// compile-safe cursor-advance deferral.
+pub fn begin_frame<
+    'a,
+    'b,
+    T: TextSystem,
+    S: LayoutState,
+    L: Layout,
+    CF: FnOnce(&mut FocusSystem, Vec2) -> DrawCommands,
+>(
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: FrameSpecBuilder,
     layout_params: S::Params,
-) -> FrameResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::frame(spec);
+    inner_layout: L,
+) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, Vec2) -> DrawCommands + 'b> {
+    let style = builder
+        .style
+        .unwrap_or_else(|| FrameStyle::from_theme(&ctx.theme));
+    let inset = style.border_width + style.padding;
 
-    ctx.append_cmds(result.draw);
+    // 1. Begin parent layout deferral to get provisional space and borrow-locking token
+    let (outer_space, token) = ctx.layout_state.begin_layout(layout_params);
+
+    // 2. Inset the provisional space by padding + border_width to allocate child bounds
+    let inner_space = outer_space.inset(inset);
+
+    // 3. Define the finish callback which consumes the borrow token and finalizes the parent layout
+    let on_finish = move |_: &mut FocusSystem, content_extent: Vec2| {
+        // Compute outer size: children extent plus container margins
+        let outer_extent = Vec2::new(
+            content_extent.x + inset * 2.0,
+            content_extent.y + inset * 2.0,
+        );
+
+        // Finalize layout constraints on the parent and advance its cursor
+        let bounds = token.end_layout(outer_extent);
+
+        // Visual layering: as Z-ordering for fit containers is deferred to NOTES.md,
+        // we generate and append draw commands inside this finish closure, placing them above children.
+        // Pushing/Popping clip rects isn't necessary because fit-to-children containers always hug
+        // the children's bounds, meaning children can never overflow the container.
+        let spec = raw::FrameSpec {
+            rect: bounds,
+            style,
+        };
+        let r = raw::frame(spec);
+        r.draw
+    };
+
+    // 4. Disjointly construct the child context to keep the borrows separate
+    let child_ctx = WidgetContext { //TODO: should be using the child_with_layout_and_on_finish()?
+        theme: ctx.theme,
+        time: ctx.time,
+        clip_rect: ctx.clip_rect,
+        text_system: ctx.text_system,
+        focus_system: ctx.focus_system,
+        input: ctx.input,
+        cmds: ctx.cmds,
+        layout_state: inner_layout.begin(inner_space),
+        on_finish,
+    };
 
     FrameResult {
-        layout: LayoutInfo::new(rect, result.content_bounds),
+        layout: LayoutInfo::new(
+            Rect::new(outer_space.x, outer_space.y, 0.0, 0.0),
+            Rect::new(inner_space.x, inner_space.y, 0.0, 0.0),
+        ),
+        ctx: child_ctx,
     }
 }
 
@@ -156,6 +222,7 @@ pub fn frame<T: TextSystem, S: LayoutState, CF: FnOnce(&mut FocusSystem) -> Draw
 mod tests {
     use super::raw::FrameSpec;
     use super::*;
+    use crate::layout::{ColumnLayout, CrossAlign, Extent, SizeReq};
     use crate::test_utils::DummyTextSys;
 
     #[test]
@@ -223,27 +290,80 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
-        let mut text_system = DummyTextSys;
+    fn test_high_level_container_fit_to_children() {
+        let mut ts = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
-        let mut ctx = crate::widget::WidgetContext::root(
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut ts,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(Rect::new(0.0, 0.0, 400.0, 600.0)),
             &mut cmds,
         );
-        let result = super::frame(
+
+        // 1. Begin an auto-sizing frame inside the column
+        let style = FrameStyle {
+            background: Color::WHITE,
+            border: Color::BLACK,
+            border_width: 2.0,
+            padding: 8.0,
+        };
+        let FrameResult {
+            layout: _layout,
+            ctx: mut f_ctx,
+        } = begin_frame(
             &mut ctx,
-            FrameSpecBuilder::new().rect(custom_rect),
-            layout_rect,
+            FrameSpecBuilder::new().style(style),
+            SizeReq {
+                width: Extent::Fill,
+                height: Extent::Auto,
+            },
+            ColumnLayout {
+                spacing: 5.0,
+                align: CrossAlign::Start,
+            },
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+
+        // 2. Place some children inside the frame context
+        // Inner layout starts at (10, 10) due to insets. Fill width spans outer space (400 - 20) = 380.
+        let r1 = f_ctx.layout_state.layout(
+            SizeReq {
+                width: Extent::Fill,
+                height: Extent::Fixed(20.0),
+            },
+            crate::layout::IntrinsicSize::UNKNOWN,
+        );
+        assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
+
+        let r2 = f_ctx.layout_state.layout(
+            SizeReq {
+                width: Extent::Fill,
+                height: Extent::Fixed(30.0),
+            },
+            crate::layout::IntrinsicSize::UNKNOWN,
+        );
+        // stack height: 20 + spacing(5) = 25
+        assert_eq!(r2, Rect::new(10.0, 35.0, 380.0, 30.0));
+
+        // 3. Finish the frame!
+        f_ctx.finish();
+
+        // 4. Verify outer column layout advanced correctly.
+        // Child content extent is: width 380, height (35 + 30 - 10) = 55.
+        // Total outer size is: height = 55 + inset * 2 = 75.
+        // Next sibling y should be: height(75) + spacing(10) = 85.
+        let sibling = ctx.layout_state.layout(
+            SizeReq::fixed(50.0, 30.0),
+            crate::layout::IntrinsicSize::UNKNOWN,
+        );
+        assert_eq!(sibling.y, 85.0);
     }
 }

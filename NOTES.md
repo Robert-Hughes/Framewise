@@ -5,11 +5,31 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* ROB commented out the background of frame - Z order is wrong!
+
+* Add note to DESIGN.md about frame having a high-level begin/end, but at low-level it's just a single frame(). Not sure if this pattern will be common for containers?
+Not sure if this pattern is even correct, e.g. do we need to PushClip in begin? (even if bottom/right can't be clipped due to unbounded, top/left should be (e.g. if padding))
+
+* Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
+
+* Sample app - prevent F key from going to a page that isn't compiled!
+
+* For 'container' widgets with the new begin/end thing like frame():
+  - Will they still have a calc_natural_size? How would this be used? It's still semantically useful (e.g. a min size), but maybe not used in practice yet?
+  - How do their begin() fns (high/low) handle rect - they take a LayoutSpace instead?
+
+* Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
+
 * Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
 as these weren't in the original table.
 
+* Finish implementing layout changes plan (all 6 phases), and review code against it!
+  - Check DESIGN.md has been updated accordingly
+  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
+
 * Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
- Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!)
+ Previously the user provided the content_size, so would be nice to retain this option
+ Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!).
 
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
@@ -40,6 +60,8 @@ Space/Enter activate (~15 lines): repeated verbatim in checkbox, radio, switch, 
 Left/Right arrow nav: repeated near-verbatim in segmented + tabs.
 Up/Down arrow nav: select + drag_number.
 All copy-paste. Surprising that focus is DRY but activation is not.
+
+LayoutInfo stuff - not sure if this is still relevant given the recent layout work?
 
 1. Intrinsic sizing (segmented, tabs)
 

@@ -68,10 +68,10 @@ pub struct WidgetContext<
     pub text_system: &'a mut T,
     pub focus_system: &'a mut FocusSystem,
     pub input: &'a Input,
-    cmds: &'a mut DrawCommands,
+    pub cmds: &'a mut DrawCommands,
 
     pub layout_state: LS,
-    on_finish: CF,
+    pub on_finish: CF,
 }
 
 impl<'a, T: TextSystem, LS: LayoutState>

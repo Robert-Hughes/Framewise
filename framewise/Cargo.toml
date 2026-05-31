@@ -8,7 +8,7 @@ description = "A Rust GUI library where the app is always in control."
 # Intrinsic-sizing migration: widgets are added back to the default set as each
 # is moved to the new layout(params, intrinsic) signature. button, slider, and
 # scroll_area are migrated; the rest stay out until updated.
-default = ["button", "slider", "scroll_area"]
+default = ["button", "slider", "scroll_area", "frame"]
 button       = []
 checkbox     = []
 chip         = []

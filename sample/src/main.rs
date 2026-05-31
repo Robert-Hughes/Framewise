@@ -1,5 +1,7 @@
 #[cfg(feature = "page_button_demo")]
 mod button_page;
+#[cfg(feature = "page_frame_demo")]
+mod frame_demo;
 mod renderer;
 #[cfg(feature = "page_scroll_demo")]
 mod scroll_demo;
@@ -28,6 +30,8 @@ enum AppPage {
     ButtonDemo,
     ScrollDemo,
     WidgetSpec,
+    #[cfg(feature = "page_frame_demo")]
+    FrameDemo,
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -70,6 +74,8 @@ struct App {
     scroll_demo_state: scroll_demo::ScrollDemoState,
     #[cfg(feature = "page_spec")]
     spec_page_state: spec_page::SpecPageState,
+    #[cfg(feature = "page_frame_demo")]
+    frame_demo_state: frame_demo::FrameDemoState,
 }
 
 impl App {
@@ -91,6 +97,8 @@ impl App {
             scroll_demo_state: scroll_demo::ScrollDemoState::default(),
             #[cfg(feature = "page_spec")]
             spec_page_state: spec_page::SpecPageState::default(),
+            #[cfg(feature = "page_frame_demo")]
+            frame_demo_state: frame_demo::FrameDemoState::default(),
         }
     }
 
@@ -146,6 +154,23 @@ impl App {
                     let cmds = scroll_demo::draw_scroll_demo(
                         &mut self.scroll_demo_state,
                         &mut self.clipboard,
+                        &mut self.focus_system,
+                        &self.input,
+                        time,
+                        win_size,
+                        text_system,
+                    );
+                    self.focus_system.end_frame();
+                    return cmds;
+                }
+                framewise::DrawCommands::new()
+            }
+            AppPage::FrameDemo => {
+                #[cfg(feature = "page_frame_demo")]
+                {
+                    self.focus_system.begin_frame();
+                    let cmds = frame_demo::draw_frame_page(
+                        &mut self.frame_demo_state,
                         &mut self.focus_system,
                         &self.input,
                         time,
@@ -262,7 +287,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo
+                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo
                 if event.state == ElementState::Pressed {
                     match event.physical_key {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
@@ -273,6 +298,10 @@ impl ApplicationHandler for App {
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F3) => {
                             self.active_page = AppPage::ButtonDemo;
+                        }
+                        #[cfg(feature = "page_frame_demo")]
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F4) => {
+                            self.active_page = AppPage::FrameDemo;
                         }
                         _ => {}
                     }

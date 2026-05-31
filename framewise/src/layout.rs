@@ -221,8 +221,19 @@ pub trait Layout {
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State;
 }
 
+pub struct LayoutToken<'a, LS: LayoutState> {
+    pub state: &'a mut LS,
+    pub params: LS::Params,
+}
+
+impl<'a, LS: LayoutState> LayoutToken<'a, LS> {
+    pub fn end_layout(self, extent: Vec2) -> Rect {
+        self.state.end_layout(self.params, extent)
+    }
+}
+
 pub trait LayoutState {
-    type Params;
+    type Params: Clone;
 
     /// Calculate the screen-space rectangle for a widget given the caller's
     /// `layout_params` (intent) and the widget's `intrinsic` measurement.
@@ -230,6 +241,19 @@ pub trait LayoutState {
     /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
     /// `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it.
     fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect;
+
+    /// Begin a deferred layout (for fit-to-children containers).
+    /// Returns a provisional [`LayoutSpace`] and a [`LayoutToken`] that borrows this layout state.
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: Self::Params,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>)
+    where
+        Self: Sized;
+
+    /// End a deferred layout, providing the actual final accumulated content extent.
+    /// Returns the resolved concrete Rect of the container and advances the layout state.
+    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> Rect;
 
     /// The total content extent consumed so far, measured from the layout's
     /// origin (so it is independent of any scroll offset). A deferred scroll area
@@ -275,6 +299,31 @@ impl LayoutState for ManualState {
         // is unaffected by an unbounded axis.
         // The requested rect is origin-relative, so its far edge *is* the content
         // extent contribution (no need to subtract the origin back out).
+        self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
+        self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
+        Rect::new(
+            self.origin.x + layout_params.x,
+            self.origin.y + layout_params.y,
+            layout_params.w,
+            layout_params.h,
+        )
+    }
+
+    fn begin_layout<'a>(&'a mut self, layout_params: Rect) -> (LayoutSpace, LayoutToken<'a, Self>) {
+        let space = LayoutSpace::new(
+            self.origin.x + layout_params.x,
+            self.origin.y + layout_params.y,
+            AxisBound::Unbounded, //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
+            AxisBound::Unbounded,
+        );
+        let token = LayoutToken {
+            state: self,
+            params: layout_params,
+        };
+        (space, token)
+    }
+
+    fn end_layout(&mut self, layout_params: Rect, _extent: Vec2) -> Rect {
         self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
         self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
         Rect::new(
@@ -341,6 +390,57 @@ impl LayoutState for ColumnState {
         let pref = intrinsic.preferred;
         // Cross axis (width) fills the column space; main axis (height) stacks.
         // A `Fill` height (or unbounded height) falls back to intrinsic per Rule 1.
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
+
+        let x = match self.align {
+            CrossAlign::Start => self.space.x,
+            CrossAlign::Center => match self.space.width {
+                AxisBound::Exact(width) => self.space.x + (width - w) * 0.5,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+            },
+            CrossAlign::End => match self.space.width {
+                AxisBound::Exact(width) => self.space.x + width - w,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+            },
+        };
+
+        let r = Rect::new(x, self.current_y, w, h);
+        self.content_w = self.content_w.max(w);
+        self.content_h = (self.current_y + h) - self.space.y;
+        self.current_y += h + self.spacing;
+        r
+    }
+
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: SizeReq,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+        let space = LayoutSpace::new(
+            self.space.x,
+            self.current_y,
+            self.space.width,
+            AxisBound::Unbounded,   //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
+        );
+        let token = LayoutToken {
+            state: self,
+            params: layout_params,
+        };
+        (space, token)
+    }
+
+    fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
+        let pref = Some(extent);
         let w = layout_params.width.resolve(
             pref.map(|p| p.x),
             self.space.width,
@@ -453,6 +553,57 @@ impl LayoutState for RowState {
         r
     }
 
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: SizeReq,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+        let space = LayoutSpace::new(
+            self.current_x,
+            self.space.y,
+            AxisBound::Unbounded,  //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
+            self.space.height,
+        );
+        let token = LayoutToken {
+            state: self,
+            params: layout_params,
+        };
+        (space, token)
+    }
+
+    fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
+        let pref = Some(extent);
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
+
+        let y = match self.align {
+            CrossAlign::Start => self.space.y,
+            CrossAlign::Center => match self.space.height {
+                AxisBound::Exact(height) => self.space.y + (height - h) * 0.5,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+            },
+            CrossAlign::End => match self.space.height {
+                AxisBound::Exact(height) => self.space.y + height - h,
+                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+            },
+        };
+
+        let r = Rect::new(self.current_x, y, w, h);
+        self.content_w = (self.current_x + w) - self.space.x;
+        self.content_h = self.content_h.max(h);
+        self.current_x += w + self.spacing;
+        r
+    }
+
     fn content_extent(&self) -> Vec2 {
         Vec2::new(self.content_w, self.content_h)
     }
@@ -488,6 +639,27 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
 
     fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect {
         let mut r = self.inner.layout(layout_params, intrinsic);
+        r.x -= self.offset.x;
+        r.y -= self.offset.y;
+        r
+    }
+
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: Self::Params,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+        let (mut space, _) = self.inner.begin_layout(layout_params.clone());
+        space.x -= self.offset.x;
+        space.y -= self.offset.y;
+        let token = LayoutToken {
+            state: self,
+            params: layout_params,
+        };
+        (space, token)
+    }
+
+    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> Rect {
+        let mut r = self.inner.end_layout(layout_params, extent);
         r.x -= self.offset.x;
         r.y -= self.offset.y;
         r
@@ -562,6 +734,56 @@ impl LayoutState for WrapState {
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
         // An unbounded width has no edge to overflow, so the flow never wraps.
+        let at_line_start = self.current_x == self.space.x;
+        let overflows = match self.space.width {
+            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
+                self.current_x + w > self.space.x + width
+            }
+            AxisBound::Unbounded => false,
+        };
+        if !at_line_start && overflows {
+            self.current_x = self.space.x;
+            self.current_y += self.line_height + self.line_spacing;
+            self.line_height = 0.0;
+        }
+
+        let r = Rect::new(self.current_x, self.current_y, w, h);
+        self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
+        self.current_x += w + self.spacing;
+        self.line_height = self.line_height.max(h);
+        r
+    }
+
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: SizeReq,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+        let space = LayoutSpace::new(
+            self.current_x,
+            self.current_y,
+            AxisBound::Unbounded,  //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
+            AxisBound::Unbounded,
+        );
+        let token = LayoutToken {
+            state: self,
+            params: layout_params,
+        };
+        (space, token)
+    }
+
+    fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
+        let pref = Some(extent);
+        let w = layout_params.width.resolve(
+            pref.map(|p| p.x),
+            self.space.width,
+            LAYOUT_FALLBACK_SIZE.x,
+        );
+        let h = layout_params.height.resolve(
+            pref.map(|p| p.y),
+            self.space.height,
+            LAYOUT_FALLBACK_SIZE.y,
+        );
+
         let at_line_start = self.current_x == self.space.x;
         let overflows = match self.space.width {
             AxisBound::Exact(width) | AxisBound::AtMost(width) => {
@@ -1051,5 +1273,164 @@ mod tests {
         }
         .begin(space);
         let _ = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    fn test_deferred_layout_token_lifecycle() {
+        let mut state = ColumnLayout {
+            spacing: 8.0,
+            align: CrossAlign::Center,
+        }
+        .begin(LayoutSpace::new(
+            0.0,
+            0.0,
+            AxisBound::Exact(200.0),
+            AxisBound::Unbounded,
+        ));
+
+        // 1. Begin layout for a fit container
+        let req = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Auto,
+        };
+        let (space, token) = state.begin_layout(req);
+
+        // Space should start at current_y = 0.0, with unbounded height and exact width
+        assert_eq!(space.x, 0.0);
+        assert_eq!(space.y, 0.0);
+        assert_eq!(space.width, AxisBound::Exact(200.0));
+        assert_eq!(space.height, AxisBound::Unbounded);
+
+        // 2. End layout with the child's computed extent (say 80x50)
+        let resolved_rect = token.end_layout(Vec2::new(80.0, 50.0));
+
+        // Center aligned: x = (200 - 200) * 0.5 = 0.0 because width is Extent::Fill which resolves to 200.0!
+        // Height is Extent::Auto which resolves to the child's height 50.0.
+        assert_eq!(resolved_rect, Rect::new(0.0, 0.0, 200.0, 50.0));
+
+        // Cursor should have advanced by height (50.0) + spacing (8.0) = 58.0
+        let next_rect = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(next_rect.y, 58.0);
+    }
+
+    #[test]
+    fn test_deferred_manual_layout_lifecycle() {
+        let mut state = ManualLayout.begin(Rect::new(10.0, 10.0, 100.0, 100.0));
+        let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
+        let (space, token) = state.begin_layout(layout_param);
+
+        // ManualLayout begins at logically shifted coordinate: (10.0+20.0, 10.0+30.0) = (30.0, 40.0)
+        assert_eq!(space.x, 30.0);
+        assert_eq!(space.y, 40.0);
+        assert_eq!(space.width, AxisBound::Unbounded);
+        assert_eq!(space.height, AxisBound::Unbounded);
+
+        let resolved_rect = token.end_layout(Vec2::new(15.0, 15.0));
+        // Resolved rect should be exactly the requested rect shifted by origin
+        assert_eq!(resolved_rect, Rect::new(30.0, 40.0, 50.0, 40.0));
+
+        // Content extent is the far edge relative to origin: 20.0 + 50.0 = 70.0, 30.0 + 40.0 = 70.0
+        assert_eq!(state.content_extent(), Vec2::new(70.0, 70.0));
+    }
+
+    #[test]
+    fn test_deferred_row_layout_lifecycle() {
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Center,
+        }
+        .begin(LayoutSpace::new(
+            10.0,
+            10.0,
+            AxisBound::Unbounded,
+            AxisBound::Exact(100.0),
+        ));
+
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fill,
+        };
+        let (space, token) = state.begin_layout(req);
+
+        // Space should start at current_x = 10.0, with unbounded width and exact height
+        assert_eq!(space.x, 10.0);
+        assert_eq!(space.y, 10.0);
+        assert_eq!(space.width, AxisBound::Unbounded);
+        assert_eq!(space.height, AxisBound::Exact(100.0));
+
+        // Consume token with extent 60x40.
+        // Width is Extent::Auto -> 60.0.
+        // Height is Extent::Fill -> resolves to space.height (Exact 100.0).
+        let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0));
+        assert_eq!(resolved_rect, Rect::new(10.0, 10.0, 60.0, 100.0));
+
+        // Cursor should have advanced by width (60.0) + spacing (5.0) = 65.0, so next starts at 75.0
+        let next_rect = state.layout(SizeReq::fixed(30.0, 20.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(next_rect.x, 75.0);
+        // Center aligned: y = 10.0 + (100.0 - 20.0) * 0.5 = 50.0
+        assert_eq!(next_rect.y, 50.0);
+    }
+
+    #[test]
+    fn test_deferred_wrap_layout_lifecycle() {
+        let mut state = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+
+        // Place first item normally
+        let r1 = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0)); // cursor x is now 40 + 10 = 50
+
+        // Place a deferred item of width 40.0.
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Auto,
+        };
+        let (space, token) = state.begin_layout(req);
+        // provisional space starts at current_x (50) and current_y (0)
+        assert_eq!(space.x, 50.0);
+        assert_eq!(space.y, 0.0);
+
+        // child measures 40x30.
+        // Item is placed at current_x = 50. x + w = 50 + 40 = 90 <= 100, no overflow.
+        let resolved_rect = token.end_layout(Vec2::new(40.0, 30.0));
+        assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
+
+        // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
+        let (space2, token2) = state.begin_layout(req);
+        assert_eq!(space2.x, 100.0);
+        assert_eq!(space2.y, 0.0);
+
+        // This item is width 20. When ending layout, it wraps to y = line_height (30) + line_spacing (5) = 35.
+        let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0));
+        assert_eq!(resolved_rect2, Rect::new(0.0, 35.0, 20.0, 15.0));
+    }
+
+    #[test]
+    fn test_deferred_offset_layout_lifecycle() {
+        let offset = OffsetLayout {
+            offset: Vec2::new(10.0, 20.0),
+            inner: ColumnLayout {
+                spacing: 5.0,
+                align: CrossAlign::Start,
+            },
+        };
+        let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+
+        let req = SizeReq {
+            width: Extent::Fixed(50.0),
+            height: Extent::Auto,
+        };
+        let (space, token) = state.begin_layout(req);
+
+        // Provisional space should be shifted by offset: space.x = 0.0 - 10.0 = -10.0
+        assert_eq!(space.x, -10.0);
+        assert_eq!(space.y, -20.0);
+
+        let resolved_rect = token.end_layout(Vec2::new(50.0, 40.0));
+        // Rect resolved in inner layout is at (0, 0, 50, 40), then shifted: (-10, -20, 50, 40)
+        assert_eq!(resolved_rect, Rect::new(-10.0, -20.0, 50.0, 40.0));
     }
 }
