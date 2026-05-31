@@ -20,6 +20,7 @@ pub mod raw {
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameToken {
         pub fill_index: usize,
+        pub clip_index: usize,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,23 +46,27 @@ pub mod raw {
 
     /// Low-level frame begin function.
     ///
-    /// Pushes a placeholder `FillRect` to the command list (so the background draws behind
-    /// children) and returns a `FrameResult` with the stable token and content bounds.
-    /// The border `StrokeRect`, if any, is pushed in `end_frame` so it draws on top.
+    /// Pushes placeholder `FillRect` and `PushClip` commands (so the background draws behind
+    /// children and children are clipped to the content area). Both are patched with the final
+    /// resolved bounds in `end_frame`. The border `StrokeRect`, if any, is pushed in `end_frame`
+    /// after `PopClip` so it draws on top of and outside the clip.
     pub fn begin_frame(spec: FrameSpec, cmds: &mut DrawCommands) -> FrameResult {
         let rect = spec.rect;
         let style = spec.style;
+        let inset = style.border_width + style.padding;
+        let content = rect.inset(inset);
+
         let fill_index = cmds.len();
         cmds.push(DrawCmd::FillRect {
             rect,
             color: style.background,
         });
 
-        let inset = style.border_width + style.padding;
-        let content = rect.inset(inset);
+        let clip_index = cmds.len();
+        cmds.push(DrawCmd::PushClip { rect: content });
 
         FrameResult {
-            token: FrameToken { fill_index },
+            token: FrameToken { fill_index, clip_index },
             content_bounds: content,
         }
     }
@@ -69,15 +74,19 @@ pub mod raw {
     /// Low-level frame end function.
     ///
     /// Takes the same `FrameSpec` as `begin_frame` with `.rect` updated to the final resolved
-    /// bounds. Patches the `FillRect` placeholder, then appends a `StrokeRect` on top of all
-    /// children (if the frame has a border).
+    /// bounds. Patches the `FillRect` and `PushClip` placeholders, then appends `PopClip` and
+    /// (if the frame has a border) `StrokeRect` — both after the clip, so they draw on top of
+    /// and outside the content clip.
     ///
     /// # Panics
-    /// Panics if the `FillRect` placeholder at the recorded index is missing or modified,
+    /// Panics if either placeholder at the recorded index is missing or modified,
     /// indicating corruption of the command list.
     pub fn end_frame(token: FrameToken, spec: FrameSpec, cmds: &mut DrawCommands) {
         let rect = spec.rect;
         let style = spec.style;
+        let inset = style.border_width + style.padding;
+        let content = rect.inset(inset);
+
         match cmds.get_mut(token.fill_index) {
             Some(DrawCmd::FillRect { rect: r, .. }) => *r = rect,
             _ => panic!(
@@ -85,6 +94,15 @@ pub mod raw {
                 token.fill_index
             ),
         }
+        match cmds.get_mut(token.clip_index) {
+            Some(DrawCmd::PushClip { rect: r }) => *r = content,
+            _ => panic!(
+                "DrawCommands corruption detected: placeholder PushClip at index {} was missing or modified!",
+                token.clip_index
+            ),
+        }
+
+        cmds.push(DrawCmd::PopClip);
 
         if style.border_width > 0.0 {
             cmds.push(DrawCmd::StrokeRect {
@@ -286,12 +304,14 @@ mod tests {
         assert_eq!(content.w, 90.0);
         assert_eq!(content.h, 40.0);
 
-        // Only the FillRect placeholder is pushed before children
-        assert_eq!(cmds.len(), 1);
+        // FillRect and PushClip placeholders are pushed before children
+        assert_eq!(cmds.len(), 2);
         assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
+        assert!(matches!(cmds[1], DrawCmd::PushClip { .. }));
 
-        // end_frame patches FillRect and appends StrokeRect on top
+        // end_frame patches both placeholders, then appends PopClip and StrokeRect
         let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
+        let final_content = final_rect.inset(5.0); // border_width(2) + padding(3)
         raw::end_frame(token, raw::FrameSpec { rect: final_rect, ..spec }, &mut cmds);
 
         assert_eq!(
@@ -301,6 +321,8 @@ mod tests {
                     rect: final_rect,
                     color: Color::WHITE,
                 },
+                DrawCmd::PushClip { rect: final_content },
+                DrawCmd::PopClip,
                 DrawCmd::StrokeRect {
                     rect: final_rect,
                     color: Color::linear_rgb(0.5, 0.5, 0.5),
