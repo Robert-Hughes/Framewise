@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{CrossAlign, Layout, SizeReq},
+    layout::{CrossAlign, SizeReq},
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -147,7 +147,8 @@ pub fn draw_scroll_demo(
         text_system,
         focus_system,
         input,
-        framewise::layout::ManualLayout.begin(Rect::new(0.0, 0.0, win_w, win_h)),
+        framewise::layout::ManualLayout,
+        Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
     ctx.time = time;

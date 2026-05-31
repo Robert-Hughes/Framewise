@@ -1,6 +1,6 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
-use crate::layout::{Layout, LayoutState};
+use crate::layout::{Layout, LayoutState, ManualState};
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect, Vec2};
 use crate::Input;
@@ -69,25 +69,27 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub on_finish: CF,
 }
 
-impl<'a, T: TextSystem, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut DrawCommands, Vec2)>
+impl<'a, T: TextSystem>
+    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Vec2)> //TODO: Shouldn't be hardcoded to ManualState! Should work for any!
 {
-    pub fn root(
+    #[allow(clippy::type_complexity)]
+    pub fn root<L: crate::layout::Layout>(
         theme: Theme,
         text_system: &'a mut T,
         focus_system: &'a mut FocusSystem,
         input: &'a Input,
-        layout_state: LS,
+        layout: L,
+        space: impl Into<crate::layout::LayoutSpace>,
         cmds: &'a mut DrawCommands,
-    ) -> Self {
-        Self {
+    ) -> WidgetContext<'a, T, L::State, fn(&mut FocusSystem, &mut DrawCommands, Vec2)> {
+        WidgetContext {
             time: 0.0,
             clip_rect: None,
             theme,
             text_system,
             focus_system,
             input,
-            layout_state,
+            layout_state: layout.begin(space.into()),
             cmds,
             on_finish: |_, _, _| (), // No cleanup for root context
         }
@@ -197,7 +199,8 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
 

@@ -414,8 +414,8 @@ mod tests {
             ColumnLayout {
                 spacing: 10.0,
                 align: CrossAlign::Start,
-            }
-            .begin(Rect::new(0.0, 0.0, 400.0, 600.0)),
+            },
+            Rect::new(0.0, 0.0, 400.0, 600.0),
             &mut cmds,
         );
 

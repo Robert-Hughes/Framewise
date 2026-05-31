@@ -5,20 +5,22 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Review the wip branch and make sure i'm happy with these phase 6 changes
+* Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
+ Previously the user provided the content_size, so would be nice to retain this option
+ Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!).
+
+* Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
+   - also refactor to take a Layout plus LayoutSpace (like we did for scroll area and WidgetContext::root)?
+
+* Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
+* We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
 
 
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
-* Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
-
 * Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
 as these weren't in the original table.
-
-* Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
- Previously the user provided the content_size, so would be nice to retain this option
- Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!).
 
 * Finish implementing layout changes plan (all 6 phases), and review code against it!
   - Check DESIGN.md has been updated accordingly
@@ -99,9 +101,7 @@ Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw are
   of reordering widget calls to the resolve the "must know info before doing layout"-type questions ('reorder trick').
   For example if you want to right-align stuff but don't know the widths up-front, using the right edge
   as the anchor and building from there might be a good solution.
-
-- ** Layout alignment **
-  We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
+  * Possibly some kind of "anchor system", where the layout space can have one or more anchors like left edge/right edge/limits
 
 - **Off-screen draw cost** — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.

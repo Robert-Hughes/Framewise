@@ -1860,7 +1860,7 @@ mod tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layout::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -1872,7 +1872,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut state = SliderState::default();

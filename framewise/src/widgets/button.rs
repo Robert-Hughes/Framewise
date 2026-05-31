@@ -1369,7 +1369,7 @@ mod tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layout::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -1380,7 +1380,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut btn_state = ButtonState::default();
@@ -1397,7 +1398,7 @@ mod tests {
 
     #[test]
     fn test_high_level_honors_user_style() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layout::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -1407,7 +1408,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         // A user-set builder field (style) must be honored, not overwritten by
@@ -1446,7 +1448,7 @@ mod tests {
 
     #[test]
     fn test_button_auto_layout_uses_intrinsic_size() {
-        use crate::layout::{ColumnLayout, Layout, ManualLayout, SizeReq};
+        use crate::layout::{ColumnLayout, ManualLayout, SizeReq};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = Input::default();
@@ -1456,7 +1458,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut col = ctx.child_with_layout(

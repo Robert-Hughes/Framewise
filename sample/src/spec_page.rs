@@ -706,8 +706,15 @@ pub fn draw_spec_page(
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
     let mut cmds = DrawCommands::new();
     let mut b = {
-        let layout_state = ManualLayout.begin(win_rect);
-        let mut w_ctx = WidgetContext::root(t, ts, focus_system, input, layout_state, &mut cmds);
+        let mut w_ctx = WidgetContext::root(
+            t,
+            ts,
+            focus_system,
+            input,
+            ManualLayout,
+            win_rect,
+            &mut cmds,
+        );
         w_ctx.theme.sans_font = t.mono_font;
         w_ctx
     };

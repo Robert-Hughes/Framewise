@@ -5242,7 +5242,7 @@ mod nested_bubbling_tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layout::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -5254,7 +5254,8 @@ mod nested_bubbling_tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         // Under ManualLayout the layout param *is* the rect — the sanctioned way
