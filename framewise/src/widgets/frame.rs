@@ -20,7 +20,7 @@ pub mod raw {
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameToken {
         pub fill_index: usize,
-        pub stroke_index: Option<usize>,
+        pub border: Option<(Color, f32)>,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -31,8 +31,9 @@ pub mod raw {
 
     /// Low-level frame begin function.
     ///
-    /// Pushes placeholder draw commands to the shared command list in-place and returns
-    /// a `FrameResult` with the stable token and content bounds.
+    /// Pushes a placeholder `FillRect` to the command list (so the background draws behind
+    /// children) and returns a `FrameResult` with the stable token and content bounds.
+    /// The border `StrokeRect`, if any, is pushed in `end_frame` so it draws on top.
     pub fn begin_frame(spec: FrameSpec, cmds: &mut DrawCommands) -> FrameResult {
         let rect = spec.rect;
         let style = spec.style;
@@ -42,14 +43,8 @@ pub mod raw {
             color: style.background,
         });
 
-        let stroke_index = if style.border_width > 0.0 {
-            let idx = cmds.len();
-            cmds.push(DrawCmd::StrokeRect {
-                rect,
-                color: style.border,
-                width: style.border_width,
-            });
-            Some(idx)
+        let border = if style.border_width > 0.0 {
+            Some((style.border, style.border_width))
         } else {
             None
         };
@@ -58,22 +53,19 @@ pub mod raw {
         let content = rect.inset(inset);
 
         FrameResult {
-            token: FrameToken {
-                fill_index,
-                stroke_index,
-            },
+            token: FrameToken { fill_index, border },
             content_bounds: content,
         }
     }
 
     /// Low-level frame end function.
     ///
-    /// Patches the placeholder draw commands at the recorded indices in-place
-    /// using the final resolved concrete bounds of the frame.
+    /// Patches the `FillRect` placeholder with the final resolved bounds, then appends
+    /// a `StrokeRect` on top of all children (if the frame has a border).
     ///
     /// # Panics
-    /// Panics if the placeholder commands at the recorded indices are missing or
-    /// have had their variants modified, indicating corruption of the command list.
+    /// Panics if the `FillRect` placeholder at the recorded index is missing or modified,
+    /// indicating corruption of the command list.
     pub fn end_frame(token: FrameToken, rect: Rect, cmds: &mut DrawCommands) {
         match cmds.get_mut(token.fill_index) {
             Some(DrawCmd::FillRect { rect: r, .. }) => *r = rect,
@@ -83,14 +75,8 @@ pub mod raw {
             ),
         }
 
-        if let Some(stroke_idx) = token.stroke_index {
-            match cmds.get_mut(stroke_idx) {
-                Some(DrawCmd::StrokeRect { rect: r, .. }) => *r = rect,
-                _ => panic!(
-                    "DrawCommands corruption detected: placeholder StrokeRect at index {} was missing or modified!",
-                    stroke_idx
-                ),
-            }
+        if let Some((color, width)) = token.border {
+            cmds.push(DrawCmd::StrokeRect { rect, color, width });
         }
     }
 }
@@ -204,8 +190,8 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     let spec = builder.build();
     let inset = spec.style.border_width + spec.style.padding;
 
-    // 3. Push placeholder draw commands for the background and border.
-    // They are pushed *before* children are evaluated, so they occupy a lower Z-order.
+    // 3. Push a placeholder FillRect for the background before children so it draws beneath them.
+    // The border StrokeRect is pushed in end_frame so it draws on top.
     let raw::FrameResult {
         token: frame_token, ..
     } = raw::begin_frame(spec, ctx.cmds);
@@ -280,12 +266,11 @@ mod tests {
         assert_eq!(content.w, 90.0);
         assert_eq!(content.h, 40.0);
 
-        // Initially, it should draw placeholders at the end of cmds
-        assert_eq!(cmds.len(), 2);
+        // Only the FillRect placeholder is pushed before children
+        assert_eq!(cmds.len(), 1);
         assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
-        assert!(matches!(cmds[1], DrawCmd::StrokeRect { .. }));
 
-        // Patching should update the geometry in-place
+        // end_frame patches FillRect and appends StrokeRect on top
         let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
         raw::end_frame(token, final_rect, &mut cmds);
 

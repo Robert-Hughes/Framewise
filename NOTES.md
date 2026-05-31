@@ -5,7 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* ROB commented out the background of frame - Z order is wrong!
+* Review the wip branch and make sure i'm happy with these phase 6 changes
 
 * Add note to DESIGN.md about frame having a high-level begin/end, but at low-level it's just a single frame(). Not sure if this pattern will be common for containers?
 Not sure if this pattern is even correct, e.g. do we need to PushClip in begin? (even if bottom/right can't be clipped due to unbounded, top/left should be (e.g. if padding))
