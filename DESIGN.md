@@ -344,6 +344,15 @@ pub fn button<T, S, CF>(
 }
 ```
 
+### User-Defined Layouts Are First-Class
+
+Built-in layouts hold no privileged position. The two public traits — `Layout` and `LayoutState` — are the complete extension point:
+
+- **`Layout`** defines the configuration type (`type Params`) and a `begin(space: impl Into<LayoutSpace>) -> Self::State` method that initialises the mutable state.
+- **`LayoutState`** is the mutable engine: `layout(params, intrinsic) -> Rect` for normal widgets, `begin_layout` / `end_layout` for fit-to-children containers, and `content_extent() -> Vec2` so scroll areas and `finish()` can read the accumulated size.
+
+A user-defined layout implements both traits, passes its state type into `WidgetContext::child_with_layout`, and is otherwise identical to `ColumnLayout` or any other built-in. No library modification is required; no registration step exists. The built-ins are examples of the pattern, not gatekeepers of it.
+
 ### User-Defined Widgets Are First-Class
 
 Built-in widgets hold no privileged position in the architecture. `Theme` is a library-defined struct — callers cannot add methods to it. If themed style defaults required a `theme.xxx_style()` method on `Theme`, only built-in widgets could participate; user-defined widgets would have no equivalent path.

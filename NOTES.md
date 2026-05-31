@@ -12,8 +12,6 @@ Not sure if this pattern is even correct, e.g. do we need to PushClip in begin? 
 
 * Figure out what the new frame demo page is trying to show and see if it's actually working like we wanted!
 
-* Sample app - prevent F key from going to a page that isn't compiled!
-
 * For 'container' widgets with the new begin/end thing like frame():
   - Will they still have a calc_natural_size? How would this be used? It's still semantically useful (e.g. a min size), but maybe not used in practice yet?
   - How do their begin() fns (high/low) handle rect - they take a LayoutSpace instead?
@@ -36,9 +34,6 @@ as these weren't in the original table.
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
-
-* Want to make sure that user's can create custom Layouts, not just custom Widgets. Add this to DESIGN.md.
-
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
