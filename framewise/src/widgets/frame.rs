@@ -28,6 +28,21 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
+    /// Measure a frame's intrinsic size from its spec.
+    ///
+    /// A frame's bounds are resolved bottom-up from its children via the
+    /// `begin_frame`/`end_frame` lifecycle, so there is nothing to report yet —
+    /// this returns [`IntrinsicSize::UNKNOWN`]. A later revision may report a
+    /// minimum size derived from padding and border width alone, so that a frame
+    /// with no children does not collapse to a degenerate zero rect.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
+    pub fn calc_frame_intrinsic_size(spec: &FrameSpec) -> crate::layout::IntrinsicSize {
+        let _ = spec;
+        crate::layout::IntrinsicSize::UNKNOWN
+    }
+
     /// Low-level frame begin function.
     ///
     /// Pushes a placeholder `FillRect` to the command list (so the background draws behind
@@ -287,6 +302,24 @@ mod tests {
                     width: 2.0,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn test_calc_frame_intrinsic_size() {
+        let style = FrameStyle {
+            background: Color::WHITE,
+            border: Color::BLACK,
+            border_width: 2.0,
+            padding: 4.0,
+        };
+        let spec = raw::FrameSpec {
+            rect: Rect::PLACEHOLDER,
+            style,
+        };
+        assert_eq!(
+            raw::calc_frame_intrinsic_size(&spec),
+            crate::layout::IntrinsicSize::UNKNOWN
         );
     }
 
