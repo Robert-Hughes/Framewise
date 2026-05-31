@@ -146,19 +146,21 @@ Framewise has two layers:
 
 ### Low-Level: Raw Widget Functions
 
-Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct and return a `raw::*Result` containing draw commands and interaction info. Every input is explicit; the cost is strictly local.
+Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct, append draw commands directly to a caller-supplied `&mut DrawCommands` buffer, and return a `raw::*Result` containing interaction info. Every input is explicit; the cost is strictly local.
+
+Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list (which frame containers rely on for placeholder patching). The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
 
 ```rust
-pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
-pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> raw::LabelResult;
-pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::TextEditResult;
+pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
+pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
+pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
 ```
 
-Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
+Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, Vec2) -> DrawCommands`) called when the context is finished; its `Vec2` argument is the layout's `content_extent`, supplied by `finish()` so container cleanup can resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)`) called when the context is finished; it receives the shared command buffer and the layout's `content_extent` (from `finish()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
@@ -334,8 +336,7 @@ pub fn button<T, S, CF>(
         .rect(rect)
         .defaults_from_theme(&ctx.theme)
         .build();
-    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-    ctx.append_cmds(r.draw.0);
+    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
         input: r.input,

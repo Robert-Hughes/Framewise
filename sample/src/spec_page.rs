@@ -278,17 +278,14 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
         .clip_rect(None)
         .build();
 
-    let result = framewise::widgets::button::raw::button(
+    framewise::widgets::button::raw::button(
         spec,
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
         b.text_system,
+        b.cmds,
     );
-    {
-        let cmds = result.draw;
-        b.append_cmds(cmds);
-    };
 }
 
 // ── Page state ────────────────────────────────────────────────────────────────

@@ -25,7 +25,6 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
@@ -62,12 +61,12 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> ButtonResult {
         // Disabled: register for layout but skip all interaction.
         if spec.disabled {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
-            let mut cmds = DrawCommands::new();
             cmds.push(DrawCmd::FillRect {
                 rect: spec.rect,
                 color: tint(spec.style.background),
@@ -88,7 +87,6 @@ pub mod raw {
                 handle: text_layout.handle,
             });
             return ButtonResult {
-                draw: cmds,
                 content_bounds: spec.rect.inset(spec.style.border_width),
                 input: InputInfo {
                     hovered: false,
@@ -151,8 +149,6 @@ pub mod raw {
             spec.style.background
         };
 
-        let mut cmds = DrawCommands::new();
-
         // Focus ring drawn first (outset — sits outside the button bounds).
         if focused {
             cmds.push(DrawCmd::StrokeRect {
@@ -191,7 +187,6 @@ pub mod raw {
         });
 
         ButtonResult {
-            draw: cmds,
             content_bounds: spec.rect.inset(spec.style.border_width),
             input: InputInfo {
                 hovered,
@@ -421,8 +416,7 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
     let rect = ctx.layout_state.layout(layout_params, intrinsic);
     spec.rect = rect;
 
-    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-    ctx.append_cmds(r.draw);
+    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
 
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -460,12 +454,14 @@ mod tests {
     ) {
         let mut ts = DummyTextSys;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::button(
             btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)),
             s1,
             input,
             focus_system,
             &mut ts,
+                &mut cmds,
         );
         raw::button(
             btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
@@ -473,6 +469,7 @@ mod tests {
             input,
             focus_system,
             &mut ts,
+                &mut cmds,
         );
         focus_system.end_frame();
     }
@@ -577,12 +574,14 @@ mod tests {
             mouse_clicked: false,
             ..Default::default()
         };
+        let mut cmds = DrawCommands::new();
         let res1 = raw::button(
             btn1_spec(),
             &mut state1,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res1.input.pressed);
 
@@ -595,6 +594,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         let res2 = raw::button(
             btn2_spec(),
@@ -602,6 +602,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
 
         assert!(
@@ -622,6 +623,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
 
         let res2 = raw::button(
@@ -630,6 +632,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
 
         assert!(
@@ -658,12 +661,14 @@ mod tests {
             mouse_clicked: false,
             ..Default::default()
         };
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.pressed);
 
@@ -677,6 +682,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
 
         assert!(res.input.clicked, "Button should register as clicked");
@@ -696,12 +702,14 @@ mod tests {
         input.mouse_down = true;
 
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -732,12 +740,14 @@ mod tests {
 
         let mut state = ButtonState::default();
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -758,12 +768,14 @@ mod tests {
 
         // Frame 1: Register and take focus explicitly
         let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
         raw::button(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -776,6 +788,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.clicked, "Button should be clicked by Enter key");
     }
@@ -793,12 +806,14 @@ mod tests {
             mouse_pos: Vec2::new(150.0, 150.0),
             ..Default::default()
         };
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(!res.input.hovered);
         assert!(!res.input.pressed);
@@ -811,6 +826,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.hovered, "Should be hovered");
         assert!(!res.input.pressed, "Should not be pressed");
@@ -824,6 +840,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.hovered, "Should be hovered while pressed down");
         assert!(res.input.pressed, "Should be pressed");
@@ -837,6 +854,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(!res.input.hovered, "Should lose hover when dragged out");
         assert!(
@@ -855,12 +873,14 @@ mod tests {
 
         // Frame 1: Focus
         let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
         raw::button(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -874,6 +894,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(
             res.input.pressed,
@@ -889,6 +910,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.pressed, "Button should remain pressed");
         assert!(!res.input.clicked, "Button should not be clicked yet");
@@ -902,6 +924,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(!res.input.pressed, "Button should not be pressed");
         assert!(res.input.clicked, "Button should be clicked on release");
@@ -917,12 +940,14 @@ mod tests {
 
         // Frame 1: Focus
         let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
         raw::button(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
@@ -936,6 +961,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(res.input.pressed);
 
@@ -950,6 +976,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(
             !res.input.pressed,
@@ -965,6 +992,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         assert!(!res.input.clicked, "Should not click because it lost focus");
     }
@@ -981,12 +1009,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -999,7 +1029,7 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1030,12 +1060,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1048,7 +1080,7 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1082,12 +1114,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1100,7 +1134,7 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1131,12 +1165,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1155,7 +1191,7 @@ mod tests {
             Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + focus_offset));
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::StrokeRect {
                     rect: expected_focus_rect,
@@ -1192,12 +1228,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
@@ -1211,7 +1249,7 @@ mod tests {
         let border_width = primary_style.border_width;
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1266,17 +1304,19 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         let res = raw::button(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+                &mut cmds,
         );
         focus_system.end_frame();
 
         assert_eq!(
-            &res.draw[..],
+            &cmds[..],
             &[
                 DrawCmd::FillRect {
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
