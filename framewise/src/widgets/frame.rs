@@ -197,7 +197,8 @@ pub fn begin_frame<
     };
 
     // 4. Disjointly construct the child context to keep the borrows separate
-    let child_ctx = WidgetContext { //TODO: should be using the child_with_layout_and_on_finish()?
+    let child_ctx = WidgetContext {
+        //TODO: should be using the child_with_layout_and_on_finish()?
         theme: ctx.theme,
         time: ctx.time,
         clip_rect: ctx.clip_rect,

@@ -313,8 +313,8 @@ impl LayoutState for ManualState {
         let space = LayoutSpace::new(
             self.origin.x + layout_params.x,
             self.origin.y + layout_params.y,
-            AxisBound::Unbounded, //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
-            AxisBound::Unbounded,
+            AxisBound::Exact(layout_params.w),
+            AxisBound::Exact(layout_params.h),
         );
         let token = LayoutToken {
             state: self,
@@ -426,12 +426,35 @@ impl LayoutState for ColumnState {
         &'a mut self,
         layout_params: SizeReq,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
-        let space = LayoutSpace::new(
-            self.space.x,
-            self.current_y,
-            self.space.width,
-            AxisBound::Unbounded,   //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
-        );
+        let width = match layout_params.width {
+            Extent::Fixed(w) => AxisBound::Exact(w),
+            Extent::Fill => self.space.width,
+            Extent::Auto => match self.space.width {
+                AxisBound::Exact(w) | AxisBound::AtMost(w) => AxisBound::AtMost(w),
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let height = match layout_params.height {
+            Extent::Fixed(h) => AxisBound::Exact(h),
+            Extent::Fill => match self.space.height {
+                AxisBound::Exact(h) => {
+                    AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::AtMost(h) => {
+                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+            Extent::Auto => match self.space.height {
+                AxisBound::Exact(h) | AxisBound::AtMost(h) => {
+                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let space = LayoutSpace::new(self.space.x, self.current_y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -557,12 +580,35 @@ impl LayoutState for RowState {
         &'a mut self,
         layout_params: SizeReq,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
-        let space = LayoutSpace::new(
-            self.current_x,
-            self.space.y,
-            AxisBound::Unbounded,  //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
-            self.space.height,
-        );
+        let width = match layout_params.width {
+            Extent::Fixed(w) => AxisBound::Exact(w),
+            Extent::Fill => match self.space.width {
+                AxisBound::Exact(w) => {
+                    AxisBound::Exact((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::AtMost(w) => {
+                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+            Extent::Auto => match self.space.width {
+                AxisBound::Exact(w) | AxisBound::AtMost(w) => {
+                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let height = match layout_params.height {
+            Extent::Fixed(h) => AxisBound::Exact(h),
+            Extent::Fill => self.space.height,
+            Extent::Auto => match self.space.height {
+                AxisBound::Exact(h) | AxisBound::AtMost(h) => AxisBound::AtMost(h),
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let space = LayoutSpace::new(self.current_x, self.space.y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -758,12 +804,36 @@ impl LayoutState for WrapState {
         &'a mut self,
         layout_params: SizeReq,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
-        let space = LayoutSpace::new(
-            self.current_x,
-            self.current_y,
-            AxisBound::Unbounded,  //TODO: surely this depends on the LayoutSpace that we have - we should propagate this?
-            AxisBound::Unbounded,
-        );
+        let width = match layout_params.width {
+            Extent::Fixed(w) => AxisBound::Exact(w),
+            Extent::Fill => match self.space.width {
+                AxisBound::Exact(w) => {
+                    AxisBound::Exact((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::AtMost(w) => {
+                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+            Extent::Auto => match self.space.width {
+                AxisBound::Exact(w) | AxisBound::AtMost(w) => {
+                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let height = match layout_params.height {
+            Extent::Fixed(h) => AxisBound::Exact(h),
+            Extent::Fill | Extent::Auto => match self.space.height {
+                AxisBound::Exact(h) | AxisBound::AtMost(h) => {
+                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
+
+        let space = LayoutSpace::new(self.current_x, self.current_y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -1322,8 +1392,8 @@ mod tests {
         // ManualLayout begins at logically shifted coordinate: (10.0+20.0, 10.0+30.0) = (30.0, 40.0)
         assert_eq!(space.x, 30.0);
         assert_eq!(space.y, 40.0);
-        assert_eq!(space.width, AxisBound::Unbounded);
-        assert_eq!(space.height, AxisBound::Unbounded);
+        assert_eq!(space.width, AxisBound::Exact(50.0));
+        assert_eq!(space.height, AxisBound::Exact(40.0));
 
         let resolved_rect = token.end_layout(Vec2::new(15.0, 15.0));
         // Resolved rect should be exactly the requested rect shifted by origin
@@ -1432,5 +1502,148 @@ mod tests {
         let resolved_rect = token.end_layout(Vec2::new(50.0, 40.0));
         // Rect resolved in inner layout is at (0, 0, 50, 40), then shifted: (-10, -20, 50, 40)
         assert_eq!(resolved_rect, Rect::new(-10.0, -20.0, 50.0, 40.0));
+    }
+
+    #[test]
+    fn test_manual_begin_layout_propagates_exact_bounds() {
+        let mut state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
+        let (space, _token) = state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0));
+        assert_eq!(space.width, AxisBound::Exact(100.0));
+        assert_eq!(space.height, AxisBound::Exact(150.0));
+    }
+
+    #[test]
+    fn test_column_begin_layout_propagates_bounds() {
+        let parent_space =
+            LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Start,
+        }
+        .begin(parent_space);
+
+        // 1. Fixed child height
+        let req_fixed = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Fixed(50.0),
+        };
+        let (space_f, _token) = state.begin_layout(req_fixed);
+        assert_eq!(space_f.width, AxisBound::Exact(200.0));
+        assert_eq!(space_f.height, AxisBound::Exact(50.0));
+
+        // Place a child to advance cursor by 50 + spacing(10) = 60
+        state.layout(SizeReq::fixed(200.0, 50.0), IntrinsicSize::UNKNOWN);
+
+        // Remaining parent height is 300 - 60 = 240.
+        // 2. Fill child height
+        let req_fill = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fill,
+        };
+        let (space_fill, _token) = state.begin_layout(req_fill);
+        assert_eq!(space_fill.width, AxisBound::AtMost(200.0));
+        assert_eq!(space_fill.height, AxisBound::Exact(240.0));
+
+        // 3. Auto child height
+        let req_auto = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Auto,
+        };
+        let (space_auto, _token) = state.begin_layout(req_auto);
+        assert_eq!(space_auto.width, AxisBound::AtMost(200.0));
+        assert_eq!(space_auto.height, AxisBound::AtMost(240.0));
+    }
+
+    #[test]
+    fn test_column_begin_layout_under_parent_at_most() {
+        let parent_space =
+            LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(150.0), AxisBound::AtMost(250.0));
+        let mut state = ColumnLayout {
+            spacing: 5.0,
+            align: CrossAlign::Start,
+        }
+        .begin(parent_space);
+
+        // 1. Fill child width, Auto child height
+        let req1 = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Auto,
+        };
+        let (space1, _token) = state.begin_layout(req1);
+        // Fill width under parent AtMost(150) should propagate AtMost(150)
+        assert_eq!(space1.width, AxisBound::AtMost(150.0));
+        // Auto height under parent AtMost(250) should propagate AtMost(250)
+        assert_eq!(space1.height, AxisBound::AtMost(250.0));
+
+        // Advance cursor by 40 + spacing(5) = 45
+        state.layout(SizeReq::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
+
+        // 2. Fill child height (remaining = 250 - 45 = 205)
+        let req2 = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fill,
+        };
+        let (space2, _token) = state.begin_layout(req2);
+        // Auto width under parent AtMost(150) should yield AtMost(150)
+        assert_eq!(space2.width, AxisBound::AtMost(150.0));
+        // Fill height under parent AtMost should yield AtMost(205)
+        assert_eq!(space2.height, AxisBound::AtMost(205.0));
+    }
+
+    #[test]
+    fn test_row_begin_layout_propagates_bounds() {
+        let parent_space =
+            LayoutSpace::new(0.0, 0.0, AxisBound::Exact(400.0), AxisBound::Exact(150.0));
+        let mut state = RowLayout {
+            spacing: 5.0,
+            align: CrossAlign::Start,
+        }
+        .begin(parent_space);
+
+        // Fixed width
+        let req_fixed = SizeReq {
+            width: Extent::Fixed(80.0),
+            height: Extent::Fill,
+        };
+        let (space_f, _token) = state.begin_layout(req_fixed);
+        assert_eq!(space_f.width, AxisBound::Exact(80.0));
+        assert_eq!(space_f.height, AxisBound::Exact(150.0));
+
+        // Advance cursor by 80 + spacing(5) = 85
+        state.layout(SizeReq::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+
+        // Remaining parent width is 400 - 85 = 315
+        // Auto width, fill height
+        let req_auto = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fill,
+        };
+        let (space_auto, _token) = state.begin_layout(req_auto);
+        assert_eq!(space_auto.width, AxisBound::AtMost(315.0));
+        assert_eq!(space_auto.height, AxisBound::Exact(150.0));
+    }
+
+    #[test]
+    fn test_wrap_begin_layout_propagates_bounds() {
+        let parent_space =
+            LayoutSpace::new(0.0, 0.0, AxisBound::Exact(250.0), AxisBound::Exact(200.0));
+        let mut state = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(parent_space);
+
+        // Place initial item of width 100, height 40 -> current_x is 110, line_height is 40
+        state.layout(SizeReq::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
+
+        // Remaining width on this line is 250 - 110 = 140.
+        // Auto width, auto height child container.
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Auto,
+        };
+        let (space, _token) = state.begin_layout(req);
+        assert_eq!(space.width, AxisBound::AtMost(140.0));
+        assert_eq!(space.height, AxisBound::AtMost(200.0));
     }
 }
