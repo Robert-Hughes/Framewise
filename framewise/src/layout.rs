@@ -313,7 +313,11 @@ impl LayoutState for ManualState {
         )
     }
 
-    fn begin_layout<'a>(&'a mut self, layout_params: Rect, _intrinsic: IntrinsicSize) -> (LayoutSpace, LayoutToken<'a, Self>) {
+    fn begin_layout<'a>(
+        &'a mut self,
+        layout_params: Rect,
+        _intrinsic: IntrinsicSize,
+    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let space = LayoutSpace::new(
             self.origin.x + layout_params.x,
             self.origin.y + layout_params.y,
@@ -459,7 +463,36 @@ impl LayoutState for ColumnState {
             },
         };
 
-        let space = LayoutSpace::new(self.space.x, self.current_y, width, height);
+        let w = match layout_params.width {
+            Extent::Fixed(w) => Some(w),
+            Extent::Fill => match self.space.width {
+                AxisBound::Exact(w) => Some(w),
+                AxisBound::AtMost(_) | AxisBound::Unbounded => None,
+            },
+            Extent::Auto => None,
+        };
+
+        let x = match self.align {
+            CrossAlign::Start => self.space.x,
+            CrossAlign::Center => match w {
+                Some(val) => match self.space.width {
+                    AxisBound::Exact(width) => self.space.x + (width - val) * 0.5,
+                    AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                    AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+                },
+                None => panic!("Layout panic: CrossAlign::Center cannot align dynamic (Auto/Fill) size child in begin_layout"),
+            },
+            CrossAlign::End => match w {
+                Some(val) => match self.space.width {
+                    AxisBound::Exact(width) => self.space.x + width - val,
+                    AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
+                    AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+                },
+                None => panic!("Layout panic: CrossAlign::End cannot align dynamic (Auto/Fill) size child in begin_layout"),
+            },
+        };
+
+        let space = LayoutSpace::new(x, self.current_y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -484,13 +517,11 @@ impl LayoutState for ColumnState {
             CrossAlign::Start => self.space.x,
             CrossAlign::Center => match self.space.width {
                 AxisBound::Exact(width) => self.space.x + (width - w) * 0.5,
-                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
-                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+                _ => unreachable!("Panicked in begin_layout"),
             },
             CrossAlign::End => match self.space.width {
                 AxisBound::Exact(width) => self.space.x + width - w,
-                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"),
-                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"),
+                _ => unreachable!("Panicked in begin_layout"),
             },
         };
 
@@ -614,7 +645,36 @@ impl LayoutState for RowState {
             },
         };
 
-        let space = LayoutSpace::new(self.current_x, self.space.y, width, height);
+        let h = match layout_params.height {
+            Extent::Fixed(h) => Some(h),
+            Extent::Fill => match self.space.height {
+                AxisBound::Exact(h) => Some(h),
+                AxisBound::AtMost(_) | AxisBound::Unbounded => None,
+            },
+            Extent::Auto => None,
+        };
+
+        let y = match self.align {
+            CrossAlign::Start => self.space.y,
+            CrossAlign::Center => match h {
+                Some(val) => match self.space.height {
+                    AxisBound::Exact(height) => self.space.y + (height - val) * 0.5,
+                    AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                    AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+                },
+                None => panic!("Layout panic: CrossAlign::Center cannot align dynamic (Auto/Fill) size child in begin_layout"),
+            },
+            CrossAlign::End => match h {
+                Some(val) => match self.space.height {
+                    AxisBound::Exact(height) => self.space.y + height - val,
+                    AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
+                    AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+                },
+                None => panic!("Layout panic: CrossAlign::End cannot align dynamic (Auto/Fill) size child in begin_layout"),
+            },
+        };
+
+        let space = LayoutSpace::new(self.current_x, y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -639,13 +699,11 @@ impl LayoutState for RowState {
             CrossAlign::Start => self.space.y,
             CrossAlign::Center => match self.space.height {
                 AxisBound::Exact(height) => self.space.y + (height - h) * 0.5,
-                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
-                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::Center requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+                _ => unreachable!("Panicked in begin_layout"),
             },
             CrossAlign::End => match self.space.height {
                 AxisBound::Exact(height) => self.space.y + height - h,
-                AxisBound::AtMost(_) => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is AtMost"),
-                AxisBound::Unbounded => panic!("Layout panic: CrossAlign::End requires AxisBound::Exact available space on the cross axis, but height is Unbounded"),
+                _ => unreachable!("Panicked in begin_layout"),
             },
         };
 
@@ -812,24 +870,16 @@ impl LayoutState for WrapState {
         layout_params: SizeReq,
         _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
-        let width = match layout_params.width {
-            Extent::Fixed(w) => AxisBound::Exact(w),
+        let w = match layout_params.width {
+            Extent::Fixed(w) => w,
             Extent::Fill => match self.space.width {
-                AxisBound::Exact(w) => {
-                    AxisBound::Exact((w - (self.current_x - self.space.x)).max(0.0))
-                }
-                AxisBound::AtMost(w) => {
-                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
-                }
-                AxisBound::Unbounded => AxisBound::Unbounded,
+                AxisBound::Exact(w) => (w - (self.current_x - self.space.x)).max(0.0),
+                AxisBound::AtMost(_) | AxisBound::Unbounded => panic!("Layout panic: WrapLayout cannot resolve Extent::Fill under non-Exact bounds in begin_layout"),
             },
-            Extent::Auto => match self.space.width {
-                AxisBound::Exact(w) | AxisBound::AtMost(w) => {
-                    AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
-                }
-                AxisBound::Unbounded => AxisBound::Unbounded,
-            },
+            Extent::Auto => panic!("Layout panic: WrapLayout does not support Auto-sized deferred containers because wrapping must be resolved in begin_layout"),
         };
+
+        let width = AxisBound::Exact(w);
 
         let height = match layout_params.height {
             Extent::Fixed(h) => AxisBound::Exact(h),
@@ -840,6 +890,19 @@ impl LayoutState for WrapState {
                 AxisBound::Unbounded => AxisBound::Unbounded,
             },
         };
+
+        let at_line_start = self.current_x == self.space.x;
+        let overflows = match self.space.width {
+            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
+                self.current_x + w > self.space.x + width
+            }
+            AxisBound::Unbounded => false,
+        };
+        if !at_line_start && overflows {
+            self.current_x = self.space.x;
+            self.current_y += self.line_height + self.line_spacing;
+            self.line_height = 0.0;
+        }
 
         let space = LayoutSpace::new(self.current_x, self.current_y, width, height);
         let token = LayoutToken {
@@ -861,19 +924,6 @@ impl LayoutState for WrapState {
             self.space.height,
             LAYOUT_FALLBACK_SIZE.y,
         );
-
-        let at_line_start = self.current_x == self.space.x;
-        let overflows = match self.space.width {
-            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
-                self.current_x + w > self.space.x + width
-            }
-            AxisBound::Unbounded => false,
-        };
-        if !at_line_start && overflows {
-            self.current_x = self.space.x;
-            self.current_y += self.line_height + self.line_spacing;
-            self.line_height = 0.0;
-        }
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
@@ -1462,11 +1512,11 @@ mod tests {
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0)); // cursor x is now 40 + 10 = 50
 
         // Place a deferred item of width 40.0.
-        let req = SizeReq {
-            width: Extent::Auto,
+        let req1 = SizeReq {
+            width: Extent::Fixed(40.0),
             height: Extent::Auto,
         };
-        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space, token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
         // provisional space starts at current_x (50) and current_y (0)
         assert_eq!(space.x, 50.0);
         assert_eq!(space.y, 0.0);
@@ -1477,11 +1527,16 @@ mod tests {
         assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
 
         // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
-        let (space2, token2) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
-        assert_eq!(space2.x, 100.0);
-        assert_eq!(space2.y, 0.0);
+        let req2 = SizeReq {
+            width: Extent::Fixed(20.0),
+            height: Extent::Auto,
+        };
+        let (space2, token2) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
+        // Under WrapLayout's upfront wrap resolution, space2 wraps to start of next line: (0.0, 35.0)
+        assert_eq!(space2.x, 0.0);
+        assert_eq!(space2.y, 35.0);
 
-        // This item is width 20. When ending layout, it wraps to y = line_height (30) + line_spacing (5) = 35.
+        // This item is width 20.
         let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0));
         assert_eq!(resolved_rect2, Rect::new(0.0, 35.0, 20.0, 15.0));
     }
@@ -1515,7 +1570,8 @@ mod tests {
     #[test]
     fn test_manual_begin_layout_propagates_exact_bounds() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
-        let (space, _token) = state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), IntrinsicSize::UNKNOWN);
+        let (space, _token) =
+            state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), IntrinsicSize::UNKNOWN);
         assert_eq!(space.width, AxisBound::Exact(100.0));
         assert_eq!(space.height, AxisBound::Exact(150.0));
     }
@@ -1645,13 +1701,141 @@ mod tests {
         state.layout(SizeReq::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
 
         // Remaining width on this line is 250 - 110 = 140.
-        // Auto width, auto height child container.
+        // Fixed width, auto height child container.
         let req = SizeReq {
-            width: Extent::Auto,
+            width: Extent::Fixed(80.0),
             height: Extent::Auto,
         };
         let (space, _token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
-        assert_eq!(space.width, AxisBound::AtMost(140.0));
+        assert_eq!(space.width, AxisBound::Exact(80.0));
         assert_eq!(space.height, AxisBound::AtMost(200.0));
+    }
+
+    #[test]
+    fn test_deferred_column_center_align_fixed() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Center,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Fixed(80.0),
+            height: Extent::Fixed(40.0),
+        };
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        // x = 10.0 + (200.0 - 80.0) * 0.5 = 70.0
+        assert_eq!(space.x, 70.0);
+        assert_eq!(space.width, AxisBound::Exact(80.0));
+
+        let rect = token.end_layout(Vec2::new(80.0, 40.0));
+        assert_eq!(rect, Rect::new(70.0, 10.0, 80.0, 40.0));
+    }
+
+    #[test]
+    fn test_deferred_column_end_align_fill() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::End,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Fill,
+            height: Extent::Fixed(40.0),
+        };
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        // w resolves to 200.0 (Fill under Exact 200)
+        // x = 10.0 + 200.0 - 200.0 = 10.0
+        assert_eq!(space.x, 10.0);
+        assert_eq!(space.width, AxisBound::Exact(200.0));
+
+        let rect = token.end_layout(Vec2::new(200.0, 40.0));
+        assert_eq!(rect, Rect::new(10.0, 10.0, 200.0, 40.0));
+    }
+
+    #[test]
+    fn test_deferred_column_start_align_auto() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Start,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fixed(40.0),
+        };
+        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        // Start alignment allows Auto size. x should be parent space x = 10.0.
+        assert_eq!(space.x, 10.0);
+        assert_eq!(space.width, AxisBound::AtMost(200.0));
+
+        let rect = token.end_layout(Vec2::new(80.0, 40.0));
+        // Under Start, w resolves to preferred size 80.0. x is 10.0.
+        assert_eq!(rect, Rect::new(10.0, 10.0, 80.0, 40.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot align dynamic")]
+    fn test_deferred_column_center_align_auto_panic() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = ColumnLayout {
+            spacing: 10.0,
+            align: CrossAlign::Center,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fixed(40.0),
+        };
+        // Auto width under Center alignment should panic during begin_layout
+        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot align dynamic")]
+    fn test_deferred_row_center_align_auto_panic() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = RowLayout {
+            spacing: 10.0,
+            align: CrossAlign::Center,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Fixed(80.0),
+            height: Extent::Auto,
+        };
+        // Auto height under Center alignment in RowLayout should panic during begin_layout
+        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    #[should_panic(expected = "does not support Auto-sized")]
+    fn test_deferred_wrap_auto_panic() {
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
+        let mut state = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(parent_space);
+
+        let req = SizeReq {
+            width: Extent::Auto,
+            height: Extent::Fixed(40.0),
+        };
+        // Auto width under WrapLayout should panic during begin_layout
+        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
     }
 }

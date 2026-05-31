@@ -501,11 +501,11 @@ pub fn draw_frame_page(
             &mut ButtonState::default(),
         );
 
-        // Showcase 1: Symmetrical Nesting Cases (Auto inside Fixed, Fixed inside Auto)
+        // Showcase 1: Symmetrical Nesting Cases (Fixed Panel centered in Fixed Outer)
         button(
             &mut right_col,
             ButtonSpecBuilder::new()
-                .text("Nesting Showcase (Auto-in-Fixed & Fixed-in-Auto)")
+                .text("Nesting Showcase (Fixed Panel centered in Fixed Outer)")
                 .style(ghost)
                 .disabled(true),
             SizeReq {
@@ -515,7 +515,7 @@ pub fn draw_frame_page(
             &mut ButtonState::default(),
         );
 
-        // Outer Fixed frame (450x180) containing centered inner auto-sizing frame
+        // Outer Fixed frame (450x180) containing centered inner fixed frame
         {
             let FrameResult {
                 layout: _,
@@ -544,7 +544,7 @@ pub fn draw_frame_page(
                 state.nested_clicks[0] += 1;
             }
 
-            // Inner Auto-Sizing Frame nested inside Fixed outer!
+            // Inner Fixed-Width Frame nested inside Fixed outer!
             {
                 let FrameResult {
                     layout: _,
@@ -556,7 +556,7 @@ pub fn draw_frame_page(
                         ..frame_style
                     }),
                     SizeReq {
-                        width: Extent::Auto,
+                        width: Extent::Fixed(350.0),
                         height: Extent::Auto,
                     },
                     RowLayout {

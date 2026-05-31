@@ -122,7 +122,13 @@ Position is always concrete — a layout always knows *where* a child starts —
 
 > **Position and distribution policies — fill, right-align, center, space-between — require `AxisBound::Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` bounds permit only measurement / shrink-wrap decisions.**
 
-If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, it will **panic** if the cross-axis boundary is `AtMost` or `Unbounded`. This prevents alignment math from running against a boundary that was only ever intended as a maximum ceiling or scroll container extent.
+If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, it will **panic** if:
+1. The cross-axis boundary is `AtMost` or `Unbounded`. This prevents alignment math from running against a boundary that was only ever intended as a maximum ceiling or scroll container extent.
+2. The aligned object is a deferred container (such as a `Frame`) and has a dynamic size (`Extent::Auto`). Because deferred layouts position and draw their children immediately during the layout pass, the aligned container's size must be resolved upfront during `begin_layout`. If the size is dynamic (`Auto`), it is mathematically impossible to calculate the correct alignment offset upfront, and any attempt to do so will trigger an immediate panic in `begin_layout`.
+
+Similarly, `WrapLayout` does not support deferred containers with `Extent::Auto` widths because line wrapping decisions must be resolved upfront in `begin_layout`. Placing a dynamic-width deferred container in `WrapLayout` will trigger a panic in `begin_layout`.
+
+To align or wrap a nested container safely, it must have a concrete size resolved upfront (e.g. `Extent::Fixed(px)`, or `Extent::Fill` against a parent of exact bounds).
 
 #### Sizing Resolution Rules
 
