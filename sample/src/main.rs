@@ -102,6 +102,27 @@ impl App {
         }
     }
 
+    fn draw_missing_feature_page(
+        win_size: (f32, f32),
+        text_system: &mut SampleTextSystem,
+    ) -> framewise::DrawCommands {
+        use framewise::{Color, DrawCmd, FontId, Rect, TextSystem};
+        let mut cmds = framewise::DrawCommands::new();
+        cmds.push(DrawCmd::FillRect {
+            rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
+            color: Color::from_srgb_u8(28, 28, 32, 255),
+        });
+        let layout = text_system.prepare("Feature not enabled", 24.0, FontId(1));
+        let cx = (win_size.0 - layout.size.x) * 0.5;
+        let cy = (win_size.1 - layout.size.y) * 0.5;
+        cmds.push(DrawCmd::Text {
+            rect: Rect::new(cx, cy, layout.size.x, layout.size.y),
+            color: Color::from_srgb_u8(140, 140, 150, 255),
+            handle: layout.handle,
+        });
+        cmds
+    }
+
     #[allow(unreachable_code)]
     fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> framewise::DrawCommands {
         let win_size = self
@@ -127,7 +148,7 @@ impl App {
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                framewise::DrawCommands::new()
+                Self::draw_missing_feature_page(win_size, text_system)
             }
             AppPage::WidgetSpec => {
                 #[cfg(feature = "page_spec")]
@@ -145,7 +166,7 @@ impl App {
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                framewise::DrawCommands::new()
+                Self::draw_missing_feature_page(win_size, text_system)
             }
             AppPage::ScrollDemo => {
                 #[cfg(feature = "page_scroll_demo")]
@@ -163,7 +184,7 @@ impl App {
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                framewise::DrawCommands::new()
+                Self::draw_missing_feature_page(win_size, text_system)
             }
             AppPage::FrameDemo => {
                 #[cfg(feature = "page_frame_demo")]
@@ -180,7 +201,7 @@ impl App {
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                framewise::DrawCommands::new()
+                Self::draw_missing_feature_page(win_size, text_system)
             }
         }
     }
