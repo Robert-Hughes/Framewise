@@ -70,7 +70,7 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
 }
 
 impl<'a, T: TextSystem>
-    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Vec2)>
+    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Rect)>
 //TODO: Shouldn't be hardcoded to ManualState! Should work for any!
 {
     #[allow(clippy::type_complexity)]
@@ -82,7 +82,7 @@ impl<'a, T: TextSystem>
         layout: L,
         space: impl Into<crate::layout::LayoutSpace>,
         cmds: &'a mut DrawCommands,
-    ) -> WidgetContext<'a, T, L::State, fn(&mut FocusSystem, &mut DrawCommands, Vec2)> {
+    ) -> WidgetContext<'a, T, L::State, fn(&mut FocusSystem, &mut DrawCommands, Rect)> {
         WidgetContext {
             time: 0.0,
             clip_rect: None,
@@ -101,7 +101,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2),
+        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -124,7 +124,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2),
+        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -147,7 +147,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)>
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)>
     {
         let bounds = self
             .layout_state
@@ -165,17 +165,17 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)>
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)>
     WidgetContext<'a, T, LS, CF>
 {
     /// Consume the context, running the on_finish closure and appending its post-commands.
     ///
-    /// The layout's accumulated [`content_extent`](LayoutState::content_extent) is
+    /// The layout's resolved [`resolve_space`](LayoutState::resolve_space) is
     /// passed to the closure so container widgets (e.g. a deferred scroll area) can
     /// resolve geometry from how large their children turned out.
     pub fn finish(self) {
-        let content_extent = self.layout_state.content_extent();
-        (self.on_finish)(self.focus_system, self.cmds, content_extent);
+        let resolved_space = self.layout_state.resolve_space();
+        (self.on_finish)(self.focus_system, self.cmds, resolved_space);
     }
 }
 

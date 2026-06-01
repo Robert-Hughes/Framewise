@@ -218,7 +218,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     builder: FrameSpecBuilder,
     layout_params: S::Params,
     inner_layout: L,
-) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2) + 'b> {
+) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'b> {
     let spec = builder
         .defaults_from_theme(&ctx.theme)
         .rect(Rect::PLACEHOLDER)
@@ -245,7 +245,8 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     let inner_space = outer_space.inset(inset);
 
     // 4. Define the finish callback which consumes the borrow token and finalizes the parent layout
-    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, content_extent: Vec2| {
+    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, resolved_space: Rect| {
+        let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
         // Compute outer size: children extent plus container margins
         let outer_extent = Vec2::new(
             content_extent.x + inset * 2.0,

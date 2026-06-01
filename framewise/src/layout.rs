@@ -18,6 +18,16 @@ pub enum AxisBound {
     Unbounded,
 }
 
+impl AxisBound {
+    pub fn resolve(self, measured: f32) -> f32 {
+        match self {
+            AxisBound::Exact(w) => w,
+            AxisBound::AtMost(max_w) => measured.min(max_w),
+            AxisBound::Unbounded => measured,
+        }
+    }
+}
+
 /// The available space a parent hands **down** to a layout. Carries an
 /// [`AxisBound`] per axis: the origin (`x`, `y`) is always concrete, but either
 /// extent may be [`AxisBound::Unbounded`].
@@ -41,6 +51,15 @@ impl LayoutSpace {
             width,
             height,
         }
+    }
+
+    pub fn resolve(self, measured: Vec2) -> Rect {
+        Rect::new(
+            self.x,
+            self.y,
+            self.width.resolve(measured.x),
+            self.height.resolve(measured.y),
+        )
     }
 
     /// A space bounded in width but unbounded in height — the shape a vertically
@@ -259,14 +278,10 @@ pub trait LayoutState {
     /// Returns the resolved concrete Rect of the container and advances the layout state.
     fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> Rect;
 
-    /// The total content extent consumed so far, measured from the layout's
-    /// origin (so it is independent of any scroll offset). A deferred scroll area
-    /// reads this at `finish` to discover how large its children turned out — the
-    /// concrete `f32` end of an [`AxisBound::Unbounded`] axis (the "unbounded
-    /// resolves to concrete at accumulation" rule).
-    ///
-    /// Returns the zero vector before any child is placed.
-    fn content_extent(&self) -> Vec2;
+    /// The resolved concrete space Rect occupied by the entire layout (which might be
+    /// bounded or accumulated), measured relative to parent coordinates but independent
+    /// of any temporary offsets.
+    fn resolve_space(&self) -> Rect;
 }
 
 // ── ManualLayout ──────────────────────────────────────────────────────────
@@ -279,16 +294,15 @@ impl Layout for ManualLayout {
     type State = ManualState;
 
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
-        let space = space.into();
         ManualState {
-            origin: Vec2::new(space.x, space.y),
+            space: space.into(),
             content_extent: Vec2::ZERO,
         }
     }
 }
 
 pub struct ManualState {
-    origin: Vec2,
+    space: LayoutSpace,
     content_extent: Vec2,
 }
 
@@ -306,8 +320,8 @@ impl LayoutState for ManualState {
         self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
         self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
         Rect::new(
-            self.origin.x + layout_params.x,
-            self.origin.y + layout_params.y,
+            self.space.x + layout_params.x,
+            self.space.y + layout_params.y,
             layout_params.w,
             layout_params.h,
         )
@@ -319,8 +333,8 @@ impl LayoutState for ManualState {
         _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let space = LayoutSpace::new(
-            self.origin.x + layout_params.x,
-            self.origin.y + layout_params.y,
+            self.space.x + layout_params.x,
+            self.space.y + layout_params.y,
             AxisBound::Exact(layout_params.w),
             AxisBound::Exact(layout_params.h),
         );
@@ -335,15 +349,15 @@ impl LayoutState for ManualState {
         self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
         self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
         Rect::new(
-            self.origin.x + layout_params.x,
-            self.origin.y + layout_params.y,
+            self.space.x + layout_params.x,
+            self.space.y + layout_params.y,
             layout_params.w,
             layout_params.h,
         )
     }
 
-    fn content_extent(&self) -> Vec2 {
-        self.content_extent
+    fn resolve_space(&self) -> Rect {
+        self.space.resolve(self.content_extent)
     }
 }
 
@@ -532,8 +546,9 @@ impl LayoutState for ColumnState {
         r
     }
 
-    fn content_extent(&self) -> Vec2 {
-        Vec2::new(self.content_w, self.content_h)
+    fn resolve_space(&self) -> Rect {
+        self.space
+            .resolve(Vec2::new(self.content_w, self.content_h))
     }
 }
 
@@ -714,8 +729,9 @@ impl LayoutState for RowState {
         r
     }
 
-    fn content_extent(&self) -> Vec2 {
-        Vec2::new(self.content_w, self.content_h)
+    fn resolve_space(&self) -> Rect {
+        self.space
+            .resolve(Vec2::new(self.content_w, self.content_h))
     }
 }
 
@@ -776,10 +792,11 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
         r
     }
 
-    fn content_extent(&self) -> Vec2 {
-        // The content extent is offset-independent: it describes how large the
-        // children are, not where they are scrolled to.
-        self.inner.content_extent()
+    fn resolve_space(&self) -> Rect {
+        let mut r = self.inner.resolve_space();
+        r.x -= self.offset.x;
+        r.y -= self.offset.y;
+        r
     }
 }
 
@@ -932,12 +949,13 @@ impl LayoutState for WrapState {
         r
     }
 
-    fn content_extent(&self) -> Vec2 {
+    fn resolve_space(&self) -> Rect {
         // Width: the widest line. Height: the bottom of the current (last) line.
-        Vec2::new(
+        let measured = Vec2::new(
             self.content_w,
             (self.current_y + self.line_height) - self.space.y,
-        )
+        );
+        self.space.resolve(measured)
     }
 }
 
@@ -1192,12 +1210,11 @@ mod tests {
             align: CrossAlign::Start,
         }
         .begin(Rect::new(5.0, 7.0, 100.0, 500.0));
-        assert_eq!(state.content_extent(), Vec2::ZERO);
+        assert_eq!(state.resolve_space(), Rect::new(5.0, 7.0, 100.0, 500.0));
         state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         state.layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN);
-        // Width = widest child (60); height = bottom of last child = 20 + 10 + 30 = 60
-        // (no trailing spacing counted).
-        assert_eq!(state.content_extent(), Vec2::new(60.0, 60.0));
+        // Width = resolved Exact = 100.0, height = resolved Exact = 500.0
+        assert_eq!(state.resolve_space(), Rect::new(5.0, 7.0, 100.0, 500.0));
     }
 
     #[test]
@@ -1209,17 +1226,75 @@ mod tests {
         .begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         state.layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN);
-        // Width = right of last child = 30 + 5 + 20 = 55; height = tallest child (40).
-        assert_eq!(state.content_extent(), Vec2::new(55.0, 40.0));
+        // Width = resolved Exact = 400.0; height = resolved Exact = 100.0.
+        assert_eq!(state.resolve_space(), Rect::new(0.0, 0.0, 400.0, 100.0));
     }
 
     #[test]
     fn test_manual_content_extent() {
-        let mut state = ManualLayout.begin(Rect::new(100.0, 100.0, 0.0, 0.0));
+        let parent_space =
+            LayoutSpace::new(100.0, 100.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let mut state = ManualLayout.begin(parent_space);
         state.layout(Rect::new(0.0, 0.0, 50.0, 20.0), IntrinsicSize::UNKNOWN);
         state.layout(Rect::new(80.0, 40.0, 30.0, 30.0), IntrinsicSize::UNKNOWN);
-        // Extent is origin-relative: max far edges = (80+30, 40+30) = (110, 70).
-        assert_eq!(state.content_extent(), Vec2::new(110.0, 70.0));
+        // Resolved space origin is 100, 100; extent is max far edges (110, 70).
+        assert_eq!(state.resolve_space(), Rect::new(100.0, 100.0, 110.0, 70.0));
+    }
+
+    #[test]
+    fn test_manual_layout_resolve_space_axis_bounds() {
+        let parent_space_exact =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Exact(200.0), AxisBound::Exact(150.0));
+        let parent_space_at_most = LayoutSpace::new(
+            10.0,
+            20.0,
+            AxisBound::AtMost(200.0),
+            AxisBound::AtMost(150.0),
+        );
+        let parent_space_unbounded =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Unbounded);
+
+        // 1. Exact -> Expected: exact bounds even if widgets are smaller or larger.
+        // The layout space determines the value entirely (Exact overrides any laid out widget size).
+        {
+            // Smaller: Placed child (50x40) is smaller than 200x150 bounds.
+            // Layout space (Exact) determines the resolved size (forces 200x150).
+            let mut state = ManualLayout.begin(parent_space_exact);
+            state.layout(Rect::new(0.0, 0.0, 50.0, 40.0), IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
+
+            // Larger: Placed child far edge (300, 260) exceeds 200x150 bounds.
+            // Layout space (Exact) determines the resolved size (clamps/forces 200x150).
+            let mut state = ManualLayout.begin(parent_space_exact);
+            state.layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
+        }
+
+        // 2. AtMost -> Expected: shrink-wrapped to child boundaries if smaller, capped if larger.
+        // Both the widget sizes and the layout space limit determine the final value.
+        {
+            // Smaller: Placed child far edge (60, 50) is within the 200x150 limits.
+            // Placed widgets determine the value (shrink-wrapped).
+            let mut state = ManualLayout.begin(parent_space_at_most);
+            state.layout(Rect::new(10.0, 10.0, 50.0, 40.0), IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 60.0, 50.0));
+
+            // Larger: Placed child far edge (300, 260) exceeds the 200x150 limits.
+            // Layout space (AtMost limit) determines the value (clamps at limit ceilings).
+            let mut state = ManualLayout.begin(parent_space_at_most);
+            state.layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
+        }
+
+        // 3. Unbounded -> Expected: shrink-wrapped to child boundaries (max far edges).
+        // Placed widgets determine the value entirely (since there is no parent constraint ceiling).
+        {
+            // Placed child far edge is (300, 260).
+            // Placed widgets determine the value.
+            let mut state = ManualLayout.begin(parent_space_unbounded);
+            state.layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 300.0, 260.0));
+        }
     }
 
     #[test]
@@ -1234,8 +1309,8 @@ mod tests {
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
         state.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
-        // Content extent describes child size, not scroll position — offset ignored.
-        assert_eq!(state.content_extent(), Vec2::new(40.0, 50.0));
+        // resolved_space shifted by offset (origin: -13.0, -27.0)
+        assert_eq!(state.resolve_space(), Rect::new(-13.0, -27.0, 100.0, 100.0));
     }
 
     #[test]
@@ -1443,7 +1518,9 @@ mod tests {
 
     #[test]
     fn test_deferred_manual_layout_lifecycle() {
-        let mut state = ManualLayout.begin(Rect::new(10.0, 10.0, 100.0, 100.0));
+        let parent_space =
+            LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let mut state = ManualLayout.begin(parent_space);
         let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
         let (space, token) = state.begin_layout(layout_param, IntrinsicSize::UNKNOWN);
 
@@ -1457,8 +1534,8 @@ mod tests {
         // Resolved rect should be exactly the requested rect shifted by origin
         assert_eq!(resolved_rect, Rect::new(30.0, 40.0, 50.0, 40.0));
 
-        // Content extent is the far edge relative to origin: 20.0 + 50.0 = 70.0, 30.0 + 40.0 = 70.0
-        assert_eq!(state.content_extent(), Vec2::new(70.0, 70.0));
+        // Resolved space origin is 10.0, 10.0; extent is max far edges (70.0, 70.0)
+        assert_eq!(state.resolve_space(), Rect::new(10.0, 10.0, 70.0, 70.0));
     }
 
     #[test]
@@ -1855,8 +1932,8 @@ mod tests {
             let _ = state.layout(req, IntrinsicSize::UNKNOWN);
 
             // Bounding box right edge = 10.0 + (400.0 - 180.0)/2 + 180.0 = 300.0.
-            // Relative right edge = 300.0 - 10.0 = 290.0.
-            assert_eq!(state.content_extent().x, 290.0);
+            // Under resolve_space, the Exact(400.0) parent constraint is preserved.
+            assert_eq!(state.resolve_space().w, 400.0);
         }
 
         // 2. CrossAlign::End (standard layout)
@@ -1871,7 +1948,7 @@ mod tests {
 
             // Bounding box right edge = 10.0 + 400.0 - 180.0 + 180.0 = 410.0.
             // Relative right edge = 410.0 - 10.0 = 400.0.
-            assert_eq!(state.content_extent().x, 400.0);
+            assert_eq!(state.resolve_space().w, 400.0);
         }
 
         // 3. CrossAlign::Center (deferred begin/end layout)
@@ -1885,7 +1962,8 @@ mod tests {
             let (_, token) = state.begin_layout(req.clone(), IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(180.0, 32.0));
 
-            assert_eq!(state.content_extent().x, 290.0);
+            // Under resolve_space, the Exact(400.0) parent constraint is preserved.
+            assert_eq!(state.resolve_space().w, 400.0);
         }
     }
 
@@ -1905,8 +1983,8 @@ mod tests {
             let _ = state.layout(req, IntrinsicSize::UNKNOWN);
 
             // Bounding box bottom edge = 20.0 + (300.0 - 100.0)/2 + 100.0 = 220.0.
-            // Relative bottom edge = 220.0 - 20.0 = 200.0.
-            assert_eq!(state.content_extent().y, 200.0);
+            // Under resolve_space, the Exact(300.0) parent constraint is preserved.
+            assert_eq!(state.resolve_space().h, 300.0);
         }
 
         // 2. CrossAlign::End (standard layout)
@@ -1921,7 +1999,7 @@ mod tests {
 
             // Bounding box bottom edge = 20.0 + 300.0 - 100.0 + 100.0 = 320.0.
             // Relative bottom edge = 320.0 - 20.0 = 300.0.
-            assert_eq!(state.content_extent().y, 300.0);
+            assert_eq!(state.resolve_space().h, 300.0);
         }
 
         // 3. CrossAlign::Center (deferred begin/end layout)
@@ -1935,7 +2013,132 @@ mod tests {
             let (_, token) = state.begin_layout(req.clone(), IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(80.0, 100.0));
 
-            assert_eq!(state.content_extent().y, 200.0);
+            // Under resolve_space, the Exact(300.0) parent constraint is preserved.
+            assert_eq!(state.resolve_space().h, 300.0);
+        }
+    }
+
+    #[test]
+    fn test_column_layout_resolve_space_axis_bounds() {
+        let parent_space_exact =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Exact(400.0), AxisBound::Unbounded);
+        let parent_space_at_most =
+            LayoutSpace::new(10.0, 20.0, AxisBound::AtMost(400.0), AxisBound::Unbounded);
+        let parent_space_at_most_overflow =
+            LayoutSpace::new(10.0, 20.0, AxisBound::AtMost(100.0), AxisBound::Unbounded);
+        let parent_space_unbounded =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Unbounded);
+
+        let req = SizeReq::fixed(180.0, 32.0);
+
+        // 1. Exact(400.0) -> Expected: exact bounds (400.0) even if widgets are smaller (180.0)
+        // The layout space determines the value (Exact constraint overrides any smaller child size).
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_exact);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().w, 400.0);
+        }
+
+        // 2. AtMost(400.0) -> Expected: shrink-wrapped to child's actual width (180.0)
+        // Placed widgets determine the value (since the child's size is within parent bounds).
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_at_most);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().w, 180.0);
+        }
+
+        // 2b. AtMost(100.0) (widgets larger than AtMost value) -> Expected: capped at AtMost value (100.0)
+        // The layout space determines the value (clamped at parent limit ceiling).
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_at_most_overflow);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().w, 100.0);
+        }
+
+        // 3. Unbounded -> Expected: child's actual width (180.0)
+        // Placed widgets determine the value entirely (since there is no parent constraint ceiling).
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_unbounded);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().w, 180.0);
+        }
+    }
+
+    #[test]
+    fn test_row_layout_resolve_space_axis_bounds() {
+        let parent_space_exact =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Exact(300.0));
+        let parent_space_at_most =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::AtMost(300.0));
+        let parent_space_at_most_overflow =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::AtMost(50.0));
+        let parent_space_unbounded =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Unbounded);
+
+        let req = SizeReq::fixed(80.0, 100.0);
+
+        // 1. Exact(300.0) -> Expected: exact bounds (300.0) even if widgets are smaller (100.0)
+        // The layout space determines the value (Exact constraint overrides any smaller child size).
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_exact);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().h, 300.0);
+        }
+
+        // 2. AtMost(300.0) -> Expected: shrink-wrapped to child's actual height (100.0)
+        // Placed widgets determine the value (since the child's size is within parent bounds).
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_at_most);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().h, 100.0);
+        }
+
+        // 2b. AtMost(50.0) (widgets larger than AtMost value) -> Expected: capped at AtMost value (50.0)
+        // The layout space determines the value (clamped at parent limit ceiling).
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_at_most_overflow);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().h, 50.0);
+        }
+
+        // 3. Unbounded -> Expected: child's actual height (100.0)
+        // Placed widgets determine the value entirely (since there is no parent constraint ceiling).
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Start,
+            }
+            .begin(parent_space_unbounded);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            assert_eq!(state.resolve_space().h, 100.0);
         }
     }
 }

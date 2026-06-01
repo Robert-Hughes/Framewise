@@ -720,7 +720,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     'b,
     T,
     crate::layout::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2) + 'b,
+    impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'b,
 > {
     // Build the spec up front with a placeholder rect so we can measure the
     // intrinsic size; the real bounds are then determined by the layout system
@@ -758,7 +758,8 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     // `finish()` supplies the measured `content_extent`, and `end_scroll_area`
     // resolves all deferred scroll geometry (clamp, scrollbars, claims).
     let on_finish =
-        move |focus_system: &mut FocusSystem, cmds: &mut DrawCommands, content_extent: Vec2| {
+        move |focus_system: &mut FocusSystem, cmds: &mut DrawCommands, resolved_space: Rect| {
+            let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
             raw::end_scroll_area(token, content_extent, state, input, focus_system, cmds);
         };
 
