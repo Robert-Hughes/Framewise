@@ -70,7 +70,8 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
 }
 
 impl<'a, T: TextSystem>
-    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Vec2)> //TODO: Shouldn't be hardcoded to ManualState! Should work for any!
+    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Vec2)>
+//TODO: Shouldn't be hardcoded to ManualState! Should work for any!
 {
     #[allow(clippy::type_complexity)]
     pub fn root<L: crate::layout::Layout>(

@@ -8,7 +8,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::button,
-        scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollbarVisibility},
+        scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder},
         slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
         ButtonSpecBuilder,
     },
@@ -183,13 +183,19 @@ pub fn draw_scroll_demo(
             let mut sidebar_scroll = begin_scroll_area(
                 &mut sidebar_col,
                 ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::Always)
-                    .v_vis(ScrollbarVisibility::Always),
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::fixed(400.0),
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    }),
                 SizeReq::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
                 framewise::layout::ColumnLayout {
                     spacing: 8.0,
-                    align: CrossAlign::Start,
+                    align: CrossAlign::Center,
                 },
             )
             .ctx;
@@ -219,9 +225,12 @@ pub fn draw_scroll_demo(
         {
             let mut content_col = begin_scroll_area(
                 &mut main_row,
-                ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::None)
-                    .v_vis(ScrollbarVisibility::Always),
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    },
+                ),
                 SizeReq::fixed(win_w - 240.0, win_h - 20.0),
                 &mut state.right_panel_scroll,
                 framewise::layout::ColumnLayout {
@@ -343,9 +352,12 @@ pub fn draw_scroll_demo(
             // Main Scroll Area - Centered feed buttons (cross axis)
             let mut main_scroll = begin_scroll_area(
                 &mut content_col,
-                ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::None)
-                    .v_vis(ScrollbarVisibility::Always),
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    },
+                ),
                 SizeReq::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
                 framewise::layout::ColumnLayout {
@@ -383,8 +395,14 @@ pub fn draw_scroll_demo(
             let mut outer_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::Always)
-                    .v_vis(ScrollbarVisibility::Always),
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    }),
                 SizeReq::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
                 framewise::layout::ColumnLayout {
@@ -436,9 +454,12 @@ pub fn draw_scroll_demo(
                 // 1. Vertical Inner scroll area
                 let mut inner_scroll = begin_scroll_area(
                     &mut row_builder,
-                    ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::None)
-                        .v_vis(ScrollbarVisibility::Always),
+                    ScrollAreaSpecBuilder::new().vertical(
+                        framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        },
+                    ),
                     SizeReq::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
                     framewise::layout::ColumnLayout {
@@ -470,8 +491,14 @@ pub fn draw_scroll_demo(
                 let mut horiz_scroll = begin_scroll_area(
                     &mut row_builder,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::None),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        }),
                     SizeReq::fixed(180.0, row_h),
                     &mut row_state.horiz_scroll,
                     framewise::layout::RowLayout {
@@ -507,8 +534,14 @@ pub fn draw_scroll_demo(
                 let mut both_scroll = begin_scroll_area(
                     &mut row_builder,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::Always),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        }),
                     SizeReq::fixed(200.0, row_h),
                     &mut row_state.both_scroll,
                     framewise::layout::ManualLayout,
@@ -569,8 +602,14 @@ pub fn draw_scroll_demo(
             let mut d_outer_scroll = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::Always)
-                    .v_vis(ScrollbarVisibility::None),
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    }),
                 SizeReq::fixed(inner_w, 150.0),
                 &mut state.double_horiz_outer_scroll,
                 framewise::layout::RowLayout {
@@ -590,8 +629,14 @@ pub fn draw_scroll_demo(
             let mut d_inner_scroll = begin_scroll_area(
                 &mut d_outer_scroll,
                 ScrollAreaSpecBuilder::new()
-                    .h_vis(ScrollbarVisibility::Always)
-                    .v_vis(ScrollbarVisibility::None),
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    }),
                 SizeReq::fixed(600.0, 120.0),
                 &mut state.double_horiz_inner_scroll,
                 framewise::layout::RowLayout {
@@ -626,8 +671,14 @@ pub fn draw_scroll_demo(
                 let mut outer = begin_scroll_area(
                     &mut content_col,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::Always),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        }),
                     SizeReq::fixed(inner_w.min(440.0), 200.0),
                     &mut state.nested_2d_outer_scroll,
                     framewise::layout::ManualLayout,
@@ -657,8 +708,14 @@ pub fn draw_scroll_demo(
                 let mut inner = begin_scroll_area(
                     &mut outer,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::Always),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        }),
                     Rect::new(80.0, 50.0, 250.0, 150.0),
                     &mut state.nested_2d_inner_scroll,
                     framewise::layout::ManualLayout,
@@ -701,9 +758,12 @@ pub fn draw_scroll_demo(
             {
                 let mut outer_scroll = begin_scroll_area(
                     &mut content_col,
-                    ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::None)
-                        .v_vis(ScrollbarVisibility::Always),
+                    ScrollAreaSpecBuilder::new().vertical(
+                        framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        },
+                    ),
                     SizeReq::fixed(inner_w, 220.0),
                     &mut state.triple_outer_scroll,
                     framewise::layout::ColumnLayout {
@@ -716,8 +776,14 @@ pub fn draw_scroll_demo(
                 let mut middle_scroll = begin_scroll_area(
                     &mut outer_scroll,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::None),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        }),
                     SizeReq::fixed(inner_w - 15.0, 160.0),
                     &mut state.triple_middle_scroll,
                     framewise::layout::RowLayout {
@@ -729,9 +795,12 @@ pub fn draw_scroll_demo(
 
                 let mut inner_scroll = begin_scroll_area(
                     &mut middle_scroll,
-                    ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::None)
-                        .v_vis(ScrollbarVisibility::Always),
+                    ScrollAreaSpecBuilder::new().vertical(
+                        framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        },
+                    ),
                     SizeReq::fixed(200.0, 130.0),
                     &mut state.triple_inner_scroll,
                     framewise::layout::ColumnLayout {
@@ -767,8 +836,14 @@ pub fn draw_scroll_demo(
                 let mut innermost_scroll = begin_scroll_area(
                     &mut inner_scroll,
                     ScrollAreaSpecBuilder::new()
-                        .h_vis(ScrollbarVisibility::Always)
-                        .v_vis(ScrollbarVisibility::None),
+                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        })
+                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        }),
                     SizeReq::fixed(165.0, 50.0),
                     &mut state.triple_innermost_scroll,
                     framewise::layout::RowLayout {

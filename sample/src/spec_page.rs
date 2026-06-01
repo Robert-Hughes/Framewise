@@ -732,10 +732,14 @@ pub fn draw_spec_page(
             let content_size = Vec2::new(content_w, CONTENT_HEIGHT);
             begin_scroll_area(
                 &mut b,
-                ScrollAreaSpecBuilder::new()
-                    .content_size(content_size)
-                    .h_vis(ScrollbarVisibility::None)
-                    .v_vis(ScrollbarVisibility::Auto),
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::fixed(
+                            content_size.y,
+                        ),
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    },
+                ),
                 win_rect,
                 &mut state.page_scroll,
                 ManualLayout,
@@ -2125,9 +2129,10 @@ pub fn draw_spec_page(
                         begin_scroll_area(
                             b,
                             ScrollAreaSpecBuilder::new()
-                                .content_size(b1_content)
-                                .h_vis(ScrollbarVisibility::None)
-                                .v_vis(ScrollbarVisibility::Always),
+                                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b1_content.y),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                }),
                             b1,
                             &mut state.scroll_vert,
                             ManualLayout,
@@ -2197,9 +2202,10 @@ pub fn draw_spec_page(
                         begin_scroll_area(
                             b,
                             ScrollAreaSpecBuilder::new()
-                                .content_size(b2_content)
-                                .h_vis(ScrollbarVisibility::None)
-                                .v_vis(ScrollbarVisibility::Always),
+                                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b2_content.y),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                }),
                             b2,
                             &mut state.scroll_horiz,
                             ManualLayout,
@@ -2255,9 +2261,14 @@ pub fn draw_spec_page(
                         begin_scroll_area(
                             b,
                             ScrollAreaSpecBuilder::new()
-                                .content_size(b3_content)
-                                .h_vis(ScrollbarVisibility::Always)
-                                .v_vis(ScrollbarVisibility::None),
+                                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b3_content.x),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                })
+                                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                                }),
                             b3,
                             &mut state.scroll_both,
                             ManualLayout,
@@ -2312,9 +2323,14 @@ pub fn draw_spec_page(
                         begin_scroll_area(
                             b,
                             ScrollAreaSpecBuilder::new()
-                                .content_size(b4_content)
-                                .h_vis(ScrollbarVisibility::Always)
-                                .v_vis(ScrollbarVisibility::Always),
+                                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b4_content.x),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                })
+                                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b4_content.y),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                                }),
                             b4,
                             &mut state.scroll_both_axes,
                             ManualLayout,
@@ -3400,10 +3416,14 @@ pub fn draw_spec_page(
                         let inner_layout = framewise::layout::ManualLayout;
                         begin_scroll_area(
                             &mut fl_win,
-                            ScrollAreaSpecBuilder::new()
-                                .content_size(content_size)
-                                .h_vis(ScrollbarVisibility::None)
-                                .v_vis(ScrollbarVisibility::Auto),
+                            ScrollAreaSpecBuilder::new().vertical(
+                                framewise::widgets::scroll_area::ScrollAxis {
+                                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(
+                                        content_size.y,
+                                    ),
+                                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                                },
+                            ),
                             fl_scroll_rect,
                             &mut state.iu_log_scroll,
                             inner_layout,

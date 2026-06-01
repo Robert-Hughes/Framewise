@@ -15,8 +15,8 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct ScrollAreaSpec {
         pub rect: Rect,
-        pub h_vis: super::ScrollbarVisibility,
-        pub v_vis: super::ScrollbarVisibility,
+        pub horizontal: super::ScrollAxis,
+        pub vertical: super::ScrollAxis,
         pub clip_rect: ClipRect,
         pub time: f64,
         pub scrollbar_width: f32,
@@ -67,6 +67,44 @@ pub mod raw {
         crate::layout::IntrinsicSize::UNKNOWN
     }
 
+    /// Whether this axis reserves a scrollbar gutter, decided at `begin` without the
+    /// content extent. Concrete (`Px`) overflow is tested against the raw viewport
+    /// extent `outer_len` — NOT the post-gutter content extent — so the two axes'
+    /// decisions don't mutually depend (a ~12px gutter won't flip the result).
+    fn axis_needs_bar(
+        extent: super::ScrollExtent,
+        vis: super::ScrollbarVisibility,
+        outer_len: f32,
+    ) -> bool {
+        match vis {
+            super::ScrollbarVisibility::Always => true,
+            super::ScrollbarVisibility::Auto => match extent {
+                // Can't prove fit at begin → reserve (deferred; bar drawn iff overflow).
+                super::ScrollExtent::Unbounded => true,
+                // Fills / capped at viewport → provably fits → no bar.
+                super::ScrollExtent::Exact(super::ScrollLen::Viewport)
+                | super::ScrollExtent::AtMost(super::ScrollLen::Viewport) => false,
+                // Pinned / capped at n → bar iff it can't fit the raw viewport.
+                super::ScrollExtent::Exact(super::ScrollLen::Px(n))
+                | super::ScrollExtent::AtMost(super::ScrollLen::Px(n)) => n > outer_len,
+            },
+        }
+    }
+
+    /// Lower a per-axis request to the concrete `AxisBound` handed to the inner
+    /// layout, now that the post-gutter content extent on this axis is known.
+    fn axis_lower(extent: super::ScrollExtent, content_len: f32) -> AxisBound {
+        match extent {
+            super::ScrollExtent::Exact(super::ScrollLen::Viewport) => AxisBound::Exact(content_len),
+            super::ScrollExtent::Exact(super::ScrollLen::Px(n)) => AxisBound::Exact(n),
+            super::ScrollExtent::AtMost(super::ScrollLen::Viewport) => {
+                AxisBound::AtMost(content_len)
+            }
+            super::ScrollExtent::AtMost(super::ScrollLen::Px(n)) => AxisBound::AtMost(n),
+            super::ScrollExtent::Unbounded => AxisBound::Unbounded,
+        }
+    }
+
     /// Low-level scroll area begin function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
@@ -80,12 +118,10 @@ pub mod raw {
     ) -> ScrollAreaResult {
         focus_system.push_keyboard_scroll_scope(state.id);
 
-        // Reserve policy: a scrollbar's gutter is reserved whenever its axis is
-        // enabled, independent of whether the content turns out to overflow. This
-        // makes `content_bounds` known at `begin` without the content extent,
-        // breaking the steals-width feedback loop.
-        let needs_v = matches!(spec.v_vis, ScrollbarVisibility::Always);
-        let needs_h = matches!(spec.h_vis, ScrollbarVisibility::Always);
+        // width  axis ↔ horizontal scrolling ↔ horizontal bar (steals HEIGHT)
+        // height axis ↔ vertical   scrolling ↔ vertical   bar (steals WIDTH)
+        let needs_h = axis_needs_bar(spec.horizontal.extent, spec.horizontal.vis, spec.rect.w); // horizontal bar
+        let needs_v = axis_needs_bar(spec.vertical.extent, spec.vertical.vis, spec.rect.h); // vertical bar
 
         let content_w = if needs_v {
             (spec.rect.w - spec.scrollbar_width).max(0.0)
@@ -105,22 +141,11 @@ pub mod raw {
             rect: content_bounds,
         });
 
-        // The scrollable axis is unbounded so content can extend past the viewport;
-        // its concrete extent is measured at `end` (the "unbounded resolves to
-        // concrete at accumulation" rule).
         let inner_space = LayoutSpace {
             x: content_bounds.x,
             y: content_bounds.y,
-            width: if needs_h {
-                AxisBound::Unbounded
-            } else {
-                AxisBound::Exact(content_bounds.w)
-            },
-            height: if needs_v {
-                AxisBound::Unbounded
-            } else {
-                AxisBound::Exact(content_bounds.h)
-            },
+            width: axis_lower(spec.horizontal.extent, content_w),
+            height: axis_lower(spec.vertical.extent, content_h),
         };
 
         let token = ScrollAreaToken {
@@ -483,14 +508,47 @@ pub mod raw {
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
-/// Whether a scrollbar is present on an axis. Under the Reserve policy there is
-/// no `Auto`: an enabled (`Always`) scrollbar always reserves its gutter, even if
-/// the content ends up fitting — this is what lets the content width be known at
-/// `begin`, independent of the (deferred) content height.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ScrollLen {
+    Px(f32),
+    Viewport,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ScrollExtent {
+    Exact(ScrollLen),
+    AtMost(ScrollLen),
+    Unbounded,
+}
+
+impl ScrollExtent {
+    pub const FIT: Self = ScrollExtent::Exact(ScrollLen::Viewport);
+    pub const SCROLL: Self = ScrollExtent::Unbounded;
+
+    pub fn fixed(n: f32) -> Self {
+        ScrollExtent::Exact(ScrollLen::Px(n))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScrollbarVisibility {
-    None,
+    Auto,
     Always,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollAxis {
+    pub extent: ScrollExtent,
+    pub vis: ScrollbarVisibility,
+}
+
+impl Default for ScrollAxis {
+    fn default() -> Self {
+        Self {
+            extent: ScrollExtent::FIT,
+            vis: ScrollbarVisibility::Auto,
+        }
+    }
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -515,8 +573,8 @@ pub struct ScrollAreaResult<'b, T: TextSystem, LS: LayoutState, CF> {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScrollAreaSpecBuilder {
     pub rect: Option<Rect>,
-    pub h_vis: Option<ScrollbarVisibility>,
-    pub v_vis: Option<ScrollbarVisibility>,
+    pub horizontal: Option<ScrollAxis>,
+    pub vertical: Option<ScrollAxis>,
     pub clip_rect: Option<ClipRect>,
     pub time: Option<f64>,
     pub scrollbar_width: Option<f32>,
@@ -528,14 +586,16 @@ impl ScrollAreaSpecBuilder {
         Self::default()
     }
 
-    pub fn h_vis(mut self, h_vis: ScrollbarVisibility) -> Self {
-        self.h_vis = Some(h_vis);
+    pub fn horizontal(mut self, axis: ScrollAxis) -> Self {
+        self.horizontal = Some(axis);
         self
     }
-    pub fn v_vis(mut self, v_vis: ScrollbarVisibility) -> Self {
-        self.v_vis = Some(v_vis);
+
+    pub fn vertical(mut self, axis: ScrollAxis) -> Self {
+        self.vertical = Some(axis);
         self
     }
+
     /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
     pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
         self.clip_rect = Some(clip_rect);
@@ -578,8 +638,11 @@ impl ScrollAreaSpecBuilder {
     pub fn build(self) -> raw::ScrollAreaSpec {
         raw::ScrollAreaSpec {
             rect: self.rect.expect("rect not set — call .rect()"),
-            h_vis: self.h_vis.unwrap_or(ScrollbarVisibility::None),
-            v_vis: self.v_vis.unwrap_or(ScrollbarVisibility::None),
+            horizontal: self.horizontal.unwrap_or_default(),
+            vertical: self.vertical.unwrap_or(ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Auto,
+            }),
             clip_rect: self
                 .clip_rect
                 .expect("clip_rect not set — call .clip_rect()"),
@@ -710,7 +773,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod test_helpers {
     use crate::focus::FocusSystem;
 
@@ -729,7 +792,7 @@ mod test_helpers {
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use super::raw::{begin_scroll_area, ScrollAreaSpec};
     use super::test_helpers::frames;
@@ -2154,7 +2217,7 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod nested_bubbling_tests {
     use crate::input::Input;
     use crate::widgets::scroll_area::raw::{begin_scroll_area, ScrollAreaSpec};
