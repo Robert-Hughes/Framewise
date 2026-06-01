@@ -424,7 +424,7 @@ impl LayoutState for ColumnState {
         };
 
         let r = Rect::new(x, self.current_y, w, h);
-        self.content_w = self.content_w.max(w);
+        self.content_w = self.content_w.max((x + w) - self.space.x);
         self.content_h = (self.current_y + h) - self.space.y;
         self.current_y += h + self.spacing;
         r
@@ -526,7 +526,7 @@ impl LayoutState for ColumnState {
         };
 
         let r = Rect::new(x, self.current_y, w, h);
-        self.content_w = self.content_w.max(w);
+        self.content_w = self.content_w.max((x + w) - self.space.x);
         self.content_h = (self.current_y + h) - self.space.y;
         self.current_y += h + self.spacing;
         r
@@ -607,7 +607,7 @@ impl LayoutState for RowState {
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
-        self.content_h = self.content_h.max(h);
+        self.content_h = self.content_h.max((y + h) - self.space.y);
         self.current_x += w + self.spacing;
         r
     }
@@ -709,7 +709,7 @@ impl LayoutState for RowState {
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
-        self.content_h = self.content_h.max(h);
+        self.content_h = self.content_h.max((y + h) - self.space.y);
         self.current_x += w + self.spacing;
         r
     }
@@ -1837,5 +1837,105 @@ mod tests {
         };
         // Auto width under WrapLayout should panic during begin_layout
         let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+    }
+
+    #[test]
+    fn test_column_layout_content_extent_accounts_for_alignment_offset() {
+        let parent_space =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Exact(400.0), AxisBound::Unbounded);
+
+        // 1. CrossAlign::Center (standard layout)
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Center,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(180.0, 32.0);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+
+            // Bounding box right edge = 10.0 + (400.0 - 180.0)/2 + 180.0 = 300.0.
+            // Relative right edge = 300.0 - 10.0 = 290.0.
+            assert_eq!(state.content_extent().x, 290.0);
+        }
+
+        // 2. CrossAlign::End (standard layout)
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::End,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(180.0, 32.0);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+
+            // Bounding box right edge = 10.0 + 400.0 - 180.0 + 180.0 = 410.0.
+            // Relative right edge = 410.0 - 10.0 = 400.0.
+            assert_eq!(state.content_extent().x, 400.0);
+        }
+
+        // 3. CrossAlign::Center (deferred begin/end layout)
+        {
+            let mut state = ColumnLayout {
+                spacing: 10.0,
+                align: CrossAlign::Center,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(180.0, 32.0);
+            let (_, token) = state.begin_layout(req.clone(), IntrinsicSize::UNKNOWN);
+            let _ = token.end_layout(Vec2::new(180.0, 32.0));
+
+            assert_eq!(state.content_extent().x, 290.0);
+        }
+    }
+
+    #[test]
+    fn test_row_layout_content_extent_accounts_for_alignment_offset() {
+        let parent_space =
+            LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Exact(300.0));
+
+        // 1. CrossAlign::Center (standard layout)
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Center,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(80.0, 100.0);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+
+            // Bounding box bottom edge = 20.0 + (300.0 - 100.0)/2 + 100.0 = 220.0.
+            // Relative bottom edge = 220.0 - 20.0 = 200.0.
+            assert_eq!(state.content_extent().y, 200.0);
+        }
+
+        // 2. CrossAlign::End (standard layout)
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::End,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(80.0, 100.0);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+
+            // Bounding box bottom edge = 20.0 + 300.0 - 100.0 + 100.0 = 320.0.
+            // Relative bottom edge = 320.0 - 20.0 = 300.0.
+            assert_eq!(state.content_extent().y, 300.0);
+        }
+
+        // 3. CrossAlign::Center (deferred begin/end layout)
+        {
+            let mut state = RowLayout {
+                spacing: 10.0,
+                align: CrossAlign::Center,
+            }
+            .begin(parent_space);
+            let req = SizeReq::fixed(80.0, 100.0);
+            let (_, token) = state.begin_layout(req.clone(), IntrinsicSize::UNKNOWN);
+            let _ = token.end_layout(Vec2::new(80.0, 100.0));
+
+            assert_eq!(state.content_extent().y, 200.0);
+        }
     }
 }
