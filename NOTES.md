@@ -5,10 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Do we want an option for the scroll_areas content size to be provided up-front by the user, rather than automatically having Unbounded?
- Previously the user provided the content_size, so would be nice to retain this option
- Perhaps the user provides the internal LayoutSpace, not hardcoded in scrollbar? This allows them more control, and allows them to use alignment within the scroll area (otherwise Unbounded = panic!).
-
 * Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
    - also refactor to take a Layout plus LayoutSpace (like we did for scroll area and WidgetContext::root)?
 

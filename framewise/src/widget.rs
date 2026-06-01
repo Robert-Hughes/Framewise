@@ -2,7 +2,7 @@ use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::{Layout, LayoutState, ManualState};
 use crate::theme::Theme;
-use crate::types::{ClipRect, Rect, Vec2};
+use crate::types::{ClipRect, Rect};
 use crate::Input;
 use crate::TextSystem;
 
@@ -69,12 +69,16 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub on_finish: CF,
 }
 
-impl<'a, T: TextSystem>
-    WidgetContext<'a, T, ManualState, fn(&mut FocusSystem, &mut DrawCommands, Rect)>
-//TODO: Shouldn't be hardcoded to ManualState! Should work for any!
+impl<'a, T: TextSystem, LS: LayoutState>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut DrawCommands, Rect)>
 {
+    /// Creates a root `WidgetContext`.
+    ///
+    /// Creating a root context is a top-level entry point function that does not depend on any
+    /// existing `WidgetContext` instance. This generic implementation is not tied to any concrete
+    /// state, but instead resolves dynamically to any layout state `LS` via the generic layout constraint.
     #[allow(clippy::type_complexity)]
-    pub fn root<L: crate::layout::Layout>(
+    pub fn root<L: crate::layout::Layout<State = LS>>(
         theme: Theme,
         text_system: &'a mut T,
         focus_system: &'a mut FocusSystem,
@@ -82,7 +86,7 @@ impl<'a, T: TextSystem>
         layout: L,
         space: impl Into<crate::layout::LayoutSpace>,
         cmds: &'a mut DrawCommands,
-    ) -> WidgetContext<'a, T, L::State, fn(&mut FocusSystem, &mut DrawCommands, Rect)> {
+    ) -> Self {
         WidgetContext {
             time: 0.0,
             clip_rect: None,

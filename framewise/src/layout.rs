@@ -1518,8 +1518,7 @@ mod tests {
 
     #[test]
     fn test_deferred_manual_layout_lifecycle() {
-        let parent_space =
-            LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let parent_space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
         let mut state = ManualLayout.begin(parent_space);
         let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
         let (space, token) = state.begin_layout(layout_param, IntrinsicSize::UNKNOWN);
