@@ -329,4 +329,102 @@ mod tests {
             .layout(SizeReq::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(sibling.y, 60.0);
     }
+
+    /// Cross-axis counterpart: a nested layout with `Extent::Auto` width inside a row
+    /// should fit to the width its children actually consumed, so the next sibling
+    /// advances by that measured width — not by the fallback.
+    #[test]
+    fn nested_auto_width_fits_children() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            RowLayout {
+                spacing: 0.0,
+                align: CrossAlign::Start,
+            },
+            Rect::new(0.0, 0.0, 600.0, 200.0),
+            &mut cmds,
+        );
+
+        // A nested column that auto-sizes its width but takes a fixed height.
+        {
+            let mut inner = ctx.child_with_layout(
+                SizeReq {
+                    width: Extent::Auto,
+                    height: Extent::Fixed(30.0),
+                },
+                ColumnLayout {
+                    spacing: 0.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            // A single 50-wide row → inner content width = 50.
+            inner
+                .layout_state
+                .layout(SizeReq::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.finish();
+        }
+
+        // Next sibling in the row advances by the measured width (50), not 96.
+        let sibling = ctx
+            .layout_state
+            .layout(SizeReq::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(sibling.x, 50.0);
+    }
+
+    /// Equivalence guarantee for the common case: a `Fixed`-sized slot resolves to the
+    /// committed size regardless of how large its children turn out, exactly as the old
+    /// eager `layout()` path did. Here the inner content (200px tall) far exceeds the
+    /// fixed 50px slot, yet the sibling still lands at y = 50.
+    #[test]
+    fn nested_fixed_slot_ignores_child_extent() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout {
+                spacing: 0.0,
+                align: CrossAlign::Start,
+            },
+            Rect::new(0.0, 0.0, 200.0, 600.0),
+            &mut cmds,
+        );
+
+        {
+            let mut inner = ctx.child_with_layout(
+                SizeReq::fixed(80.0, 50.0),
+                ColumnLayout {
+                    spacing: 0.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            // Overflowing content: two 100px rows = 200px, far taller than the 50px slot.
+            inner
+                .layout_state
+                .layout(SizeReq::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+            inner
+                .layout_state
+                .layout(SizeReq::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+            inner.finish();
+        }
+
+        // The fixed slot wins: cursor advanced by 50, not by the 200px of content.
+        let sibling = ctx
+            .layout_state
+            .layout(SizeReq::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(sibling.y, 50.0);
+    }
 }
