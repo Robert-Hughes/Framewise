@@ -160,8 +160,8 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// When `placement` resolves to exact bounds (`Extent::Fixed`, or a `ManualLayout`
     /// rect) this is equivalent to the old eager `layout()` call — `end_layout` ignores
     /// the measured extent and returns the same rect — so existing fixed-size nesting is
-    /// unchanged. Only `Auto`/`Fill`-under-non-exact slots, which previously fell back to
-    /// [`LAYOUT_FALLBACK_SIZE`](crate::layout::LAYOUT_FALLBACK_SIZE), now fit to content.
+    /// unchanged. Only `Auto`/`Fill`-under-non-exact slots — which would otherwise panic
+    /// for lack of an intrinsic measurement — now fit to their children's content.
     pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
         placement: LS::Params,
@@ -278,8 +278,8 @@ mod tests {
     }
 
     /// A bare nested layout placed with `Extent::Auto` should fit to its children:
-    /// the parent's cursor must advance by the inner content's measured height, not
-    /// by the `LAYOUT_FALLBACK_SIZE` (96) that the old eager path produced.
+    /// the parent's cursor must advance by the inner content's measured height. (The old
+    /// eager path produced a 96px fallback box here; that case now fits to content.)
     #[test]
     fn nested_auto_layout_fits_children() {
         let mut ts = DummyTextSys;

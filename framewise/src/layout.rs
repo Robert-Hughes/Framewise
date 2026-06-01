@@ -148,19 +148,13 @@ impl IntrinsicSize {
     }
 }
 
-/// Size an intrinsic-aware layout falls back to when it needs a measurement that
-/// was never reported (e.g. `Auto` sizing of a widget that returned no
-/// `preferred` size). Deliberately large and obvious so missing measurements are
-/// visible during development; a future version may log when this is hit.
-pub const LAYOUT_FALLBACK_SIZE: Vec2 = Vec2::new(96.0, 96.0);
-
 /// How a child is sized along one axis by an intrinsic-aware layout.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Extent {
     /// Exactly this many pixels.
     Fixed(f32),
-    /// The widget's intrinsic preferred size on this axis. Falls back to the
-    /// corresponding [`LAYOUT_FALLBACK_SIZE`] axis if the widget reports none.
+    /// The widget's intrinsic preferred size on this axis. Panics if the widget
+    /// reports no preferred size on this axis (an unsatisfiable request).
     Auto,
     /// Fill the layout's available space on this axis (its bounds extent).
     ///
@@ -172,15 +166,31 @@ pub enum Extent {
 
 impl Extent {
     /// Resolve this extent to concrete pixels given the widget's intrinsic value
-    /// on this axis (if any), the layout's fillable extent, and the fallback.
-    fn resolve(self, intrinsic_axis: Option<f32>, fill: AxisBound, fallback: f32) -> f32 {
-        let preferred = intrinsic_axis.unwrap_or(fallback);
+    /// on this axis (if any) and the layout's fillable extent.
+    ///
+    /// Panics if a measurement is needed but none was reported (e.g. `Auto`, or
+    /// `Fill` on a non-`Exact` axis, with no intrinsic `preferred` size). This is
+    /// consistent with the other layout panics (e.g. `CrossAlign` on a non-`Exact`
+    /// cross axis): an unsatisfiable sizing request is a bug at the call site, so we
+    /// fail loudly rather than silently substituting an arbitrary size.
+    fn resolve(self, intrinsic_axis: Option<f32>, fill: AxisBound) -> f32 {
+        // Obtain the intrinsic preferred size on this axis, or panic if it was never
+        // measured. Only the branches that actually need it call this.
+        let preferred = || {
+            intrinsic_axis.unwrap_or_else(|| {
+                panic!(
+                    "Layout panic: {self:?} sizing needs an intrinsic measurement on this \
+                     axis but none was reported. A child placed with Auto (or Fill on a \
+                     non-Exact axis) must report a preferred size."
+                )
+            })
+        };
         match self {
             Extent::Fixed(px) => px,
             Extent::Auto => match fill {
-                AxisBound::Exact(_w) => preferred,
-                AxisBound::AtMost(w) => preferred.min(w),
-                AxisBound::Unbounded => preferred,
+                AxisBound::Exact(_w) => preferred(),
+                AxisBound::AtMost(w) => preferred().min(w),
+                AxisBound::Unbounded => preferred(),
             },
             Extent::Fill => match fill {
                 AxisBound::Exact(w) => w,
@@ -188,8 +198,8 @@ impl Extent {
                 // space-between — require Exact: a committed frame with a far edge.
                 // AtMost and Unbounded permit only measurement / shrink-wrap decisions,
                 // so we fall back to Auto.
-                AxisBound::AtMost(w) => preferred.min(w),
-                AxisBound::Unbounded => preferred,
+                AxisBound::AtMost(w) => preferred().min(w),
+                AxisBound::Unbounded => preferred(),
             },
         }
     }
@@ -412,16 +422,12 @@ impl LayoutState for ColumnState {
         let pref = intrinsic.preferred;
         // Cross axis (width) fills the column space; main axis (height) stacks.
         // A `Fill` height (or unbounded height) falls back to intrinsic per Rule 1.
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         let x = match self.align {
             CrossAlign::Start => self.space.x,
@@ -516,16 +522,12 @@ impl LayoutState for ColumnState {
 
     fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
         let pref = Some(extent);
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         let x = match self.align {
             CrossAlign::Start => self.space.x,
@@ -595,16 +597,12 @@ impl LayoutState for RowState {
         let pref = intrinsic.preferred;
         // Main axis (width) advances the cursor; cross axis (height) fills space.
         // A `Fill` width (or unbounded width) falls back to intrinsic per Rule 1.
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         let y = match self.align {
             CrossAlign::Start => self.space.y,
@@ -699,16 +697,12 @@ impl LayoutState for RowState {
 
     fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
         let pref = Some(extent);
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         let y = match self.align {
             CrossAlign::Start => self.space.y,
@@ -848,16 +842,12 @@ impl LayoutState for WrapState {
 
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
@@ -931,16 +921,12 @@ impl LayoutState for WrapState {
 
     fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
         let pref = Some(extent);
-        let w = layout_params.width.resolve(
-            pref.map(|p| p.x),
-            self.space.width,
-            LAYOUT_FALLBACK_SIZE.x,
-        );
-        let h = layout_params.height.resolve(
-            pref.map(|p| p.y),
-            self.space.height,
-            LAYOUT_FALLBACK_SIZE.y,
-        );
+        let w = layout_params
+            .width
+            .resolve(pref.map(|p| p.x), self.space.width);
+        let h = layout_params
+            .height
+            .resolve(pref.map(|p| p.y), self.space.height);
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
@@ -972,7 +958,6 @@ mod tests {
         assert_eq!(i.preferred, Some(Vec2::new(10.0, 20.0)));
         assert_eq!(i.min, None);
         assert_eq!(i.max, None);
-        assert_eq!(LAYOUT_FALLBACK_SIZE, Vec2::new(96.0, 96.0));
     }
 
     #[test]
@@ -1044,18 +1029,15 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_without_intrinsic_falls_back() {
+    #[should_panic(expected = "needs an intrinsic measurement")]
+    fn test_auto_without_intrinsic_panics() {
         let mut state = RowLayout {
             spacing: 0.0,
             align: CrossAlign::Start,
         }
         .begin(Rect::new(0.0, 0.0, 400.0, 100.0));
-        let r = state.layout(SizeReq::auto(), IntrinsicSize::UNKNOWN);
-        // No intrinsic reported → both axes use the global fallback.
-        assert_eq!(
-            r,
-            Rect::new(0.0, 0.0, LAYOUT_FALLBACK_SIZE.x, LAYOUT_FALLBACK_SIZE.y)
-        );
+        // Auto sizing with no intrinsic reported is an unsatisfiable request → panic.
+        let _ = state.layout(SizeReq::auto(), IntrinsicSize::UNKNOWN);
     }
 
     #[test]
@@ -1168,7 +1150,8 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_on_unbounded_axis_without_intrinsic_uses_fallback() {
+    #[should_panic(expected = "needs an intrinsic measurement")]
+    fn test_fill_on_unbounded_axis_without_intrinsic_panics() {
         let mut state = RowLayout {
             spacing: 0.0,
             align: CrossAlign::Start,
@@ -1178,9 +1161,8 @@ mod tests {
             width: Extent::Fill,
             height: Extent::Fixed(40.0),
         };
-        // Fill width on the unbounded axis, no intrinsic → global fallback.
-        let r = state.layout(req, IntrinsicSize::UNKNOWN);
-        assert_eq!(r, Rect::new(0.0, 0.0, LAYOUT_FALLBACK_SIZE.x, 40.0));
+        // Fill width on the unbounded axis with no intrinsic → unsatisfiable → panic.
+        let _ = state.layout(req, IntrinsicSize::UNKNOWN);
     }
 
     #[test]
@@ -1337,45 +1319,49 @@ mod tests {
 
     #[test]
     fn test_at_most_resolution() {
-        let fallback = 96.0;
-
         // Extent::Fixed is always fixed
         assert_eq!(
-            Extent::Fixed(50.0).resolve(Some(30.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Fixed(50.0).resolve(Some(30.0), AxisBound::AtMost(100.0)),
             50.0
         );
         assert_eq!(
-            Extent::Fixed(150.0).resolve(Some(30.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Fixed(150.0).resolve(Some(30.0), AxisBound::AtMost(100.0)),
             150.0
         );
 
         // Extent::Auto uses preferred, but caps at AtMost
         assert_eq!(
-            Extent::Auto.resolve(Some(40.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Auto.resolve(Some(40.0), AxisBound::AtMost(100.0)),
             40.0
         );
         assert_eq!(
-            Extent::Auto.resolve(Some(120.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Auto.resolve(Some(120.0), AxisBound::AtMost(100.0)),
             100.0
-        );
-        assert_eq!(
-            Extent::Auto.resolve(None, AxisBound::AtMost(80.0), fallback),
-            80.0
         );
 
         // Extent::Fill acts as Auto under AtMost
         assert_eq!(
-            Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(100.0)),
             40.0
         );
         assert_eq!(
-            Extent::Fill.resolve(Some(120.0), AxisBound::AtMost(100.0), fallback),
+            Extent::Fill.resolve(Some(120.0), AxisBound::AtMost(100.0)),
             100.0
         );
-        assert_eq!(
-            Extent::Fill.resolve(None, AxisBound::AtMost(80.0), fallback),
-            80.0
-        );
+    }
+
+    #[test]
+    #[should_panic(expected = "needs an intrinsic measurement")]
+    fn test_auto_resolve_without_intrinsic_panics() {
+        // Auto with no measured preferred size is unsatisfiable.
+        let _ = Extent::Auto.resolve(None, AxisBound::AtMost(80.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "needs an intrinsic measurement")]
+    fn test_fill_resolve_without_intrinsic_panics() {
+        // Fill under AtMost degrades to Auto, so it too needs a measurement.
+        let _ = Extent::Fill.resolve(None, AxisBound::AtMost(80.0));
     }
 
     #[test]

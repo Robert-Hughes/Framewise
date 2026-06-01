@@ -37,7 +37,7 @@ pub mod test_utils;
 
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
-pub use layout::{AxisBound, Extent, IntrinsicSize, LayoutSpace, SizeReq, LAYOUT_FALLBACK_SIZE};
+pub use layout::{AxisBound, Extent, IntrinsicSize, LayoutSpace, SizeReq};
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Rect, Vec2};
