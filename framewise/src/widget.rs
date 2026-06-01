@@ -1,8 +1,8 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
-use crate::layout::{Layout, LayoutState, ManualState};
+use crate::layout::{IntrinsicSize, Layout, LayoutState, ManualState};
 use crate::theme::Theme;
-use crate::types::{ClipRect, Rect};
+use crate::types::{ClipRect, Rect, Vec2};
 use crate::Input;
 use crate::TextSystem;
 
@@ -144,23 +144,60 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// Open a child context whose layout is placed within this context's layout.
     ///
     /// `placement` is resolved against *this* context's layout to obtain the child's
-    /// bounds, then `inner_layout` is begun at those bounds. This is the standard path
+    /// space, then `inner_layout` is begun in that space. This is the standard path
     /// for nesting layouts (column inside row, etc.) and replaces the old
     /// `layout(params)` + `inner.begin(bounds)` + `child_with_layout(state)` dance.
+    ///
+    /// ### Why this is deferred (begin/end), not eager (`layout`)
+    /// A nested layout is itself a container, so its final size may depend on its
+    /// children (e.g. a column placed with `Extent::Auto` height should be as tall as
+    /// its rows). We therefore go through [`begin_layout`](LayoutState::begin_layout):
+    /// the child is begun in the *provisional* [`LayoutSpace`] (which faithfully carries
+    /// `AtMost`/`Unbounded` bounds rather than a flattened `Exact` rect), and the
+    /// parent's cursor is only advanced in `on_finish`, once the child's measured content
+    /// extent is known via [`end_layout`](LayoutState::end_layout).
+    ///
+    /// When `placement` resolves to exact bounds (`Extent::Fixed`, or a `ManualLayout`
+    /// rect) this is equivalent to the old eager `layout()` call — `end_layout` ignores
+    /// the measured extent and returns the same rect — so existing fixed-size nesting is
+    /// unchanged. Only `Auto`/`Fill`-under-non-exact slots, which previously fell back to
+    /// [`LAYOUT_FALLBACK_SIZE`](crate::layout::LAYOUT_FALLBACK_SIZE), now fit to content.
     pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)>
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'c>
     {
-        let bounds = self
+        let clip = self.clip_rect; // Clip rect is inherited by default.
+
+        // Begin a deferred layout: provisional space for the child + a token that holds
+        // the parent's layout state until `on_finish` advances its cursor.
+        let (outer_space, token) = self
             .layout_state
-            .layout(placement, crate::layout::IntrinsicSize::UNKNOWN);
-        self.child_with_layout_and_on_finish_and_clip_rect(
-            inner_layout.begin(bounds),
-            |_, _, _| (),
-            self.clip_rect, // Clip rect is inherited by default
-        )
+            .begin_layout(placement, IntrinsicSize::UNKNOWN);
+
+        // The token is moved into the closure, which borrows `self.layout_state`. The
+        // child context below borrows the *other* fields (text_system, focus_system, …),
+        // so the borrows are disjoint — hence the explicit field-by-field construction
+        // rather than `child_with_layout_and_on_finish` (which would reborrow all of self).
+        let on_finish = move |_: &mut FocusSystem, _: &mut DrawCommands, resolved_space: Rect| {
+            let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
+            // Finalize the parent layout from the child's measured extent and advance
+            // its cursor. (A bare layout draws no background, so nothing to patch.)
+            let _bounds = token.end_layout(content_extent);
+        };
+
+        WidgetContext {
+            theme: self.theme,
+            time: self.time,
+            clip_rect: clip,
+            text_system: self.text_system,
+            focus_system: self.focus_system,
+            input: self.input,
+            cmds: self.cmds,
+            layout_state: inner_layout.begin(outer_space),
+            on_finish,
+        }
     }
 
     /// Append draw commands to the context's accumulated list.
@@ -186,7 +223,9 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{ColumnLayout, IntrinsicSize, Layout, ManualLayout, RowLayout};
+    use crate::layout::{
+        ColumnLayout, CrossAlign, Extent, IntrinsicSize, Layout, ManualLayout, RowLayout, SizeReq,
+    };
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
@@ -236,5 +275,58 @@ mod tests {
             .layout_state
             .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
+    }
+
+    /// A bare nested layout placed with `Extent::Auto` should fit to its children:
+    /// the parent's cursor must advance by the inner content's measured height, not
+    /// by the `LAYOUT_FALLBACK_SIZE` (96) that the old eager path produced.
+    #[test]
+    fn nested_auto_layout_fits_children() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout {
+                spacing: 0.0,
+                align: CrossAlign::Start,
+            },
+            Rect::new(0.0, 0.0, 200.0, 600.0),
+            &mut cmds,
+        );
+
+        // Place a nested column that fills width but auto-sizes its height.
+        {
+            let mut inner = ctx.child_with_layout(
+                SizeReq {
+                    width: Extent::Fill,
+                    height: Extent::Auto,
+                },
+                ColumnLayout {
+                    spacing: 0.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            // Two stacked rows of height 30 → inner content height = 60.
+            inner
+                .layout_state
+                .layout(SizeReq::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner
+                .layout_state
+                .layout(SizeReq::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.finish();
+        }
+
+        // The next sibling in the parent column should land directly below the inner
+        // content (y = 60), not below a 96px fallback box.
+        let sibling = ctx
+            .layout_state
+            .layout(SizeReq::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        assert_eq!(sibling.y, 60.0);
     }
 }
