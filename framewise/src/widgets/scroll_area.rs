@@ -773,7 +773,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod test_helpers {
     use crate::focus::FocusSystem;
 
@@ -792,7 +792,7 @@ mod test_helpers {
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use super::raw::{begin_scroll_area, ScrollAreaSpec};
     use super::test_helpers::frames;
@@ -817,8 +817,14 @@ mod tests {
     ) {
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::Always,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect,
             time,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -876,8 +882,14 @@ mod tests {
             focus_system.begin_frame();
             let outer_spec = ScrollAreaSpec {
                 rect: outer_bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -896,8 +908,14 @@ mod tests {
 
             let inner_spec = ScrollAreaSpec {
                 rect: inner_bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -975,8 +993,14 @@ mod tests {
             focus_system.begin_frame();
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1042,8 +1066,14 @@ mod tests {
             focus_system.begin_frame();
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1126,8 +1156,14 @@ mod tests {
 
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1173,8 +1209,14 @@ mod tests {
         input.mouse_down = true;
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1203,8 +1245,14 @@ mod tests {
         input.scroll_delta.y = -5.0; // would drive offset way down if it applied
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1250,8 +1298,14 @@ mod tests {
 
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1267,8 +1321,14 @@ mod tests {
             // (Under the Reserve policy there is no `Auto`; "no scrollbar" is None.)
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1323,8 +1383,14 @@ mod tests {
 
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1339,8 +1405,14 @@ mod tests {
             // Inner Always+fits: scrollbars drawn, no scroll possible.
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1389,8 +1461,14 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1427,8 +1505,14 @@ mod tests {
 
             let spec_a = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1449,8 +1533,14 @@ mod tests {
 
             let spec_b = ScrollAreaSpec {
                 rect: Rect::new(300.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1490,8 +1580,14 @@ mod tests {
             };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1530,8 +1626,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1574,8 +1676,14 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1615,8 +1723,14 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1659,8 +1773,14 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1707,8 +1827,14 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
                 rect: bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: Some(clip),
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1771,8 +1897,14 @@ mod tests {
 
             let scroll_spec = ScrollAreaSpec {
                 rect: scroll_bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1900,8 +2032,14 @@ mod tests {
 
             let scroll_spec = ScrollAreaSpec {
                 rect: scroll_bounds,
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -1987,8 +2125,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2023,8 +2167,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2060,8 +2210,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2096,8 +2252,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2136,8 +2298,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2164,8 +2332,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2194,8 +2368,14 @@ mod tests {
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             rect: bounds,
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2217,9 +2397,10 @@ mod tests {
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod nested_bubbling_tests {
     use crate::input::Input;
+    use crate::layout::ManualLayout;
     use crate::widgets::scroll_area::raw::{begin_scroll_area, ScrollAreaSpec};
     use crate::widgets::scroll_area::*;
     use crate::{theme, types::*};
@@ -2244,8 +2425,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2264,8 +2451,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2321,8 +2514,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2341,8 +2540,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2398,8 +2603,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2418,8 +2629,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2475,8 +2692,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2495,8 +2718,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2556,8 +2785,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2577,8 +2812,14 @@ mod nested_bubbling_tests {
             // inner content_extent.y = 300 → max scroll = 100
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2653,8 +2894,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2673,8 +2920,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2741,8 +2994,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2780,8 +3039,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2799,8 +3064,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2849,8 +3120,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-            h_vis: ScrollbarVisibility::Always,
-            v_vis: ScrollbarVisibility::None,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2888,8 +3165,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2907,8 +3190,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2979,8 +3268,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -2999,8 +3294,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3073,8 +3374,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3093,8 +3400,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3160,8 +3473,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3180,8 +3499,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3252,8 +3577,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3291,8 +3622,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3310,8 +3647,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3401,8 +3744,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3421,8 +3770,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3440,8 +3795,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3522,8 +3883,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3542,8 +3909,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3561,8 +3934,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3641,8 +4020,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3661,8 +4046,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3680,8 +4071,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3769,8 +4166,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 288.0),
-            h_vis: ScrollbarVisibility::None,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3809,8 +4212,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3828,8 +4237,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3847,8 +4262,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3949,8 +4370,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3969,8 +4396,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -3988,8 +4421,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4069,8 +4508,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4089,8 +4534,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4108,8 +4559,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4187,8 +4644,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4207,8 +4670,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4226,8 +4695,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4313,8 +4788,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 388.0, 200.0),
-            h_vis: ScrollbarVisibility::Always,
-            v_vis: ScrollbarVisibility::None,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4353,8 +4834,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4372,8 +4859,14 @@ mod nested_bubbling_tests {
             .token;
             let middle_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
-                h_vis: ScrollbarVisibility::None,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4391,8 +4884,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::None,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4481,8 +4980,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4501,8 +5006,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4568,8 +5079,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4588,8 +5105,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4664,8 +5187,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4684,8 +5213,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4744,8 +5279,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4764,8 +5305,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4829,8 +5376,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4849,8 +5402,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4903,8 +5462,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-            h_vis: ScrollbarVisibility::Always,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4941,8 +5506,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -4960,8 +5531,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5017,8 +5594,14 @@ mod nested_bubbling_tests {
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-            h_vis: ScrollbarVisibility::Always,
-            v_vis: ScrollbarVisibility::Always,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
             clip_rect: None,
             time: 0.0,
             scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5055,8 +5638,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5074,8 +5663,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5138,8 +5733,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5158,8 +5759,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5238,8 +5845,14 @@ mod nested_bubbling_tests {
             }
             let outer_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5258,8 +5871,14 @@ mod nested_bubbling_tests {
             .token;
             let inner_spec = ScrollAreaSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
-                h_vis: ScrollbarVisibility::Always,
-                v_vis: ScrollbarVisibility::Always,
+                horizontal: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
+                vertical: ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                },
                 clip_rect: None,
                 time: 0.0,
                 scrollbar_width: theme::Theme::default().scrollbar_width,
@@ -5328,8 +5947,14 @@ mod nested_bubbling_tests {
         let super::ScrollAreaResult { ctx: child_ctx, .. } = super::begin_scroll_area(
             &mut ctx,
             ScrollAreaSpecBuilder::new()
-                .h_vis(ScrollbarVisibility::None)
-                .v_vis(ScrollbarVisibility::Always),
+                .horizontal(ScrollAxis {
+                    extent: ScrollExtent::FIT,
+                    vis: ScrollbarVisibility::Auto,
+                })
+                .vertical(ScrollAxis {
+                    extent: ScrollExtent::SCROLL,
+                    vis: ScrollbarVisibility::Always,
+                }),
             placement,
             &mut scroll_state,
             ManualLayout,
@@ -5338,5 +5963,120 @@ mod nested_bubbling_tests {
         drop(ctx);
         // The vertical scrollbar track (a scrollbar_mode FillRect) has rect.y == placement.y.
         assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if rect.y == placement.y)));
+    }
+
+    #[test]
+    fn test_scroll_extent_fixed_overflows() {
+        let mut focus_system = FocusSystem::new();
+        let input = Input::new();
+        let mut state = ScrollState::default();
+        let mut cmds = DrawCommands::new();
+
+        let spec = ScrollAreaSpec {
+            rect: Rect::new(0.0, 0.0, 400.0, 400.0),
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::fixed(800.0),
+                vis: ScrollbarVisibility::Auto,
+            },
+            clip_rect: None,
+            time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
+        };
+        let r = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds);
+        assert!(
+            r.token.needs_v,
+            "Fixed height 800.0 > 400.0 viewport must reserve vertical scrollbar"
+        );
+        assert!(
+            !r.token.needs_h,
+            "Horizontal FIT must not reserve horizontal scrollbar"
+        );
+    }
+
+    #[test]
+    fn test_scroll_extent_at_most_fits() {
+        let mut focus_system = FocusSystem::new();
+        let input = Input::new();
+        let mut state = ScrollState::default();
+        let mut cmds = DrawCommands::new();
+
+        let spec = ScrollAreaSpec {
+            rect: Rect::new(0.0, 0.0, 400.0, 400.0),
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::AtMost(ScrollLen::Viewport),
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            clip_rect: None,
+            time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
+        };
+        let r = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds);
+        assert!(
+            !r.token.needs_h,
+            "AtMost(Viewport) must not reserve scrollbar"
+        );
+        assert!(
+            matches!(r.inner_space.width, crate::layout::AxisBound::AtMost(w) if (w - 400.0).abs() < 1e-4),
+            "Inner space width must be AtMost(400.0)"
+        );
+    }
+
+    #[test]
+    fn test_scroll_extent_exact_viewport_alignment() {
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::new();
+        let mut cmds = DrawCommands::new();
+        let mut scroll_state = ScrollState::default();
+
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let placement = Rect::new(10.0, 20.0, 200.0, 300.0);
+
+        let super::ScrollAreaResult {
+            ctx: mut child_ctx, ..
+        } = super::begin_scroll_area(
+            &mut ctx,
+            ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            }),
+            placement,
+            &mut scroll_state,
+            ManualLayout,
+        );
+
+        let col = child_ctx.child_with_layout(
+            Rect::new(0.0, 0.0, 188.0, 200.0),
+            crate::layout::ColumnLayout {
+                spacing: 5.0,
+                align: crate::layout::CrossAlign::Center,
+            },
+        );
+
+        col.finish();
+        child_ctx.finish();
     }
 }
