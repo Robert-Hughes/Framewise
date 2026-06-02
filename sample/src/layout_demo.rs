@@ -14,16 +14,25 @@
 //!   E. Cross-axis alignment          — Start / Center / End inside fit columns.
 //!   F. Fixed vs Auto equivalence     — Fixed ignores child extent, Auto fits.
 //!   G. WrapLayout flow               — tags wrap onto new lines, auto-sizing.
+//!   H. SplitRow                      — width divided into equal declared cells.
+//!   I. Mixed per-axis                — fixed icon + Auto-width labels in one row.
+//!   J. Toolbar (emit-reorder)        — search fills leftover, buttons stay intrinsic.
+//!   K. `AtMost` ceiling              — nested Auto container clamps to the remainder.
+//!   L. RowLayout cross-align         — differing heights aligned in a tall row.
 
 use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, CrossAlign, Extent, RowLayout, SizeReq, SplitRow, WrapLayout},
+    layout::{
+        ColumnLayout, CrossAlign, Extent, ManualLayout, RowLayout, SizeReq, SplitRow, WrapLayout,
+    },
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
-    widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
+    widgets::button::{
+        button, raw::calc_button_intrinsic_size, ButtonSpecBuilder, ButtonState, ButtonStyle,
+    },
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -31,15 +40,20 @@ use framewise::{
 pub struct LayoutDemoState {
     pub a_btns: [ButtonState; 3], // A: auto-height column
     pub a_clicks: [u32; 3],
-    pub b_btns: [ButtonState; 3], // B: auto-width row
-    pub c_btns: [ButtonState; 4], // C: nested auto-in-auto (2 rows × 2)
-    pub d_btns: [ButtonState; 3], // D: intrinsic Auto widths
-    pub e_btns: [ButtonState; 9], // E: 3 align columns × 3 buttons
+    pub b_btns: [ButtonState; 3],       // B: auto-width row
+    pub c_btns: [ButtonState; 4],       // C: nested auto-in-auto (2 rows × 2)
+    pub d_btns: [ButtonState; 3],       // D: intrinsic Auto widths
+    pub e_btns: [ButtonState; 9],       // E: 3 align columns × 3 buttons
     pub f_fixed_btns: [ButtonState; 3], // F: fixed-height column
-    pub f_auto_btns: [ButtonState; 3], // F: auto-height column
-    pub g_btns: [ButtonState; 8], // G: wrap tags
-    pub h_btns: [ButtonState; 3], // H: SplitRow equal thirds
+    pub f_auto_btns: [ButtonState; 3],  // F: auto-height column
+    pub g_btns: [ButtonState; 8],       // G: wrap tags
+    pub h_btns: [ButtonState; 3],       // H: SplitRow equal thirds
     pub h_clicks: [u32; 3],
+    pub i_btns: [ButtonState; 3], // I: mixed per-axis (fixed icon + auto labels)
+    pub j_search: ButtonState,    // J: toolbar emit-reorder (fill field)
+    pub j_btns: [ButtonState; 2], // J: intrinsic right-aligned buttons
+    pub k_btns: [ButtonState; 3], // K: AtMost shrink-wrap (fixed block + short hugs + long clamps)
+    pub l_btns: [ButtonState; 9], // L: RowLayout cross-align (3 rows × 3)
 }
 
 impl Default for LayoutDemoState {
@@ -56,6 +70,11 @@ impl Default for LayoutDemoState {
             g_btns: Default::default(),
             h_btns: Default::default(),
             h_clicks: [0; 3],
+            i_btns: Default::default(),
+            j_search: Default::default(),
+            j_btns: Default::default(),
+            k_btns: Default::default(),
+            l_btns: Default::default(),
         }
     }
 }
@@ -244,10 +263,7 @@ pub fn draw_layout_page(
                     align: CrossAlign::Start,
                 },
             );
-            for (i, label) in ["Go", "Cancel", "Save all changes now"]
-                .iter()
-                .enumerate()
-            {
+            for (i, label) in ["Go", "Cancel", "Save all changes now"].iter().enumerate() {
                 let style = [primary, secondary, accent][i];
                 button(
                     &mut row,
@@ -260,6 +276,94 @@ pub fn draw_layout_page(
                 );
             }
             row.finish();
+        }
+
+        // I. Mixed per-axis: fixed-width icon + intrinsic-width labels in one row.
+        subheading(
+            &mut left,
+            ghost,
+            "I. Mixed per-axis — fixed icon + Auto-width labels in one row",
+        );
+        {
+            let mut row = left.child_with_layout(
+                SizeReq {
+                    width: Extent::Auto,
+                    height: Extent::Fixed(40.0),
+                },
+                RowLayout {
+                    spacing: 8.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            // Fixed 40px square "icon" — width imposed, ignores its label extent.
+            button(
+                &mut row,
+                ButtonSpecBuilder::new().text("*").style(accent),
+                SizeReq {
+                    width: Extent::Fixed(40.0),
+                    height: Extent::Fill,
+                },
+                &mut state.i_btns[0],
+            );
+            // Two Auto-width labels each hug their own text — different axis policy
+            // than the icon, in the same row.
+            for (i, label) in ["Intrinsic label", "Another"].iter().enumerate() {
+                button(
+                    &mut row,
+                    ButtonSpecBuilder::new().text(label).style(secondary),
+                    SizeReq {
+                        width: Extent::Auto,
+                        height: Extent::Fill,
+                    },
+                    &mut state.i_btns[i + 1],
+                );
+            }
+            row.finish();
+        }
+
+        // L. RowLayout cross-axis alignment (Start / Center / End in a tall row).
+        subheading(
+            &mut left,
+            ghost,
+            "L. RowLayout cross-align — differing heights aligned in a 60px row",
+        );
+        {
+            let aligns = [
+                ("Start", CrossAlign::Start),
+                ("Center", CrossAlign::Center),
+                ("End", CrossAlign::End),
+            ];
+            let heights = [22.0, 36.0, 50.0];
+            let styles = [primary, secondary, accent];
+            for (row_idx, (name, align)) in aligns.into_iter().enumerate() {
+                // Fixed 60px height is the Exact cross axis that alignment requires;
+                // each button picks a different height so the alignment is visible.
+                let mut row = left.child_with_layout(
+                    SizeReq {
+                        width: Extent::Fill,
+                        height: Extent::Fixed(60.0),
+                    },
+                    RowLayout {
+                        spacing: 6.0,
+                        align,
+                    },
+                );
+                for j in 0..3 {
+                    let idx = row_idx * 3 + j;
+                    button(
+                        &mut row,
+                        ButtonSpecBuilder::new()
+                            .text(&format!("{name} {}", j + 1))
+                            .style(styles[j]),
+                        SizeReq {
+                            width: Extent::Auto,
+                            height: Extent::Fixed(heights[j]),
+                        },
+                        &mut state.l_btns[idx],
+                    );
+                }
+                row.finish();
+            }
         }
 
         left.finish();
@@ -298,7 +402,10 @@ pub fn draw_layout_page(
                         width: Extent::Fill,
                         height: Extent::Auto,
                     },
-                    ColumnLayout { spacing: 5.0, align },
+                    ColumnLayout {
+                        spacing: 5.0,
+                        align,
+                    },
                 );
                 let widths = [120.0, 220.0, 320.0];
                 let styles = [primary, secondary, accent];
@@ -408,7 +515,13 @@ pub fn draw_layout_page(
                 },
             );
             let tags = [
-                "rust", "layout", "intrinsic", "auto-size", "nested", "wrap", "demo",
+                "rust",
+                "layout",
+                "intrinsic",
+                "auto-size",
+                "nested",
+                "wrap",
+                "demo",
                 "framewise",
             ];
             for (i, tag) in tags.iter().enumerate() {
@@ -459,6 +572,142 @@ pub fn draw_layout_page(
                 }
             }
             split.finish();
+        }
+
+        // J. Toolbar leftover via the emit-reorder trick: the intrinsic right-hand
+        // buttons are measured and placed first, the search field fills the gap,
+        // then override_next restores logical left→right focus.
+        subheading(
+            &mut right,
+            ghost,
+            "J. Toolbar — search fills leftover, buttons stay intrinsic (emit-reorder)",
+        );
+        {
+            let h = 36.0;
+            let spacing = 8.0;
+            let w = col_w; // Fill width under the Exact right column resolves to col_w.
+
+            // Measure the two intrinsic buttons up front — the reorder trick needs
+            // their sizes before the fill child can be placed.
+            let measure = |ts: &mut SampleTextSystem, label: &str| {
+                let spec = ButtonSpecBuilder::new()
+                    .text(label)
+                    .style(secondary)
+                    .rect(Rect::PLACEHOLDER)
+                    .clip_rect(None)
+                    .defaults_from_theme(&theme)
+                    .build();
+                calc_button_intrinsic_size(&spec, ts).preferred.unwrap().x
+            };
+            let w_filter = measure(right.text_system, "Filter");
+            let w_sort = measure(right.text_system, "Sort");
+            let x_sort = w - w_sort;
+            let x_filter = x_sort - spacing - w_filter;
+            let search_w = (x_filter - spacing).max(0.0);
+
+            // ManualLayout: rects are origin-relative to the toolbar's top-left.
+            let mut tb = right.child_with_layout(
+                SizeReq {
+                    width: Extent::Fill,
+                    height: Extent::Fixed(h),
+                },
+                ManualLayout,
+            );
+            // Emit the intrinsic (right-hand) children first — they depend on no
+            // sibling, so their position is known immediately.
+            button(
+                &mut tb,
+                ButtonSpecBuilder::new().text("Filter").style(secondary),
+                Rect::new(x_filter, 0.0, w_filter, h),
+                &mut state.j_btns[0],
+            );
+            button(
+                &mut tb,
+                ButtonSpecBuilder::new().text("Sort").style(secondary),
+                Rect::new(x_sort, 0.0, w_sort, h),
+                &mut state.j_btns[1],
+            );
+            // Then the fill child at the computed remainder.
+            button(
+                &mut tb,
+                ButtonSpecBuilder::new().text("Search...").style(primary),
+                Rect::new(0.0, 0.0, search_w, h),
+                &mut state.j_search,
+            );
+            tb.finish();
+
+            // Emitted right-first; restore logical left→right focus order.
+            right
+                .focus_system
+                .override_next(state.j_search.focus_id, state.j_btns[0].focus_id);
+            right
+                .focus_system
+                .override_next(state.j_btns[0].focus_id, state.j_btns[1].focus_id);
+        }
+
+        // K. AtMost ceiling: a nested Auto-width container is handed AtMost(remaining)
+        // by the parent row, so its children shrink-wrap but clamp at that ceiling.
+        subheading(
+            &mut right,
+            ghost,
+            "K. AtMost — nested Auto container caps children at the leftover ceiling",
+        );
+        {
+            let mut row = right.child_with_layout(
+                SizeReq {
+                    width: Extent::Fill,
+                    height: Extent::Auto,
+                },
+                RowLayout {
+                    spacing: 12.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            // Fixed block eats 55% of the row width.
+            button(
+                &mut row,
+                ButtonSpecBuilder::new().text("Fixed 55%").style(secondary),
+                SizeReq {
+                    width: Extent::Fixed(col_w * 0.55),
+                    height: Extent::Fixed(70.0),
+                },
+                &mut state.k_btns[0],
+            );
+            // Nested Auto-width column → receives AtMost(remaining ~45%). Inside, the
+            // short label hugs its text; the long one clamps to the AtMost ceiling.
+            let mut nested = row.child_with_layout(
+                SizeReq {
+                    width: Extent::Auto,
+                    height: Extent::Auto,
+                },
+                ColumnLayout {
+                    spacing: 6.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            button(
+                &mut nested,
+                ButtonSpecBuilder::new().text("Hi").style(primary),
+                SizeReq {
+                    width: Extent::Auto,
+                    height: Extent::Fixed(30.0),
+                },
+                &mut state.k_btns[1],
+            );
+            button(
+                &mut nested,
+                ButtonSpecBuilder::new()
+                    .text("This long label clamps to the AtMost ceiling")
+                    .style(accent),
+                SizeReq {
+                    width: Extent::Auto,
+                    height: Extent::Fixed(30.0),
+                },
+                &mut state.k_btns[2],
+            );
+            nested.finish();
+
+            row.finish();
         }
 
         right.finish();

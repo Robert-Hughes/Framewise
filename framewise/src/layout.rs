@@ -1303,6 +1303,24 @@ mod tests {
     }
 
     #[test]
+    fn test_column_fill_height_against_exact() {
+        // "Panel fills available height inside a bounded container": Fill on the
+        // main axis against an Exact column claims the full bounds extent and needs
+        // no intrinsic measurement (Extent::Fill under Exact resolves to the edge).
+        let mut state = ColumnLayout {
+            spacing: 0.0,
+            align: CrossAlign::Start,
+        }
+        .begin(Rect::new(0.0, 10.0, 200.0, 500.0));
+        let req = SizeReq {
+            width: Extent::Fixed(120.0),
+            height: Extent::Fill,
+        };
+        let r = state.layout(req, IntrinsicSize::UNKNOWN);
+        assert_eq!(r, Rect::new(0.0, 10.0, 120.0, 500.0));
+    }
+
+    #[test]
     #[should_panic(expected = "needs an intrinsic measurement")]
     fn test_auto_without_intrinsic_panics() {
         let mut state = RowLayout {

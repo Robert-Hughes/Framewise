@@ -84,6 +84,8 @@ pub struct ScrollDemoState {
     pub triple_inner_slider_state: SliderState,
     pub triple_innermost_scroll: framewise::widgets::scroll_area::ScrollState,
     pub triple_innermost_btns: [SampleButton; 5],
+    pub atmost_scroll: framewise::widgets::scroll_area::ScrollState,
+    pub atmost_btns: [SampleButton; 3],
 }
 
 impl Default for ScrollDemoState {
@@ -120,6 +122,8 @@ impl Default for ScrollDemoState {
             },
             triple_innermost_scroll: Default::default(),
             triple_innermost_btns: std::array::from_fn(|_| SampleButton::default()),
+            atmost_scroll: Default::default(),
+            atmost_btns: std::array::from_fn(|_| SampleButton::default()),
         }
     }
 }
@@ -667,6 +671,45 @@ pub fn draw_scroll_demo(
             );
 
             d_outer_scroll.finish();
+
+            // AtMost extent demo (Phase 5): vertical AtMost(Viewport) + Auto vis.
+            // The content shrink-wraps and is capped at the viewport; because it
+            // provably fits, no scrollbar gutter is reserved and the content is not
+            // force-filled — a case the old fixed `content_size` API could not
+            // express (it would either fill or always show a bar). Adding enough
+            // rows to exceed the 160px viewport would clip with no scrollbar, since
+            // AtMost is a ceiling, not a scroll region.
+            {
+                let mut atmost = begin_scroll_area(
+                    &mut content_col,
+                    ScrollAreaSpecBuilder::new().vertical(
+                        framewise::widgets::scroll_area::ScrollAxis {
+                            extent: framewise::widgets::scroll_area::ScrollExtent::AtMost(
+                                framewise::widgets::scroll_area::ScrollLen::Viewport,
+                            ),
+                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        },
+                    ),
+                    SizeReq::fixed(inner_w.min(440.0), 160.0),
+                    &mut state.atmost_scroll,
+                    framewise::layout::ColumnLayout {
+                        spacing: 6.0,
+                        align: CrossAlign::Start,
+                    },
+                )
+                .ctx;
+                for j in 0..3 {
+                    let btn_state = &mut state.atmost_btns[j].state;
+                    let text = format!("AtMost row {} (fits → no scrollbar)", j + 1);
+                    button(
+                        &mut atmost,
+                        ButtonSpecBuilder::new().text(&text),
+                        SizeReq::fixed(260.0, 30.0),
+                        btn_state,
+                    );
+                }
+                atmost.finish();
+            }
 
             // Nested 2D Scroll Demo: outer[2D] > inner[2D]
             {

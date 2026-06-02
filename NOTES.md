@@ -9,9 +9,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
-* Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
-as these weren't in the original table.
-
 * Split layout.rs into core layout stuff, and a separate layouts folder with files for each Manual/Row/Col etc.
   - Several of the layouts are very similar to one another, can we simplify by combniing some? Perhaps some are supersets of each other?
   - For SplitRow, do we want an equivlanet SplitCol
