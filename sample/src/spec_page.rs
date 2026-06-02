@@ -697,6 +697,7 @@ pub fn draw_spec_page(
     time: f64,
     win_w: f32,
     win_h: f32,
+    debug_layout: bool,
 ) -> DrawCommands {
     let t = Theme::framewise();
 
@@ -716,6 +717,7 @@ pub fn draw_spec_page(
             &mut cmds,
         );
         w_ctx.theme.sans_font = t.mono_font;
+        w_ctx.debug_layout = debug_layout;
         w_ctx
     };
 

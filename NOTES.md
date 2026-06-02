@@ -5,12 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Should "child_with_layout" (i.e. layout without a widget) use begin/end_layout, so that they can auto-size? Does that make any sense? Currently, layouts report a intrinsic size of None, so can't be used with Auto (goes to fallback size). Opt-in? How to get old behaviour? begin/end Should be equivalent to just regular layout() if done right?
-   - also refactor to take a Layout plus LayoutSpace (like we did for scroll area and WidgetContext::root)?
 
-* Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
-* We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
-
+* Finish implementing layout changes plan (all 6 phases), and review code against it!
+  - Check DESIGN.md has been updated accordingly
+  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
+  - consider if the new system is good enough - does it make layout usable/ergonomic yet?
 
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
@@ -18,12 +17,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Review table of supported layouts from the LAYOUT CHANGES doc and make sure we test/demo them all. We probably want to add some cases that are enabled as a result of phase 5 & 6,
 as these weren't in the original table.
 
-* Finish implementing layout changes plan (all 6 phases), and review code against it!
-  - Check DESIGN.md has been updated accordingly
-  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
-  - consider if the new system is good enough - does it make layout usable/ergonomic yet?
-
 * Split layout.rs into core layout stuff, and a separate layouts folder with files for each Manual/Row/Col etc.
+
+* Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
+* We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
 
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 

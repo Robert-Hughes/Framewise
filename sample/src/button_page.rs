@@ -41,6 +41,7 @@ pub fn draw_button_page(
     _time: f64,
     win_size: (f32, f32),
     text_system: &mut SampleTextSystem,
+    debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
     let pad = 20.0;
@@ -55,6 +56,7 @@ pub fn draw_button_page(
         Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
+    ctx.debug_layout = debug_layout;
 
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(

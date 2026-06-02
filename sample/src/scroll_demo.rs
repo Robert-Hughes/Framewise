@@ -134,6 +134,7 @@ pub fn draw_scroll_demo(
     time: f64,
     win_size: (f32, f32),
     text_system: &mut SampleTextSystem,
+    debug_layout: bool,
 ) -> framewise::DrawCommands {
     // Clipboard is unused now that the text-edit field has been removed from this
     // (intentionally minimal) scroll demo.
@@ -152,6 +153,7 @@ pub fn draw_scroll_demo(
         &mut cmds,
     );
     ctx.time = time;
+    ctx.debug_layout = debug_layout;
 
     // Main container splitting into Sidebar (Left) and Content (Right)
     {

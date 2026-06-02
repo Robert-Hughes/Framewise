@@ -2,6 +2,8 @@
 mod button_page;
 #[cfg(feature = "page_frame_demo")]
 mod frame_demo;
+#[cfg(feature = "page_layout_demo")]
+mod layout_demo;
 mod renderer;
 #[cfg(feature = "page_scroll_demo")]
 mod scroll_demo;
@@ -32,6 +34,8 @@ enum AppPage {
     WidgetSpec,
     #[cfg(feature = "page_frame_demo")]
     FrameDemo,
+    #[cfg(feature = "page_layout_demo")]
+    LayoutDemo,
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -68,6 +72,7 @@ struct App {
     input: Input,
     clipboard: Option<arboard::Clipboard>,
     active_page: AppPage,
+    debug_layout: bool,
     #[cfg(feature = "page_button_demo")]
     button_page_state: button_page::ButtonPageState,
     #[cfg(feature = "page_scroll_demo")]
@@ -76,6 +81,8 @@ struct App {
     spec_page_state: spec_page::SpecPageState,
     #[cfg(feature = "page_frame_demo")]
     frame_demo_state: frame_demo::FrameDemoState,
+    #[cfg(feature = "page_layout_demo")]
+    layout_demo_state: layout_demo::LayoutDemoState,
 }
 
 impl App {
@@ -91,6 +98,7 @@ impl App {
             input: Input::new(),
             clipboard: arboard::Clipboard::new().ok(),
             active_page: AppPage::ButtonDemo,
+            debug_layout: false,
             #[cfg(feature = "page_button_demo")]
             button_page_state: button_page::ButtonPageState::default(),
             #[cfg(feature = "page_scroll_demo")]
@@ -99,6 +107,8 @@ impl App {
             spec_page_state: spec_page::SpecPageState::default(),
             #[cfg(feature = "page_frame_demo")]
             frame_demo_state: frame_demo::FrameDemoState::default(),
+            #[cfg(feature = "page_layout_demo")]
+            layout_demo_state: layout_demo::LayoutDemoState::default(),
         }
     }
 
@@ -144,6 +154,7 @@ impl App {
                         time,
                         win_size,
                         text_system,
+                        self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
@@ -162,6 +173,7 @@ impl App {
                         time,
                         win_size.0,
                         win_size.1,
+                        self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
@@ -180,6 +192,7 @@ impl App {
                         time,
                         win_size,
                         text_system,
+                        self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
@@ -197,11 +210,27 @@ impl App {
                         time,
                         win_size,
                         text_system,
+                        self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
                 Self::draw_missing_feature_page(win_size, text_system)
+            }
+            #[cfg(feature = "page_layout_demo")]
+            AppPage::LayoutDemo => {
+                self.focus_system.begin_frame();
+                let cmds = layout_demo::draw_layout_page(
+                    &mut self.layout_demo_state,
+                    &mut self.focus_system,
+                    &self.input,
+                    time,
+                    win_size,
+                    text_system,
+                    self.debug_layout,
+                );
+                self.focus_system.end_frame();
+                cmds
             }
         }
     }
@@ -308,7 +337,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo
+                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F12 = toggle layout-debug overlay
                 if event.state == ElementState::Pressed {
                     match event.physical_key {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
@@ -323,6 +352,13 @@ impl ApplicationHandler for App {
                         #[cfg(feature = "page_frame_demo")]
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F4) => {
                             self.active_page = AppPage::FrameDemo;
+                        }
+                        #[cfg(feature = "page_layout_demo")]
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F5) => {
+                            self.active_page = AppPage::LayoutDemo;
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
+                            self.debug_layout = !self.debug_layout;
                         }
                         _ => {}
                     }

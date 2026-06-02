@@ -59,6 +59,11 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub time: f64,
     pub clip_rect: ClipRect,
 
+    /// Layout-debug overlay. When set, [`finish`](WidgetContext::finish) strokes a
+    /// magenta outline around this context's resolved layout space. Inherited by
+    /// every child context, so enabling it on the root lights up the whole tree.
+    pub debug_layout: bool,
+
     // System resources
     pub text_system: &'a mut T,
     pub focus_system: &'a mut FocusSystem,
@@ -90,6 +95,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
         WidgetContext {
             time: 0.0,
             clip_rect: None,
+            debug_layout: false,
             theme,
             text_system,
             focus_system,
@@ -116,6 +122,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             theme: self.theme,
             time: self.time,
             clip_rect: inner_clip_rect,
+            debug_layout: self.debug_layout,
             text_system: self.text_system,
             focus_system: self.focus_system,
             input: self.input,
@@ -226,6 +233,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         U: 'c,
     {
         let clip = self.clip_rect; // Clip rect is inherited by default.
+        let debug_layout = self.debug_layout; // Copied before the layout_state borrow below.
 
         // begin_layout runs *here*: the token stays inside this body (captured into
         // `on_finish` below) and never crosses a `&mut self` boundary, so the disjoint
@@ -243,6 +251,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             theme: self.theme,
             time: self.time,
             clip_rect: clip,
+            debug_layout,
             text_system: self.text_system,
             focus_system: self.focus_system,
             input: self.input,
@@ -269,7 +278,17 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
     /// resolve geometry from how large their children turned out.
     pub fn finish(self) {
         let resolved_space = self.layout_state.resolve_space();
+        let debug_layout = self.debug_layout;
         (self.on_finish)(self.focus_system, self.cmds, resolved_space);
+        // Draw the debug outline *after* on_finish so it sits on top of this
+        // layout's content (and any retroactive chrome patching, e.g. a frame).
+        if debug_layout {
+            self.cmds.push(crate::draw::DrawCmd::StrokeRect {
+                rect: resolved_space,
+                color: crate::types::Color::from_srgb_u8(255, 0, 200, 255),
+                width: 1.0,
+            });
+        }
     }
 }
 
