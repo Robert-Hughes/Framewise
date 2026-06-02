@@ -224,63 +224,46 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         .rect(Rect::PLACEHOLDER)
         .build();
     let inset = spec.style.border_width + spec.style.padding;
-
-    // 1. Begin parent layout deferral to get provisional space and borrow-locking token
     let intrinsic = raw::calc_frame_intrinsic_size(&spec);
-    let (outer_space, token) = ctx.layout_state.begin_layout(layout_params, intrinsic);
 
-    // 2. Assign the provisional rect
-    let spec = raw::FrameSpec {
-        rect: Rect::new(outer_space.x, outer_space.y, 0.0, 0.0),
-        ..spec
-    };
-
-    // 3. Push a placeholder FillRect for the background before children so it draws beneath them.
-    // The border StrokeRect is pushed in end_frame so it draws on top.
-    let raw::FrameResult {
-        token: frame_token, ..
-    } = raw::begin_frame(spec, ctx.cmds);
-
-    // 4. Inset the provisional space by padding + border_width to allocate child bounds
-    let inner_space = outer_space.inset(inset);
-
-    // 4. Define the finish callback which consumes the borrow token and finalizes the parent layout
-    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, resolved_space: Rect| {
-        let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
-        // Compute outer size: children extent plus container margins
-        let outer_extent = Vec2::new(
-            content_extent.x + inset * 2.0,
-            content_extent.y + inset * 2.0,
-        );
-
-        // Finalize layout constraints on the parent and advance its cursor
-        let bounds = token.end_layout(outer_extent);
-
-        // Retroactively patch the placeholder draw commands with the actual resolved bounds!
-        raw::end_frame(
-            frame_token,
-            raw::FrameSpec {
-                rect: bounds,
+    // The deferred-layout borrow plumbing lives in `child_with_deferred_layout`; here we
+    // only supply the frame-specific chrome via the two closures.
+    let (child_ctx, outer_space) = ctx.child_with_deferred_layout(
+        layout_params,
+        intrinsic,
+        inner_layout,
+        // Between begin_layout and child construction: stamp the provisional rect and push
+        // the placeholder background/clip (so they draw beneath the children). The border
+        // StrokeRect is pushed later in end_frame so it draws on top. The inner layout is
+        // begun in the space inset by padding + border_width. Carry (token, spec) to finish.
+        move |cmds, outer| {
+            let spec = raw::FrameSpec {
+                rect: Rect::new(outer.x, outer.y, 0.0, 0.0),
                 ..spec
-            },
-            cmds,
-        );
-    };
+            };
+            let raw::FrameResult {
+                token: frame_token, ..
+            } = raw::begin_frame(spec, cmds);
+            ((frame_token, spec), outer.inset(inset))
+        },
+        // At finish: the frame's outer size is its children's extent plus the chrome on
+        // both sides. Advance the parent's cursor with that, then retroactively patch the
+        // placeholder draw commands with the resolved bounds.
+        move |(frame_token, spec), token, content, _focus, cmds| {
+            let outer_extent = Vec2::new(content.w + inset * 2.0, content.h + inset * 2.0);
+            let bounds = token.end_layout(outer_extent);
+            raw::end_frame(
+                frame_token,
+                raw::FrameSpec {
+                    rect: bounds,
+                    ..spec
+                },
+                cmds,
+            );
+        },
+    );
 
-    // 5. Disjointly construct the child context to keep the borrows separate
-    let child_ctx = WidgetContext {
-        //TODO: should be using the child_with_layout_and_on_finish()?
-        theme: ctx.theme,
-        time: ctx.time,
-        clip_rect: ctx.clip_rect,
-        text_system: ctx.text_system,
-        focus_system: ctx.focus_system,
-        input: ctx.input,
-        cmds: ctx.cmds,
-        layout_state: inner_layout.begin(inner_space),
-        on_finish,
-    };
-
+    let inner_space = outer_space.inset(inset);
     FrameResult {
         layout: LayoutInfo::new(
             Rect::new(outer_space.x, outer_space.y, 0.0, 0.0),

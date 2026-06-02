@@ -1,6 +1,6 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
-use crate::layout::{IntrinsicSize, Layout, LayoutState, ManualState};
+use crate::layout::{IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken};
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect, Vec2};
 use crate::Input;
@@ -168,26 +168,78 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         inner_layout: L2,
     ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'c>
     {
+        // A bare nested layout has no chrome: the inner layout fills the provisional
+        // space as-is, and its outer extent is exactly its measured content.
+        let (child, _outer_space) = self.child_with_deferred_layout(
+            placement,
+            IntrinsicSize::UNKNOWN,
+            inner_layout,
+            |_cmds, outer| ((), outer),
+            |(), token, content, _focus, _cmds| {
+                token.end_layout(Vec2::new(content.w, content.h));
+            },
+        );
+        child
+    }
+
+    /// Deferred-layout borrow harness shared by every fit-to-children container
+    /// (`child_with_layout`, `frame`, …).
+    ///
+    /// [`begin_layout`](LayoutState::begin_layout) is called *inside* this method, so the
+    /// [`LayoutToken`] it produces never crosses a `&mut self` boundary — that is what lets
+    /// a single reusable constructor own the borrow-splitting that each container would
+    /// otherwise hand-roll. The harness knows nothing about chrome (padding, borders,
+    /// scroll offsets); the caller injects all space/rect math through two closures:
+    ///
+    /// - `before_children` runs *between* `begin_layout` and constructing the child. It
+    ///   receives the draw-command buffer and the provisional outer [`LayoutSpace`], and
+    ///   returns `(carried, inner_space)`: `carried` is handed to `after_children`, and
+    ///   `inner_space` is the space the inner layout begins in.
+    /// - `after_children` runs at [`finish`](WidgetContext::finish), once the child's
+    ///   content rect is known. It receives `carried`, the [`LayoutToken`], the measured
+    ///   content rect, and the focus/draw systems. The caller decides the outer extent by
+    ///   calling [`LayoutToken::end_layout`] and performs any retroactive draw patching.
+    ///
+    /// Returns the child context plus the provisional outer [`LayoutSpace`] (containers like
+    /// `frame` need it for their `LayoutInfo`; bare callers ignore it).
+    #[allow(clippy::type_complexity)]
+    pub fn child_with_deferred_layout<'c, L2, U, Before, After>(
+        &'c mut self,
+        placement: LS::Params,
+        intrinsic: IntrinsicSize,
+        inner_layout: L2,
+        before_children: Before,
+        after_children: After,
+    ) -> (
+        WidgetContext<
+            'c,
+            T,
+            L2::State,
+            impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'c,
+        >,
+        LayoutSpace,
+    )
+    where
+        L2: Layout,
+        Before: FnOnce(&mut DrawCommands, LayoutSpace) -> (U, LayoutSpace),
+        After: FnOnce(U, LayoutToken<'c, LS>, Rect, &mut FocusSystem, &mut DrawCommands) + 'c,
+        U: 'c,
+    {
         let clip = self.clip_rect; // Clip rect is inherited by default.
 
-        // Begin a deferred layout: provisional space for the child + a token that holds
-        // the parent's layout state until `on_finish` advances its cursor.
-        let (outer_space, token) = self
-            .layout_state
-            .begin_layout(placement, IntrinsicSize::UNKNOWN);
+        // begin_layout runs *here*: the token stays inside this body (captured into
+        // `on_finish` below) and never crosses a `&mut self` boundary, so the disjoint
+        // field construction is legal and lives in exactly one place.
+        let (outer_space, token) = self.layout_state.begin_layout(placement, intrinsic);
 
-        // The token is moved into the closure, which borrows `self.layout_state`. The
-        // child context below borrows the *other* fields (text_system, focus_system, …),
-        // so the borrows are disjoint — hence the explicit field-by-field construction
-        // rather than `child_with_layout_and_on_finish` (which would reborrow all of self).
-        let on_finish = move |_: &mut FocusSystem, _: &mut DrawCommands, resolved_space: Rect| {
-            let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
-            // Finalize the parent layout from the child's measured extent and advance
-            // its cursor. (A bare layout draws no background, so nothing to patch.)
-            let _bounds = token.end_layout(content_extent);
+        // Caller's "between" hook: push placeholder draw commands, decide the inner space.
+        let (carried, inner_space) = before_children(self.cmds, outer_space);
+
+        let on_finish = move |focus: &mut FocusSystem, cmds: &mut DrawCommands, resolved: Rect| {
+            after_children(carried, token, resolved, focus, cmds);
         };
 
-        WidgetContext {
+        let child = WidgetContext {
             theme: self.theme,
             time: self.time,
             clip_rect: clip,
@@ -195,9 +247,10 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             focus_system: self.focus_system,
             input: self.input,
             cmds: self.cmds,
-            layout_state: inner_layout.begin(outer_space),
+            layout_state: inner_layout.begin(inner_space),
             on_finish,
-        }
+        };
+        (child, outer_space)
     }
 
     /// Append draw commands to the context's accumulated list.

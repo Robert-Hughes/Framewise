@@ -250,6 +250,7 @@ pub trait Layout {
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State;
 }
 
+#[must_use = "a LayoutToken must be finished with end_layout() to advance the parent layout"]
 pub struct LayoutToken<'a, LS: LayoutState> {
     pub state: &'a mut LS,
     pub params: LS::Params,
