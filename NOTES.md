@@ -6,11 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 
-* Finish implementing layout changes plan (all 6 phases), and review code against it!
-  - Check DESIGN.md has been updated accordingly
-  - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
-  - consider if the new system is good enough - does it make layout usable/ergonomic yet?
-
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
@@ -21,6 +16,7 @@ as these weren't in the original table.
   - Several of the layouts are very similar to one another, can we simplify by combniing some? Perhaps some are supersets of each other?
   - For SplitRow, do we want an equivlanet SplitCol
   - For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
+  - Consistency between layouts! Same file order, param order etc. etc. Note this in DESIGN.md
 
 * Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
 * We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
@@ -203,11 +199,79 @@ Features to design and implement, roughly in dependency order:
 - Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)
 * Buttons text auto-ellipses (same for labels etc. All text?), due to top down layout this is more likely to occur so should be handled nicely. Also have a tooltip to show the full text. Reusable component for this functionality?
 
+---
 
+## Remaining Layout Work
 
+Consider if the new system is good enough - does it make layout usable/ergonomic yet?
 
+Phases 1–3, 5, and 6 of the original layout proposal are **implemented and documented in `DESIGN.md`** (intrinsic sizing, three-state `AxisBound`, unbounded axes, deferred scroll, fit-to-children frames). Phase 4 is **partially** done: `SplitRow` (declared count, equal cells) shipped; the weighted/grid/match-tallest cases below did not. This section keeps only what's still unbuilt, plus the conceptual framing that justifies *why* some cases are possible and others never will be.
 
-Misc
-====
+### Framing (now in DESIGN.md)
 
- * Consider using crate features to include/exclude certain widget types. Or perhaps move 'non-core' widgets into separate 'extra widgets' crate(s)?
+The **headline rule** (Automate / Declare / Refuse tiers) and **emit ≠ visual ≠ focus order** independence — including the topological-DAG reorder trick — describe the *implemented* model and live in `DESIGN.md` → Layout System. The short version, for context here:
+
+- **Automate** (past-only) ✅ done (P1–P6).
+- **Declare** (future sibling, declared count) 🚧 only `SplitRow` so far — the rest is below.
+- **Refuse** (self-dependent / over-constrained) — impossible at any phase (table below).
+
+The reorder trick (emit autos to measure → distribute → place → `override_next` to restore focus) is the engine the unbuilt Declare-tier helpers would use internally.
+
+### Phase 4 remainder — declared-structure helpers (⬜ unbuilt)
+
+`SplitRow` was the easy case: equal + known count means every slot resolves independently up front (no measure-all, no emit-reorder). The rest need a **measure-all-then-place / `override_next`** engine:
+
+- Weighted split (left pane 2×, right pane 1×, filling the row)
+- Space-between (first item left, last right, even gaps)
+- Match-tallest (a row of cards all stretched to the tallest — declared count + measure-all)
+- Grid where each column is as wide as its widest cell (declared column count + measure-all)
+
+All require `AxisBound::Exact` on the divided axis (a committed far edge), the same rule that governs `Fill` and alignment.
+
+### Tier 3 — Refuse (non-goals, impossible at any phase)
+
+Each asks for a value that only exists *after* the thing it controls is decided (circular), asks two rules to win at once (over-constrained), or fills something with no size. Documented so they aren't mistaken for missing features:
+
+| Case | Why never |
+|---|---|
+| A caption that wraps into a square-ish block | Width depends on wrapped height, which depends on width. No fixed point in one pass. |
+| Three buttons each sized to its label, but the first always exactly 2× the others | "Size to text" and "be 2× the others" contradict. |
+| A tooltip that hugs its text while the text re-wraps to fit that shrunk width | Width ↔ content loop at container level. |
+| A panel filling the height inside a vertically-infinite scrolling list | Filling "unbounded" is meaningless (the fill + `Unbounded` rule). |
+| Two panes staying equal as you drag a divider, both honoring minimums, both filling the window | Simultaneous multi-variable solve — a constraint solver, not a forward pass. |
+
+This is the same width ↔ content self-dependency that bars **constraint-affecting fit** in fit-to-children containers (Phase 6, `DESIGN.md`).
+
+### Future possibility (not scheduled) — pre-declared slot helper
+
+A planned-slot API would package the Tier 2 cases ergonomically:
+
+```rust
+let mut plan = PlannedRow::new().spacing(6.0);
+let title   = plan.slot(Slot::auto());
+let _spacer = plan.slot(Slot::flex(1.0));
+let save    = plan.slot(Slot::auto());
+let cancel  = plan.slot(Slot::auto());
+let mut toolbar = begin_planned_row(ctx, plan, bounds);
+
+label_in(&mut toolbar, title, ...);
+button_in(&mut toolbar, save, ...);
+button_in(&mut toolbar, cancel, ...);
+toolbar.finish();
+let saved = toolbar.result(save).clicked;   // read after finish
+```
+
+Recorded as a direction, **not** for implementation — three issues need resolving first:
+
+- **Flex forces deferral.** A flex slot's leftover needs every auto slot's size, so no slot right of it can be placed until all `*_in` calls are in. Draw and interaction defer to `finish()`, so results are read by handle *after* `finish()` — you lose inline `if button_in(...).clicked`. Bounded buffering of one row (freed at `finish`), not a retained tree; state still mutates in frame N. But the ergonomic shift is real.
+- **Handles, not strings.** Slot keys are typed handles returned at declaration — Framewise rejects string/global IDs; handles give compile-checked fills with no lookup or typo-miss.
+- **API surface.** Slot-addressed fills (`label_in`, `button_in`, …) need a twin per widget. Partial coverage would violate Widget Consistency — if pursued, every high-level widget gets an `*_in` twin.
+
+### Invariants any of this must hold
+
+- **Top-down and immediate.** Parent space known before children; no bottom-up constraint solving.
+- **One pass for placement.** The only extra traversal is cheap explicit `calc_*` spec measurement, or measure-all-then-place for grid/match-tallest. Neither retains a widget tree.
+- **Layout stays a `WidgetContext`-level concept.** Raw widgets receive fully-resolved `Rect`s, never `LayoutSpace` / `IntrinsicSize` / `AxisBound`.
+- **Determinism and locality.** Every placement depends only on parent space, caller intent, this widget's measurement, and earlier siblings — never later ones.
+- **Three orderings stay independent.** Reordering emit (within a DAG) is the sanctioned bridge from Declare down into Automate.
+

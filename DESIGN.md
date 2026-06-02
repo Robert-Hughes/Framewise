@@ -75,6 +75,60 @@ A window's dimensions are set by the user or the OS. A panel's width comes from 
 
 Bottom-up ("auto-size") layout inverts this: children measure themselves and report their natural size upward. This is elegant when content drives the layout, but it requires a separate measurement pass, makes constraint propagation complex, and forces every widget to handle the case where content size is genuinely unknown. Scroll areas handle the "content is larger than the view" case cleanly: the content gets its logical bounds, the view clips it.
 
+### The Headline Rule — What Layout Can and Cannot Automate
+
+The reach of the one-pass model is captured in a single rule:
+
+> **If a placement resolves from what's already known — available space, already-placed siblings, and this child — Framewise automates it. If it needs a *future* sibling, you declare the structure up front, or it's not possible.**
+
+Three tiers fall out of it, in plain UI terms:
+
+- **Automate** (past-only) — "stack these labels, each as tall as its text." Resolves from intrinsic size + earlier siblings. Handled by `ColumnLayout`/`RowLayout`/`WrapLayout` with intrinsic sizing.
+- **Declare** (future sibling, but you said how many) — "split this row into four equal columns." Leftover/shared space depends on *all* siblings, which is a future-sibling dependency — but declaring the count converts it into a constant resolved from available space alone. This is why `SplitRow` takes a `count` up front. (Weighted/grid/match-tallest variants are not yet built — see `NOTES.md` (Remaining Layout Work).)
+- **Refuse** (depends on itself / over-constrained) — "size this to its text *and* force it twice its neighbour." Asks for a value that only exists after the thing it controls is decided. No fixed point in one pass; impossible at any phase. (The constraint-affecting half of fit-to-children sits here too — see [Three-State Axis Bounds](#three-state-axis-bounds--unbounded-axes).)
+
+#### Supported Layout Cases
+
+Real scenarios in the Automate and Declare tiers, and which mechanism handles each. (Refuse-tier non-goals are catalogued in `NOTES.md` (Remaining Layout Work).)
+
+| Case (real scenario) | Status |
+|---|---|
+| Manual explicit placement | ✅ `ManualLayout` |
+| Overlay / absolute children | ✅ `ManualLayout` |
+| Stack, caller sizes every child (vert/horiz) | ✅ `ColumnLayout` / `RowLayout` |
+| "Stack these labels, each as tall as its text" | ✅ `ColumnLayout` + intrinsic |
+| "Row of chips, each as wide as its label" | ✅ `RowLayout` + intrinsic |
+| "Fixed-width icon, label takes its intrinsic width" (mixed per-axis) | ✅ `RowLayout` + `SizeReq` |
+| "Column fills the panel width, each row auto-height" (fill cross-axis) | ✅ `ColumnLayout` + `Extent::Fill` |
+| "Tags that wrap onto the next line when the row fills" (flow) | ✅ `WrapLayout` |
+| "A bordered box that hugs its child(ren) plus padding" (decorator) | ✅ `frame` (fit-to-children) |
+| "Toolbar: search field eats leftover space, icons stay intrinsic" | ✅ via emit-reorder + `ManualLayout` (see below) |
+| "Panel fills available height inside a normal (bounded) container" | ✅ `Extent::Fill` against `AxisBound::Exact` |
+| Scroll, content size known up front | ✅ `begin_scroll_area` (`fixed`/`FIT` extent) |
+| "Scroll area sized to content discovered only after its children run" | ✅ `begin_scroll_area` (`SCROLL` extent, resolved at `end`) |
+| "Infinitely tall / long auto-sized list in a scroll area" | ✅ `SCROLL` extent + `Unbounded` axis |
+| Nested scrolling + clipping | ✅ |
+| "Three buttons sharing a row in equal thirds" | ✅ `SplitRow` |
+| "Weighted split: left pane 2×, right pane 1×, filling the row" | 🚧 unbuilt — see `NOTES.md` (Remaining Layout Work) |
+| "Space-between: first item left, last right, even gaps" | 🚧 unbuilt — see `NOTES.md` (Remaining Layout Work) |
+| "A grid where each column is as wide as its widest cell" | 🚧 unbuilt (declared columns + measure-all) |
+| "A row of cards all stretched to match the tallest" | 🚧 unbuilt (declared count + measure-all) |
+
+### Emit Order, Visual Position, and Focus Order Are Independent
+
+Three orderings are separate concerns, and Framewise has machinery for all three:
+
+- **Emit order** — when you call the widget function. Drives draw/compositing (later renders on top) and the cursor in sequential layouts.
+- **Visual position** — the resolved `Rect`. Under `ManualLayout` it is fully decoupled from emit order.
+- **Focus order** — detached from emit order via `override_next` (see [Input Focus](#input-focus)).
+
+This decoupling is a general escape hatch: **reordering emit converts a future-sibling dependency into a past-sibling one.** "First child fills the remaining row width, second is intrinsic" — the fill child depends on a *future* sibling; instead emit the intrinsic child first, read its size, then emit the fill child at the computed remainder, and `override_next` to restore left-to-right focus. Visually L→R, focus L→R, emitted R→L. This works **today** with `ManualLayout` — no new machinery.
+
+General form: **if dependencies form a DAG, emit in topological order and every dependency is already known.** Cycles (the Refuse tier) have no valid topological order and remain impossible. Two caveats:
+
+1. **Sequential layouts couple emit order to position.** `RowLayout`/`ColumnLayout` advance a cursor by emit order, so emitting the right child first lands it in the left slot. The reorder trick needs `ManualLayout` (or a future explicit-slot helper), not a naive sequential layout.
+2. **Overlapping widgets — reorder changes z.** Safe only when slots don't overlap (the common row/column case). If widgets overlap, emit order *is* layering and must not be reordered casually.
+
 ### Layout is a Context-Level Concept
 
 `Layout` and `LayoutState` are high-level abstractions that live exclusively in the `WidgetContext` layer. **Low-level widget functions know nothing about layouts.** They receive and return plain geometry: `Rect`, `Vec2` offset, `Option<Rect>` clip. Layout is a building aid — it helps place widgets in the right position — but it does not change what a widget does or how it draws.
@@ -107,9 +161,17 @@ Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pa
 
 Intrinsic-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model.
 
-- **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
+Three types carry sizing information, each flowing one direction with one owner:
+
+- **`LayoutSpace`** — available space the parent hands **down**. Carries an `AxisBound` per axis (see [Three-State Axis Bounds](#three-state-axis-bounds--unbounded-axes)).
+- **`IntrinsicSize`** — the widget's own measurement, reported **up** by a `calc_*` companion to its raw function. Measurement only, never policy.
+- **`Rect`** — the resolved output, handed to the raw widget. Always fully concrete; honours the rule that **no `Option`/unbounded geometry ever reaches a raw function**. A layout combines the down-flowing space with the up-flowing measurement to produce it.
+
+- **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. The three fields mirror CSS intrinsic sizing: `min` is the smallest size below which content clips (the longest unbreakable word), `preferred` the natural unwrapped size, `max` the largest useful size. Fields are optional — a widget may know one axis and not the other; a fully-unknown value needs no separate sentinel. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
+
+  **The test for what belongs here:** if the widget computes it from its own content, it's `IntrinsicSize`; if the caller decides it, it's `Params`. "Should not shrink below 60 because the label clips" is a widget fact → `IntrinsicSize.min`. "Stretch to fill the row" is caller intent → `Params`. Keeping flex flags out of `IntrinsicSize` is what lets the name stay accurate as it grows from a single size to a min/preferred/max range.
 - **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
-- **`LAYOUT_FALLBACK_SIZE`** — a library-global size an intrinsic-aware layout falls back to when it needs a measurement that was never reported (e.g. `Auto` against a widget that returns no `preferred`). Deliberately large and obvious so missing measurements surface during development.
+- **Missing-measurement policy — panic, no fallback.** When an intrinsic-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Extent::resolve` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
 
 ### Three-State Axis Bounds & Unbounded Axes
 
@@ -120,6 +182,8 @@ The space a parent hands down is a `LayoutSpace { x, y, width: AxisBound, height
 * **`AxisBound::Unbounded`** — "No ceiling on this axis". This is typically used inside scroll views, allowing content to grow naturally to its preferred size.
 
 Position is always concrete — a layout always knows *where* a child starts — so only the *extent* can be constrained or unbounded. A fully-specified `Rect` converts automatically via `From<Rect>` to a fully `Exact` space, so layouts without dynamic constraints never see `AtMost` or `Unbounded` axes.
+
+**Why three, not two — anchor vs ceiling.** `AtMost` is the missing middle between "totally fixed" and "infinite", and it expresses container semantics neither `Exact` nor `Unbounded` states honestly: "wrap within the panel if needed, but don't force full width", "hug contents, but never grow beyond the viewport". Text especially wants this — it rarely wants *infinite* width (which produces pathological preferred sizes), it wants "measure as naturally as you can, but under this maximum line length". The distinction that matters: `Exact(w)` answers two questions — *how much space may the child consume?* **and** *relative to what concrete box may it position itself?* — while `AtMost(w)` answers only the first. `AtMost` is a ceiling with no committed far edge; `Exact` is a ceiling plus an anchor frame. So `AtMost` is **not** a weaker `Exact` — it is a different *kind* of knowledge, and the layout API branches on it explicitly rather than silently coercing, or alignment math would run against a width that was only ever a cap.
 
 #### The Unifying Rule of Alignment and Distribution
 
@@ -137,11 +201,11 @@ To align or wrap a nested container safely, it must have a concrete size resolve
 
 Three key rules keep these bounds from leaking infinity into leaf widget geometry:
 
-1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (or `LAYOUT_FALLBACK_SIZE` if none is reported), matching `Extent::Auto` resolution behavior.
+1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (and panics if none is reported), matching `Extent::Auto` resolution behavior.
 2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's intrinsic size resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
 3. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully concrete `Rect`. The layout's running cursor stays a concrete `f32`, meaning the accumulated extent remains fully bounded (which is precisely what a deferred scroll area reads as its content size). No infinity ever reaches a `Rect`.
 
-**Reading the accumulated extent — `content_extent`.** `LayoutState` exposes `fn content_extent(&self) -> Vec2`: the total extent the layout has consumed so far, measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands it to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the zero vector before any child is placed.
+**Reading the accumulated extent — `resolve_space`.** `LayoutState` exposes `fn resolve_space(&self) -> Rect`: the accumulated content resolved against the layout's own `LayoutSpace` bounds (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it), measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands the resolved `Rect` to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the origin with zero extent before any child is placed.
 
 **The `calc_*_intrinsic_size` companion.** Each raw widget that participates gains an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes the widget's `*Spec` so its signature stays stable as size-relevant fields are added (they live in the spec/style), but it **must not read `spec.rect`**: the rect is the *output* of the layout step that consumes the intrinsic size, so it isn't known yet. Structurally, `rect` is the *only* spec field that is unknowable before `calc` runs — everything else (content, style, clip, disabled) is an input. Callers therefore build the spec with `Rect::PLACEHOLDER` (NaN) before measuring; any arithmetic on it yields NaN, making accidental use loud rather than silent.
 
@@ -169,7 +233,7 @@ Each `raw::*Result` is a concrete struct with no trait requirements on callers, 
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)`) called when the context is finished; it receives the shared command buffer and the layout's `content_extent` (from `finish()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)`) called when the context is finished; it receives the shared command buffer and the layout's resolved space (the `Rect` from `finish()` reading `resolve_space()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
 
