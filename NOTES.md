@@ -23,6 +23,8 @@ as these weren't in the original table.
   - check if anything left in the LAYOUT CHANGES file worth preserving, then can delete
   - consider if the new system is good enough - does it make layout usable/ergonomic yet?
 
+* Split layout.rs into core layout stuff, and a separate layouts folder with files for each Manual/Row/Col etc.
+
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
