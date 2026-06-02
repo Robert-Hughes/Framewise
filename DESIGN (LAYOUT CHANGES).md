@@ -137,7 +137,9 @@ This begin→end rebalance is the bulk of the implementation effort; the sizing 
 1. ✅ **Widget intrinsic size reporting** — `IntrinsicSize`, `calc_*` functions, `layout(params, intrinsic)`, intrinsic-aware column/row/wrap.
 2. ✅ **Unbounded axes** — `AxisBound`, `LayoutSpace`, the two rules. Prerequisite for deferred scroll.
 3. ✅ **Deferred scroll content** — `LayoutState::content_extent`, Reserve policy (drop `Auto`), begin→end rebalance, 1-frame clamp lag. `end_scroll_area` takes the measured extent; `max_scroll` now subtracts the reserved gutter (`content − content_bounds`). See `DESIGN.md` → Scroll Areas.
-4. **Declared-structure helpers** — fixed arity, declared count/slots, weighted distribution, grid via measure-all-then-place.
+4. 🚧 **Declared-structure helpers** — fixed arity, declared count/slots, weighted distribution, grid via measure-all-then-place.
+   - ✅ `SplitRow` — declared `count`, equal-width cells. The simplest case: equal + known count means every slot resolves independently up front (no measure-all, no emit-reorder). Requires `Exact` width. See `DESIGN.md` → Layout System.
+   - ⬜ Weighted split, space-between, match-tallest (declared count + measure-all), grid (declared columns + measure-all). These need the measure-all-then-place / `override_next` engine described under "Future possibility".
 
 ** DESIGN.md should be updated as each phase is complete!
 

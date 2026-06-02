@@ -18,6 +18,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 as these weren't in the original table.
 
 * Split layout.rs into core layout stuff, and a separate layouts folder with files for each Manual/Row/Col etc.
+  - Several of the layouts are very similar to one another, can we simplify by combniing some? Perhaps some are supersets of each other?
+  - For SplitRow, do we want an equivlanet SplitCol
+  - For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
 
 * Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
 * We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?

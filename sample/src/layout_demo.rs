@@ -19,7 +19,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, CrossAlign, Extent, RowLayout, SizeReq, WrapLayout},
+    layout::{ColumnLayout, CrossAlign, Extent, RowLayout, SizeReq, SplitRow, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -38,6 +38,8 @@ pub struct LayoutDemoState {
     pub f_fixed_btns: [ButtonState; 3], // F: fixed-height column
     pub f_auto_btns: [ButtonState; 3], // F: auto-height column
     pub g_btns: [ButtonState; 8], // G: wrap tags
+    pub h_btns: [ButtonState; 3], // H: SplitRow equal thirds
+    pub h_clicks: [u32; 3],
 }
 
 impl Default for LayoutDemoState {
@@ -52,6 +54,8 @@ impl Default for LayoutDemoState {
             f_fixed_btns: Default::default(),
             f_auto_btns: Default::default(),
             g_btns: Default::default(),
+            h_btns: Default::default(),
+            h_clicks: [0; 3],
         }
     }
 }
@@ -419,6 +423,42 @@ pub fn draw_layout_page(
                 );
             }
             wrap.finish();
+        }
+
+        // H. SplitRow — declared equal thirds (Phase 4).
+        subheading(
+            &mut right,
+            ghost,
+            "H. SplitRow — width divided into 3 equal cells (declared count)",
+        );
+        {
+            // count = 3 known up front, so each cell is exactly a third of the
+            // (Exact) row width. Children declare only their cross-axis (height).
+            let mut split = right.child_with_layout(
+                SizeReq {
+                    width: Extent::Fill,
+                    height: Extent::Fixed(40.0),
+                },
+                SplitRow {
+                    count: 3,
+                    spacing: 10.0,
+                    align: CrossAlign::Start,
+                },
+            );
+            let styles = [primary, secondary, accent];
+            for i in 0..3 {
+                let text = format!("Third #{} ({})", i + 1, state.h_clicks[i]);
+                let r = button(
+                    &mut split,
+                    ButtonSpecBuilder::new().text(&text).style(styles[i]),
+                    Extent::Fill, // fill the cell height
+                    &mut state.h_btns[i],
+                );
+                if r.input.clicked {
+                    state.h_clicks[i] += 1;
+                }
+            }
+            split.finish();
         }
 
         right.finish();
