@@ -1369,7 +1369,7 @@ mod tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::ManualLayout;
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -1398,7 +1398,7 @@ mod tests {
 
     #[test]
     fn test_high_level_honors_user_style() {
-        use crate::layout::ManualLayout;
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -1448,7 +1448,8 @@ mod tests {
 
     #[test]
     fn test_button_auto_layout_uses_intrinsic_size() {
-        use crate::layout::{ColumnLayout, ManualLayout, SizeReq};
+        use crate::layout::SizeReq;
+        use crate::layouts::{ColumnLayout, ManualLayout};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = Input::default();
@@ -1466,7 +1467,7 @@ mod tests {
             Rect::new(10.0, 10.0, 300.0, 400.0),
             ColumnLayout {
                 spacing: 0.0,
-                align: crate::layout::CrossAlign::Start,
+                align: crate::layouts::CrossAlign::Start,
             },
         );
         let mut st = ButtonState::default();

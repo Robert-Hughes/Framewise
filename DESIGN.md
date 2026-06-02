@@ -157,6 +157,30 @@ The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`
 
 Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
 
+### Layout Consistency
+
+All layout files under the `layouts/` directory must maintain structural and stylistic consistency:
+
+- **Naming Conventions**: Concrete layout configurations must use the suffix `Layout` (e.g., `ColumnLayout`, `RowLayout`, `WrapLayout`, `OffsetLayout`), with their accompanying state using the suffix `State` (e.g., `ColumnState`, `RowState`, `WrapState`, `OffsetState`). Custom structural configurations (like `SplitRow` and `SplitRowState`) are allowed exceptions but should remain clear.
+- **File Structure**: Layout modules must follow a strict vertical order:
+  1. Config struct declaration (with its doc comment and field comments).
+  2. `impl Layout for ConfigStruct`.
+  3. `State` struct declaration.
+  4. Inherent helper `impl` blocks for the state struct.
+  5. `impl LayoutState for StateStruct`.
+  6. Unit tests module (`#[cfg(test)] mod tests`).
+- **Method Ordering inside `impl LayoutState`**: Methods inside the trait implementation must be declared in this exact order:
+  1. `layout`
+  2. `begin_layout`
+  3. `end_layout`
+  4. `resolve_space`
+- **Sizing & Parameters Consistency**:
+  - Keep doc comments of equal detail across similar layout implementations.
+  - Implement identical panic messages when validation fails (e.g., panicking on unbounded dimensions).
+  - Parameter ordering on layout methods must be consistent, starting with the layout parameters (e.g., `layout_params` or named request parameters) followed by `intrinsic: IntrinsicSize`.
+
+Differences in layouts are acceptable only when justified by distinct structural models (for example, `SplitRow` taking a declared item count, or `OffsetLayout` serving as a coordinate decorator).
+
 ### Intrinsic Sizing
 
 Intrinsic-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model.

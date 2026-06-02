@@ -25,6 +25,7 @@ pub mod draw;
 pub mod focus;
 pub mod input;
 pub mod layout;
+pub mod layouts;
 pub mod text;
 pub mod theme;
 pub mod types;
@@ -38,6 +39,10 @@ pub mod test_utils;
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
 pub use layout::{AxisBound, Extent, IntrinsicSize, LayoutSpace, SizeReq};
+pub use layouts::{
+    ColumnLayout, ColumnState, CrossAlign, ManualLayout, ManualState, OffsetLayout, OffsetState,
+    RowLayout, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
+};
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Rect, Vec2};

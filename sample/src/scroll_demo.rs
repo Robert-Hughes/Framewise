@@ -2,7 +2,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{CrossAlign, SizeReq},
+    layout::SizeReq,
+    layouts::CrossAlign,
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -152,7 +153,7 @@ pub fn draw_scroll_demo(
         text_system,
         focus_system,
         input,
-        framewise::layout::ManualLayout,
+        framewise::layouts::ManualLayout,
         Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
@@ -163,7 +164,7 @@ pub fn draw_scroll_demo(
     {
         let mut main_row = {
             let layout_params = Rect::new(10.0, 10.0, win_w - 20.0, win_h - 20.0);
-            let layout = framewise::layout::RowLayout {
+            let layout = framewise::layouts::RowLayout {
                 spacing: 10.0,
                 align: CrossAlign::Start,
             };
@@ -174,7 +175,7 @@ pub fn draw_scroll_demo(
         {
             let mut sidebar_col = {
                 let layout_params = SizeReq::fixed(200.0, win_h - 20.0);
-                let layout = framewise::layout::ColumnLayout {
+                let layout = framewise::layouts::ColumnLayout {
                     spacing: 10.0,
                     align: CrossAlign::Start,
                 };
@@ -199,7 +200,7 @@ pub fn draw_scroll_demo(
                     }),
                 SizeReq::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
-                framewise::layout::ColumnLayout {
+                framewise::layouts::ColumnLayout {
                     spacing: 8.0,
                     align: CrossAlign::Center,
                 },
@@ -239,7 +240,7 @@ pub fn draw_scroll_demo(
                 ),
                 SizeReq::fixed(win_w - 240.0, win_h - 20.0),
                 &mut state.right_panel_scroll,
-                framewise::layout::ColumnLayout {
+                framewise::layouts::ColumnLayout {
                     spacing: 15.0,
                     align: CrossAlign::Start,
                 },
@@ -251,7 +252,7 @@ pub fn draw_scroll_demo(
             {
                 let mut header_row = {
                     let layout_params = SizeReq::fixed(inner_w, 40.0);
-                    let layout = framewise::layout::RowLayout {
+                    let layout = framewise::layouts::RowLayout {
                         spacing: 10.0,
                         align: CrossAlign::Center,
                     };
@@ -288,7 +289,7 @@ pub fn draw_scroll_demo(
             {
                 let mut grid_col = {
                     let layout_params = SizeReq::fixed(inner_w, 200.0);
-                    let layout = framewise::layout::ColumnLayout {
+                    let layout = framewise::layouts::ColumnLayout {
                         spacing: 10.0,
                         align: CrossAlign::Start,
                     };
@@ -304,7 +305,7 @@ pub fn draw_scroll_demo(
                     {
                         let mut grid_row = {
                             let layout_params = SizeReq::fixed(inner_w, 32.0);
-                            let layout = framewise::layout::RowLayout {
+                            let layout = framewise::layouts::RowLayout {
                                 spacing: 10.0,
                                 align: CrossAlign::Start,
                             };
@@ -334,7 +335,7 @@ pub fn draw_scroll_demo(
             {
                 let mut slider_row = {
                     let layout_params = SizeReq::fixed(inner_w, 100.0);
-                    let layout = framewise::layout::RowLayout {
+                    let layout = framewise::layouts::RowLayout {
                         spacing: 20.0,
                         align: CrossAlign::Center,
                     };
@@ -366,7 +367,7 @@ pub fn draw_scroll_demo(
                 ),
                 SizeReq::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
-                framewise::layout::ColumnLayout {
+                framewise::layouts::ColumnLayout {
                     spacing: 10.0,
                     align: CrossAlign::Center,
                 },
@@ -411,7 +412,7 @@ pub fn draw_scroll_demo(
                     }),
                 SizeReq::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
-                framewise::layout::ColumnLayout {
+                framewise::layouts::ColumnLayout {
                     spacing: 10.0,
                     align: CrossAlign::Start,
                 },
@@ -423,7 +424,7 @@ pub fn draw_scroll_demo(
 
                 let mut row_builder = {
                     let layout_params = SizeReq::fixed(800.0, row_h);
-                    let layout = framewise::layout::RowLayout {
+                    let layout = framewise::layouts::RowLayout {
                         spacing: 10.0,
                         align: CrossAlign::Start,
                     };
@@ -468,7 +469,7 @@ pub fn draw_scroll_demo(
                     ),
                     SizeReq::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
-                    framewise::layout::ColumnLayout {
+                    framewise::layouts::ColumnLayout {
                         spacing: 8.0,
                         align: CrossAlign::Start,
                     },
@@ -507,7 +508,7 @@ pub fn draw_scroll_demo(
                         }),
                     SizeReq::fixed(180.0, row_h),
                     &mut row_state.horiz_scroll,
-                    framewise::layout::RowLayout {
+                    framewise::layouts::RowLayout {
                         spacing: 8.0,
                         align: CrossAlign::Start,
                     },
@@ -550,7 +551,7 @@ pub fn draw_scroll_demo(
                         }),
                     SizeReq::fixed(200.0, row_h),
                     &mut row_state.both_scroll,
-                    framewise::layout::ManualLayout,
+                    framewise::layouts::ManualLayout,
                 )
                 .ctx;
 
@@ -618,7 +619,7 @@ pub fn draw_scroll_demo(
                     }),
                 SizeReq::fixed(inner_w, 150.0),
                 &mut state.double_horiz_outer_scroll,
-                framewise::layout::RowLayout {
+                framewise::layouts::RowLayout {
                     spacing: 20.0,
                     align: CrossAlign::Start,
                 },
@@ -645,7 +646,7 @@ pub fn draw_scroll_demo(
                     }),
                 SizeReq::fixed(600.0, 120.0),
                 &mut state.double_horiz_inner_scroll,
-                framewise::layout::RowLayout {
+                framewise::layouts::RowLayout {
                     spacing: 8.0,
                     align: CrossAlign::Start,
                 },
@@ -692,7 +693,7 @@ pub fn draw_scroll_demo(
                     ),
                     SizeReq::fixed(inner_w.min(440.0), 160.0),
                     &mut state.atmost_scroll,
-                    framewise::layout::ColumnLayout {
+                    framewise::layouts::ColumnLayout {
                         spacing: 6.0,
                         align: CrossAlign::Start,
                     },
@@ -726,7 +727,7 @@ pub fn draw_scroll_demo(
                         }),
                     SizeReq::fixed(inner_w.min(440.0), 200.0),
                     &mut state.nested_2d_outer_scroll,
-                    framewise::layout::ManualLayout,
+                    framewise::layouts::ManualLayout,
                 )
                 .ctx;
 
@@ -763,7 +764,7 @@ pub fn draw_scroll_demo(
                         }),
                     Rect::new(80.0, 50.0, 250.0, 150.0),
                     &mut state.nested_2d_inner_scroll,
-                    framewise::layout::ManualLayout,
+                    framewise::layouts::ManualLayout,
                 )
                 .ctx;
 
@@ -811,7 +812,7 @@ pub fn draw_scroll_demo(
                     ),
                     SizeReq::fixed(inner_w, 220.0),
                     &mut state.triple_outer_scroll,
-                    framewise::layout::ColumnLayout {
+                    framewise::layouts::ColumnLayout {
                         spacing: 10.0,
                         align: CrossAlign::Start,
                     },
@@ -831,7 +832,7 @@ pub fn draw_scroll_demo(
                         }),
                     SizeReq::fixed(inner_w - 15.0, 160.0),
                     &mut state.triple_middle_scroll,
-                    framewise::layout::RowLayout {
+                    framewise::layouts::RowLayout {
                         spacing: 10.0,
                         align: CrossAlign::Start,
                     },
@@ -848,7 +849,7 @@ pub fn draw_scroll_demo(
                     ),
                     SizeReq::fixed(200.0, 130.0),
                     &mut state.triple_inner_scroll,
-                    framewise::layout::ColumnLayout {
+                    framewise::layouts::ColumnLayout {
                         spacing: 6.0,
                         align: CrossAlign::Start,
                     },
@@ -891,7 +892,7 @@ pub fn draw_scroll_demo(
                         }),
                     SizeReq::fixed(165.0, 50.0),
                     &mut state.triple_innermost_scroll,
-                    framewise::layout::RowLayout {
+                    framewise::layouts::RowLayout {
                         spacing: 6.0,
                         align: CrossAlign::Start,
                     },

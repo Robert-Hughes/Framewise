@@ -276,7 +276,8 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{ColumnLayout, CrossAlign, Extent, SizeReq};
+    use crate::layout::{Extent, SizeReq};
+    use crate::layouts::{ColumnLayout, CrossAlign};
     use crate::test_utils::DummyTextSys;
 
     #[test]

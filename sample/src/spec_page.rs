@@ -8,7 +8,8 @@ use framewise::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    layout::{Layout, LayoutState, ManualLayout},
+    layout::{Layout, LayoutState},
+    layouts::ManualLayout,
     theme::Theme,
     types::{Color, Rect, Vec2},
     widget::WidgetContext,
@@ -3415,7 +3416,7 @@ pub fn draw_spec_page(
                 {
                     let mut log_page = {
                         let content_size = Vec2::new(fl_scroll_rect.w, log_content_h);
-                        let inner_layout = framewise::layout::ManualLayout;
+                        let inner_layout = framewise::layouts::ManualLayout;
                         begin_scroll_area(
                             &mut fl_win,
                             ScrollAreaSpecBuilder::new().vertical(

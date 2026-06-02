@@ -1860,7 +1860,7 @@ mod tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::ManualLayout;
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();

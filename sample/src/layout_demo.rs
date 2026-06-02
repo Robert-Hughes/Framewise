@@ -24,9 +24,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{
-        ColumnLayout, CrossAlign, Extent, ManualLayout, RowLayout, SizeReq, SplitRow, WrapLayout,
-    },
+    layout::{Extent, SizeReq},
+    layouts::{ColumnLayout, CrossAlign, ManualLayout, RowLayout, SplitRow, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -100,7 +99,7 @@ pub fn draw_layout_page(
         text_system,
         focus_system,
         input,
-        framewise::layout::ManualLayout,
+        framewise::layouts::ManualLayout,
         Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
@@ -723,7 +722,7 @@ pub fn draw_layout_page(
 /// A full-width disabled ghost button used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
 fn label_row<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
-    col: &mut WidgetContext<SampleTextSystem, framewise::layout::ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
     height: f32,
@@ -743,7 +742,7 @@ fn label_row<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
 }
 
 fn heading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
-    col: &mut WidgetContext<SampleTextSystem, framewise::layout::ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
 ) {
@@ -751,7 +750,7 @@ fn heading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
 }
 
 fn subheading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
-    col: &mut WidgetContext<SampleTextSystem, framewise::layout::ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
 ) {

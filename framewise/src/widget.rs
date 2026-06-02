@@ -295,9 +295,8 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{
-        ColumnLayout, CrossAlign, Extent, IntrinsicSize, Layout, ManualLayout, RowLayout, SizeReq,
-    };
+    use crate::layout::{Extent, IntrinsicSize, Layout, SizeReq};
+    use crate::layouts::{ColumnLayout, CrossAlign, ManualLayout, RowLayout};
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 

@@ -2,7 +2,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{ColumnLayout, CrossAlign, Extent, RowLayout, SizeReq},
+    layout::{Extent, SizeReq},
+    layouts::{ColumnLayout, CrossAlign, RowLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -100,7 +101,7 @@ pub fn draw_frame_page(
         text_system,
         focus_system,
         input,
-        framewise::layout::ManualLayout,
+        framewise::layouts::ManualLayout,
         Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );

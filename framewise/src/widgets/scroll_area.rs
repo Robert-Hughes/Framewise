@@ -719,7 +719,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
 ) -> ScrollAreaResult<
     'b,
     T,
-    crate::layout::OffsetState<L::State>,
+    crate::layouts::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'b,
 > {
     // Build the spec up front with a placeholder rect so we can measure the
@@ -746,7 +746,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         inner_space,
     } = raw::begin_scroll_area(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
-    let offset_layout = crate::layout::OffsetLayout {
+    let offset_layout = crate::layouts::OffsetLayout {
         offset,
         inner: inner_layout,
     };
@@ -798,7 +798,7 @@ mod tests {
     use super::raw::{begin_scroll_area, ScrollAreaSpec};
     use super::test_helpers::frames;
     use super::*;
-    use crate::layout::ManualLayout;
+    use crate::layouts::ManualLayout;
     use crate::test_utils::DummyTextSys;
     use crate::theme;
 
@@ -814,7 +814,7 @@ mod tests {
     ) -> (
         DrawCommands,
         Rect,
-        crate::layout::OffsetLayout<crate::layout::ManualLayout>,
+        crate::layouts::OffsetLayout<crate::layouts::ManualLayout>,
     ) {
         let spec = ScrollAreaSpec {
             rect: bounds,
@@ -836,7 +836,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         let r = raw::begin_scroll_area(spec, state, input, focus_system, &mut cmds);
         raw::end_scroll_area(r.token, content_size, state, input, focus_system, &mut cmds);
-        let layout = crate::layout::OffsetLayout {
+        let layout = crate::layouts::OffsetLayout {
             offset: r.offset,
             inner: ManualLayout,
         };
@@ -2401,7 +2401,7 @@ mod tests {
 #[cfg(test)]
 mod nested_bubbling_tests {
     use crate::input::Input;
-    use crate::layout::ManualLayout;
+    use crate::layouts::ManualLayout;
     use crate::widgets::scroll_area::raw::{begin_scroll_area, ScrollAreaSpec};
     use crate::widgets::scroll_area::*;
     use crate::{theme, types::*};
@@ -5925,7 +5925,7 @@ mod nested_bubbling_tests {
 
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
-        use crate::layout::ManualLayout;
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -6071,9 +6071,9 @@ mod nested_bubbling_tests {
 
         let col = child_ctx.child_with_layout(
             Rect::new(0.0, 0.0, 188.0, 200.0),
-            crate::layout::ColumnLayout {
+            crate::layouts::ColumnLayout {
                 spacing: 5.0,
-                align: crate::layout::CrossAlign::Center,
+                align: crate::layouts::CrossAlign::Center,
             },
         );
 
