@@ -192,15 +192,20 @@ impl Extent {
                 AxisBound::AtMost(w) => preferred().min(w),
                 AxisBound::Unbounded => preferred(),
             },
+            // Fill needs a committed frame with a far edge to fill into. Only Exact
+            // provides one. AtMost has a ceiling but no commitment (the final size may
+            // shrink-wrap smaller), and Unbounded has no edge at all — filling either is
+            // unsatisfiable, the same class as CrossAlign on a non-Exact axis. We fail
+            // loudly rather than silently degrading to Auto (which would make Fill ≡ Auto,
+            // surprising the caller).
             Extent::Fill => match fill {
                 AxisBound::Exact(w) => w,
-                // Fill needs a committed frame with a far edge. AtMost has a ceiling
-                // but no commitment, so we shrink-wrap to preferred (clamped).
-                AxisBound::AtMost(w) => preferred().min(w),
-                // Unbounded has no edge to fill into — "fill infinity" is undefined.
-                // This is an unsatisfiable request, the same class as CrossAlign on a
-                // non-Exact axis, so we fail loudly rather than silently degrading to
-                // Auto (which would make Fill ≡ Auto here, surprising the caller).
+                AxisBound::AtMost(_) => panic!(
+                    "Layout panic: Extent::Fill on an AtMost axis is unsatisfiable — AtMost \
+                     provides a ceiling but no committed frame to fill. Use Extent::Auto if \
+                     you want the intrinsic size (clamped to the ceiling), or place this in \
+                     a bounded (Exact) container."
+                ),
                 AxisBound::Unbounded => panic!(
                     "Layout panic: Extent::Fill on an Unbounded axis is unsatisfiable — \
                      there is no bounded extent to fill into. Use Extent::Auto if you want \
@@ -358,15 +363,8 @@ mod tests {
             100.0
         );
 
-        // Extent::Fill acts as Auto under AtMost
-        assert_eq!(
-            Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(100.0)),
-            40.0
-        );
-        assert_eq!(
-            Extent::Fill.resolve(Some(120.0), AxisBound::AtMost(100.0)),
-            100.0
-        );
+        // Extent::Fill under AtMost is unsatisfiable — covered by
+        // test_fill_resolve_at_most_panics.
     }
 
     #[test]
@@ -377,10 +375,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "needs an intrinsic measurement")]
-    fn test_fill_resolve_without_intrinsic_panics() {
-        // Fill under AtMost degrades to Auto, so it too needs a measurement.
-        let _ = Extent::Fill.resolve(None, AxisBound::AtMost(80.0));
+    #[should_panic(expected = "Fill on an AtMost axis is unsatisfiable")]
+    fn test_fill_resolve_at_most_panics() {
+        // Fill under AtMost is unsatisfiable — no committed frame to fill. Panics
+        // regardless of whether an intrinsic was measured (Fill ≠ Auto).
+        let _ = Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(80.0));
     }
 
     #[test]
