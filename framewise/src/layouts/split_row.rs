@@ -151,7 +151,12 @@ impl LayoutState for SplitRowState {
                 align,
             } => {
                 if align == Align::Center || align == Align::End {
-                    panic!("Layout panic: Align::{align:?} cannot align dynamic (Auto/Fill) size child in begin_layout");
+                    panic!(
+                        "Layout panic: Align::{align:?} cannot be applied to an Auto-sized \
+                         deferred child — its size is only known once the layout closes, and \
+                         its already-emitted output cannot be shifted retroactively. Use a \
+                         Fixed size, or Align::Start."
+                    );
                 }
                 None
             }

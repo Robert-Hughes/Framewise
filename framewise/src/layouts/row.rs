@@ -116,7 +116,12 @@ impl LayoutState for RowState {
                 align,
             } => {
                 if align == Align::Center || align == Align::End {
-                    panic!("Layout panic: Align::{align:?} cannot align dynamic (Auto/Fill) size child in begin_layout");
+                    panic!(
+                        "Layout panic: Align::{align:?} cannot be applied to an Auto-sized \
+                         deferred child — its size is only known once the layout closes, and \
+                         its already-emitted output cannot be shifted retroactively. Use a \
+                         Fixed size, or Align::Start."
+                    );
                 }
                 None
             }
@@ -326,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "cannot align dynamic")]
+    #[should_panic(expected = "cannot be applied to an Auto-sized")]
     fn test_deferred_row_center_align_auto_panic() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
