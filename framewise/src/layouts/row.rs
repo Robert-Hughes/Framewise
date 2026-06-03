@@ -45,12 +45,18 @@ impl LayoutState for RowState {
         // Main axis (width) advances the cursor; cross axis (height) fills space.
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
-        let y = self.space.y + layout_params.height.align_offset(h, self.space.height);
+        let y = self.space.y
+            + layout_params
+                .height
+                .align_offset(h, self.space.height)
+                .unwrap();
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
@@ -130,7 +136,8 @@ impl LayoutState for RowState {
         let y = self.space.y
             + layout_params
                 .height
-                .align_offset(h.unwrap_or(0.0), self.space.height);
+                .align_offset(h.unwrap_or(0.0), self.space.height)
+                .unwrap();
 
         let space = LayoutSpace::new(self.current_x, y, width, height);
         let token = LayoutToken {
@@ -144,12 +151,18 @@ impl LayoutState for RowState {
         let pref = Some(extent);
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
-        let y = self.space.y + layout_params.height.align_offset(h, self.space.height);
+        let y = self.space.y
+            + layout_params
+                .height
+                .align_offset(h, self.space.height)
+                .unwrap();
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;

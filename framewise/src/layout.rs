@@ -181,6 +181,132 @@ pub enum Placement {
     Sized { size: Size, align: Align },
 }
 
+/// Outcome of resolving a sizing/alignment constraint.
+///
+/// NOT a `std::result::Result` alias. Unlike `Result`, the failure arm
+/// (`Fallback`) still carries a usable `T` — every layout query yields a
+/// value; `Fallback` additionally reports that the request was unsatisfiable.
+///
+/// Do not glob-import the variants (`use LayoutResult::*`): `Ok` collides with
+/// the prelude's `Result::Ok`. Always qualify as `LayoutResult::Ok`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutResult<T> {
+    /// Constraint satisfiable — `value` is exact.
+    Ok(T),
+    /// Constraint unsatisfiable — `value` is a safe fallback; `violation` says why.
+    Fallback {
+        value: T,
+        violation: LayoutViolation,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayoutViolation {
+    pub kind: LayoutViolationKind,
+    /// Call site. Captured via `#[track_caller]`. NOTE: today this resolves to
+    /// the layout-internal caller (e.g. column.rs), not the user's widget call;
+    /// see "track_caller scope" below.
+    pub location: &'static core::panic::Location<'static>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LayoutViolationKind {
+    /// Center/End alignment with no committed frame (`AtMost`/`Unbounded`) to anchor against.
+    UnsatisfiableAlignment { align: Align, bound: AxisBound },
+    /// `Fill` with no bounded extent (`AtMost`/`Unbounded`) to fill into.
+    UnsatisfiableFill { bound: AxisBound },
+    /// `Auto` sizing but the widget reported no intrinsic measurement.
+    MissingIntrinsic,
+}
+
+impl std::fmt::Display for LayoutViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            LayoutViolationKind::MissingIntrinsic => {
+                write!(
+                    f,
+                    "Layout panic: Placement sizing needs an intrinsic measurement on this \
+                     axis but none was reported. A child placed with Auto must report a preferred size."
+                )
+            }
+            LayoutViolationKind::UnsatisfiableFill { bound } => match bound {
+                AxisBound::AtMost(_) => write!(
+                    f,
+                    "Layout panic: Placement::Fill on an AtMost axis is unsatisfiable — AtMost \
+                     provides a ceiling but no committed frame to fill. Use Placement::auto() if \
+                     you want the intrinsic size (clamped to the ceiling), or place this in \
+                     a bounded (Exact) container."
+                ),
+                AxisBound::Unbounded => write!(
+                    f,
+                    "Layout panic: Placement::Fill on an Unbounded axis is unsatisfiable — \
+                     there is no bounded extent to fill into. Use Placement::auto() if you want \
+                     the intrinsic size, or place this in a bounded (Exact) container."
+                ),
+                AxisBound::Exact(_) => unreachable!("UnsatisfiableFill never carries an Exact bound"),
+            },
+            LayoutViolationKind::UnsatisfiableAlignment { align, bound } => {
+                let bound_str = match bound {
+                    AxisBound::Exact(_) => "Exact",
+                    AxisBound::AtMost(_) => "AtMost",
+                    AxisBound::Unbounded => "Unbounded",
+                };
+                write!(
+                    f,
+                    "Layout panic: Align::{align:?} requires AxisBound::Exact available space on the cross axis, but is {bound_str}"
+                )
+            }
+        }
+    }
+}
+
+impl<T> LayoutResult<T> {
+    /// Always returns the value, discarding any violation. The graceful path (steps 2–3).
+    pub fn value(self) -> T {
+        match self {
+            LayoutResult::Ok(val) => val,
+            LayoutResult::Fallback { value, .. } => value,
+        }
+    }
+
+    /// Splits into (value, optional violation). For the reaction layer (steps 2–3).
+    pub fn into_parts(self) -> (T, Option<LayoutViolation>) {
+        match self {
+            LayoutResult::Ok(val) => (val, None),
+            LayoutResult::Fallback { value, violation } => (value, Some(violation)),
+        }
+    }
+
+    pub fn violation(&self) -> Option<&LayoutViolation> {
+        match self {
+            LayoutResult::Ok(_) => None,
+            LayoutResult::Fallback { violation, .. } => Some(violation),
+        }
+    }
+
+    /// Panics on `Fallback`, rethrowing `LayoutViolation`'s Display. The step-1 path.
+    #[track_caller]
+    pub fn unwrap(self) -> T {
+        match self {
+            LayoutResult::Ok(val) => val,
+            LayoutResult::Fallback { violation, .. } => {
+                panic!("{}", violation);
+            }
+        }
+    }
+
+    /// Transform the value, preserving the variant/violation. For `space.x + offset`.
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> LayoutResult<U> {
+        match self {
+            LayoutResult::Ok(val) => LayoutResult::Ok(f(val)),
+            LayoutResult::Fallback { value, violation } => LayoutResult::Fallback {
+                value: f(value),
+                violation,
+            },
+        }
+    }
+}
+
 impl Placement {
     /// Create a fixed size placement with default (`Start`) alignment.
     pub fn fixed(px: f32) -> Self {
@@ -217,66 +343,82 @@ impl Placement {
         }
     }
 
-    pub(crate) fn resolve_size(self, intrinsic: Option<f32>, avail: AxisBound) -> f32 {
-        let preferred = || {
-            intrinsic.unwrap_or_else(|| {
-                panic!(
-                    "Layout panic: Placement sizing needs an intrinsic measurement on this \
-                     axis but none was reported. A child placed with Auto must report a preferred size."
-                )
-            })
-        };
+    #[track_caller]
+    pub(crate) fn resolve_size(
+        self,
+        intrinsic: Option<f32>,
+        avail: AxisBound,
+    ) -> LayoutResult<f32> {
         match self {
             Placement::Sized {
                 size: Size::Fixed(px),
                 ..
-            } => px,
+            } => LayoutResult::Ok(px),
             Placement::Sized {
                 size: Size::Auto, ..
-            } => match avail {
-                AxisBound::Exact(_) => preferred(),
-                AxisBound::AtMost(w) => preferred().min(w),
-                AxisBound::Unbounded => preferred(),
+            } => match intrinsic {
+                Some(preferred) => match avail {
+                    AxisBound::Exact(_) => LayoutResult::Ok(preferred),
+                    AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
+                    AxisBound::Unbounded => LayoutResult::Ok(preferred),
+                },
+                None => LayoutResult::Fallback {
+                    value: 0.0,
+                    violation: LayoutViolation {
+                        kind: LayoutViolationKind::MissingIntrinsic,
+                        location: core::panic::Location::caller(),
+                    },
+                },
             },
             Placement::Fill => match avail {
-                AxisBound::Exact(w) => w,
-                AxisBound::AtMost(_) => panic!(
-                    "Layout panic: Placement::Fill on an AtMost axis is unsatisfiable — AtMost \
-                     provides a ceiling but no committed frame to fill. Use Placement::auto() if \
-                     you want the intrinsic size (clamped to the ceiling), or place this in \
-                     a bounded (Exact) container."
-                ),
-                AxisBound::Unbounded => panic!(
-                    "Layout panic: Placement::Fill on an Unbounded axis is unsatisfiable — \
-                     there is no bounded extent to fill into. Use Placement::auto() if you want \
-                     the intrinsic size, or place this in a bounded (Exact) container."
-                ),
+                AxisBound::Exact(w) => LayoutResult::Ok(w),
+                bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                    let val = match bound {
+                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::Exact(_) => unreachable!(),
+                    };
+                    LayoutResult::Fallback {
+                        value: val,
+                        violation: LayoutViolation {
+                            kind: LayoutViolationKind::UnsatisfiableFill { bound },
+                            location: core::panic::Location::caller(),
+                        },
+                    }
+                }
             },
         }
     }
 
-    pub(crate) fn align_offset(self, resolved: f32, avail: AxisBound) -> f32 {
+    #[track_caller]
+    pub(crate) fn align_offset(self, resolved: f32, avail: AxisBound) -> LayoutResult<f32> {
         match self {
-            Placement::Fill => 0.0,
+            Placement::Fill => LayoutResult::Ok(0.0),
             Placement::Sized { align, .. } => match align {
-                Align::Start => 0.0,
+                Align::Start => LayoutResult::Ok(0.0),
                 Align::Center => match avail {
-                    AxisBound::Exact(w) => (w - resolved) * 0.5,
-                    AxisBound::AtMost(_) => panic!(
-                        "Layout panic: Align::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"
-                    ),
-                    AxisBound::Unbounded => panic!(
-                        "Layout panic: Align::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"
-                    ),
+                    AxisBound::Exact(w) => LayoutResult::Ok((w - resolved) * 0.5),
+                    bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                        LayoutResult::Fallback {
+                            value: 0.0,
+                            violation: LayoutViolation {
+                                kind: LayoutViolationKind::UnsatisfiableAlignment { align, bound },
+                                location: core::panic::Location::caller(),
+                            },
+                        }
+                    }
                 },
                 Align::End => match avail {
-                    AxisBound::Exact(w) => w - resolved,
-                    AxisBound::AtMost(_) => panic!(
-                        "Layout panic: Align::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"
-                    ),
-                    AxisBound::Unbounded => panic!(
-                        "Layout panic: Align::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"
-                    ),
+                    AxisBound::Exact(w) => LayoutResult::Ok(w - resolved),
+                    bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                        LayoutResult::Fallback {
+                            value: 0.0,
+                            violation: LayoutViolation {
+                                kind: LayoutViolationKind::UnsatisfiableAlignment { align, bound },
+                                location: core::panic::Location::caller(),
+                            },
+                        }
+                    }
                 },
             },
         }
@@ -416,81 +558,201 @@ mod tests {
     fn test_at_most_resolution() {
         // Placement::fixed is always fixed
         assert_eq!(
-            Placement::fixed(50.0).resolve_size(Some(30.0), AxisBound::AtMost(100.0)),
+            Placement::fixed(50.0)
+                .resolve_size(Some(30.0), AxisBound::AtMost(100.0))
+                .unwrap(),
             50.0
         );
         assert_eq!(
-            Placement::fixed(150.0).resolve_size(Some(30.0), AxisBound::AtMost(100.0)),
+            Placement::fixed(150.0)
+                .resolve_size(Some(30.0), AxisBound::AtMost(100.0))
+                .unwrap(),
             150.0
         );
 
         // Placement::auto uses preferred, but caps at AtMost
         assert_eq!(
-            Placement::auto().resolve_size(Some(40.0), AxisBound::AtMost(100.0)),
+            Placement::auto()
+                .resolve_size(Some(40.0), AxisBound::AtMost(100.0))
+                .unwrap(),
             40.0
         );
         assert_eq!(
-            Placement::auto().resolve_size(Some(120.0), AxisBound::AtMost(100.0)),
+            Placement::auto()
+                .resolve_size(Some(120.0), AxisBound::AtMost(100.0))
+                .unwrap(),
             100.0
         );
     }
 
     #[test]
-    #[should_panic(expected = "needs an intrinsic measurement")]
-    fn test_auto_resolve_without_intrinsic_panics() {
-        // Auto with no measured preferred size is unsatisfiable.
-        let _ = Placement::auto().resolve_size(None, AxisBound::AtMost(80.0));
+    fn test_auto_resolve_without_intrinsic_falls_back() {
+        let res = Placement::auto().resolve_size(None, AxisBound::AtMost(80.0));
+        assert!(matches!(
+            res,
+            LayoutResult::Fallback {
+                value: 0.0,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::MissingIntrinsic,
+                    ..
+                }
+            }
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "Fill on an AtMost axis is unsatisfiable")]
-    fn test_fill_resolve_at_most_panics() {
-        let _ = Placement::fill().resolve_size(Some(40.0), AxisBound::AtMost(80.0));
+    fn test_fill_resolve_at_most_falls_back() {
+        let res = Placement::fill().resolve_size(Some(40.0), AxisBound::AtMost(80.0));
+        assert!(matches!(
+            res,
+            LayoutResult::Fallback {
+                value: 40.0,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::UnsatisfiableFill {
+                        bound: AxisBound::AtMost(80.0)
+                    },
+                    ..
+                }
+            }
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
-    fn test_fill_resolve_unbounded_panics() {
-        let _ = Placement::fill().resolve_size(Some(18.0), AxisBound::Unbounded);
+    fn test_fill_resolve_unbounded_falls_back() {
+        let res = Placement::fill().resolve_size(Some(18.0), AxisBound::Unbounded);
+        assert!(matches!(
+            res,
+            LayoutResult::Fallback {
+                value: 18.0,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::UnsatisfiableFill {
+                        bound: AxisBound::Unbounded
+                    },
+                    ..
+                }
+            }
+        ));
     }
 
     #[test]
     fn test_align_offset_exact() {
         assert_eq!(
-            Placement::fill().align_offset(40.0, AxisBound::Exact(100.0)),
+            Placement::fill()
+                .align_offset(40.0, AxisBound::Exact(100.0))
+                .unwrap(),
             0.0
         );
         assert_eq!(
-            Placement::fixed(40.0).align_offset(40.0, AxisBound::Exact(100.0)),
+            Placement::fixed(40.0)
+                .align_offset(40.0, AxisBound::Exact(100.0))
+                .unwrap(),
             0.0
         );
         assert_eq!(
             Placement::fixed(40.0)
                 .align(Align::Center)
-                .align_offset(40.0, AxisBound::Exact(100.0)),
+                .align_offset(40.0, AxisBound::Exact(100.0))
+                .unwrap(),
             30.0
         );
         assert_eq!(
             Placement::fixed(40.0)
                 .align(Align::End)
-                .align_offset(40.0, AxisBound::Exact(100.0)),
+                .align_offset(40.0, AxisBound::Exact(100.0))
+                .unwrap(),
             60.0
         );
     }
 
     #[test]
-    #[should_panic(expected = "Align::Center requires AxisBound::Exact")]
-    fn test_align_center_panic_on_at_most() {
-        let _ = Placement::fixed(40.0)
+    fn test_align_center_falls_back_on_at_most() {
+        let res = Placement::fixed(40.0)
             .align(Align::Center)
             .align_offset(40.0, AxisBound::AtMost(100.0));
+        assert!(matches!(
+            res,
+            LayoutResult::Fallback {
+                value: 0.0,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::UnsatisfiableAlignment {
+                        align: Align::Center,
+                        bound: AxisBound::AtMost(100.0)
+                    },
+                    ..
+                }
+            }
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "Align::End requires AxisBound::Exact")]
-    fn test_align_end_panic_on_unbounded() {
-        let _ = Placement::fixed(40.0)
+    fn test_align_end_falls_back_on_unbounded() {
+        let res = Placement::fixed(40.0)
             .align(Align::End)
             .align_offset(40.0, AxisBound::Unbounded);
+        assert!(matches!(
+            res,
+            LayoutResult::Fallback {
+                value: 0.0,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::UnsatisfiableAlignment {
+                        align: Align::End,
+                        bound: AxisBound::Unbounded
+                    },
+                    ..
+                }
+            }
+        ));
+    }
+
+    #[test]
+    #[should_panic(expected = "Align::Center requires AxisBound::Exact")]
+    fn test_unwrap_rethrow_lock() {
+        let res = Placement::fixed(40.0)
+            .align(Align::Center)
+            .align_offset(40.0, AxisBound::AtMost(100.0));
+        res.unwrap();
+    }
+
+    // ── Fallback-value sanity ───────────────────────────────────────────────
+    // These lock the *values* carried by Fallback (consumed via `value()` in
+    // steps 2–3), independent of the violation kind.
+
+    #[test]
+    fn test_fill_fallback_clamps_to_ceiling() {
+        // Intrinsic exceeds the AtMost ceiling → fallback clamps to the ceiling,
+        // never overflows it. (Distinct from the i < ceiling case, which would
+        // pass even without the clamp.)
+        let res = Placement::fill().resolve_size(Some(120.0), AxisBound::AtMost(80.0));
+        let LayoutResult::Fallback { value, .. } = res else {
+            panic!("expected Fallback, got {res:?}");
+        };
+        assert_eq!(value, 80.0);
+    }
+
+    #[test]
+    fn test_fill_fallback_zero_without_intrinsic() {
+        // No intrinsic to fall back on → 0.0 (finite, safe), not NaN/garbage.
+        for bound in [AxisBound::AtMost(80.0), AxisBound::Unbounded] {
+            let res = Placement::fill().resolve_size(None, bound);
+            let LayoutResult::Fallback { value, .. } = res else {
+                panic!("expected Fallback for {bound:?}, got {res:?}");
+            };
+            assert_eq!(value, 0.0, "bound {bound:?}");
+        }
+    }
+
+    #[test]
+    fn test_alignment_fallback_collapses_to_start() {
+        // Alignment fallback is Start (offset 0) for every unsatisfiable
+        // bound × align combo, regardless of the resolved child size.
+        for bound in [AxisBound::AtMost(50.0), AxisBound::Unbounded] {
+            for align in [Align::Center, Align::End] {
+                let res = Placement::fixed(40.0).align(align).align_offset(999.0, bound);
+                let LayoutResult::Fallback { value, .. } = res else {
+                    panic!("expected Fallback for {align:?} on {bound:?}, got {res:?}");
+                };
+                assert_eq!(value, 0.0, "expected Start fallback for {align:?} on {bound:?}");
+            }
+        }
     }
 }

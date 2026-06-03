@@ -45,12 +45,18 @@ impl LayoutState for ColumnState {
         // Cross axis (width) fills the column space; main axis (height) stacks.
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
-        let x = self.space.x + layout_params.width.align_offset(w, self.space.width);
+        let x = self.space.x
+            + layout_params
+                .width
+                .align_offset(w, self.space.width)
+                .unwrap();
 
         let r = Rect::new(x, self.current_y, w, h);
         self.content_w = self.content_w.max((x + w) - self.space.x);
@@ -130,7 +136,8 @@ impl LayoutState for ColumnState {
         let x = self.space.x
             + layout_params
                 .width
-                .align_offset(w.unwrap_or(0.0), self.space.width);
+                .align_offset(w.unwrap_or(0.0), self.space.width)
+                .unwrap();
 
         let space = LayoutSpace::new(x, self.current_y, width, height);
         let token = LayoutToken {
@@ -144,12 +151,18 @@ impl LayoutState for ColumnState {
         let pref = Some(extent);
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
-        let x = self.space.x + layout_params.width.align_offset(w, self.space.width);
+        let x = self.space.x
+            + layout_params
+                .width
+                .align_offset(w, self.space.width)
+                .unwrap();
 
         let r = Rect::new(x, self.current_y, w, h);
         self.content_w = self.content_w.max((x + w) - self.space.x);

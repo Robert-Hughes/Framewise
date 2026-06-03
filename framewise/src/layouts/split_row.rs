@@ -96,10 +96,12 @@ impl LayoutState for SplitRowState {
         );
         let pref = intrinsic.preferred;
         let w = self.slot_w;
-        let h = height.resolve_size(pref.map(|p| p.y), self.space.height);
+        let h = height
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
         let x = self.slot_x(self.index);
-        let y_offset = height.align_offset(h, self.space.height);
+        let y_offset = height.align_offset(h, self.space.height).unwrap();
         let y = self.space.y + y_offset;
 
         let r = Rect::new(x, y, w, h);
@@ -142,7 +144,7 @@ impl LayoutState for SplitRowState {
             Placement::Fill => match self.space.height {
                 AxisBound::Exact(h) => Some(h),
                 AxisBound::AtMost(_) | AxisBound::Unbounded => {
-                    let _ = height.resolve_size(None, self.space.height);
+                    let _ = height.resolve_size(None, self.space.height).unwrap();
                     None
                 }
             },
@@ -162,7 +164,10 @@ impl LayoutState for SplitRowState {
             }
         };
 
-        let y = self.space.y + height.align_offset(h.unwrap_or(0.0), self.space.height);
+        let y = self.space.y
+            + height
+                .align_offset(h.unwrap_or(0.0), self.space.height)
+                .unwrap();
 
         let space = LayoutSpace::new(self.slot_x(self.index), y, width, bound_height);
         let token = LayoutToken {
@@ -174,10 +179,12 @@ impl LayoutState for SplitRowState {
 
     fn end_layout(&mut self, height: Placement, extent: Vec2) -> Rect {
         let w = self.slot_w;
-        let h = height.resolve_size(Some(extent.y), self.space.height);
+        let h = height
+            .resolve_size(Some(extent.y), self.space.height)
+            .unwrap();
 
         let x = self.slot_x(self.index);
-        let y_offset = height.align_offset(h, self.space.height);
+        let y_offset = height.align_offset(h, self.space.height).unwrap();
         let y = self.space.y + y_offset;
 
         let r = Rect::new(x, y, w, h);

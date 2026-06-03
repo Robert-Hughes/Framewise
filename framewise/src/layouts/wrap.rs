@@ -54,10 +54,12 @@ impl LayoutState for WrapState {
         let pref = intrinsic.preferred;
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
@@ -139,10 +141,12 @@ impl LayoutState for WrapState {
         let pref = Some(extent);
         let w = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .unwrap();
         let h = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .unwrap();
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
