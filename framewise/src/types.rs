@@ -59,6 +59,24 @@ impl Rect {
         h: f32::NAN,
     };
 
+    /// A provisional rect whose origin is known but whose extent is not yet
+    /// resolved — the state a deferred-own-size container (e.g. a `Frame` that
+    /// sizes to its children) is in at `begin`. `w`/`h` are NaN so accidental
+    /// extent use is loud rather than silent; the placeholder draw commands
+    /// stamped with this rect are patched with the real bounds at `end`.
+    ///
+    /// Distinct from [`PLACEHOLDER`](Self::PLACEHOLDER) (all-NaN), which marks a
+    /// rect not resolved *at all* — the leaf `calc_*_intrinsic_size` case, where
+    /// even the origin is unknown before the layout step runs.
+    pub const fn pending_extent(x: f32, y: f32) -> Self {
+        Self {
+            x,
+            y,
+            w: f32::NAN,
+            h: f32::NAN,
+        }
+    }
+
     pub const fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
         Self { x, y, w, h }
     }

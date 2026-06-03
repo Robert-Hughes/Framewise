@@ -4,7 +4,7 @@ use crate::{
     layout::{Layout, LayoutState},
     text::TextSystem,
     types::{Color, Rect, Vec2},
-    widget::{LayoutInfo, WidgetContext},
+    widget::WidgetContext,
 };
 
 pub mod raw {
@@ -147,7 +147,6 @@ impl FrameStyle {
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct FrameResult<'b, T: TextSystem, LS: LayoutState, CF> {
-    pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
@@ -228,7 +227,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
 
     // The deferred-layout borrow plumbing lives in `child_with_deferred_layout`; here we
     // only supply the frame-specific chrome via the two closures.
-    let (child_ctx, outer_space) = ctx.child_with_deferred_layout(
+    let (child_ctx, _outer_space) = ctx.child_with_deferred_layout(
         layout_params,
         intrinsic,
         inner_layout,
@@ -238,7 +237,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         // begun in the space inset by padding + border_width. Carry (token, spec) to finish.
         move |cmds, outer| {
             let spec = raw::FrameSpec {
-                rect: Rect::new(outer.x, outer.y, 0.0, 0.0),
+                rect: Rect::pending_extent(outer.x, outer.y),
                 ..spec
             };
             let raw::FrameResult {
@@ -263,14 +262,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         },
     );
 
-    let inner_space = outer_space.inset(inset);
-    FrameResult {
-        layout: LayoutInfo::new(
-            Rect::new(outer_space.x, outer_space.y, 0.0, 0.0),
-            Rect::new(inner_space.x, inner_space.y, 0.0, 0.0),
-        ),
-        ctx: child_ctx,
-    }
+    FrameResult { ctx: child_ctx }
 }
 
 #[cfg(test)]
@@ -408,10 +400,7 @@ mod tests {
             border_width: 2.0,
             padding: 8.0,
         };
-        let FrameResult {
-            layout: _layout,
-            ctx: mut f_ctx,
-        } = begin_frame(
+        let FrameResult { ctx: mut f_ctx } = begin_frame(
             &mut ctx,
             FrameSpecBuilder::new().style(style),
             Placement2D {

@@ -35,7 +35,7 @@ Consistency applies across every dimension of the code:
 - **Derived traits** — the same set of `#[derive(...)]` on equivalent structs (e.g. all `*Spec` structs derive the same traits)
 - **Visibility** — `pub`, `pub(crate)`, or private applied consistently to equivalent items
 - **Parameters** — order of parameters to raw functions and high-level context functions, including where `&Input`, `&mut *State`, and `*Spec` appear
-- **Return types** — if one widget's high-level function returns `layout: LayoutInfo`, all do; if one raw result includes `content_bounds`, equivalent raw results do too
+- **Return types** — if one widget's high-level function returns `layout: LayoutInfo`, all do; if one raw result includes `content_bounds`, equivalent raw results do too. (Exception: [deferred-own-size containers](#deferred-own-size-containers) omit `layout` — they do not know their bounds at `begin`. This is a principled deviation shared by all such containers, not per-widget drift.)
 - **Default value handling** — `unwrap_or` vs. `unwrap_or_default` vs. panic in `build()`, applied uniformly based on field semantics
 - **Composition patterns** — shared sub-structs (e.g. `FocusState`), shared helper functions (e.g. `handle_focus`), used consistently rather than re-implemented per widget
 - **Doc comments and inline comments** — same level of documentation for equivalent items; no widget's public API should be substantially better or worse documented than another's
@@ -235,6 +235,24 @@ Three key rules keep these bounds from leaking infinity into leaf widget geometr
 
 **High-level flow.** The high-level widget function: (1) resolves defaults and builds the spec with `Rect::PLACEHOLDER`; (2) calls `calc_*_intrinsic_size(&spec, …)`; (3) calls `layout(params, intrinsic)` to get the real rect; (4) assigns `spec.rect` and calls the raw function. Under `ManualLayout` the intrinsic is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both `calc` and the raw draw); a later `Layout::WANTS_INTRINSIC` const can gate it.
 
+#### Deferred-own-size containers
+
+Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, intrinsic)` at `begin`, assign the resulting concrete `Rect` onto the spec, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
+
+A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_layout`:
+
+1. It hands the raw function a **provisional** rect — `Rect::pending_extent(x, y)` — at `begin`. The origin is genuinely known (it comes from the layout's `LayoutSpace`, whose origin is always concrete); only the extent is pending, so `w`/`h` are NaN. The raw `begin_frame` stamps placeholder `FillRect`/`PushClip` commands with this rect.
+2. Children are built into the inset space.
+3. At `end`, the measured content extent (read via `resolve_space`) is added to the chrome to produce the real bounds. `end_frame` patches the placeholder draw commands in place with that resolved rect.
+
+This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `Rect`" rule but does not: the rect *is* the input type — the Spec is unchanged, `rect` stays the only special field (per [the calc companion](#sizing-resolution-rules)), and **no layout-level type (`LayoutSpace`, `AxisBound`) ever crosses into the raw layer**. The raw function stays completely layout-agnostic; the provisional-then-patch dance lives entirely in the high-level function and the begin/end command-index plumbing.
+
+**Two placeholder markers, two states:**
+- `Rect::PLACEHOLDER` (all-NaN) — "not resolved *at all*". Used to feed `calc_*_intrinsic_size` before the layout step runs, when even the origin is unknown.
+- `Rect::pending_extent(x, y)` (origin set, extent NaN) — "origin known, extent pending". Used for a deferred container's provisional rect between `begin` and the `end` patch.
+
+Both keep the loud-on-misuse property: any arithmetic on the NaN extent yields NaN rather than a plausible-looking wrong number. Future deferred-own-size containers follow the `Frame` template: keep the Spec intact, hand raw a `pending_extent` rect, patch at `end`, and omit `layout` from the high-level result.
+
 ---
 
 ## API Shape
@@ -289,7 +307,7 @@ Each widget defines two result structs reflecting the two API layers.
 - **Not** `*State` — state is mutated in-place via the `&mut *State` parameter
 
 **`*Result`** is returned by the high-level context function. It contains:
-- `layout: LayoutInfo` — includes `bounds` (the rect resolved by the layout engine, which the caller did not know before calling) and `content_bounds`
+- `layout: LayoutInfo` — includes `bounds` (the rect resolved by the layout engine, which the caller did not know before calling) and `content_bounds`. **Omitted by deferred-own-size containers** (see [Deferred-own-size containers](#deferred-own-size-containers)): a `Frame` does not know its own bounds at `begin`, so it would have nothing honest to put here — its `FrameResult` carries only `ctx`.
 - The same interaction outputs as `raw::*Result`
 - **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
 - **Not** `*State` — mutated in-place

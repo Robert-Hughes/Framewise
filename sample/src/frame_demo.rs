@@ -199,7 +199,6 @@ pub fn draw_frame_page(
         // Sizes height to children, fills width
         {
             let FrameResult {
-                layout: _,
                 ctx: mut dynamic_frame,
             } = begin_frame(
                 &mut left_col,
@@ -276,7 +275,6 @@ pub fn draw_frame_page(
             // 1. Fixed-Size Frame (200x120)
             {
                 let FrameResult {
-                    layout: _,
                     ctx: mut sub_frame,
                 } = begin_frame(
                     &mut dimensions_row,
@@ -318,7 +316,6 @@ pub fn draw_frame_page(
             // 2. Width Auto, Height Fixed (Auto width wraps to child intrinsic text width!)
             {
                 let FrameResult {
-                    layout: _,
                     ctx: mut sub_frame,
                 } = begin_frame(
                     &mut dimensions_row,
@@ -363,7 +360,6 @@ pub fn draw_frame_page(
             // 3. Width Fixed, Height Auto
             {
                 let FrameResult {
-                    layout: _,
                     ctx: mut sub_frame,
                 } = begin_frame(
                     &mut dimensions_row,
@@ -418,7 +414,6 @@ pub fn draw_frame_page(
             // 4. Fully Auto (Both Width & Height Auto)
             {
                 let FrameResult {
-                    layout: _,
                     ctx: mut sub_frame,
                 } = begin_frame(
                     &mut dimensions_row,
@@ -501,7 +496,6 @@ pub fn draw_frame_page(
         // Outer Fixed frame (450x180) containing centered inner fixed frame
         {
             let FrameResult {
-                layout: _,
                 ctx: mut outer_fixed,
             } = begin_frame(
                 &mut right_col,
@@ -527,7 +521,6 @@ pub fn draw_frame_page(
             // Inner Fixed-Width Frame nested inside Fixed outer!
             {
                 let FrameResult {
-                    layout: _,
                     ctx: mut inner_auto,
                 } = begin_frame(
                     &mut outer_fixed,
@@ -587,7 +580,6 @@ pub fn draw_frame_page(
         // Center-aligned column layout inside an auto-height frame
         {
             let FrameResult {
-                layout: _,
                 ctx: mut fit_centered,
             } = begin_frame(
                 &mut right_col,

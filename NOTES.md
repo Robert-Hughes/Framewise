@@ -5,10 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-
-* For 'container' widgets with the new begin/end thing like frame():
-  - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
-
 * Panicking for alignment requests that can't be satisfied is bad. What do?
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
