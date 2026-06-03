@@ -159,6 +159,9 @@ pub fn draw_scroll_demo(
     );
     ctx.time = time;
     ctx.debug_layout = debug_layout;
+    // Highlight unsatisfiable layout requests in red rather than panicking (Panic is the
+    // default, kept for tests).
+    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
     // Main container splitting into Sidebar (Left) and Content (Right)
     {

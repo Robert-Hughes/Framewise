@@ -58,6 +58,9 @@ pub fn draw_button_page(
         &mut cmds,
     );
     ctx.debug_layout = debug_layout;
+    // Highlight unsatisfiable layout requests in red rather than panicking (Panic is the
+    // default, kept for tests).
+    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(

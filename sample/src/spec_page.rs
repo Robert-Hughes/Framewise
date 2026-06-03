@@ -719,6 +719,9 @@ pub fn draw_spec_page(
         );
         w_ctx.theme.sans_font = t.mono_font;
         w_ctx.debug_layout = debug_layout;
+        // Highlight unsatisfiable layout requests in red rather than panicking (Panic is
+        // the default, kept for tests).
+        w_ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
         w_ctx
     };
 

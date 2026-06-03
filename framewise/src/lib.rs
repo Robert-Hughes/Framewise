@@ -46,7 +46,7 @@ pub use layouts::{
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Rect, Vec2};
-pub use widget::{InputInfo, LayoutInfo, WidgetContext};
+pub use widget::{InputInfo, LayoutInfo, LayoutViolationPolicy, WidgetContext};
 
 // Widget functions (low-level API)
 #[cfg(feature = "button")]

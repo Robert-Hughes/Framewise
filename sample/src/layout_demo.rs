@@ -82,6 +82,9 @@ pub fn draw_layout_page(
         &mut cmds,
     );
     ctx.debug_layout = debug_layout; // F12 toggles the magenta layout-bounds overlay.
+    // Highlight unsatisfiable layout requests in red rather than panicking — the default
+    // Panic policy is kept for tests. An interactive app would just crash under Panic.
+    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
     let theme = ctx.theme;
     let primary = ButtonStyle::primary_from_theme(&theme);

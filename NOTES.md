@@ -8,16 +8,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Panicking for alignment requests that can't be satisfied is bad. What do?
   - Add DrawText inside the highlight?
   - Update DESIGN.md with rationale for the approach
-  - `LayoutResult::Fallback` currently carries a single `LayoutViolation`. A single
-    `layout()` call can fault on multiple sub-resolves (width size + height size +
-    alignment); we keep only the first for now. Consider making it plural (e.g.
-    `violations: Vec<LayoutViolation>` or a small inline array) later if surfacing all
-    of them proves useful.
-  - A deferred child can fault at *both* `begin_layout` and `end_layout` for the same
-    reason (e.g. Center on an AtMost cross axis is unsatisfiable at both points), so the
-    `Highlight` policy draws two overlapping red outlines for one child. Genuine (two
-    resolution points) but noisy. Consider de-duplicating per child/frame, or only
-    reacting at one of the two points, if it proves distracting.
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
@@ -274,3 +264,15 @@ Recorded as a direction, **not** for implementation — three issues need resolv
 - **Determinism and locality.** Every placement depends only on parent space, caller intent, this widget's measurement, and earlier siblings — never later ones.
 - **Three orderings stay independent.** Reordering emit (within a DAG) is the sanctioned bridge from Declare down into Automate.
 
+### Layout validation failures
+
+  - `LayoutResult::Fallback` currently carries a single `LayoutViolation`. A single
+    `layout()` call can fault on multiple sub-resolves (width size + height size +
+    alignment); we keep only the first for now. Consider making it plural (e.g.
+    `violations: Vec<LayoutViolation>` or a small inline array) later if surfacing all
+    of them proves useful.
+  - A deferred child can fault at *both* `begin_layout` and `end_layout` for the same
+    reason (e.g. Center on an AtMost cross axis is unsatisfiable at both points), so the
+    `Highlight` policy draws two overlapping red outlines for one child. Genuine (two
+    resolution points) but noisy. Consider de-duplicating per child/frame, or only
+    reacting at one of the two points, if it proves distracting.
