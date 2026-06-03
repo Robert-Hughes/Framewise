@@ -6,6 +6,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * Panicking for alignment requests that can't be satisfied is bad. What do?
+  - Update DESIGN.md with rationale for the approach
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 

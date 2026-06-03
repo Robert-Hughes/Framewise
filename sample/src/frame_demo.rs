@@ -274,9 +274,7 @@ pub fn draw_frame_page(
 
             // 1. Fixed-Size Frame (200x120)
             {
-                let FrameResult {
-                    ctx: mut sub_frame,
-                } = begin_frame(
+                let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D::fixed(120.0, 120.0),
@@ -315,9 +313,7 @@ pub fn draw_frame_page(
 
             // 2. Width Auto, Height Fixed (Auto width wraps to child intrinsic text width!)
             {
-                let FrameResult {
-                    ctx: mut sub_frame,
-                } = begin_frame(
+                let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D {
@@ -359,9 +355,7 @@ pub fn draw_frame_page(
 
             // 3. Width Fixed, Height Auto
             {
-                let FrameResult {
-                    ctx: mut sub_frame,
-                } = begin_frame(
+                let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D {
@@ -413,9 +407,7 @@ pub fn draw_frame_page(
 
             // 4. Fully Auto (Both Width & Height Auto)
             {
-                let FrameResult {
-                    ctx: mut sub_frame,
-                } = begin_frame(
+                let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D::auto(),
