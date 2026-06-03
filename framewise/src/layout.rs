@@ -148,103 +148,182 @@ impl IntrinsicSize {
     }
 }
 
-/// How a child is sized along one axis by an intrinsic-aware layout.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Extent {
-    /// Exactly this many pixels.
-    Fixed(f32),
-    /// The widget's intrinsic preferred size on this axis. Panics if the widget
-    /// reports no preferred size on this axis (an unsatisfiable request).
-    Auto,
-    /// Fill the layout's available space on this axis (its bounds extent).
-    ///
-    /// Meaningful on the *cross* axis (e.g. a column child filling the panel
-    /// width). On the *main* axis of a sequential layout it simply claims the
-    /// full bounds extent — leftover/weighted distribution is a later tier.
-    Fill,
+/// The cross-axis alignment of a widget inside available layout space.
+///
+/// Default is [`Align::Start`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Align {
+    #[default]
+    Start,
+    Center,
+    End,
 }
 
-impl Extent {
-    /// Resolve this extent to concrete pixels given the widget's intrinsic value
-    /// on this axis (if any) and the layout's fillable extent.
+/// Sizing policy for a sized widget on a single axis.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Size {
+    /// Fixed pixel size.
+    Fixed(f32),
+    /// Size based on the widget's intrinsic preferred size.
+    Auto,
+}
+
+/// Sizing and alignment policy for a widget on a single axis.
+///
+/// Under this model, alignment and filling are mutually exclusive at the type level:
+/// a widget placed with [`Placement::Fill`] cannot have a separate alignment configuration.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Placement {
+    /// Span the layout's available extent on that axis. Sizing and alignment are resolved
+    /// automatically to fill the parent space.
+    Fill,
+    /// Sized widget with a specific alignment configuration.
+    Sized { size: Size, align: Align },
+}
+
+impl Placement {
+    /// Create a fixed size placement with default (`Start`) alignment.
+    pub fn fixed(px: f32) -> Self {
+        Placement::Sized {
+            size: Size::Fixed(px),
+            align: Align::Start,
+        }
+    }
+
+    /// Create an auto size placement with default (`Start`) alignment.
+    pub fn auto() -> Self {
+        Placement::Sized {
+            size: Size::Auto,
+            align: Align::Start,
+        }
+    }
+
+    /// Create a fill placement.
+    pub fn fill() -> Self {
+        Placement::Fill
+    }
+
+    /// Update the alignment policy for this placement.
     ///
-    /// Panics if a measurement is needed but none was reported (e.g. `Auto`, or
-    /// `Fill` on a non-`Exact` axis, with no intrinsic `preferred` size). This is
-    /// consistent with the other layout panics (e.g. `CrossAlign` on a non-`Exact`
-    /// cross axis): an unsatisfiable sizing request is a bug at the call site, so we
-    /// fail loudly rather than silently substituting an arbitrary size.
-    pub(crate) fn resolve(self, intrinsic_axis: Option<f32>, fill: AxisBound) -> f32 {
-        // Obtain the intrinsic preferred size on this axis, or panic if it was never
-        // measured. Only the branches that actually need it call this.
+    /// # Panics
+    ///
+    /// Panics if called on a `Placement::Fill`, as fill and alignment are mutually exclusive.
+    pub fn align(self, align: Align) -> Self {
+        match self {
+            Placement::Fill => {
+                panic!("Layout panic: cannot set alignment on Placement::Fill as align + fill is unrepresentable");
+            }
+            Placement::Sized { size, .. } => Placement::Sized { size, align },
+        }
+    }
+
+    pub(crate) fn resolve_size(self, intrinsic: Option<f32>, avail: AxisBound) -> f32 {
         let preferred = || {
-            intrinsic_axis.unwrap_or_else(|| {
+            intrinsic.unwrap_or_else(|| {
                 panic!(
-                    "Layout panic: {self:?} sizing needs an intrinsic measurement on this \
-                     axis but none was reported. A child placed with Auto (or Fill on a \
-                     non-Exact axis) must report a preferred size."
+                    "Layout panic: Placement sizing needs an intrinsic measurement on this \
+                     axis but none was reported. A child placed with Auto must report a preferred size."
                 )
             })
         };
         match self {
-            Extent::Fixed(px) => px,
-            Extent::Auto => match fill {
-                AxisBound::Exact(_w) => preferred(),
+            Placement::Sized {
+                size: Size::Fixed(px),
+                ..
+            } => px,
+            Placement::Sized {
+                size: Size::Auto, ..
+            } => match avail {
+                AxisBound::Exact(_) => preferred(),
                 AxisBound::AtMost(w) => preferred().min(w),
                 AxisBound::Unbounded => preferred(),
             },
-            // Fill needs a committed frame with a far edge to fill into. Only Exact
-            // provides one. AtMost has a ceiling but no commitment (the final size may
-            // shrink-wrap smaller), and Unbounded has no edge at all — filling either is
-            // unsatisfiable, the same class as CrossAlign on a non-Exact axis. We fail
-            // loudly rather than silently degrading to Auto (which would make Fill ≡ Auto,
-            // surprising the caller).
-            Extent::Fill => match fill {
+            Placement::Fill => match avail {
                 AxisBound::Exact(w) => w,
                 AxisBound::AtMost(_) => panic!(
-                    "Layout panic: Extent::Fill on an AtMost axis is unsatisfiable — AtMost \
-                     provides a ceiling but no committed frame to fill. Use Extent::Auto if \
+                    "Layout panic: Placement::Fill on an AtMost axis is unsatisfiable — AtMost \
+                     provides a ceiling but no committed frame to fill. Use Placement::auto() if \
                      you want the intrinsic size (clamped to the ceiling), or place this in \
                      a bounded (Exact) container."
                 ),
                 AxisBound::Unbounded => panic!(
-                    "Layout panic: Extent::Fill on an Unbounded axis is unsatisfiable — \
-                     there is no bounded extent to fill into. Use Extent::Auto if you want \
+                    "Layout panic: Placement::Fill on an Unbounded axis is unsatisfiable — \
+                     there is no bounded extent to fill into. Use Placement::auto() if you want \
                      the intrinsic size, or place this in a bounded (Exact) container."
                 ),
             },
         }
     }
+
+    pub(crate) fn align_offset(self, resolved: f32, avail: AxisBound) -> f32 {
+        match self {
+            Placement::Fill => 0.0,
+            Placement::Sized { align, .. } => match align {
+                Align::Start => 0.0,
+                Align::Center => match avail {
+                    AxisBound::Exact(w) => (w - resolved) * 0.5,
+                    AxisBound::AtMost(_) => panic!(
+                        "Layout panic: Align::Center requires AxisBound::Exact available space on the cross axis, but width is AtMost"
+                    ),
+                    AxisBound::Unbounded => panic!(
+                        "Layout panic: Align::Center requires AxisBound::Exact available space on the cross axis, but width is Unbounded"
+                    ),
+                },
+                Align::End => match avail {
+                    AxisBound::Exact(w) => w - resolved,
+                    AxisBound::AtMost(_) => panic!(
+                        "Layout panic: Align::End requires AxisBound::Exact available space on the cross axis, but width is AtMost"
+                    ),
+                    AxisBound::Unbounded => panic!(
+                        "Layout panic: Align::End requires AxisBound::Exact available space on the cross axis, but width is Unbounded"
+                    ),
+                },
+            },
+        }
+    }
 }
 
-/// A per-axis sizing request a caller hands to an intrinsic-aware layout
+/// A per-axis sizing and alignment request a caller hands to an intrinsic-aware layout
 /// (column/row/wrap). Axes are absolute (width/height), not main/cross, so the
 /// same request reads identically regardless of layout orientation.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SizeReq {
-    pub width: Extent,
-    pub height: Extent,
+pub struct Placement2D {
+    pub width: Placement,
+    pub height: Placement,
 }
 
-impl SizeReq {
+impl Placement2D {
     /// Both axes fixed to explicit pixels.
-    pub fn fixed(width: f32, height: f32) -> Self {
+    pub fn fixed(w: f32, h: f32) -> Self {
         Self {
-            width: Extent::Fixed(width),
-            height: Extent::Fixed(height),
+            width: Placement::fixed(w),
+            height: Placement::fixed(h),
         }
     }
 
     /// Both axes sized to the widget's intrinsic preferred size.
     pub fn auto() -> Self {
         Self {
-            width: Extent::Auto,
-            height: Extent::Auto,
+            width: Placement::auto(),
+            height: Placement::auto(),
         }
+    }
+
+    /// Set alignment on the horizontal (width) axis.
+    pub fn align_x(mut self, align: Align) -> Self {
+        self.width = self.width.align(align);
+        self
+    }
+
+    /// Set alignment on the vertical (height) axis.
+    pub fn align_y(mut self, align: Align) -> Self {
+        self.height = self.height.align(align);
+        self
     }
 }
 
 /// Back-compat: a plain size is treated as fixed on both axes.
-impl From<Vec2> for SizeReq {
+impl From<Vec2> for Placement2D {
     fn from(v: Vec2) -> Self {
         Self::fixed(v.x, v.y)
     }
@@ -306,14 +385,6 @@ pub trait LayoutState {
     fn resolve_space(&self) -> Rect;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CrossAlign {
-    #[default]
-    Start,
-    Center,
-    End,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,50 +414,83 @@ mod tests {
 
     #[test]
     fn test_at_most_resolution() {
-        // Extent::Fixed is always fixed
+        // Placement::fixed is always fixed
         assert_eq!(
-            Extent::Fixed(50.0).resolve(Some(30.0), AxisBound::AtMost(100.0)),
+            Placement::fixed(50.0).resolve_size(Some(30.0), AxisBound::AtMost(100.0)),
             50.0
         );
         assert_eq!(
-            Extent::Fixed(150.0).resolve(Some(30.0), AxisBound::AtMost(100.0)),
+            Placement::fixed(150.0).resolve_size(Some(30.0), AxisBound::AtMost(100.0)),
             150.0
         );
 
-        // Extent::Auto uses preferred, but caps at AtMost
+        // Placement::auto uses preferred, but caps at AtMost
         assert_eq!(
-            Extent::Auto.resolve(Some(40.0), AxisBound::AtMost(100.0)),
+            Placement::auto().resolve_size(Some(40.0), AxisBound::AtMost(100.0)),
             40.0
         );
         assert_eq!(
-            Extent::Auto.resolve(Some(120.0), AxisBound::AtMost(100.0)),
+            Placement::auto().resolve_size(Some(120.0), AxisBound::AtMost(100.0)),
             100.0
         );
-
-        // Extent::Fill under AtMost is unsatisfiable — covered by
-        // test_fill_resolve_at_most_panics.
     }
 
     #[test]
     #[should_panic(expected = "needs an intrinsic measurement")]
     fn test_auto_resolve_without_intrinsic_panics() {
         // Auto with no measured preferred size is unsatisfiable.
-        let _ = Extent::Auto.resolve(None, AxisBound::AtMost(80.0));
+        let _ = Placement::auto().resolve_size(None, AxisBound::AtMost(80.0));
     }
 
     #[test]
     #[should_panic(expected = "Fill on an AtMost axis is unsatisfiable")]
     fn test_fill_resolve_at_most_panics() {
-        // Fill under AtMost is unsatisfiable — no committed frame to fill. Panics
-        // regardless of whether an intrinsic was measured (Fill ≠ Auto).
-        let _ = Extent::Fill.resolve(Some(40.0), AxisBound::AtMost(80.0));
+        let _ = Placement::fill().resolve_size(Some(40.0), AxisBound::AtMost(80.0));
     }
 
     #[test]
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_fill_resolve_unbounded_panics() {
-        // Fill on an unbounded axis is unsatisfiable — no edge to fill into. It
-        // panics regardless of whether an intrinsic was measured (Fill ≠ Auto).
-        let _ = Extent::Fill.resolve(Some(18.0), AxisBound::Unbounded);
+        let _ = Placement::fill().resolve_size(Some(18.0), AxisBound::Unbounded);
+    }
+
+    #[test]
+    fn test_align_offset_exact() {
+        assert_eq!(
+            Placement::fill().align_offset(40.0, AxisBound::Exact(100.0)),
+            0.0
+        );
+        assert_eq!(
+            Placement::fixed(40.0).align_offset(40.0, AxisBound::Exact(100.0)),
+            0.0
+        );
+        assert_eq!(
+            Placement::fixed(40.0)
+                .align(Align::Center)
+                .align_offset(40.0, AxisBound::Exact(100.0)),
+            30.0
+        );
+        assert_eq!(
+            Placement::fixed(40.0)
+                .align(Align::End)
+                .align_offset(40.0, AxisBound::Exact(100.0)),
+            60.0
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Align::Center requires AxisBound::Exact")]
+    fn test_align_center_panic_on_at_most() {
+        let _ = Placement::fixed(40.0)
+            .align(Align::Center)
+            .align_offset(40.0, AxisBound::AtMost(100.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "Align::End requires AxisBound::Exact")]
+    fn test_align_end_panic_on_unbounded() {
+        let _ = Placement::fixed(40.0)
+            .align(Align::End)
+            .align_offset(40.0, AxisBound::Unbounded);
     }
 }

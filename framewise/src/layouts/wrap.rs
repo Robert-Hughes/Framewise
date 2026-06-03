@@ -1,5 +1,6 @@
 use crate::layout::{
-    AxisBound, Extent, IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, SizeReq,
+    AxisBound, IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, Placement,
+    Placement2D, Size,
 };
 use crate::types::{Rect, Vec2};
 
@@ -7,7 +8,7 @@ use crate::types::{Rect, Vec2};
 
 /// A flow layout: places children left-to-right, wrapping to the next line when
 /// the next child would overflow the bounds width. Intrinsic-aware — children
-/// are sized from their [`SizeReq`] and reported intrinsic size, exactly like
+/// are sized from their [`Placement2D`] and reported intrinsic size, exactly like
 /// row/column.
 pub struct WrapLayout {
     /// Horizontal gap between items on a line.
@@ -17,7 +18,7 @@ pub struct WrapLayout {
 }
 
 impl Layout for WrapLayout {
-    type Params = SizeReq;
+    type Params = Placement2D;
     type State = WrapState;
 
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
@@ -47,16 +48,16 @@ pub struct WrapState {
 }
 
 impl LayoutState for WrapState {
-    type Params = SizeReq;
+    type Params = Placement2D;
 
-    fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
+    fn layout(&mut self, layout_params: Placement2D, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
         let w = layout_params
             .width
-            .resolve(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width);
         let h = layout_params
             .height
-            .resolve(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height);
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
@@ -83,23 +84,29 @@ impl LayoutState for WrapState {
 
     fn begin_layout<'a>(
         &'a mut self,
-        layout_params: SizeReq,
+        layout_params: Placement2D,
         _intrinsic: IntrinsicSize,
     ) -> (LayoutSpace, LayoutToken<'a, Self>) {
         let w = match layout_params.width {
-            Extent::Fixed(w) => w,
-            Extent::Fill => match self.space.width {
+            Placement::Sized { size: Size::Fixed(w), .. } => w,
+            Placement::Fill => match self.space.width {
                 AxisBound::Exact(w) => (w - (self.current_x - self.space.x)).max(0.0),
-                AxisBound::AtMost(_) | AxisBound::Unbounded => panic!("Layout panic: WrapLayout cannot resolve Extent::Fill under non-Exact bounds in begin_layout"),
+                AxisBound::AtMost(_) | AxisBound::Unbounded => panic!("Layout panic: WrapLayout cannot resolve Placement::Fill under non-Exact bounds in begin_layout"),
             },
-            Extent::Auto => panic!("Layout panic: WrapLayout does not support Auto-sized deferred containers because wrapping must be resolved in begin_layout"),
+            Placement::Sized { size: Size::Auto, .. } => panic!("Layout panic: WrapLayout does not support Auto-sized deferred containers because wrapping must be resolved in begin_layout"),
         };
 
         let width = AxisBound::Exact(w);
 
         let height = match layout_params.height {
-            Extent::Fixed(h) => AxisBound::Exact(h),
-            Extent::Fill | Extent::Auto => match self.space.height {
+            Placement::Sized {
+                size: Size::Fixed(h),
+                ..
+            } => AxisBound::Exact(h),
+            Placement::Fill
+            | Placement::Sized {
+                size: Size::Auto, ..
+            } => match self.space.height {
                 AxisBound::Exact(h) | AxisBound::AtMost(h) => {
                     AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
                 }
@@ -128,14 +135,14 @@ impl LayoutState for WrapState {
         (space, token)
     }
 
-    fn end_layout(&mut self, layout_params: SizeReq, extent: Vec2) -> Rect {
+    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> Rect {
         let pref = Some(extent);
         let w = layout_params
             .width
-            .resolve(pref.map(|p| p.x), self.space.width);
+            .resolve_size(pref.map(|p| p.x), self.space.width);
         let h = layout_params
             .height
-            .resolve(pref.map(|p| p.y), self.space.height);
+            .resolve_size(pref.map(|p| p.y), self.space.height);
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
@@ -166,9 +173,9 @@ mod tests {
             line_spacing: 5.0,
         }
         .begin(Rect::new(0.0, 0.0, 100.0, 500.0));
-        let item = SizeReq {
-            width: Extent::Fixed(40.0),
-            height: Extent::Fixed(20.0),
+        let item = Placement2D {
+            width: Placement::fixed(40.0),
+            height: Placement::fixed(20.0),
         };
         let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
         let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
@@ -190,7 +197,7 @@ mod tests {
         }
         .begin(Rect::new(0.0, 0.0, 30.0, 500.0));
         let r = state.layout(
-            SizeReq::auto(),
+            Placement2D::auto(),
             IntrinsicSize::preferred(Vec2::new(80.0, 16.0)),
         );
         assert_eq!(r, Rect::new(0.0, 0.0, 80.0, 16.0));
@@ -204,9 +211,9 @@ mod tests {
             line_spacing: 5.0,
         }
         .begin(LayoutSpace::unbounded_width(0.0, 0.0, 500.0));
-        let item = SizeReq {
-            width: Extent::Fixed(40.0),
-            height: Extent::Fixed(20.0),
+        let item = Placement2D {
+            width: Placement::fixed(40.0),
+            height: Placement::fixed(20.0),
         };
         let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
         let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
@@ -225,13 +232,13 @@ mod tests {
         .begin(Rect::new(0.0, 0.0, 100.0, 200.0));
 
         // Place first item normally
-        let r1 = state.layout(SizeReq::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(Placement2D::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0)); // cursor x is now 40 + 10 = 50
 
         // Place a deferred item of width 40.0.
-        let req1 = SizeReq {
-            width: Extent::Fixed(40.0),
-            height: Extent::Auto,
+        let req1 = Placement2D {
+            width: Placement::fixed(40.0),
+            height: Placement::auto(),
         };
         let (space, token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
         // provisional space starts at current_x (50) and current_y (0)
@@ -244,9 +251,9 @@ mod tests {
         assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
 
         // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
-        let req2 = SizeReq {
-            width: Extent::Fixed(20.0),
-            height: Extent::Auto,
+        let req2 = Placement2D {
+            width: Placement::fixed(20.0),
+            height: Placement::auto(),
         };
         let (space2, token2) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
         // Under WrapLayout's upfront wrap resolution, space2 wraps to start of next line: (0.0, 35.0)
@@ -269,13 +276,13 @@ mod tests {
         .begin(parent_space);
 
         // Place initial item of width 100, height 40 -> current_x is 110, line_height is 40
-        state.layout(SizeReq::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
+        state.layout(Placement2D::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
 
         // Remaining width on this line is 250 - 110 = 140.
         // Fixed width, auto height child container.
-        let req = SizeReq {
-            width: Extent::Fixed(80.0),
-            height: Extent::Auto,
+        let req = Placement2D {
+            width: Placement::fixed(80.0),
+            height: Placement::auto(),
         };
         let (space, _token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         assert_eq!(space.width, AxisBound::Exact(80.0));
@@ -293,9 +300,9 @@ mod tests {
         }
         .begin(parent_space);
 
-        let req = SizeReq {
-            width: Extent::Auto,
-            height: Extent::Fixed(40.0),
+        let req = Placement2D {
+            width: Placement::auto(),
+            height: Placement::fixed(40.0),
         };
         // Auto width under WrapLayout should panic during begin_layout
         let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);

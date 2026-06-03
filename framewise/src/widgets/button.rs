@@ -1448,7 +1448,7 @@ mod tests {
 
     #[test]
     fn test_button_auto_layout_uses_intrinsic_size() {
-        use crate::layout::SizeReq;
+        use crate::layout::Placement2D;
         use crate::layouts::{ColumnLayout, ManualLayout};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -1465,10 +1465,7 @@ mod tests {
         );
         let mut col = ctx.child_with_layout(
             Rect::new(10.0, 10.0, 300.0, 400.0),
-            ColumnLayout {
-                spacing: 0.0,
-                align: crate::layouts::CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 0.0 },
         );
         let mut st = ButtonState::default();
         // Auto on both axes → the button sizes to its label intrinsic.
@@ -1476,7 +1473,7 @@ mod tests {
         let r = super::button(
             &mut col,
             ButtonSpecBuilder::new().text("Save"),
-            SizeReq::auto(),
+            Placement2D::auto(),
             &mut st,
         );
         assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 60.0, 28.0));

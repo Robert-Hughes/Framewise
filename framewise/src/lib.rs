@@ -38,10 +38,10 @@ pub mod test_utils;
 
 pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
-pub use layout::{AxisBound, Extent, IntrinsicSize, LayoutSpace, SizeReq};
+pub use layout::{Align, AxisBound, IntrinsicSize, LayoutSpace, Placement, Placement2D, Size};
 pub use layouts::{
-    ColumnLayout, ColumnState, CrossAlign, ManualLayout, ManualState, OffsetLayout, OffsetState,
-    RowLayout, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
+    ColumnLayout, ColumnState, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,
+    RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
 pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
 pub use theme::Theme;

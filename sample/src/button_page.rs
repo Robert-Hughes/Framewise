@@ -2,8 +2,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Extent, SizeReq},
-    layouts::{ColumnLayout, CrossAlign, RowLayout, WrapLayout},
+    layout::{Align, Placement, Placement2D},
+    layouts::{ColumnLayout, RowLayout, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -62,10 +62,7 @@ pub fn draw_button_page(
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        ColumnLayout {
-            spacing: 24.0,
-            align: CrossAlign::Start,
-        },
+        ColumnLayout { spacing: 24.0 },
     );
 
     let theme = outer.theme;
@@ -79,10 +76,7 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-            RowLayout {
-                spacing: 10.0,
-                align: CrossAlign::Start,
-            },
+            RowLayout { spacing: 10.0 },
         );
 
         let styles = [primary, secondary, accent, ghost];
@@ -107,19 +101,13 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 200.0).into(),
-            RowLayout {
-                spacing: 30.0,
-                align: CrossAlign::Start,
-            },
+            RowLayout { spacing: 30.0 },
         );
 
         {
             let mut col = row.child_with_layout(
                 Vec2::new(260.0, 200.0).into(),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             let entries = [
@@ -145,10 +133,7 @@ pub fn draw_button_page(
         {
             let mut col = row.child_with_layout(
                 Vec2::new(260.0, 200.0).into(),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             let entries = [
@@ -181,10 +166,7 @@ pub fn draw_button_page(
     {
         let mut outer_row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            RowLayout {
-                spacing: 10.0,
-                align: CrossAlign::Start,
-            },
+            RowLayout { spacing: 10.0 },
         );
 
         button(
@@ -197,20 +179,12 @@ pub fn draw_button_page(
         {
             let mut col = outer_row.child_with_layout(
                 Vec2::new(420.0, 96.0).into(),
-                ColumnLayout {
-                    spacing: 12.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 12.0 },
             );
 
             {
-                let mut inner_row = col.child_with_layout(
-                    Vec2::new(420.0, 48.0).into(),
-                    RowLayout {
-                        spacing: 12.0,
-                        align: CrossAlign::Start,
-                    },
-                );
+                let mut inner_row = col
+                    .child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
 
                 let r = button(
                     &mut inner_row,
@@ -267,10 +241,7 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 124.0).into(),
-            RowLayout {
-                spacing: 20.0,
-                align: CrossAlign::Start,
-            },
+            RowLayout { spacing: 20.0 },
         );
 
         let group_labels = [
@@ -284,10 +255,7 @@ pub fn draw_button_page(
         for g in 0..3 {
             let mut col = row.child_with_layout(
                 Vec2::new(180.0, 124.0).into(),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             for j in 0..3 {
@@ -317,25 +285,19 @@ pub fn draw_button_page(
     {
         let mut col = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            ColumnLayout {
-                spacing: 12.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 12.0 },
         );
 
         {
             let mut row = col.child_with_layout(
                 Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-                RowLayout {
-                    spacing: 10.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 10.0 },
             );
 
             // Each button's width comes from its label; height is fixed.
-            let auto = SizeReq {
-                width: Extent::Auto,
-                height: Extent::Fixed(40.0),
+            let auto = Placement2D {
+                width: Placement::auto(),
+                height: Placement::fixed(40.0),
             };
             let labels = ["OK", "Cancel", "Apply to All", "Don't Save"];
             for (i, label) in labels.iter().enumerate() {
@@ -350,9 +312,9 @@ pub fn draw_button_page(
         }
 
         // A button that fills the column's full width, intrinsic height.
-        let fill = SizeReq {
-            width: Extent::Fill,
-            height: Extent::Auto,
+        let fill = Placement2D {
+            width: Placement::fill(),
+            height: Placement::auto(),
         };
         button(
             &mut col,
@@ -378,9 +340,9 @@ pub fn draw_button_page(
             },
         );
 
-        let auto = SizeReq {
-            width: Extent::Auto,
-            height: Extent::Fixed(32.0),
+        let auto = Placement2D {
+            width: Placement::auto(),
+            height: Placement::fixed(32.0),
         };
         let labels = [
             "New",
@@ -409,38 +371,32 @@ pub fn draw_button_page(
     {
         let mut row = outer.child_with_layout(
             Vec2::new(win_w - 2.0 * pad, 180.0).into(),
-            RowLayout {
-                spacing: 20.0,
-                align: CrossAlign::Start,
-            },
+            RowLayout { spacing: 20.0 },
         );
 
         // Sub-column 1: Centered column (Exact width 200, contains 3 different width buttons)
         {
             let mut col = row.child_with_layout(
                 Vec2::new(200.0, 180.0).into(),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Center,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Center S").style(accent),
-                Vec2::new(80.0, 36.0).into(),
+                Placement2D::fixed(80.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[0],
             );
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Center Med").style(secondary),
-                Vec2::new(140.0, 36.0).into(),
+                Placement2D::fixed(140.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[1],
             );
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Center Lrg").style(primary),
-                Vec2::new(180.0, 36.0).into(),
+                Placement2D::fixed(180.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[2],
             );
 
@@ -451,28 +407,25 @@ pub fn draw_button_page(
         {
             let mut col = row.child_with_layout(
                 Vec2::new(200.0, 180.0).into(),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::End,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("End S").style(accent),
-                Vec2::new(80.0, 36.0).into(),
+                Placement2D::fixed(80.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[3],
             );
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("End Med").style(secondary),
-                Vec2::new(140.0, 36.0).into(),
+                Placement2D::fixed(140.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[4],
             );
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("End Lrg").style(primary),
-                Vec2::new(180.0, 36.0).into(),
+                Placement2D::fixed(180.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[5],
             );
 
@@ -484,31 +437,23 @@ pub fn draw_button_page(
         {
             let mut col = row.child_with_layout(
                 Vec2::new(300.0, 180.0).into(),
-                ColumnLayout {
-                    spacing: 12.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 12.0 },
             );
 
             // Centered Row (Exact height 60)
             {
-                let mut inner_row = col.child_with_layout(
-                    Vec2::new(300.0, 60.0).into(),
-                    RowLayout {
-                        spacing: 8.0,
-                        align: CrossAlign::Center,
-                    },
-                );
+                let mut inner_row = col
+                    .child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout { spacing: 8.0 });
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row C1").style(primary),
-                    Vec2::new(80.0, 30.0).into(),
+                    Placement2D::fixed(80.0, 30.0).align_y(Align::Center),
                     &mut state.align_btns[6],
                 );
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row C2").style(secondary),
-                    Vec2::new(100.0, 48.0).into(),
+                    Placement2D::fixed(100.0, 48.0).align_y(Align::Center),
                     &mut state.align_btns[7],
                 );
                 inner_row.finish();
@@ -516,23 +461,18 @@ pub fn draw_button_page(
 
             // End-Aligned Row (Exact height 60)
             {
-                let mut inner_row = col.child_with_layout(
-                    Vec2::new(300.0, 60.0).into(),
-                    RowLayout {
-                        spacing: 8.0,
-                        align: CrossAlign::End,
-                    },
-                );
+                let mut inner_row = col
+                    .child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout { spacing: 8.0 });
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row E1").style(primary),
-                    Vec2::new(80.0, 30.0).into(),
+                    Placement2D::fixed(80.0, 30.0).align_y(Align::End),
                     &mut state.align_btns[8],
                 );
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row E2").style(secondary),
-                    Vec2::new(100.0, 48.0).into(),
+                    Placement2D::fixed(100.0, 48.0).align_y(Align::End),
                     &mut state.align_btns[9],
                 );
                 inner_row.finish();

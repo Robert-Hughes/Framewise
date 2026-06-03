@@ -24,8 +24,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Extent, SizeReq},
-    layouts::{ColumnLayout, CrossAlign, ManualLayout, RowLayout, SplitRow, WrapLayout},
+    layout::{Align, Placement, Placement2D},
+    layouts::{ColumnLayout, ManualLayout, RowLayout, SplitRow, WrapLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -36,6 +36,7 @@ use framewise::{
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
+#[derive(Default)]
 pub struct LayoutDemoState {
     pub a_btns: [ButtonState; 3], // A: auto-height column
     pub a_clicks: [u32; 3],
@@ -53,29 +54,6 @@ pub struct LayoutDemoState {
     pub j_btns: [ButtonState; 2], // J: intrinsic right-aligned buttons
     pub k_btns: [ButtonState; 3], // K: AtMost shrink-wrap (fixed block + short hugs + long clamps)
     pub l_btns: [ButtonState; 9], // L: RowLayout cross-align (3 rows × 3)
-}
-
-impl Default for LayoutDemoState {
-    fn default() -> Self {
-        Self {
-            a_btns: Default::default(),
-            a_clicks: [0; 3],
-            b_btns: Default::default(),
-            c_btns: Default::default(),
-            d_btns: Default::default(),
-            e_btns: Default::default(),
-            f_fixed_btns: Default::default(),
-            f_auto_btns: Default::default(),
-            g_btns: Default::default(),
-            h_btns: Default::default(),
-            h_clicks: [0; 3],
-            i_btns: Default::default(),
-            j_search: Default::default(),
-            j_btns: Default::default(),
-            k_btns: Default::default(),
-            l_btns: Default::default(),
-        }
-    }
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -115,20 +93,14 @@ pub fn draw_layout_page(
     // Root row: two columns side by side.
     let mut root_row = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        RowLayout {
-            spacing: 30.0,
-            align: CrossAlign::Start,
-        },
+        RowLayout { spacing: 30.0 },
     );
 
     // ── Left column: A, B, C, D ───────────────────────────────────────────────
     {
         let mut left = root_row.child_with_layout(
             Vec2::new(col_w, win_h - 2.0 * pad).into(),
-            ColumnLayout {
-                spacing: 18.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 18.0 },
         );
 
         heading(&mut left, ghost, "Chrome-less nested layout auto-sizing");
@@ -143,14 +115,11 @@ pub fn draw_layout_page(
             // A bare column placed with Auto height fits to its three rows — no
             // frame chrome involved. The following sibling lands right below it.
             let mut auto_col = left.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 6.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 6.0 },
             );
             for i in 0..3 {
                 let text = format!("Auto-column row #{} (clicks: {})", i + 1, state.a_clicks[i]);
@@ -158,9 +127,9 @@ pub fn draw_layout_page(
                 let r = button(
                     &mut auto_col,
                     ButtonSpecBuilder::new().text(&text).style(style),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(34.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(34.0),
                     },
                     &mut state.a_btns[i],
                 );
@@ -179,22 +148,19 @@ pub fn draw_layout_page(
         );
         {
             let mut auto_row = left.child_with_layout(
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Fixed(40.0),
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::fixed(40.0),
                 },
-                RowLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 8.0 },
             );
             for (i, label) in ["One", "Two", "Three"].iter().enumerate() {
                 button(
                     &mut auto_row,
                     ButtonSpecBuilder::new().text(label).style(secondary),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fill,
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fill(),
                     },
                     &mut state.b_btns[i],
                 );
@@ -210,33 +176,27 @@ pub fn draw_layout_page(
         );
         {
             let mut outer = left.child_with_layout(
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 6.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 6.0 },
             );
             let labels = [["First", "Second"], ["Third row item", "Fourth"]];
             for (row_idx, pair) in labels.iter().enumerate() {
                 let mut inner_row = outer.child_with_layout(
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Auto,
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::auto(),
                     },
-                    RowLayout {
-                        spacing: 6.0,
-                        align: CrossAlign::Start,
-                    },
+                    RowLayout { spacing: 6.0 },
                 );
                 for (col_idx, label) in pair.iter().enumerate() {
                     let idx = row_idx * 2 + col_idx;
                     button(
                         &mut inner_row,
                         ButtonSpecBuilder::new().text(label).style(primary),
-                        SizeReq::auto(),
+                        Placement2D::auto(),
                         &mut state.c_btns[idx],
                     );
                 }
@@ -253,23 +213,20 @@ pub fn draw_layout_page(
         );
         {
             let mut row = left.child_with_layout(
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Fixed(40.0),
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::fixed(40.0),
                 },
-                RowLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 8.0 },
             );
             for (i, label) in ["Go", "Cancel", "Save all changes now"].iter().enumerate() {
                 let style = [primary, secondary, accent][i];
                 button(
                     &mut row,
                     ButtonSpecBuilder::new().text(label).style(style),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fill,
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fill(),
                     },
                     &mut state.d_btns[i],
                 );
@@ -285,22 +242,19 @@ pub fn draw_layout_page(
         );
         {
             let mut row = left.child_with_layout(
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Fixed(40.0),
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::fixed(40.0),
                 },
-                RowLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 8.0 },
             );
             // Fixed 40px square "icon" — width imposed, ignores its label extent.
             button(
                 &mut row,
                 ButtonSpecBuilder::new().text("*").style(accent),
-                SizeReq {
-                    width: Extent::Fixed(40.0),
-                    height: Extent::Fill,
+                Placement2D {
+                    width: Placement::fixed(40.0),
+                    height: Placement::fill(),
                 },
                 &mut state.i_btns[0],
             );
@@ -310,9 +264,9 @@ pub fn draw_layout_page(
                 button(
                     &mut row,
                     ButtonSpecBuilder::new().text(label).style(secondary),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fill,
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fill(),
                     },
                     &mut state.i_btns[i + 1],
                 );
@@ -327,41 +281,40 @@ pub fn draw_layout_page(
             "L. RowLayout cross-align — differing heights aligned in a 60px row",
         );
         {
-            let aligns = [
-                ("Start", CrossAlign::Start),
-                ("Center", CrossAlign::Center),
-                ("End", CrossAlign::End),
-            ];
-            let heights = [22.0, 36.0, 50.0];
-            let styles = [primary, secondary, accent];
-            for (row_idx, (name, align)) in aligns.into_iter().enumerate() {
-                // Fixed 60px height is the Exact cross axis that alignment requires;
-                // each button picks a different height so the alignment is visible.
-                let mut row = left.child_with_layout(
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(60.0),
-                    },
-                    RowLayout {
-                        spacing: 6.0,
-                        align,
-                    },
-                );
-                for j in 0..3 {
-                    let idx = row_idx * 3 + j;
-                    button(
-                        &mut row,
-                        ButtonSpecBuilder::new()
-                            .text(&format!("{name} {}", j + 1))
-                            .style(styles[j]),
-                        SizeReq {
-                            width: Extent::Auto,
-                            height: Extent::Fixed(heights[j]),
+            {
+                let aligns = [
+                    ("Start", Align::Start),
+                    ("Center", Align::Center),
+                    ("End", Align::End),
+                ];
+                let heights = [22.0, 36.0, 50.0];
+                let styles = [primary, secondary, accent];
+                for (row_idx, (name, align)) in aligns.into_iter().enumerate() {
+                    // Fixed 60px height is the Exact cross axis that alignment requires;
+                    // each button picks a different height so the alignment is visible.
+                    let mut row = left.child_with_layout(
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fixed(60.0),
                         },
-                        &mut state.l_btns[idx],
+                        RowLayout { spacing: 6.0 },
                     );
+                    for j in 0..3 {
+                        let idx = row_idx * 3 + j;
+                        button(
+                            &mut row,
+                            ButtonSpecBuilder::new()
+                                .text(&format!("{name} {}", j + 1))
+                                .style(styles[j]),
+                            Placement2D {
+                                width: Placement::auto(),
+                                height: Placement::fixed(heights[j]).align(align),
+                            },
+                            &mut state.l_btns[idx],
+                        );
+                    }
+                    row.finish();
                 }
-                row.finish();
             }
         }
 
@@ -372,10 +325,7 @@ pub fn draw_layout_page(
     {
         let mut right = root_row.child_with_layout(
             Vec2::new(col_w, win_h - 2.0 * pad).into(),
-            ColumnLayout {
-                spacing: 18.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 18.0 },
         );
 
         heading(&mut right, ghost, "Alignment, equivalence & flow");
@@ -387,39 +337,38 @@ pub fn draw_layout_page(
             "E. Cross-axis alignment (Start / Center / End in fit columns)",
         );
         {
-            let aligns = [
-                ("Start", CrossAlign::Start),
-                ("Center", CrossAlign::Center),
-                ("End", CrossAlign::End),
-            ];
-            for (col_idx, (name, align)) in aligns.into_iter().enumerate() {
-                subheading(&mut right, ghost, &format!("  CrossAlign::{name}"));
-                // Fill width gives the column an Exact cross axis, which alignment
-                // requires; Auto height fits the three differently-sized buttons.
-                let mut col = right.child_with_layout(
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Auto,
-                    },
-                    ColumnLayout {
-                        spacing: 5.0,
-                        align,
-                    },
-                );
-                let widths = [120.0, 220.0, 320.0];
-                let styles = [primary, secondary, accent];
-                for j in 0..3 {
-                    let idx = col_idx * 3 + j;
-                    button(
-                        &mut col,
-                        ButtonSpecBuilder::new()
-                            .text(&format!("{name} {}", j + 1))
-                            .style(styles[j]),
-                        Vec2::new(widths[j], 30.0).into(),
-                        &mut state.e_btns[idx],
+            {
+                let aligns = [
+                    ("Start", Align::Start),
+                    ("Center", Align::Center),
+                    ("End", Align::End),
+                ];
+                for (col_idx, (name, align)) in aligns.into_iter().enumerate() {
+                    subheading(&mut right, ghost, &format!("  Align::{name:?}"));
+                    // Fill width gives the column an Exact cross axis, which alignment
+                    // requires; Auto height fits the three differently-sized buttons.
+                    let mut col = right.child_with_layout(
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::auto(),
+                        },
+                        ColumnLayout { spacing: 5.0 },
                     );
+                    let widths = [120.0, 220.0, 320.0];
+                    let styles = [primary, secondary, accent];
+                    for j in 0..3 {
+                        let idx = col_idx * 3 + j;
+                        button(
+                            &mut col,
+                            ButtonSpecBuilder::new()
+                                .text(&format!("{name} {}", j + 1))
+                                .style(styles[j]),
+                            Placement2D::fixed(widths[j], 30.0).align_x(align),
+                            &mut state.e_btns[idx],
+                        );
+                    }
+                    col.finish();
                 }
-                col.finish();
             }
         }
 
@@ -431,26 +380,20 @@ pub fn draw_layout_page(
         );
         {
             let mut pair_row = right.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(150.0),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(150.0),
                 },
-                RowLayout {
-                    spacing: 16.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 16.0 },
             );
 
             // Fixed-height column: clips/overflows past its committed 60px slot.
             let mut fixed_col = pair_row.child_with_layout(
-                SizeReq {
-                    width: Extent::Fixed(col_w * 0.5 - 8.0),
-                    height: Extent::Fixed(60.0),
+                Placement2D {
+                    width: Placement::fixed(col_w * 0.5 - 8.0),
+                    height: Placement::fixed(60.0),
                 },
-                ColumnLayout {
-                    spacing: 4.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 4.0 },
             );
             for i in 0..3 {
                 button(
@@ -458,9 +401,9 @@ pub fn draw_layout_page(
                     ButtonSpecBuilder::new()
                         .text(&format!("Fixed {}", i + 1))
                         .style(secondary),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(34.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(34.0),
                     },
                     &mut state.f_fixed_btns[i],
                 );
@@ -469,14 +412,11 @@ pub fn draw_layout_page(
 
             // Auto-height column: same children, fits all three.
             let mut auto_col = pair_row.child_with_layout(
-                SizeReq {
-                    width: Extent::Fixed(col_w * 0.5 - 8.0),
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::fixed(col_w * 0.5 - 8.0),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 4.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 4.0 },
             );
             for i in 0..3 {
                 button(
@@ -484,9 +424,9 @@ pub fn draw_layout_page(
                     ButtonSpecBuilder::new()
                         .text(&format!("Auto {}", i + 1))
                         .style(accent),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(34.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(34.0),
                     },
                     &mut state.f_auto_btns[i],
                 );
@@ -504,9 +444,9 @@ pub fn draw_layout_page(
         );
         {
             let mut wrap = right.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
                 },
                 WrapLayout {
                     spacing: 6.0,
@@ -527,9 +467,9 @@ pub fn draw_layout_page(
                 button(
                     &mut wrap,
                     ButtonSpecBuilder::new().text(tag).style(primary),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fixed(30.0),
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fixed(30.0),
                     },
                     &mut state.g_btns[i],
                 );
@@ -547,23 +487,22 @@ pub fn draw_layout_page(
             // count = 3 known up front, so each cell is exactly a third of the
             // (Exact) row width. Children declare only their cross-axis (height).
             let mut split = right.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(40.0),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(40.0),
                 },
                 SplitRow {
                     count: 3,
                     spacing: 10.0,
-                    align: CrossAlign::Start,
                 },
             );
             let styles = [primary, secondary, accent];
-            for i in 0..3 {
+            for (i, &style) in styles.iter().enumerate() {
                 let text = format!("Third #{} ({})", i + 1, state.h_clicks[i]);
                 let r = button(
                     &mut split,
-                    ButtonSpecBuilder::new().text(&text).style(styles[i]),
-                    Extent::Fill, // fill the cell height
+                    ButtonSpecBuilder::new().text(&text).style(style),
+                    Placement::fill(), // fill the cell height
                     &mut state.h_btns[i],
                 );
                 if r.input.clicked {
@@ -606,9 +545,9 @@ pub fn draw_layout_page(
 
             // ManualLayout: rects are origin-relative to the toolbar's top-left.
             let mut tb = right.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(h),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(h),
                 },
                 ManualLayout,
             );
@@ -653,43 +592,37 @@ pub fn draw_layout_page(
         );
         {
             let mut row = right.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
                 },
-                RowLayout {
-                    spacing: 12.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 12.0 },
             );
             // Fixed block eats 55% of the row width.
             button(
                 &mut row,
                 ButtonSpecBuilder::new().text("Fixed 55%").style(secondary),
-                SizeReq {
-                    width: Extent::Fixed(col_w * 0.55),
-                    height: Extent::Fixed(70.0),
+                Placement2D {
+                    width: Placement::fixed(col_w * 0.55),
+                    height: Placement::fixed(70.0),
                 },
                 &mut state.k_btns[0],
             );
             // Nested Auto-width column → receives AtMost(remaining ~45%). Inside, the
             // short label hugs its text; the long one clamps to the AtMost ceiling.
             let mut nested = row.child_with_layout(
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 6.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 6.0 },
             );
             button(
                 &mut nested,
                 ButtonSpecBuilder::new().text("Hi").style(primary),
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Fixed(30.0),
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::fixed(30.0),
                 },
                 &mut state.k_btns[1],
             );
@@ -698,9 +631,9 @@ pub fn draw_layout_page(
                 ButtonSpecBuilder::new()
                     .text("This long label clamps to the AtMost ceiling")
                     .style(accent),
-                SizeReq {
-                    width: Extent::Auto,
-                    height: Extent::Fixed(30.0),
+                Placement2D {
+                    width: Placement::auto(),
+                    height: Placement::fixed(30.0),
                 },
                 &mut state.k_btns[2],
             );
@@ -733,9 +666,9 @@ fn label_row<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
             .text(text)
             .style(ghost)
             .disabled(true),
-        SizeReq {
-            width: Extent::Fill,
-            height: Extent::Fixed(height),
+        Placement2D {
+            width: Placement::fill(),
+            height: Placement::fixed(height),
         },
         &mut ButtonState::default(),
     );

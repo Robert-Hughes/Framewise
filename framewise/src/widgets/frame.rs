@@ -276,8 +276,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{Extent, SizeReq};
-    use crate::layouts::{ColumnLayout, CrossAlign};
+    use crate::layouts::ColumnLayout;
     use crate::test_utils::DummyTextSys;
 
     #[test]
@@ -386,6 +385,7 @@ mod tests {
 
     #[test]
     fn test_high_level_container_fit_to_children() {
+        use crate::layout::{Placement, Placement2D};
         let mut ts = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -396,10 +396,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout {
-                spacing: 10.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 10.0 },
             Rect::new(0.0, 0.0, 400.0, 600.0),
             &mut cmds,
         );
@@ -417,31 +414,28 @@ mod tests {
         } = begin_frame(
             &mut ctx,
             FrameSpecBuilder::new().style(style),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Auto,
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::auto(),
             },
-            ColumnLayout {
-                spacing: 5.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 5.0 },
         );
 
         // 2. Place some children inside the frame context
         // Inner layout starts at (10, 10) due to insets. Fill width spans outer space (400 - 20) = 380.
         let r1 = f_ctx.layout_state.layout(
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(20.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(20.0),
             },
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
 
         let r2 = f_ctx.layout_state.layout(
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(30.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(30.0),
             },
             crate::layout::IntrinsicSize::UNKNOWN,
         );
@@ -456,7 +450,7 @@ mod tests {
         // Total outer size is: height = 55 + inset * 2 = 75.
         // Next sibling y should be: height(75) + spacing(10) = 85.
         let sibling = ctx.layout_state.layout(
-            SizeReq::fixed(50.0, 30.0),
+            Placement2D::fixed(50.0, 30.0),
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         assert_eq!(sibling.y, 85.0);

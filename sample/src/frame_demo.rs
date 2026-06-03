@@ -2,8 +2,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Extent, SizeReq},
-    layouts::{ColumnLayout, CrossAlign, RowLayout},
+    layout::{Align, Placement, Placement2D},
+    layouts::{ColumnLayout, RowLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -110,10 +110,7 @@ pub fn draw_frame_page(
     // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
     let mut root_row = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        RowLayout {
-            spacing: 30.0,
-            align: CrossAlign::Start,
-        },
+        RowLayout { spacing: 30.0 },
     );
 
     let theme = root_row.theme;
@@ -129,10 +126,7 @@ pub fn draw_frame_page(
     {
         let mut left_col = root_row.child_with_layout(
             Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
-            ColumnLayout {
-                spacing: 20.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 20.0 },
         );
 
         // Heading: Left Column Title
@@ -142,9 +136,9 @@ pub fn draw_frame_page(
                 .text("1. Dynamic & Axis Sizing Showcase")
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(30.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(30.0),
             },
             &mut ButtonState::default(),
         );
@@ -152,14 +146,11 @@ pub fn draw_frame_page(
         // Sub-row: Add / Remove Controls
         {
             let mut control_row = left_col.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(40.0),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(40.0),
                 },
-                RowLayout {
-                    spacing: 12.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 12.0 },
             );
 
             let add_r = button(
@@ -197,9 +188,9 @@ pub fn draw_frame_page(
                 .text(&label_style)
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(24.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(24.0),
             },
             &mut ButtonState::default(),
         );
@@ -213,14 +204,11 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut left_col,
                 FrameSpecBuilder::new().style(frame_style),
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Auto, // This is the magic auto-sizing dimension that grows/contracts with the number of items in the frame!
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Start,
-                },
+                ColumnLayout { spacing: 8.0 },
             );
 
             if state.item_count == 0 {
@@ -230,9 +218,9 @@ pub fn draw_frame_page(
                         .text("Frame is empty! Use buttons above to add items.")
                         .style(ghost)
                         .disabled(true),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(32.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(32.0),
                     },
                     &mut ButtonState::default(),
                 );
@@ -246,9 +234,9 @@ pub fn draw_frame_page(
                     let r = button(
                         &mut dynamic_frame,
                         ButtonSpecBuilder::new().text(&text).style(secondary),
-                        SizeReq {
-                            width: Extent::Fill,
-                            height: Extent::Fixed(36.0),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fixed(36.0),
                         },
                         &mut state.dynamic_btns[i],
                     );
@@ -268,9 +256,9 @@ pub fn draw_frame_page(
                 .text("Comparison of Sizing Dimensions")
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(24.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(24.0),
             },
             &mut ButtonState::default(),
         );
@@ -278,14 +266,11 @@ pub fn draw_frame_page(
         // Row of 4 different Frame Dimension constraints
         {
             let mut dimensions_row = left_col.child_with_layout(
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(180.0),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(180.0),
                 },
-                RowLayout {
-                    spacing: 16.0,
-                    align: CrossAlign::Start,
-                },
+                RowLayout { spacing: 16.0 },
             );
 
             // 1. Fixed-Size Frame (200x120)
@@ -296,11 +281,8 @@ pub fn draw_frame_page(
                 } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    SizeReq::fixed(120.0, 120.0),
-                    ColumnLayout {
-                        spacing: 4.0,
-                        align: CrossAlign::Start,
-                    },
+                    Placement2D::fixed(120.0, 120.0),
+                    ColumnLayout { spacing: 4.0 },
                 );
 
                 button(
@@ -309,9 +291,9 @@ pub fn draw_frame_page(
                         .text("Fixed frame")
                         .style(ghost)
                         .disabled(true),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(20.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(20.0),
                     },
                     &mut ButtonState::default(),
                 );
@@ -320,9 +302,9 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(primary),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(36.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(36.0),
                     },
                     &mut state.fixed_btn,
                 );
@@ -341,14 +323,11 @@ pub fn draw_frame_page(
                 } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fixed(120.0),
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fixed(120.0),
                     },
-                    ColumnLayout {
-                        spacing: 4.0,
-                        align: CrossAlign::Start,
-                    },
+                    ColumnLayout { spacing: 4.0 },
                 );
 
                 button(
@@ -357,9 +336,9 @@ pub fn draw_frame_page(
                         .text("Auto Width")
                         .style(ghost)
                         .disabled(true),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fixed(20.0),
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fixed(20.0),
                     },
                     &mut ButtonState::default(),
                 );
@@ -368,9 +347,9 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fixed(36.0),
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fixed(36.0),
                     },
                     &mut state.width_auto_btn,
                 );
@@ -389,14 +368,11 @@ pub fn draw_frame_page(
                 } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    SizeReq {
-                        width: Extent::Fixed(130.0),
-                        height: Extent::Auto,
+                    Placement2D {
+                        width: Placement::fixed(130.0),
+                        height: Placement::auto(),
                     },
-                    ColumnLayout {
-                        spacing: 4.0,
-                        align: CrossAlign::Start,
-                    },
+                    ColumnLayout { spacing: 4.0 },
                 );
 
                 button(
@@ -405,9 +381,9 @@ pub fn draw_frame_page(
                         .text("Auto Height")
                         .style(ghost)
                         .disabled(true),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(20.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(20.0),
                     },
                     &mut ButtonState::default(),
                 );
@@ -416,9 +392,9 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(accent),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Fixed(36.0),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(36.0),
                     },
                     &mut state.height_auto_btn,
                 );
@@ -429,9 +405,9 @@ pub fn draw_frame_page(
                 button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text("Height").style(accent),
-                    SizeReq {
-                        width: Extent::Fill,
-                        height: Extent::Auto,
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::auto(),
                     },
                     &mut state.height_auto_btn2,
                 );
@@ -447,11 +423,8 @@ pub fn draw_frame_page(
                 } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    SizeReq::auto(),
-                    ColumnLayout {
-                        spacing: 4.0,
-                        align: CrossAlign::Start,
-                    },
+                    Placement2D::auto(),
+                    ColumnLayout { spacing: 4.0 },
                 );
 
                 button(
@@ -460,9 +433,9 @@ pub fn draw_frame_page(
                         .text("Fully Auto")
                         .style(ghost)
                         .disabled(true),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Fixed(20.0),
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::fixed(20.0),
                     },
                     &mut ButtonState::default(),
                 );
@@ -471,9 +444,9 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
-                    SizeReq {
-                        width: Extent::Auto,
-                        height: Extent::Auto,
+                    Placement2D {
+                        width: Placement::auto(),
+                        height: Placement::auto(),
                     },
                     &mut state.fully_auto_btn,
                 );
@@ -494,10 +467,7 @@ pub fn draw_frame_page(
     {
         let mut right_col = root_row.child_with_layout(
             Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
-            ColumnLayout {
-                spacing: 20.0,
-                align: CrossAlign::Start,
-            },
+            ColumnLayout { spacing: 20.0 },
         );
 
         // Heading: Right Column Title
@@ -507,9 +477,9 @@ pub fn draw_frame_page(
                 .text("2. Complex Nesting & Cross-Alignments")
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(30.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(30.0),
             },
             &mut ButtonState::default(),
         );
@@ -521,9 +491,9 @@ pub fn draw_frame_page(
                 .text("Nesting Showcase (Fixed Panel centered in Fixed Outer)")
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(24.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(24.0),
             },
             &mut ButtonState::default(),
         );
@@ -536,20 +506,17 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut right_col,
                 FrameSpecBuilder::new().style(frame_style),
-                SizeReq::fixed(450.0, 180.0),
-                ColumnLayout {
-                    spacing: 8.0,
-                    align: CrossAlign::Center, // Centers children horizontally!
-                },
+                Placement2D::fixed(450.0, 180.0),
+                ColumnLayout { spacing: 8.0 },
             );
 
             let text = format!("Outer Fixed Frame (Clicks: {})", state.nested_clicks[0]);
             let r = button(
                 &mut outer_fixed,
                 ButtonSpecBuilder::new().text(&text).style(secondary),
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Fixed(36.0),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(36.0),
                 },
                 &mut state.outer_btn,
             );
@@ -568,21 +535,18 @@ pub fn draw_frame_page(
                         background: theme.paper, // distinct dark background
                         ..frame_style
                     }),
-                    SizeReq {
-                        width: Extent::Fixed(350.0),
-                        height: Extent::Auto,
+                    Placement2D {
+                        width: Placement::fixed(350.0).align(Align::Center),
+                        height: Placement::auto(),
                     },
-                    RowLayout {
-                        spacing: 12.0,
-                        align: CrossAlign::Start,
-                    },
+                    RowLayout { spacing: 12.0 },
                 );
 
                 let text_c = format!("Inner Center (Clicks: {})", state.nested_clicks[1]);
                 let r1 = button(
                     &mut inner_auto,
                     ButtonSpecBuilder::new().text(&text_c).style(accent),
-                    SizeReq::auto(),
+                    Placement2D::auto(),
                     &mut state.inner_center_btn,
                 );
                 if r1.input.clicked {
@@ -593,7 +557,7 @@ pub fn draw_frame_page(
                 let r2 = button(
                     &mut inner_auto,
                     ButtonSpecBuilder::new().text(&text_e).style(primary),
-                    SizeReq::auto(),
+                    Placement2D::auto(),
                     &mut state.inner_end_btn,
                 );
                 if r2.input.clicked {
@@ -613,9 +577,9 @@ pub fn draw_frame_page(
                 .text("Cross-Axis Alignment within Fit Frame (Auto height, Centered)")
                 .style(ghost)
                 .disabled(true),
-            SizeReq {
-                width: Extent::Fill,
-                height: Extent::Fixed(24.0),
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(24.0),
             },
             &mut ButtonState::default(),
         );
@@ -628,21 +592,18 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut right_col,
                 FrameSpecBuilder::new().style(frame_style),
-                SizeReq {
-                    width: Extent::Fill,
-                    height: Extent::Auto,
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
                 },
-                ColumnLayout {
-                    spacing: 10.0,
-                    align: CrossAlign::Center, // Centered cross-axis layout inside a fit frame!
-                },
+                ColumnLayout { spacing: 10.0 },
             );
 
             // Three buttons of varying widths visually demonstrating centered alignment within dynamic frame
             button(
                 &mut fit_centered,
                 ButtonSpecBuilder::new().text("Small Width").style(primary),
-                Vec2::new(120.0, 36.0).into(),
+                Placement2D::fixed(120.0, 36.0).align_x(Align::Center),
                 &mut state.align_small_btn,
             );
 
@@ -651,7 +612,7 @@ pub fn draw_frame_page(
                 ButtonSpecBuilder::new()
                     .text("Medium Width Button")
                     .style(secondary),
-                Vec2::new(240.0, 36.0).into(),
+                Placement2D::fixed(240.0, 36.0).align_x(Align::Center),
                 &mut state.align_med_btn,
             );
 
@@ -660,7 +621,7 @@ pub fn draw_frame_page(
                 ButtonSpecBuilder::new()
                     .text("Large Width Content Button")
                     .style(accent),
-                Vec2::new(360.0, 36.0).into(),
+                Placement2D::fixed(360.0, 36.0).align_x(Align::Center),
                 &mut state.align_large_btn,
             );
 

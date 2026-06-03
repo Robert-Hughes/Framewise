@@ -11,5 +11,3 @@ pub use offset::{OffsetLayout, OffsetState};
 pub use row::{RowLayout, RowState};
 pub use split_row::{SplitRow, SplitRowState};
 pub use wrap::{WrapLayout, WrapState};
-
-pub use crate::layout::CrossAlign;

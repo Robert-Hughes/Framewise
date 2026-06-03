@@ -98,12 +98,12 @@ Real scenarios in the Automate and Declare tiers, and which mechanism handles ea
 | Stack, caller sizes every child (vert/horiz) | ✅ `ColumnLayout` / `RowLayout` |
 | "Stack these labels, each as tall as its text" | ✅ `ColumnLayout` + intrinsic |
 | "Row of chips, each as wide as its label" | ✅ `RowLayout` + intrinsic |
-| "Fixed-width icon, label takes its intrinsic width" (mixed per-axis) | ✅ `RowLayout` + `SizeReq` |
-| "Column fills the panel width, each row auto-height" (fill cross-axis) | ✅ `ColumnLayout` + `Extent::Fill` |
+| "Fixed-width icon, label takes its intrinsic width" (mixed per-axis) | ✅ `RowLayout` + `Placement2D` |
+| "Column fills the panel width, each row auto-height" (fill cross-axis) | ✅ `ColumnLayout` + `Placement::Fill` |
 | "Tags that wrap onto the next line when the row fills" (flow) | ✅ `WrapLayout` |
 | "A bordered box that hugs its child(ren) plus padding" (decorator) | ✅ `frame` (fit-to-children) |
 | "Toolbar: search field eats leftover space, icons stay intrinsic" | ✅ via emit-reorder + `ManualLayout` (see below) |
-| "Panel fills available height inside a normal (bounded) container" | ✅ `Extent::Fill` against `AxisBound::Exact` |
+| "Panel fills available height inside a normal (bounded) container" | ✅ `Placement::Fill` against `AxisBound::Exact` |
 | Scroll, content size known up front | ✅ `begin_scroll_area` (`fixed`/`FIT` extent) |
 | "Scroll area sized to content discovered only after its children run" | ✅ `begin_scroll_area` (`SCROLL` extent, resolved at `end`) |
 | "Infinitely tall / long auto-sized list in a scroll area" | ✅ `SCROLL` extent + `Unbounded` axis |
@@ -149,10 +149,10 @@ The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`
 ### Built-in Layouts
 
 - **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles; ignores `intrinsic`. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent. This is also the sanctioned way to place a *high-level* widget at an explicit rect (the rect is the `Params`).
-- **`ColumnLayout`**: `Params = SizeReq`. Stacks widgets vertically, keeping a Y-axis cursor. Cross axis (width) may `Fill` the bounds; main axis (height) is typically `Auto` (from intrinsic) or `Fixed`.
-- **`RowLayout`**: `Params = SizeReq`. Stacks widgets horizontally, keeping an X-axis cursor.
-- **`WrapLayout`**: `Params = SizeReq`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the available width. Never wraps a child already at the start of a line; an unbounded width has no edge to overflow, so the flow stays on one line.
-- **`SplitRow`**: `Params = Extent` (cross-axis height only). A *declared-structure* layout (Phase 4): it takes a `count` up front and divides its width into that many **equal** cells, `(width − spacing·(count−1)) / count` each. Each child's width is imposed (the cell), so children declare only their height. Because dividing space needs a committed far edge, `SplitRow` requires `AxisBound::Exact` width and panics on `AtMost`/`Unbounded` — the same rule that governs `Fill` and alignment. Knowing `count` is what makes the equal split one-pass (no measure-all / emit-reorder): an equal split is otherwise a future-sibling dependency, and the declaration turns it into a constant resolved from available space alone.
+- **`ColumnLayout`**: `Params = Placement2D`. Stacks widgets vertically, keeping a Y-axis cursor. Cross axis (width) may `Fill` the bounds; main axis (height) is typically `Auto` (from intrinsic) or `Fixed`.
+- **`RowLayout`**: `Params = Placement2D`. Stacks widgets horizontally, keeping an X-axis cursor.
+- **`WrapLayout`**: `Params = Placement2D`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the available width. Never wraps a child already at the start of a line; an unbounded width has no edge to overflow, so the flow stays on one line.
+- **`SplitRow`**: `Params = Placement` (cross-axis height only). A *declared-structure* layout (Phase 4): it takes a `count` up front and divides its width into that many **equal** cells, `(width − spacing·(count−1)) / count` each. Each child's width is imposed (the cell), so children declare only their height. Because dividing space needs a committed far edge, `SplitRow` requires `AxisBound::Exact` width and panics on `AtMost`/`Unbounded` — the same rule that governs `Fill` and alignment. Knowing `count` is what makes the equal split one-pass (no measure-all / emit-reorder): an equal split is otherwise a future-sibling dependency, and the declaration turns it into a constant resolved from available space alone.
 - **`OffsetLayout<L>`**: A decorator that shifts the inner layout's `Rect`s by a `Vec2` offset (used by scroll areas). It forwards `Params` and `intrinsic` to the inner layout. Scroll areas wrap their content layout in `OffsetLayout { offset, inner }` and push a scissor `clip_rect`.
 
 Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
@@ -194,8 +194,8 @@ Three types carry sizing information, each flowing one direction with one owner:
 - **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. The three fields mirror CSS intrinsic sizing: `min` is the smallest size below which content clips (the longest unbreakable word), `preferred` the natural unwrapped size, `max` the largest useful size. Fields are optional — a widget may know one axis and not the other; a fully-unknown value needs no separate sentinel. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
 
   **The test for what belongs here:** if the widget computes it from its own content, it's `IntrinsicSize`; if the caller decides it, it's `Params`. "Should not shrink below 60 because the label clips" is a widget fact → `IntrinsicSize.min`. "Stretch to fill the row" is caller intent → `Params`. Keeping flex flags out of `IntrinsicSize` is what lets the name stay accurate as it grows from a single size to a min/preferred/max range.
-- **`SizeReq { width: Extent, height: Extent }`** — the caller's per-axis intent handed *down* to a layout. `Extent` is `Fixed(px)`, `Auto` (use the intrinsic preferred size on that axis), or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes.
-- **Missing-measurement policy — panic, no fallback.** When an intrinsic-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Extent::resolve` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
+- **`Placement2D { width: Placement, height: Placement }`** — the caller's per-axis intent handed *down* to a layout. `Placement` is `Sized { size: Size::Fixed(px), align }`, `Sized { size: Size::Auto, align }`, or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes with default `Start` alignment.
+- **Missing-measurement policy — panic, no fallback.** When an intrinsic-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Placement::resolve_size` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
 
 ### Three-State Axis Bounds & Unbounded Axes
 
@@ -215,17 +215,17 @@ Position is always concrete — a layout always knows *where* a child starts —
 
 If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, it will **panic** if:
 1. The cross-axis boundary is `AtMost` or `Unbounded`. This prevents alignment math from running against a boundary that was only ever intended as a maximum ceiling or scroll container extent.
-2. The aligned object is a deferred container (such as a `Frame`) and has a dynamic size (`Extent::Auto`). Because deferred layouts position and draw their children immediately during the layout pass, the aligned container's size must be resolved upfront during `begin_layout`. If the size is dynamic (`Auto`), it is mathematically impossible to calculate the correct alignment offset upfront, and any attempt to do so will trigger an immediate panic in `begin_layout`.
+2. The aligned object is a deferred container (such as a `Frame`) and has a dynamic size (`Size::Auto`). Because deferred layouts position and draw their children immediately during the layout pass, the aligned container's size must be resolved upfront during `begin_layout`. If the size is dynamic (`Auto`), it is mathematically impossible to calculate the correct alignment offset upfront, and any attempt to do so will trigger an immediate panic in `begin_layout`.
 
-Similarly, `WrapLayout` does not support deferred containers with `Extent::Auto` widths because line wrapping decisions must be resolved upfront in `begin_layout`. Placing a dynamic-width deferred container in `WrapLayout` will trigger a panic in `begin_layout`.
+Similarly, `WrapLayout` does not support deferred containers with `Size::Auto` widths because line wrapping decisions must be resolved upfront in `begin_layout`. Placing a dynamic-width deferred container in `WrapLayout` will trigger a panic in `begin_layout`.
 
-To align or wrap a nested container safely, it must have a concrete size resolved upfront (e.g. `Extent::Fixed(px)`, or `Extent::Fill` against a parent of exact bounds).
+To align or wrap a nested container safely, it must have a concrete size resolved upfront (e.g. `Placement::fixed(px)`, or `Placement::fill()` against a parent of exact bounds).
 
 #### Sizing Resolution Rules
 
 Three key rules keep these bounds from leaking infinity into leaf widget geometry:
 
-1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (and panics if none is reported), matching `Extent::Auto` resolution behavior.
+1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (and panics if none is reported), matching `Size::Auto` resolution behavior.
 2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's intrinsic size resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
 3. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully concrete `Rect`. The layout's running cursor stays a concrete `f32`, meaning the accumulated extent remains fully bounded (which is precisely what a deferred scroll area reads as its content size). No infinity ever reaches a `Rect`.
 
@@ -586,7 +586,7 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
     3. The container creates a child `WidgetContext` with a custom `on_finish` closure, capturing the `LayoutToken` by value.
     4. Sibling widgets are laid out sequentially within the child context. When the child context is finished, `finish()` automatically queries the child layout state for its `resolve_space()` (the accumulated content resolved against the layout's bounds) and passes it to the `on_finish` closure.
     5. Inside the closure, the container consumes the token by calling `token.end_layout(children_extent)`. This resolves the container's final size and visual alignment inside the parent, advances the parent layout cursor, and releases the parent borrow, unlocking the parent context for subsequent sibling widgets.
-  - This design decouples the container from concrete layout systems (like `ColumnLayout` or `RowLayout`) and concrete layout parameters (like `SizeReq` or `Rect`), as all sizing policies are decided solely via generic `LayoutSpace` bounds and completed via `LayoutToken`.
+  - This design decouples the container from concrete layout systems (like `ColumnLayout` or `RowLayout`) and concrete layout parameters (like `Placement2D` or `Rect`), as all sizing policies are decided solely via generic `LayoutSpace` bounds and completed via `LayoutToken`.
 
 - **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`, `begin_frame`) return a child `WidgetContext` with their cleanup logic embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. Commands accumulate directly into the shared buffer and cleanup runs automatically — no explicit high-level `end_*` call or manual command threading needed. The raw layer still exposes `raw::end_scroll_area(token, content_extent, state, input, focus_system)` and `raw::end_window()` for callers that bypass the context system.
 

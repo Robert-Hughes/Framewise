@@ -9,11 +9,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
-* Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
-* We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
-* Fill + Unbounded => preferred  Is this right?? layout.rs resolve()
-
-* Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
+* Panicking for alignment requests that can't be satisfied is bad. What do?
 
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
@@ -221,7 +217,7 @@ The reorder trick (emit autos to measure → distribute → place → `override_
 - Match-tallest (a row of cards all stretched to the tallest — declared count + measure-all)
 - Grid where each column is as wide as its widest cell (declared column count + measure-all)
 
-All require `AxisBound::Exact` on the divided axis (a committed far edge), the same rule that governs `Fill` and alignment.
+All require `AxisBound::Exact` on the divided axis (a committed far edge), the same rule that governs `Placement::Fill` and alignment.
 
 ### Tier 3 — Refuse (non-goals, impossible at any phase)
 
@@ -232,7 +228,7 @@ Each asks for a value that only exists *after* the thing it controls is decided 
 | A caption that wraps into a square-ish block | Width depends on wrapped height, which depends on width. No fixed point in one pass. |
 | Three buttons each sized to its label, but the first always exactly 2× the others | "Size to text" and "be 2× the others" contradict. |
 | A tooltip that hugs its text while the text re-wraps to fit that shrunk width | Width ↔ content loop at container level. |
-| A panel filling the height inside a vertically-infinite scrolling list | Filling "unbounded" is meaningless (the fill + `Unbounded` rule). |
+| A panel filling the height inside a vertically-infinite scrolling list | Filling "unbounded" is meaningless (the `Placement::Fill` + `Unbounded` rule). |
 | Two panes staying equal as you drag a divider, both honoring minimums, both filling the window | Simultaneous multi-variable solve — a constraint solver, not a forward pass. |
 
 This is the same width ↔ content self-dependency that bars **constraint-affecting fit** in fit-to-children containers (Phase 6, `DESIGN.md`).

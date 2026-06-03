@@ -6071,10 +6071,7 @@ mod nested_bubbling_tests {
 
         let col = child_ctx.child_with_layout(
             Rect::new(0.0, 0.0, 188.0, 200.0),
-            crate::layouts::ColumnLayout {
-                spacing: 5.0,
-                align: crate::layouts::CrossAlign::Center,
-            },
+            crate::layouts::ColumnLayout { spacing: 5.0 },
         );
 
         col.finish();

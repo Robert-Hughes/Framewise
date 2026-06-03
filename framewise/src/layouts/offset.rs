@@ -70,16 +70,12 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
 mod tests {
     use super::*;
     use crate::layouts::column::ColumnLayout;
-    use crate::layouts::CrossAlign;
 
     #[test]
     fn test_offset_content_extent_ignores_offset() {
         let offset = OffsetLayout {
             offset: Vec2::new(13.0, 27.0),
-            inner: ColumnLayout {
-                spacing: 0.0,
-                align: CrossAlign::Start,
-            },
+            inner: ColumnLayout { spacing: 0.0 },
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         state.layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN);
@@ -92,10 +88,7 @@ mod tests {
     fn test_offset_layout() {
         let offset = OffsetLayout {
             offset: Vec2::new(5.0, 15.0),
-            inner: ColumnLayout {
-                spacing: 10.0,
-                align: CrossAlign::Start,
-            },
+            inner: ColumnLayout { spacing: 10.0 },
         };
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
         let mut state = offset.begin(bounds);
@@ -114,16 +107,13 @@ mod tests {
     fn test_deferred_offset_layout_lifecycle() {
         let offset = OffsetLayout {
             offset: Vec2::new(10.0, 20.0),
-            inner: ColumnLayout {
-                spacing: 5.0,
-                align: CrossAlign::Start,
-            },
+            inner: ColumnLayout { spacing: 5.0 },
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
 
-        let req = crate::layout::SizeReq {
-            width: crate::layout::Extent::Fixed(50.0),
-            height: crate::layout::Extent::Auto,
+        let req = crate::layout::Placement2D {
+            width: crate::layout::Placement::fixed(50.0),
+            height: crate::layout::Placement::auto(),
         };
         let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
 
