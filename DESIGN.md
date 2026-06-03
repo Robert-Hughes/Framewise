@@ -255,7 +255,7 @@ A middle ground is required, and *which* one depends on the caller, so it can't 
 
 The key separation: keep the *value* deterministic and safe (`Start` / clamped-intrinsic) while putting the *loudness* in a policy-driven reaction. Because the fallback never moves a widget off-screen or yields a `NaN`, the rest of the frame lays out sanely around a flagged region even under `Highlight`.
 
-**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn only where a text system is in reach (the immediate and `finish()` paths); the deferred `end_layout` reaction runs in a closure without one and shows the outline alone. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
+**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn on every reaction path — the `on_finish` closure carries the text system into the deferred `begin_layout`/`end_layout` reactions, so they label the box like the immediate path does. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
 
 #### Sizing Resolution Rules
 

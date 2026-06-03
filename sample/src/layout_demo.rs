@@ -657,7 +657,7 @@ pub fn draw_layout_page(
 
 /// A full-width disabled ghost button used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
-fn label_row<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
+fn label_row<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
@@ -677,7 +677,7 @@ fn label_row<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
     );
 }
 
-fn heading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
+fn heading<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
@@ -685,7 +685,7 @@ fn heading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
     label_row(col, ghost, text, 30.0);
 }
 
-fn subheading<CF: FnOnce(&mut FocusSystem, &mut framewise::DrawCommands, Rect)>(
+fn subheading<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,

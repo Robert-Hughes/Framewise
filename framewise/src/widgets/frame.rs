@@ -217,7 +217,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     builder: FrameSpecBuilder,
     layout_params: S::Params,
     inner_layout: L,
-) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'b> {
+) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b> {
     let spec = builder
         .defaults_from_theme(&ctx.theme)
         .rect(Rect::PLACEHOLDER)
@@ -226,6 +226,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     let intrinsic = raw::calc_frame_intrinsic_size(&spec);
 
     let policy = ctx.layout_policy;
+    let violation_font = ctx.theme.sans_font;
 
     // The deferred-layout borrow plumbing lives in `child_with_deferred_layout`; here we
     // only supply the frame-specific chrome via the two closures.
@@ -250,11 +251,11 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         // At finish: the frame's outer size is its children's extent plus the chrome on
         // both sides. Advance the parent's cursor with that, then retroactively patch the
         // placeholder draw commands with the resolved bounds.
-        move |(frame_token, spec), token, content, _focus, cmds| {
+        move |(frame_token, spec), token, content, _focus, text_system, cmds| {
             let outer_extent = Vec2::new(content.w + inset * 2.0, content.h + inset * 2.0);
             let (bounds, violation) = token.end_layout(outer_extent).into_parts();
             if let Some(v) = violation {
-                crate::widget::react_layout_violation(policy, cmds, v, bounds);
+                crate::widget::react_layout_violation(policy, text_system, cmds, violation_font, v, bounds);
             }
             raw::end_frame(
                 frame_token,

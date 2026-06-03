@@ -61,35 +61,13 @@ pub enum LayoutViolationPolicy {
 }
 
 /// React to a layout violation according to the specified policy.
-pub fn react_layout_violation(
-    policy: LayoutViolationPolicy,
-    cmds: &mut DrawCommands,
-    violation: LayoutViolation,
-    fallback_rect: Rect,
-) {
-    match policy {
-        LayoutViolationPolicy::Panic => {
-            // violation's Display already carries the "Layout panic: …" prefix.
-            panic!("{}", violation);
-        }
-        LayoutViolationPolicy::Highlight => {
-            cmds.push(crate::draw::DrawCmd::StrokeRect {
-                rect: fallback_rect,
-                color: crate::types::Color::from_srgb_u8(255, 0, 0, 255),
-                width: 2.0,
-            });
-        }
-    }
-}
-
-/// Like [`react_layout_violation`], but also draws the violation message in red at the
-/// top-left corner of the fallback rect. Used on the paths where a `TextSystem` is in
-/// reach — the immediate `layout()` and a context's own `begin_layout` violation reacted
-/// at `finish()`. The deferred `end_layout` paths run inside `after_children` closures
-/// that have no text system, so they fall back to the outline-only
-/// [`react_layout_violation`]. (See NOTES.md: threading the text system through those
-/// closures would let every path draw the label.)
-pub fn react_layout_violation_with_text<T: TextSystem>(
+///
+/// `Panic` rethrows the violation message; `Highlight` draws a red outline over the
+/// fallback geometry and labels the violation message in red at its top-left corner.
+/// Every reaction path has a `TextSystem` in reach (the immediate `layout()`, and the
+/// deferred `begin_layout`/`end_layout` reactions, which receive it through the
+/// `on_finish` closure), so the label is always drawn.
+pub fn react_layout_violation<T: TextSystem>(
     policy: LayoutViolationPolicy,
     text_system: &mut T,
     cmds: &mut DrawCommands,
@@ -150,7 +128,7 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
 }
 
 impl<'a, T: TextSystem, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut DrawCommands, Rect)>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)>
 {
     /// Creates a root `WidgetContext`.
     ///
@@ -179,7 +157,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
             layout_policy: LayoutViolationPolicy::default(),
             pending_violation: None,
             cmds,
-            on_finish: |_, _, _| (), // No cleanup for root context
+            on_finish: |_, _, _, _| (), // No cleanup for root context
         }
     }
 }
@@ -188,7 +166,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect),
+        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -214,7 +192,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect),
+        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -252,22 +230,23 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'c>
+    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c>
     {
         // A bare nested layout has no chrome: the inner layout fills the provisional
         // space as-is, and its outer extent is exactly its measured content.
         let policy = self.layout_policy;
+        let font = self.theme.sans_font;
         let (child, _outer_space) = self.child_with_deferred_layout(
             placement,
             IntrinsicSize::UNKNOWN,
             inner_layout,
             |_cmds, outer| ((), outer),
-            move |(), token, content, _focus, cmds| {
+            move |(), token, content, _focus, text_system, cmds| {
                 let (rect, violation) = token
                     .end_layout(Vec2::new(content.w, content.h))
                     .into_parts();
                 if let Some(v) = violation {
-                    react_layout_violation(policy, cmds, v, rect);
+                    react_layout_violation(policy, text_system, cmds, font, v, rect);
                 }
             },
         );
@@ -307,14 +286,14 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             'c,
             T,
             L2::State,
-            impl FnOnce(&mut FocusSystem, &mut DrawCommands, Rect) + 'c,
+            impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c,
         >,
         LayoutSpace,
     )
     where
         L2: Layout,
         Before: FnOnce(&mut DrawCommands, LayoutSpace) -> (U, LayoutSpace),
-        After: FnOnce(U, LayoutToken<'c, LS>, Rect, &mut FocusSystem, &mut DrawCommands) + 'c,
+        After: FnOnce(U, LayoutToken<'c, LS>, Rect, &mut FocusSystem, &mut T, &mut DrawCommands) + 'c,
         U: 'c,
     {
         let clip = self.clip_rect; // Clip rect is inherited by default.
@@ -334,8 +313,11 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         // Caller's "between" hook: push placeholder draw commands, decide the inner space.
         let (carried, inner_space) = before_children(self.cmds, outer_space);
 
-        let on_finish = move |focus: &mut FocusSystem, cmds: &mut DrawCommands, resolved: Rect| {
-            after_children(carried, token, resolved, focus, cmds);
+        let on_finish = move |focus: &mut FocusSystem,
+                              text_system: &mut T,
+                              cmds: &mut DrawCommands,
+                              resolved: Rect| {
+            after_children(carried, token, resolved, focus, text_system, cmds);
         };
 
         let child = WidgetContext {
@@ -362,7 +344,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             .layout(layout_params, intrinsic)
             .into_parts();
         if let Some(v) = violation {
-            react_layout_violation_with_text(
+            react_layout_violation(
                 self.layout_policy,
                 self.text_system,
                 self.cmds,
@@ -380,7 +362,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)>
+impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)>
     WidgetContext<'a, T, LS, CF>
 {
     /// Consume the context, running the on_finish closure and appending its post-commands.
@@ -392,12 +374,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
         let font = self.theme.sans_font;
-        (self.on_finish)(self.focus_system, self.cmds, resolved_space);
+        (self.on_finish)(self.focus_system, self.text_system, self.cmds, resolved_space);
 
         // React to this context's own begin_layout violation (carried here so the
-        // fallback rect is concrete). Text system is in reach, so draw the label too.
+        // fallback rect is concrete).
         if let Some(violation) = self.pending_violation {
-            react_layout_violation_with_text(
+            react_layout_violation(
                 self.layout_policy,
                 self.text_system,
                 self.cmds,
