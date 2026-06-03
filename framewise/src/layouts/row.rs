@@ -46,7 +46,7 @@ impl LayoutState for RowState {
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
         // Main axis (width) advances the cursor; cross axis (height) fills space.
-        // A `Fill` width (or unbounded width) falls back to intrinsic per Rule 1.
+        // `Fill` on an unbounded axis is unsatisfiable and panics in Extent::resolve.
         let w = layout_params
             .width
             .resolve(pref.map(|p| p.x), self.space.width);
@@ -228,8 +228,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "needs an intrinsic measurement")]
-    fn test_fill_on_unbounded_axis_without_intrinsic_panics() {
+    #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
+    fn test_fill_on_unbounded_axis_panics() {
         let mut state = RowLayout {
             spacing: 0.0,
             align: CrossAlign::Start,
@@ -239,7 +239,7 @@ mod tests {
             width: Extent::Fill,
             height: Extent::Fixed(40.0),
         };
-        // Fill width on the unbounded axis with no intrinsic → unsatisfiable → panic.
+        // Fill width on the unbounded axis → no edge to fill into → unsatisfiable → panic.
         let _ = state.layout(req, IntrinsicSize::UNKNOWN);
     }
 

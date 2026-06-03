@@ -194,12 +194,18 @@ impl Extent {
             },
             Extent::Fill => match fill {
                 AxisBound::Exact(w) => w,
-                // Position & distribution policies — fill, right-align, center,
-                // space-between — require Exact: a committed frame with a far edge.
-                // AtMost and Unbounded permit only measurement / shrink-wrap decisions,
-                // so we fall back to Auto.
+                // Fill needs a committed frame with a far edge. AtMost has a ceiling
+                // but no commitment, so we shrink-wrap to preferred (clamped).
                 AxisBound::AtMost(w) => preferred().min(w),
-                AxisBound::Unbounded => preferred(),
+                // Unbounded has no edge to fill into — "fill infinity" is undefined.
+                // This is an unsatisfiable request, the same class as CrossAlign on a
+                // non-Exact axis, so we fail loudly rather than silently degrading to
+                // Auto (which would make Fill ≡ Auto here, surprising the caller).
+                AxisBound::Unbounded => panic!(
+                    "Layout panic: Extent::Fill on an Unbounded axis is unsatisfiable — \
+                     there is no bounded extent to fill into. Use Extent::Auto if you want \
+                     the intrinsic size, or place this in a bounded (Exact) container."
+                ),
             },
         }
     }
@@ -375,5 +381,13 @@ mod tests {
     fn test_fill_resolve_without_intrinsic_panics() {
         // Fill under AtMost degrades to Auto, so it too needs a measurement.
         let _ = Extent::Fill.resolve(None, AxisBound::AtMost(80.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
+    fn test_fill_resolve_unbounded_panics() {
+        // Fill on an unbounded axis is unsatisfiable — no edge to fill into. It
+        // panics regardless of whether an intrinsic was measured (Fill ≠ Auto).
+        let _ = Extent::Fill.resolve(Some(18.0), AxisBound::Unbounded);
     }
 }

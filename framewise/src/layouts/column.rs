@@ -46,7 +46,7 @@ impl LayoutState for ColumnState {
     fn layout(&mut self, layout_params: SizeReq, intrinsic: IntrinsicSize) -> Rect {
         let pref = intrinsic.preferred;
         // Cross axis (width) fills the column space; main axis (height) stacks.
-        // A `Fill` height (or unbounded height) falls back to intrinsic per Rule 1.
+        // `Fill` on an unbounded axis is unsatisfiable and panics in Extent::resolve.
         let w = layout_params
             .width
             .resolve(pref.map(|p| p.x), self.space.width);
@@ -271,8 +271,10 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_on_unbounded_axis_falls_back_to_intrinsic() {
-        // Rule 1: Fill on an unbounded axis is undefined — falls back to intrinsic.
+    #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
+    fn test_fill_on_unbounded_axis_panics() {
+        // Fill on an unbounded axis is unsatisfiable — no extent to fill into.
+        // (Even with an intrinsic present: Fill is not Auto, so we don't degrade.)
         let mut state = ColumnLayout {
             spacing: 0.0,
             align: CrossAlign::Start,
@@ -282,9 +284,7 @@ mod tests {
             width: Extent::Fixed(50.0),
             height: Extent::Fill,
         };
-        let r = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 18.0)));
-        // Fill height has no extent to fill → intrinsic 18.
-        assert_eq!(r, Rect::new(0.0, 0.0, 50.0, 18.0));
+        let _ = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 18.0)));
     }
 
     #[test]

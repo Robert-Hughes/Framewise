@@ -9,14 +9,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * For 'container' widgets with the new begin/end thing like frame():
   - How do their begin() fns (high/low) handle rect - they should take a LayoutSpace instead? Is this more faithful than taking a Rect with some random zeroes etc.?
 
-* Split layout.rs into core layout stuff, and a separate layouts folder with files for each Manual/Row/Col etc.
-  - Several of the layouts are very similar to one another, can we simplify by combniing some? Perhaps some are supersets of each other?
-  - For SplitRow, do we want an equivlanet SplitCol
-  - For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
-  - Consistency between layouts! Same file order, param order etc. etc. Note this in DESIGN.md
-
 * Alignment left/right/centre and Extent::Fill should probably be in the same thing, not separate. I think this is actually the same as:
 * We have alignment field on some layouts, but this is fixed for the whole layout. What if user wants to place individual widgets with different alignments? Maybe an override?
+* Fill + Unbounded => preferred  Is this right?? layout.rs resolve()
 
 * Panicking for alignment requests that can't be satisfied is bad. Similar question to how to handle the FALLBACK layout thing.
 
@@ -201,6 +196,9 @@ Features to design and implement, roughly in dependency order:
 ## Remaining Layout Work
 
 Consider if the new system is good enough - does it make layout usable/ergonomic yet?
+Several of the layouts are very similar to one another, can we simplify by combniing some? Perhaps some are supersets of each other?
+For SplitRow, do we want an equivlanet SplitCol
+For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
 
 Phases 1–3, 5, and 6 of the original layout proposal are **implemented and documented in `DESIGN.md`** (intrinsic sizing, three-state `AxisBound`, unbounded axes, deferred scroll, fit-to-children frames). Phase 4 is **partially** done: `SplitRow` (declared count, equal cells) shipped; the weighted/grid/match-tallest cases below did not. This section keeps only what's still unbuilt, plus the conceptual framing that justifies *why* some cases are possible and others never will be.
 
