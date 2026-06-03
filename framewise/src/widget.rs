@@ -82,6 +82,42 @@ pub fn react_layout_violation(
     }
 }
 
+/// Like [`react_layout_violation`], but also draws the violation message in red at the
+/// top-left corner of the fallback rect. Used on the paths where a `TextSystem` is in
+/// reach — the immediate `layout()` and a context's own `begin_layout` violation reacted
+/// at `finish()`. The deferred `end_layout` paths run inside `after_children` closures
+/// that have no text system, so they fall back to the outline-only
+/// [`react_layout_violation`]. (See NOTES.md: threading the text system through those
+/// closures would let every path draw the label.)
+pub fn react_layout_violation_with_text<T: TextSystem>(
+    policy: LayoutViolationPolicy,
+    text_system: &mut T,
+    cmds: &mut DrawCommands,
+    font: crate::text::FontId,
+    violation: LayoutViolation,
+    fallback_rect: Rect,
+) {
+    match policy {
+        // violation's Display already carries the "Layout panic: …" prefix.
+        LayoutViolationPolicy::Panic => panic!("{}", violation),
+        LayoutViolationPolicy::Highlight => {
+            let color = crate::types::Color::from_srgb_u8(255, 0, 0, 255);
+            cmds.push(crate::draw::DrawCmd::StrokeRect {
+                rect: fallback_rect,
+                color,
+                width: 2.0,
+            });
+            // Label at the top-left corner, in the same red.
+            let layout = text_system.prepare(&violation.to_string(), 12.0, font);
+            cmds.push(crate::draw::DrawCmd::Text {
+                rect: Rect::new(fallback_rect.x, fallback_rect.y, layout.size.x, layout.size.y),
+                color,
+                handle: layout.handle,
+            });
+        }
+    }
+}
+
 // ── WidgetContext ───────────────────────────────────────────────────────────
 
 /// Context struct providing theme, input, focus, text system, and draw command
@@ -326,7 +362,14 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             .layout(layout_params, intrinsic)
             .into_parts();
         if let Some(v) = violation {
-            react_layout_violation(self.layout_policy, self.cmds, v, rect);
+            react_layout_violation_with_text(
+                self.layout_policy,
+                self.text_system,
+                self.cmds,
+                self.theme.sans_font,
+                v,
+                rect,
+            );
         }
         rect
     }
@@ -348,11 +391,20 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
     pub fn finish(self) {
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
+        let font = self.theme.sans_font;
         (self.on_finish)(self.focus_system, self.cmds, resolved_space);
 
-        // React to pending_violation
+        // React to this context's own begin_layout violation (carried here so the
+        // fallback rect is concrete). Text system is in reach, so draw the label too.
         if let Some(violation) = self.pending_violation {
-            react_layout_violation(self.layout_policy, self.cmds, violation, resolved_space);
+            react_layout_violation_with_text(
+                self.layout_policy,
+                self.text_system,
+                self.cmds,
+                font,
+                violation,
+                resolved_space,
+            );
         }
 
         // Draw the debug outline *after* on_finish so it sits on top of this

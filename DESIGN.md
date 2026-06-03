@@ -213,19 +213,55 @@ Position is always concrete — a layout always knows *where* a child starts —
 
 > **Position and distribution policies — fill, right-align, center, space-between — require `AxisBound::Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` bounds permit only measurement / shrink-wrap decisions.**
 
-If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, it will **panic** if:
-1. The cross-axis boundary is `AtMost` or `Unbounded`. This prevents alignment math from running against a boundary that was only ever intended as a maximum ceiling or scroll container extent.
-2. The aligned object is a deferred container (such as a `Frame`) and has a dynamic size (`Size::Auto`). Because deferred layouts position and draw their children immediately during the layout pass, the aligned container's size must be resolved upfront during `begin_layout`. If the size is dynamic (`Auto`), it is mathematically impossible to calculate the correct alignment offset upfront, and any attempt to do so will trigger an immediate panic in `begin_layout`.
+If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, the request is **unsatisfiable** when:
+1. The cross-axis boundary is `AtMost` or `Unbounded` — alignment math has no committed far edge to run against (the boundary was only ever a ceiling or a scroll extent). This is a *recoverable* violation: the layout returns a safe fallback (`Start`, offset `0.0`) tagged with a `LayoutViolation`, and how it surfaces is decided by the [violation policy](#unsatisfiable-requests-layoutresult-and-the-violation-policy) below.
+2. The aligned object is a deferred container (such as a `Frame`) with a dynamic size (`Size::Auto`). Deferred layouts position and draw their children during the layout pass, so the container's size would have to be resolved upfront in `begin_layout`; with `Auto` it is only known once the layout *closes*, and the already-emitted child output cannot be shifted retroactively. There is no meaningful fallback, so this stays an *unrecoverable* hard `panic!` in `begin_layout`.
 
-Similarly, `WrapLayout` does not support deferred containers with `Size::Auto` widths because line wrapping decisions must be resolved upfront in `begin_layout`. Placing a dynamic-width deferred container in `WrapLayout` will trigger a panic in `begin_layout`.
+Similarly, `WrapLayout` does not support deferred containers with `Size::Auto` widths because line-wrapping decisions must be resolved upfront in `begin_layout` — also a hard panic, for the same "no safe fallback" reason.
 
 To align or wrap a nested container safely, it must have a concrete size resolved upfront (e.g. `Placement::fixed(px)`, or `Placement::fill()` against a parent of exact bounds).
+
+#### Unsatisfiable Requests: `LayoutResult` and the Violation Policy
+
+Recoverable unsatisfiable requests (the bound-based alignment case above, plus `Fill` against a non-`Exact` axis and `Auto` with no reported intrinsic) are **not** raised as panics deep in the layout math. The two sizing/offset primitives — `Placement::resolve_size` and `Placement::align_offset` — return a `LayoutResult<T>`:
+
+```rust
+enum LayoutResult<T> {
+    Ok(T),                                              // satisfiable; value is exact
+    Fallback { value: T, violation: LayoutViolation },  // unsatisfiable; value is a safe fallback
+}
+```
+
+The `Fallback` arm always carries a usable value (`Start` offset `0.0` for alignment; intrinsic clamped to the ceiling, or `0.0`, for `Fill`) **and** a `LayoutViolation` describing what was unsatisfiable plus the call site (`#[track_caller]`). The `LayoutState` methods (`layout`, `begin_layout`, `end_layout`) compose these — assembling their `Rect`/`LayoutSpace` from the fallback sub-values and keeping the first violation — and return a `LayoutResult` instead of unwrapping internally. Layout math therefore never panics on its own; it *reports*.
+
+**Reaction is a `WidgetContext`-level concern.** Every layout call funnels through `WidgetContext` (which owns the draw buffer, the text system, and the policy), which reacts according to `layout_policy: LayoutViolationPolicy`:
+
+- **`Panic`** (default) — rethrow the violation's message. Preserves the strict fail-loud contract; used by tests and any caller wanting a hard guarantee.
+- **`Highlight`** — draw a red outline over the fallback geometry, label the violation message in red at its corner, and keep running.
+
+For the immediate path the reaction happens inline (the resolved rect is in hand). For a deferred child, the `begin_layout` violation is carried *on the child* and reacted at the child's own `finish()`, where its resolved rect is concrete — so each child reacts with its own geometry and no sibling violation is dropped.
+
+##### Why a policy, rather than one fixed behaviour
+
+The two obvious single behaviours are each wrong on their own:
+
+- **Always panic** is intolerable for an interactive, immediate-mode UI. Layout runs *every frame*, so one unsatisfiable request crashes the app the instant it renders — the developer can't even see the broken state to reason about it.
+- **Always fall back silently** is a debugging trap. A `Center` that quietly degrades to `Start` leaves a subtly-wrong UI with no signal as to why — invisible in both the running app and the console.
+
+A middle ground is required, and *which* one depends on the caller, so it can't be hard-coded:
+
+- **Tests want `Panic`.** CI should fail the moment a layout becomes unsatisfiable — the cheapest place to catch a regression. Hence `Panic` is the default, leaving existing behaviour and test guarantees unchanged.
+- **Interactive apps want `Highlight`.** The app keeps running so the developer sees the rest of the UI, but the offending region is unmistakable (red box) and self-describing (the message is drawn on it) — the layout equivalent of a renderer's magenta missing-texture. The sample app sets `Highlight` on every page.
+
+The key separation: keep the *value* deterministic and safe (`Start` / clamped-intrinsic) while putting the *loudness* in a policy-driven reaction. Because the fallback never moves a widget off-screen or yields a `NaN`, the rest of the frame lays out sanely around a flagged region even under `Highlight`.
+
+**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn only where a text system is in reach (the immediate and `finish()` paths); the deferred `end_layout` reaction runs in a closure without one and shows the outline alone. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
 
 #### Sizing Resolution Rules
 
 Three key rules keep these bounds from leaking infinity into leaf widget geometry:
 
-1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (and panics if none is reported), matching `Size::Auto` resolution behavior.
+1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (reported as a recoverable `LayoutResult` violation if none is available — see [Unsatisfiable Requests](#unsatisfiable-requests-layoutresult-and-the-violation-policy)), matching `Size::Auto` resolution behavior.
 2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's intrinsic size resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
 3. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully concrete `Rect`. The layout's running cursor stays a concrete `f32`, meaning the accumulated extent remains fully bounded (which is precisely what a deferred scroll area reads as its content size). No infinity ever reaches a `Rect`.
 
