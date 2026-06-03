@@ -1,6 +1,6 @@
 use crate::layout::{
-    Align, AxisBound, IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, Placement,
-    Placement2D, Size,
+    Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
+    Placement, Placement2D, Size,
 };
 use crate::types::{Rect, Vec2};
 
@@ -40,36 +40,40 @@ pub struct RowState {
 impl LayoutState for RowState {
     type Params = Placement2D;
 
-    fn layout(&mut self, layout_params: Placement2D, intrinsic: IntrinsicSize) -> Rect {
+    fn layout(
+        &mut self,
+        layout_params: Placement2D,
+        intrinsic: IntrinsicSize,
+    ) -> LayoutResult<Rect> {
         let pref = intrinsic.preferred;
         // Main axis (width) advances the cursor; cross axis (height) fills space.
-        let w = layout_params
+        let (w, v1) = layout_params
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
-            .unwrap();
-        let h = layout_params
+            .into_parts();
+        let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
-        let y = self.space.y
-            + layout_params
-                .height
-                .align_offset(h, self.space.height)
-                .unwrap();
+        let (off, v3) = layout_params
+            .height
+            .align_offset(h, self.space.height)
+            .into_parts();
+        let y = self.space.y + off;
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
         self.content_h = self.content_h.max((y + h) - self.space.y);
         self.current_x += w + self.spacing;
-        r
+        LayoutResult::from_parts(r, v1.or(v2).or(v3))
     }
 
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Placement2D,
         _intrinsic: IntrinsicSize,
-    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+    ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
         let width = match layout_params.width {
             Placement::Sized {
                 size: Size::Fixed(w),
@@ -133,42 +137,42 @@ impl LayoutState for RowState {
             }
         };
 
-        let y = self.space.y
-            + layout_params
-                .height
-                .align_offset(h.unwrap_or(0.0), self.space.height)
-                .unwrap();
+        let (off, v1) = layout_params
+            .height
+            .align_offset(h.unwrap_or(0.0), self.space.height)
+            .into_parts();
+        let y = self.space.y + off;
 
         let space = LayoutSpace::new(self.current_x, y, width, height);
         let token = LayoutToken {
             state: self,
             params: layout_params,
         };
-        (space, token)
+        (LayoutResult::from_parts(space, v1), token)
     }
 
-    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> Rect {
+    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> LayoutResult<Rect> {
         let pref = Some(extent);
-        let w = layout_params
+        let (w, v1) = layout_params
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
-            .unwrap();
-        let h = layout_params
+            .into_parts();
+        let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
-        let y = self.space.y
-            + layout_params
-                .height
-                .align_offset(h, self.space.height)
-                .unwrap();
+        let (off, v3) = layout_params
+            .height
+            .align_offset(h, self.space.height)
+            .into_parts();
+        let y = self.space.y + off;
 
         let r = Rect::new(self.current_x, y, w, h);
         self.content_w = (self.current_x + w) - self.space.x;
         self.content_h = self.content_h.max((y + h) - self.space.y);
         self.current_x += w + self.spacing;
-        r
+        LayoutResult::from_parts(r, v1.or(v2).or(v3))
     }
 
     fn resolve_space(&self) -> Rect {
@@ -184,10 +188,14 @@ mod tests {
     #[test]
     fn test_row_layout() {
         let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(10.0, 20.0, 100.0, 100.0));
-        let r1 = state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
+        let r1 = state
+            .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
-        let r2 = state.layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        let r2 = state
+            .layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(r2, Rect::new(45.0, 20.0, 20.0, 30.0));
     }
 
@@ -195,7 +203,9 @@ mod tests {
     #[should_panic(expected = "needs an intrinsic measurement")]
     fn test_auto_without_intrinsic_panics() {
         let mut state = RowLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
-        let _ = state.layout(Placement2D::auto(), IntrinsicSize::UNKNOWN);
+        let _ = state
+            .layout(Placement2D::auto(), IntrinsicSize::UNKNOWN)
+            .unwrap();
     }
 
     #[test]
@@ -205,9 +215,13 @@ mod tests {
             width: Placement::auto(),
             height: Placement::fixed(40.0),
         };
-        let r1 = state.layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)));
+        let r1 = state
+            .layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)))
+            .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 70.0, 40.0));
-        let r2 = state.layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)));
+        let r2 = state
+            .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)))
+            .unwrap();
         assert_eq!(r2, Rect::new(76.0, 0.0, 50.0, 40.0));
     }
 
@@ -220,14 +234,18 @@ mod tests {
             width: Placement::fill(),
             height: Placement::fixed(40.0),
         };
-        let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+        let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
     }
 
     #[test]
     fn test_row_content_extent() {
         let mut state = RowLayout { spacing: 5.0 }.begin(Rect::new(0.0, 0.0, 400.0, 100.0));
-        state.layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN);
-        state.layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN);
+        let _ = state
+            .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        let _ = state
+            .layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(state.resolve_space(), Rect::new(0.0, 0.0, 400.0, 100.0));
     }
 
@@ -238,19 +256,23 @@ mod tests {
 
         // Center alignment
         let mut center_state = RowLayout { spacing: 5.0 }.begin(space);
-        let r1 = center_state.layout(
-            Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
-            IntrinsicSize::UNKNOWN,
-        );
+        let r1 = center_state
+            .layout(
+                Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
         // y = 10.0 + (80.0 - 20.0) * 0.5 = 40.0
         assert_eq!(r1, Rect::new(10.0, 40.0, 40.0, 20.0));
 
         // End alignment
         let mut end_state = RowLayout { spacing: 5.0 }.begin(space);
-        let r2 = end_state.layout(
-            Placement2D::fixed(40.0, 30.0).align_y(Align::End),
-            IntrinsicSize::UNKNOWN,
-        );
+        let r2 = end_state
+            .layout(
+                Placement2D::fixed(40.0, 30.0).align_y(Align::End),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
         // y = 10.0 + 80.0 - 30.0 = 60.0
         assert_eq!(r2, Rect::new(10.0, 60.0, 40.0, 30.0));
     }
@@ -260,10 +282,12 @@ mod tests {
     fn test_row_cross_alignment_panic_at_most() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::AtMost(80.0));
         let mut state = RowLayout { spacing: 5.0 }.begin(space);
-        let _ = state.layout(
-            Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
-            IntrinsicSize::UNKNOWN,
-        );
+        let _ = state
+            .layout(
+                Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
     }
 
     #[test]
@@ -271,10 +295,12 @@ mod tests {
     fn test_row_cross_alignment_panic_unbounded() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
         let mut state = RowLayout { spacing: 5.0 }.begin(space);
-        let _ = state.layout(
-            Placement2D::fixed(40.0, 20.0).align_y(Align::End),
-            IntrinsicSize::UNKNOWN,
-        );
+        let _ = state
+            .layout(
+                Placement2D::fixed(40.0, 20.0).align_y(Align::End),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
     }
 
     #[test]
@@ -290,7 +316,8 @@ mod tests {
             width: Placement::auto(),
             height: Placement::fill(),
         };
-        let (space, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
 
         // Space should start at current_x = 10.0, with unbounded width and exact height
         assert_eq!(space.x, 10.0);
@@ -301,14 +328,16 @@ mod tests {
         // Consume token with extent 60x40.
         // Width is Placement::auto -> 60.0.
         // Height is Placement::fill -> resolves to space.height (Exact 100.0).
-        let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0));
+        let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(10.0, 10.0, 60.0, 100.0));
 
         // Cursor should have advanced by width (60.0) + spacing (5.0) = 65.0, so next starts at 75.0
-        let next_rect = state.layout(
-            Placement2D::fixed(30.0, 20.0).align_y(Align::Center),
-            IntrinsicSize::UNKNOWN,
-        );
+        let next_rect = state
+            .layout(
+                Placement2D::fixed(30.0, 20.0).align_y(Align::Center),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
         assert_eq!(next_rect.x, 75.0);
         // Center aligned: y = 10.0 + (100.0 - 20.0) * 0.5 = 50.0
         assert_eq!(next_rect.y, 50.0);
@@ -325,12 +354,15 @@ mod tests {
             width: Placement::fixed(80.0),
             height: Placement::fill(),
         };
-        let (space_f, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
+        let (space_f_res, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
+        let space_f = space_f_res.unwrap();
         assert_eq!(space_f.width, AxisBound::Exact(80.0));
         assert_eq!(space_f.height, AxisBound::Exact(150.0));
 
         // Advance cursor by 80 + spacing(5) = 85
-        state.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+        let _ = state
+            .layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
+            .unwrap();
 
         // Remaining parent width is 400 - 85 = 315
         // Auto width, fill height
@@ -338,7 +370,8 @@ mod tests {
             width: Placement::auto(),
             height: Placement::fill(),
         };
-        let (space_auto, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
+        let (space_auto_res, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
+        let space_auto = space_auto_res.unwrap();
         assert_eq!(space_auto.width, AxisBound::AtMost(315.0));
         assert_eq!(space_auto.height, AxisBound::Exact(150.0));
     }
@@ -367,7 +400,7 @@ mod tests {
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
 
             // Bounding box bottom edge = 20.0 + (300.0 - 100.0)/2 + 100.0 = 220.0.
             // Under resolve_space, the Exact(300.0) parent constraint is preserved.
@@ -378,7 +411,7 @@ mod tests {
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::End);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
 
             // Bounding box bottom edge = 20.0 + 300.0 - 100.0 + 100.0 = 320.0.
             // Relative bottom edge = 320.0 - 20.0 = 300.0.
@@ -390,7 +423,7 @@ mod tests {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
             let (_, token) = state.begin_layout(req.clone(), IntrinsicSize::UNKNOWN);
-            let _ = token.end_layout(Vec2::new(80.0, 100.0));
+            let _ = token.end_layout(Vec2::new(80.0, 100.0)).unwrap();
 
             // Under resolve_space, the Exact(300.0) parent constraint is preserved.
             assert_eq!(state.resolve_space().h, 300.0);
@@ -414,7 +447,7 @@ mod tests {
         // The layout space determines the value (Exact constraint overrides any smaller child size).
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space_exact);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
@@ -422,7 +455,7 @@ mod tests {
         // Placed widgets determine the value (since the child's size is within parent bounds).
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space_at_most);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
 
@@ -430,7 +463,7 @@ mod tests {
         // The layout space determines the value (clamped at parent limit ceiling).
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space_at_most_overflow);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 50.0);
         }
 
@@ -438,7 +471,7 @@ mod tests {
         // Placed widgets determine the value entirely (since there is no parent constraint ceiling).
         {
             let mut state = RowLayout { spacing: 10.0 }.begin(parent_space_unbounded);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN);
+            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
     }

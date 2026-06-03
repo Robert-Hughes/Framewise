@@ -1,6 +1,6 @@
 use crate::layout::{
-    AxisBound, IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, Placement,
-    Placement2D, Size,
+    AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
+    Placement, Placement2D, Size,
 };
 use crate::types::{Rect, Vec2};
 
@@ -50,16 +50,20 @@ pub struct WrapState {
 impl LayoutState for WrapState {
     type Params = Placement2D;
 
-    fn layout(&mut self, layout_params: Placement2D, intrinsic: IntrinsicSize) -> Rect {
+    fn layout(
+        &mut self,
+        layout_params: Placement2D,
+        intrinsic: IntrinsicSize,
+    ) -> LayoutResult<Rect> {
         let pref = intrinsic.preferred;
-        let w = layout_params
+        let (w, v1) = layout_params
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
-            .unwrap();
-        let h = layout_params
+            .into_parts();
+        let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
@@ -81,14 +85,17 @@ impl LayoutState for WrapState {
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
         self.current_x += w + self.spacing;
         self.line_height = self.line_height.max(h);
-        r
+        LayoutResult::from_parts(r, v1.or(v2))
     }
 
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Placement2D,
         _intrinsic: IntrinsicSize,
-    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+    ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
+    where
+        Self: Sized,
+    {
         let w = match layout_params.width {
             Placement::Sized { size: Size::Fixed(w), .. } => w,
             Placement::Fill => match self.space.width {
@@ -134,25 +141,25 @@ impl LayoutState for WrapState {
             state: self,
             params: layout_params,
         };
-        (space, token)
+        (LayoutResult::Ok(space), token)
     }
 
-    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> Rect {
+    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> LayoutResult<Rect> {
         let pref = Some(extent);
-        let w = layout_params
+        let (w, v1) = layout_params
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
-            .unwrap();
-        let h = layout_params
+            .into_parts();
+        let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
         self.current_x += w + self.spacing;
         self.line_height = self.line_height.max(h);
-        r
+        LayoutResult::from_parts(r, v1.or(v2))
     }
 
     fn resolve_space(&self) -> Rect {
@@ -181,9 +188,9 @@ mod tests {
             width: Placement::fixed(40.0),
             height: Placement::fixed(20.0),
         };
-        let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
-        let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
-        let r3 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
+        let r2 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
+        let r3 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0));
         assert_eq!(r2, Rect::new(40.0, 0.0, 40.0, 20.0));
         // Third item (would end at 120 > 100) wraps to the next line at
@@ -200,10 +207,12 @@ mod tests {
             line_spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 30.0, 500.0));
-        let r = state.layout(
-            Placement2D::auto(),
-            IntrinsicSize::preferred(Vec2::new(80.0, 16.0)),
-        );
+        let r = state
+            .layout(
+                Placement2D::auto(),
+                IntrinsicSize::preferred(Vec2::new(80.0, 16.0)),
+            )
+            .unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 80.0, 16.0));
     }
 
@@ -219,9 +228,9 @@ mod tests {
             width: Placement::fixed(40.0),
             height: Placement::fixed(20.0),
         };
-        let r1 = state.layout(item, IntrinsicSize::UNKNOWN);
-        let r2 = state.layout(item, IntrinsicSize::UNKNOWN);
-        let r3 = state.layout(item, IntrinsicSize::UNKNOWN);
+        let r1 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
+        let r2 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
+        let r3 = state.layout(item, IntrinsicSize::UNKNOWN).unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0));
         assert_eq!(r2, Rect::new(40.0, 0.0, 40.0, 20.0));
         assert_eq!(r3, Rect::new(80.0, 0.0, 40.0, 20.0));
@@ -236,7 +245,9 @@ mod tests {
         .begin(Rect::new(0.0, 0.0, 100.0, 200.0));
 
         // Place first item normally
-        let r1 = state.layout(Placement2D::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN);
+        let r1 = state
+            .layout(Placement2D::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 40.0, 20.0)); // cursor x is now 40 + 10 = 50
 
         // Place a deferred item of width 40.0.
@@ -244,14 +255,15 @@ mod tests {
             width: Placement::fixed(40.0),
             height: Placement::auto(),
         };
-        let (space, token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
         // provisional space starts at current_x (50) and current_y (0)
         assert_eq!(space.x, 50.0);
         assert_eq!(space.y, 0.0);
 
         // child measures 40x30.
         // Item is placed at current_x = 50. x + w = 50 + 40 = 90 <= 100, no overflow.
-        let resolved_rect = token.end_layout(Vec2::new(40.0, 30.0));
+        let resolved_rect = token.end_layout(Vec2::new(40.0, 30.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
 
         // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
@@ -259,13 +271,14 @@ mod tests {
             width: Placement::fixed(20.0),
             height: Placement::auto(),
         };
-        let (space2, token2) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
+        let (space2_res, token2) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
+        let space2 = space2_res.unwrap();
         // Under WrapLayout's upfront wrap resolution, space2 wraps to start of next line: (0.0, 35.0)
         assert_eq!(space2.x, 0.0);
         assert_eq!(space2.y, 35.0);
 
         // This item is width 20.
-        let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0));
+        let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0)).unwrap();
         assert_eq!(resolved_rect2, Rect::new(0.0, 35.0, 20.0, 15.0));
     }
 
@@ -280,7 +293,9 @@ mod tests {
         .begin(parent_space);
 
         // Place initial item of width 100, height 40 -> current_x is 110, line_height is 40
-        state.layout(Placement2D::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN);
+        state
+            .layout(Placement2D::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN)
+            .unwrap();
 
         // Remaining width on this line is 250 - 110 = 140.
         // Fixed width, auto height child container.
@@ -288,7 +303,8 @@ mod tests {
             width: Placement::fixed(80.0),
             height: Placement::auto(),
         };
-        let (space, _token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, _token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(80.0));
         assert_eq!(space.height, AxisBound::AtMost(200.0));
     }

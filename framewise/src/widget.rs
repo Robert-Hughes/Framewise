@@ -1,6 +1,8 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
-use crate::layout::{IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken};
+use crate::layout::{
+    IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation,
+};
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect, Vec2};
 use crate::Input;
@@ -45,6 +47,41 @@ pub struct InputInfo {
     pub clicked: bool,
 }
 
+// ── Layout Violation Policy ───────────────────────────────────────────────────
+
+/// Policy for handling layout violations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LayoutViolationPolicy {
+    /// Panic immediately on layout violation (matches standard behavior).
+    #[default]
+    Panic,
+    /// Highlight the fallback geometry by drawing a red stroke outline of width 2
+    /// and continue execution without panicking.
+    Highlight,
+}
+
+/// React to a layout violation according to the specified policy.
+pub fn react_layout_violation(
+    policy: LayoutViolationPolicy,
+    cmds: &mut DrawCommands,
+    violation: LayoutViolation,
+    fallback_rect: Rect,
+) {
+    match policy {
+        LayoutViolationPolicy::Panic => {
+            // violation's Display already carries the "Layout panic: …" prefix.
+            panic!("{}", violation);
+        }
+        LayoutViolationPolicy::Highlight => {
+            cmds.push(crate::draw::DrawCmd::StrokeRect {
+                rect: fallback_rect,
+                color: crate::types::Color::from_srgb_u8(255, 0, 0, 255),
+                width: 2.0,
+            });
+        }
+    }
+}
+
 // ── WidgetContext ───────────────────────────────────────────────────────────
 
 /// Context struct providing theme, input, focus, text system, and draw command
@@ -70,7 +107,9 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub input: &'a Input,
     pub cmds: &'a mut DrawCommands,
 
-    pub layout_state: LS,
+    layout_state: LS,
+    pub layout_policy: LayoutViolationPolicy,
+    pending_violation: Option<LayoutViolation>,
     pub on_finish: CF,
 }
 
@@ -101,6 +140,8 @@ impl<'a, T: TextSystem, LS: LayoutState>
             focus_system,
             input,
             layout_state: layout.begin(space.into()),
+            layout_policy: LayoutViolationPolicy::default(),
+            pending_violation: None,
             cmds,
             on_finish: |_, _, _| (), // No cleanup for root context
         }
@@ -127,6 +168,8 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             focus_system: self.focus_system,
             input: self.input,
             layout_state: inner_layout_state,
+            layout_policy: self.layout_policy,
+            pending_violation: None,
             cmds: self.cmds,
             on_finish: inner_on_finish, // The original on_finish is not copied - correct as the original context will still own it.
         }
@@ -177,13 +220,19 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     {
         // A bare nested layout has no chrome: the inner layout fills the provisional
         // space as-is, and its outer extent is exactly its measured content.
+        let policy = self.layout_policy;
         let (child, _outer_space) = self.child_with_deferred_layout(
             placement,
             IntrinsicSize::UNKNOWN,
             inner_layout,
             |_cmds, outer| ((), outer),
-            |(), token, content, _focus, _cmds| {
-                token.end_layout(Vec2::new(content.w, content.h));
+            move |(), token, content, _focus, cmds| {
+                let (rect, violation) = token
+                    .end_layout(Vec2::new(content.w, content.h))
+                    .into_parts();
+                if let Some(v) = violation {
+                    react_layout_violation(policy, cmds, v, rect);
+                }
             },
         );
         child
@@ -234,11 +283,17 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     {
         let clip = self.clip_rect; // Clip rect is inherited by default.
         let debug_layout = self.debug_layout; // Copied before the layout_state borrow below.
+        let policy = self.layout_policy;
 
         // begin_layout runs *here*: the token stays inside this body (captured into
         // `on_finish` below) and never crosses a `&mut self` boundary, so the disjoint
         // field construction is legal and lives in exactly one place.
-        let (outer_space, token) = self.layout_state.begin_layout(placement, intrinsic);
+        let (outer_space_res, token) = self.layout_state.begin_layout(placement, intrinsic);
+        // The begin_layout violation belongs to *this child's* placement; it is carried
+        // into the child below and reacted at the child's finish(), where its own
+        // resolved_space gives the correct fallback rect. Each child carries its own,
+        // so sibling violations are never dropped.
+        let (outer_space, begin_violation) = outer_space_res.into_parts();
 
         // Caller's "between" hook: push placeholder draw commands, decide the inner space.
         let (carried, inner_space) = before_children(self.cmds, outer_space);
@@ -257,9 +312,23 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             input: self.input,
             cmds: self.cmds,
             layout_state: inner_layout.begin(inner_space),
+            layout_policy: policy,
+            pending_violation: begin_violation,
             on_finish,
         };
         (child, outer_space)
+    }
+
+    /// Perform an immediate layout operation, routing any violations to the policy.
+    pub fn layout(&mut self, layout_params: LS::Params, intrinsic: IntrinsicSize) -> Rect {
+        let (rect, violation) = self
+            .layout_state
+            .layout(layout_params, intrinsic)
+            .into_parts();
+        if let Some(v) = violation {
+            react_layout_violation(self.layout_policy, self.cmds, v, rect);
+        }
+        rect
     }
 
     /// Append draw commands to the context's accumulated list.
@@ -280,6 +349,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
         (self.on_finish)(self.focus_system, self.cmds, resolved_space);
+
+        // React to pending_violation
+        if let Some(violation) = self.pending_violation {
+            react_layout_violation(self.layout_policy, self.cmds, violation, resolved_space);
+        }
+
         // Draw the debug outline *after* on_finish so it sits on top of this
         // layout's content (and any retroactive chrome patching, e.g. a frame).
         if debug_layout {
@@ -295,10 +370,10 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut DrawC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{IntrinsicSize, Placement, Placement2D};
+    use crate::layout::{Align, AxisBound, IntrinsicSize, Placement, Placement2D};
     use crate::layouts::{ColumnLayout, ManualLayout, RowLayout};
     use crate::test_utils::DummyTextSys;
-    use crate::types::Vec2;
+    use crate::types::Color;
 
     /// `child_with_layout` resolves `placement` against the parent layout, then begins
     /// the child layout at those bounds — replacing the old layout()/begin() dance.
@@ -329,14 +404,10 @@ mod tests {
             col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout { spacing: 4.0 });
 
         // The row sits at the column's origin (10,10); its first child lands there.
-        let first = row
-            .layout_state
-            .layout(Vec2::new(50.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        let first = row.layout(Vec2::new(50.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
         // Second row child advances by width + spacing.
-        let second = row
-            .layout_state
-            .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        let second = row.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 
@@ -370,20 +441,14 @@ mod tests {
                 ColumnLayout { spacing: 0.0 },
             );
             // Two stacked rows of height 30 → inner content height = 60.
-            inner
-                .layout_state
-                .layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
-            inner
-                .layout_state
-                .layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
             inner.finish();
         }
 
         // The next sibling in the parent column should land directly below the inner
         // content (y = 60), not below a 96px fallback box.
-        let sibling = ctx
-            .layout_state
-            .layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(sibling.y, 60.0);
     }
 
@@ -417,16 +482,12 @@ mod tests {
                 ColumnLayout { spacing: 0.0 },
             );
             // A single 50-wide row → inner content width = 50.
-            inner
-                .layout_state
-                .layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
             inner.finish();
         }
 
         // Next sibling in the row advances by the measured width (50), not 96.
-        let sibling = ctx
-            .layout_state
-            .layout(Placement2D::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(Placement2D::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(sibling.x, 50.0);
     }
 
@@ -457,19 +518,115 @@ mod tests {
                 ColumnLayout { spacing: 0.0 },
             );
             // Overflowing content: two 100px rows = 200px, far taller than the 50px slot.
-            inner
-                .layout_state
-                .layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
-            inner
-                .layout_state
-                .layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+            inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+            inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
             inner.finish();
         }
 
         // The fixed slot wins: cursor advanced by 50, not by the 200px of content.
-        let sibling = ctx
-            .layout_state
-            .layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
         assert_eq!(sibling.y, 50.0);
+    }
+
+    #[test]
+    fn test_highlight_policy_on_violation() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout { spacing: 0.0 },
+            LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(100.0)),
+            &mut cmds,
+        );
+
+        ctx.layout_policy = LayoutViolationPolicy::Highlight;
+
+        // Placement::fill() on AtMost(100.0) width triggers UnsatisfiableFill violation
+        let rect = ctx.layout(
+            Placement2D {
+                width: crate::layout::Placement::fill(),
+                height: crate::layout::Placement::fill(),
+            },
+            IntrinsicSize::UNKNOWN,
+        );
+
+        assert_eq!(rect, Rect::new(0.0, 0.0, 0.0, 100.0)); // fallback width is 0.0
+
+        // The StrokeRect command should have been drawn: red, width 2.0
+        let mut found = false;
+        for cmd in ctx.cmds.iter() {
+            if let crate::draw::DrawCmd::StrokeRect {
+                rect: r,
+                color,
+                width,
+            } = cmd
+            {
+                if *color == Color::from_srgb_u8(255, 0, 0, 255) && *width == 2.0 {
+                    assert_eq!(*r, Rect::new(0.0, 0.0, 0.0, 100.0));
+                    found = true;
+                    break;
+                }
+            }
+        }
+        assert!(
+            found,
+            "Should have found a red StrokeRect highlighting the layout violation"
+        );
+    }
+
+    /// Deferred path: a begin_layout violation must be carried on the *child* and
+    /// reacted at the child's own finish() — once per child. Regression guard for the
+    /// bug where the violation was stashed on the parent (dropping all but the first).
+    #[test]
+    fn test_highlight_policy_deferred_begin_layout_violation_per_child() {
+        let mut ts = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout { spacing: 0.0 },
+            // AtMost width → a Fixed+Center child can't be centered at begin_layout.
+            LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0)),
+            &mut cmds,
+        );
+        ctx.layout_policy = LayoutViolationPolicy::Highlight;
+
+        // Two deferred children, each violating alignment at begin_layout.
+        for _ in 0..2 {
+            let placement = Placement2D {
+                width: Placement::fixed(40.0).align(Align::Center),
+                height: Placement::fixed(20.0),
+            };
+            let child = ctx.child_with_layout(placement, ColumnLayout { spacing: 0.0 });
+            child.finish();
+        }
+        ctx.finish();
+
+        // Center-on-AtMost faults at BOTH begin_layout and end_layout, so each child
+        // contributes two highlights → 2 children × 2 = 4. The key point is that no
+        // child's violation is dropped. (The old bug stashed the begin_layout violation
+        // on the *parent* under an is_none() guard, dropping the 2nd child's → only 3.)
+        let count = cmds
+            .iter()
+            .filter(|cmd| {
+                matches!(
+                    cmd,
+                    crate::draw::DrawCmd::StrokeRect { color, width, .. }
+                        if *color == Color::from_srgb_u8(255, 0, 0, 255) && *width == 2.0
+                )
+            })
+            .count();
+        assert_eq!(count, 4, "both children must report begin+end violations (got {count})");
     }
 }

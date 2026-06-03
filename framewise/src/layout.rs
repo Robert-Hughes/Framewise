@@ -243,7 +243,9 @@ impl std::fmt::Display for LayoutViolation {
                      there is no bounded extent to fill into. Use Placement::auto() if you want \
                      the intrinsic size, or place this in a bounded (Exact) container."
                 ),
-                AxisBound::Exact(_) => unreachable!("UnsatisfiableFill never carries an Exact bound"),
+                AxisBound::Exact(_) => {
+                    unreachable!("UnsatisfiableFill never carries an Exact bound")
+                }
             },
             LayoutViolationKind::UnsatisfiableAlignment { align, bound } => {
                 let bound_str = match bound {
@@ -261,6 +263,14 @@ impl std::fmt::Display for LayoutViolation {
 }
 
 impl<T> LayoutResult<T> {
+    /// Build from a value plus an optional violation (inverse of into_parts).
+    pub fn from_parts(value: T, violation: Option<LayoutViolation>) -> Self {
+        match violation {
+            None => LayoutResult::Ok(value),
+            Some(violation) => LayoutResult::Fallback { value, violation },
+        }
+    }
+
     /// Always returns the value, discarding any violation. The graceful path (steps 2–3).
     pub fn value(self) -> T {
         match self {
@@ -489,7 +499,7 @@ pub struct LayoutToken<'a, LS: LayoutState> {
 }
 
 impl<'a, LS: LayoutState> LayoutToken<'a, LS> {
-    pub fn end_layout(self, extent: Vec2) -> Rect {
+    pub fn end_layout(self, extent: Vec2) -> LayoutResult<Rect> {
         self.state.end_layout(self.params, extent)
     }
 }
@@ -502,7 +512,11 @@ pub trait LayoutState {
     ///
     /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
     /// `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it.
-    fn layout(&mut self, layout_params: Self::Params, intrinsic: IntrinsicSize) -> Rect;
+    fn layout(
+        &mut self,
+        layout_params: Self::Params,
+        intrinsic: IntrinsicSize,
+    ) -> LayoutResult<Rect>;
 
     /// Begin a deferred layout (for fit-to-children containers).
     /// Returns a provisional [`LayoutSpace`] and a [`LayoutToken`] that borrows this layout state.
@@ -513,13 +527,13 @@ pub trait LayoutState {
         &'a mut self,
         layout_params: Self::Params,
         intrinsic: IntrinsicSize,
-    ) -> (LayoutSpace, LayoutToken<'a, Self>)
+    ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized;
 
     /// End a deferred layout, providing the actual final accumulated content extent.
     /// Returns the resolved concrete Rect of the container and advances the layout state.
-    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> Rect;
+    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> LayoutResult<Rect>;
 
     /// The resolved concrete space Rect occupied by the entire layout (which might be
     /// bounded or accumulated), measured relative to parent coordinates but independent
@@ -747,11 +761,16 @@ mod tests {
         // bound × align combo, regardless of the resolved child size.
         for bound in [AxisBound::AtMost(50.0), AxisBound::Unbounded] {
             for align in [Align::Center, Align::End] {
-                let res = Placement::fixed(40.0).align(align).align_offset(999.0, bound);
+                let res = Placement::fixed(40.0)
+                    .align(align)
+                    .align_offset(999.0, bound);
                 let LayoutResult::Fallback { value, .. } = res else {
                     panic!("expected Fallback for {align:?} on {bound:?}, got {res:?}");
                 };
-                assert_eq!(value, 0.0, "expected Start fallback for {align:?} on {bound:?}");
+                assert_eq!(
+                    value, 0.0,
+                    "expected Start fallback for {align:?} on {bound:?}"
+                );
             }
         }
     }

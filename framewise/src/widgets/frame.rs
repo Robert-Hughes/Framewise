@@ -225,6 +225,8 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     let inset = spec.style.border_width + spec.style.padding;
     let intrinsic = raw::calc_frame_intrinsic_size(&spec);
 
+    let policy = ctx.layout_policy;
+
     // The deferred-layout borrow plumbing lives in `child_with_deferred_layout`; here we
     // only supply the frame-specific chrome via the two closures.
     let (child_ctx, _outer_space) = ctx.child_with_deferred_layout(
@@ -250,7 +252,10 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         // placeholder draw commands with the resolved bounds.
         move |(frame_token, spec), token, content, _focus, cmds| {
             let outer_extent = Vec2::new(content.w + inset * 2.0, content.h + inset * 2.0);
-            let bounds = token.end_layout(outer_extent);
+            let (bounds, violation) = token.end_layout(outer_extent).into_parts();
+            if let Some(v) = violation {
+                crate::widget::react_layout_violation(policy, cmds, v, bounds);
+            }
             raw::end_frame(
                 frame_token,
                 raw::FrameSpec {
@@ -412,7 +417,7 @@ mod tests {
 
         // 2. Place some children inside the frame context
         // Inner layout starts at (10, 10) due to insets. Fill width spans outer space (400 - 20) = 380.
-        let r1 = f_ctx.layout_state.layout(
+        let r1 = f_ctx.layout(
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(20.0),
@@ -421,7 +426,7 @@ mod tests {
         );
         assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
 
-        let r2 = f_ctx.layout_state.layout(
+        let r2 = f_ctx.layout(
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(30.0),
@@ -438,7 +443,7 @@ mod tests {
         // Child content extent is: width 380, height (35 + 30 - 10) = 55.
         // Total outer size is: height = 55 + inset * 2 = 75.
         // Next sibling y should be: height(75) + spacing(10) = 85.
-        let sibling = ctx.layout_state.layout(
+        let sibling = ctx.layout(
             Placement2D::fixed(50.0, 30.0),
             crate::layout::IntrinsicSize::UNKNOWN,
         );

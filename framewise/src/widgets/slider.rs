@@ -721,9 +721,8 @@ pub fn slider<T: TextSystem, S: LayoutState, CF>(
         .time(ctx.time)
         .rect(Rect::PLACEHOLDER)
         .build();
-
     let intrinsic = raw::calc_slider_intrinsic_size(&spec);
-    let rect = ctx.layout_state.layout(layout_params, intrinsic);
+    let rect = ctx.layout(layout_params, intrinsic);
     spec.rect = rect;
 
     let result = raw::slider(spec, state, ctx.input, ctx.focus_system, ctx.cmds);

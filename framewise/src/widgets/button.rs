@@ -411,9 +411,8 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
         .clip_rect(clip)
         .rect(Rect::PLACEHOLDER)
         .build();
-
     let intrinsic = raw::calc_button_intrinsic_size(&spec, ctx.text_system);
-    let rect = ctx.layout_state.layout(layout_params, intrinsic);
+    let rect = ctx.layout(layout_params, intrinsic);
     spec.rect = rect;
 
     let r = raw::button(

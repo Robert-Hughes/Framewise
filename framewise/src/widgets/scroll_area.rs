@@ -736,9 +736,10 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         .build();
 
     let intrinsic = raw::calc_scroll_area_intrinsic_size(&spec);
-    let bounds = ctx.layout_state.layout(layout_params, intrinsic);
+    let bounds = ctx.layout(layout_params, intrinsic);
     spec.rect = bounds;
     let input = ctx.input;
+
     let raw::ScrollAreaResult {
         token,
         content_bounds,

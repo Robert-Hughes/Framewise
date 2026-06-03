@@ -1,5 +1,6 @@
 use crate::layout::{
-    Align, AxisBound, IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, Placement, Size,
+    Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
+    Placement, Size,
 };
 use crate::types::{Rect, Vec2};
 
@@ -87,7 +88,7 @@ impl SplitRowState {
 impl LayoutState for SplitRowState {
     type Params = Placement;
 
-    fn layout(&mut self, height: Placement, intrinsic: IntrinsicSize) -> Rect {
+    fn layout(&mut self, height: Placement, intrinsic: IntrinsicSize) -> LayoutResult<Rect> {
         debug_assert!(
             self.index < self.count,
             "SplitRow: emitted child #{} but only {} cell(s) were declared",
@@ -96,25 +97,28 @@ impl LayoutState for SplitRowState {
         );
         let pref = intrinsic.preferred;
         let w = self.slot_w;
-        let h = height
+        let (h, v1) = height
             .resolve_size(pref.map(|p| p.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
         let x = self.slot_x(self.index);
-        let y_offset = height.align_offset(h, self.space.height).unwrap();
+        let (y_offset, v2) = height.align_offset(h, self.space.height).into_parts();
         let y = self.space.y + y_offset;
 
         let r = Rect::new(x, y, w, h);
         self.content_h = self.content_h.max((y + h) - self.space.y);
         self.index += 1;
-        r
+        LayoutResult::from_parts(r, v1.or(v2))
     }
 
     fn begin_layout<'a>(
         &'a mut self,
         height: Placement,
         _intrinsic: IntrinsicSize,
-    ) -> (LayoutSpace, LayoutToken<'a, Self>) {
+    ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
+    where
+        Self: Sized,
+    {
         debug_assert!(
             self.index < self.count,
             "SplitRow: emitted child #{} but only {} cell(s) were declared",
@@ -136,16 +140,16 @@ impl LayoutState for SplitRowState {
             },
         };
 
-        let h = match height {
+        let (h, v1) = match height {
             Placement::Sized {
                 size: Size::Fixed(h),
                 ..
-            } => Some(h),
+            } => (Some(h), None),
             Placement::Fill => match self.space.height {
-                AxisBound::Exact(h) => Some(h),
+                AxisBound::Exact(h) => (Some(h), None),
                 AxisBound::AtMost(_) | AxisBound::Unbounded => {
-                    let _ = height.resolve_size(None, self.space.height).unwrap();
-                    None
+                    let (_, v) = height.resolve_size(None, self.space.height).into_parts();
+                    (None, v)
                 }
             },
             Placement::Sized {
@@ -160,37 +164,37 @@ impl LayoutState for SplitRowState {
                          Fixed size, or Align::Start."
                     );
                 }
-                None
+                (None, None)
             }
         };
 
-        let y = self.space.y
-            + height
-                .align_offset(h.unwrap_or(0.0), self.space.height)
-                .unwrap();
+        let (y_offset, v2) = height
+            .align_offset(h.unwrap_or(0.0), self.space.height)
+            .into_parts();
+        let y = self.space.y + y_offset;
 
         let space = LayoutSpace::new(self.slot_x(self.index), y, width, bound_height);
         let token = LayoutToken {
             state: self,
             params: height,
         };
-        (space, token)
+        (LayoutResult::from_parts(space, v1.or(v2)), token)
     }
 
-    fn end_layout(&mut self, height: Placement, extent: Vec2) -> Rect {
+    fn end_layout(&mut self, height: Placement, extent: Vec2) -> LayoutResult<Rect> {
         let w = self.slot_w;
-        let h = height
+        let (h, v1) = height
             .resolve_size(Some(extent.y), self.space.height)
-            .unwrap();
+            .into_parts();
 
         let x = self.slot_x(self.index);
-        let y_offset = height.align_offset(h, self.space.height).unwrap();
+        let (y_offset, v2) = height.align_offset(h, self.space.height).into_parts();
         let y = self.space.y + y_offset;
 
         let r = Rect::new(x, y, w, h);
         self.content_h = self.content_h.max((y + h) - self.space.y);
         self.index += 1;
-        r
+        LayoutResult::from_parts(r, v1.or(v2))
     }
 
     fn resolve_space(&self) -> Rect {
@@ -209,9 +213,15 @@ mod tests {
             spacing: 5.0,
         }
         .begin(Rect::new(10.0, 20.0, 100.0, 40.0));
-        let a = state.layout(Placement::fill(), IntrinsicSize::UNKNOWN);
-        let b = state.layout(Placement::fill(), IntrinsicSize::UNKNOWN);
-        let c = state.layout(Placement::fill(), IntrinsicSize::UNKNOWN);
+        let a = state
+            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        let b = state
+            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        let c = state
+            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(a, Rect::new(10.0, 20.0, 30.0, 40.0));
         assert_eq!(b, Rect::new(45.0, 20.0, 30.0, 40.0));
         assert_eq!(c, Rect::new(80.0, 20.0, 30.0, 40.0));
@@ -224,10 +234,12 @@ mod tests {
             spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 100.0, 50.0));
-        let r = state.layout(
-            Placement::fixed(20.0).align(Align::Center),
-            IntrinsicSize::UNKNOWN,
-        );
+        let r = state
+            .layout(
+                Placement::fixed(20.0).align(Align::Center),
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
         assert_eq!(r, Rect::new(0.0, 15.0, 50.0, 20.0));
     }
 
@@ -238,12 +250,15 @@ mod tests {
             spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
-        let (space, token) = state.begin_layout(Placement::fill(), IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(Placement::fill(), IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(20.0)); // 80 / 4
         assert_eq!(space.x, 0.0);
-        let r = token.end_layout(Vec2::new(999.0, 30.0));
+        let r = token.end_layout(Vec2::new(999.0, 30.0)).unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 20.0, 30.0));
-        let next = state.layout(Placement::fill(), IntrinsicSize::UNKNOWN);
+        let next = state
+            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .unwrap();
         assert_eq!(next.x, 20.0);
     }
 
