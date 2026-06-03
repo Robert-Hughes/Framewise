@@ -5,10 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Panicking for alignment requests that can't be satisfied is bad. What do?
-  - Add DrawText inside the highlight?
-  - Update DESIGN.md with rationale for the approach
-
 * TextSystem improvements - single- and multi-line wrapping, newlines in string, width and height provided (always known and finite?), auto-ellipses
 
 * Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
