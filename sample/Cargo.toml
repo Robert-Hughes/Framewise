@@ -38,10 +38,10 @@ tooltip      = ["framewise/tooltip"]
 tree         = ["framewise/tree"]
 window       = ["framewise/window"]
 
-page_button_demo = ["button"]
+page_button_demo = ["button", "label"]
 page_scroll_demo = ["button", "scroll_area", "slider"]
-page_frame_demo = ["button", "frame"]
-page_layout_demo = ["button"]
+page_frame_demo = ["button", "frame", "label"]
+page_layout_demo = ["button", "label"]
 # The spec page renders incrementally: this "core" set enables the scaffolding
 # (section headers, captions, hero, footer, page scroll). Each numbered section
 # appears only when its widgets are also enabled — e.g. add "checkbox", "radio",

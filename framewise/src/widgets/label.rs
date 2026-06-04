@@ -169,19 +169,51 @@ mod tests {
     }
 
     impl TextSystem for RecordingTextSys {
-        fn prepare(&mut self, _text: &str, _size: f32, font: FontId) -> crate::text::TextLayout {
-            self.font = Some(font);
-            crate::text::TextLayout {
-                handle: TextHandle(0),
+        fn measure(
+            &mut self,
+            _text: &str,
+            _size: f32,
+            _font: FontId,
+            _flow: crate::text::TextFlow,
+            _bounds: crate::text::TextBounds,
+        ) -> crate::text::TextMetrics {
+            crate::text::TextMetrics {
                 size: Vec2::new(0.0, 0.0),
+                line_count: 1,
+                truncated_horizontal: false,
+                truncated_vertical: false,
             }
         }
 
-        fn measure_byte_x(&self, _handle: TextHandle, _byte_index: usize) -> f32 {
-            0.0
+        fn prepare(
+            &mut self,
+            _text: &str,
+            _size: f32,
+            font: FontId,
+            _flow: crate::text::TextFlow,
+            _rect: Rect,
+        ) -> crate::text::TextLayout {
+            self.font = Some(font);
+            crate::text::TextLayout {
+                handle: TextHandle(0),
+                metrics: crate::text::TextMetrics {
+                    size: Vec2::new(0.0, 0.0),
+                    line_count: 1,
+                    truncated_horizontal: false,
+                    truncated_vertical: false,
+                },
+            }
         }
 
-        fn hit_test_x(&self, _handle: TextHandle, _x_offset: f32) -> usize {
+        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+            crate::text::CaretGeom {
+                x: 0.0,
+                y_top: 0.0,
+                height: 0.0,
+            }
+        }
+
+        fn hit_test(&self, _handle: TextHandle, _pos: Vec2) -> usize {
             0
         }
     }
@@ -204,7 +236,7 @@ mod tests {
 
         assert_eq!(
             res.draw,
-            DrawCommands(vec![DrawCmd::Text {
+            DrawCommands::from_vec(vec![DrawCmd::Text {
                 rect: Rect::new(0.0, 0.0, 100.0, 50.0),
                 color: Color::WHITE,
                 handle: TextHandle(0),
@@ -229,7 +261,7 @@ mod tests {
         let res = raw::label(spec, &mut sys);
         assert_eq!(
             res.draw,
-            DrawCommands(vec![
+            DrawCommands::from_vec(vec![
                 DrawCmd::Text {
                     rect: Rect::new(0.0, 0.0, 100.0, 20.0),
                     color: Color::WHITE,
@@ -292,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -304,7 +336,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::label(

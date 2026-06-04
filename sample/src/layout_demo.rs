@@ -32,6 +32,7 @@ use framewise::{
     widgets::button::{
         button, raw::calc_button_intrinsic_size, ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
+    widgets::label::{label, LabelSpecBuilder},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -90,8 +91,6 @@ pub fn draw_layout_page(
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);
-    let mut ghost = ButtonStyle::ghost_from_theme(&theme);
-    ghost.disabled_alpha = 1.0; // labels/headings stay readable
 
     // Root row: two columns side by side.
     let mut root_row = ctx.child_with_layout(
@@ -106,12 +105,11 @@ pub fn draw_layout_page(
             ColumnLayout { spacing: 18.0 },
         );
 
-        heading(&mut left, ghost, "Chrome-less nested layout auto-sizing");
+        heading(&mut left, "Chrome-less nested layout auto-sizing");
 
         // A. Auto-height column (no frame).
         subheading(
             &mut left,
-            ghost,
             "A. Auto-height column (bare ColumnLayout, height: Auto)",
         );
         {
@@ -146,7 +144,6 @@ pub fn draw_layout_page(
         // B. Auto-width row (no frame).
         subheading(
             &mut left,
-            ghost,
             "B. Auto-width row (bare RowLayout, width: Auto) — hugs its children",
         );
         {
@@ -174,7 +171,6 @@ pub fn draw_layout_page(
         // C. Nested auto-in-auto.
         subheading(
             &mut left,
-            ghost,
             "C. Nested auto-in-auto (auto column of auto rows of auto buttons)",
         );
         {
@@ -211,7 +207,6 @@ pub fn draw_layout_page(
         // D. Intrinsic Auto sizing.
         subheading(
             &mut left,
-            ghost,
             "D. Intrinsic Auto — each button hugs its own label width",
         );
         {
@@ -240,7 +235,6 @@ pub fn draw_layout_page(
         // I. Mixed per-axis: fixed-width icon + intrinsic-width labels in one row.
         subheading(
             &mut left,
-            ghost,
             "I. Mixed per-axis — fixed icon + Auto-width labels in one row",
         );
         {
@@ -280,7 +274,6 @@ pub fn draw_layout_page(
         // L. RowLayout cross-axis alignment (Start / Center / End in a tall row).
         subheading(
             &mut left,
-            ghost,
             "L. RowLayout cross-align — differing heights aligned in a 60px row",
         );
         {
@@ -331,12 +324,11 @@ pub fn draw_layout_page(
             ColumnLayout { spacing: 18.0 },
         );
 
-        heading(&mut right, ghost, "Alignment, equivalence & flow");
+        heading(&mut right, "Alignment, equivalence & flow");
 
         // E. Cross-axis alignment.
         subheading(
             &mut right,
-            ghost,
             "E. Cross-axis alignment (Start / Center / End in fit columns)",
         );
         {
@@ -347,7 +339,7 @@ pub fn draw_layout_page(
                     ("End", Align::End),
                 ];
                 for (col_idx, (name, align)) in aligns.into_iter().enumerate() {
-                    subheading(&mut right, ghost, &format!("  Align::{name:?}"));
+                    subheading(&mut right, &format!("  Align::{name:?}"));
                     // Fill width gives the column an Exact cross axis, which alignment
                     // requires; Auto height fits the three differently-sized buttons.
                     let mut col = right.child_with_layout(
@@ -378,7 +370,6 @@ pub fn draw_layout_page(
         // F. Fixed vs Auto equivalence.
         subheading(
             &mut right,
-            ghost,
             "F. Fixed height ignores child extent; Auto height fits it",
         );
         {
@@ -442,7 +433,6 @@ pub fn draw_layout_page(
         // G. WrapLayout flow.
         subheading(
             &mut right,
-            ghost,
             "G. WrapLayout — tags flow onto new lines, height auto-sizes",
         );
         {
@@ -483,7 +473,6 @@ pub fn draw_layout_page(
         // H. SplitRow — declared equal thirds (Phase 4).
         subheading(
             &mut right,
-            ghost,
             "H. SplitRow — width divided into 3 equal cells (declared count)",
         );
         {
@@ -520,7 +509,6 @@ pub fn draw_layout_page(
         // then override_next restores logical left→right focus.
         subheading(
             &mut right,
-            ghost,
             "J. Toolbar — search fills leftover, buttons stay intrinsic (emit-reorder)",
         );
         {
@@ -590,7 +578,6 @@ pub fn draw_layout_page(
         // by the parent row, so its children shrink-wrap but clamp at that ceiling.
         subheading(
             &mut right,
-            ghost,
             "K. AtMost — nested Auto container caps children at the leftover ceiling",
         );
         {
@@ -655,27 +642,22 @@ pub fn draw_layout_page(
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
-/// A full-width disabled ghost button used as a heading/label. Generic over the
+/// A full-width label used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
 fn label_row<
     CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
 >(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
-    ghost: ButtonStyle,
     text: &str,
     height: f32,
 ) {
-    button(
+    label(
         col,
-        ButtonSpecBuilder::new()
-            .text(text)
-            .style(ghost)
-            .disabled(true),
+        LabelSpecBuilder::new().text(text),
         Placement2D {
             width: Placement::fill(),
             height: Placement::fixed(height),
         },
-        &mut ButtonState::default(),
     );
 }
 
@@ -683,18 +665,16 @@ fn heading<
     CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
 >(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
-    ghost: ButtonStyle,
     text: &str,
 ) {
-    label_row(col, ghost, text, 30.0);
+    label_row(col, text, 30.0);
 }
 
 fn subheading<
     CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
 >(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
-    ghost: ButtonStyle,
     text: &str,
 ) {
-    label_row(col, ghost, text, 22.0);
+    label_row(col, text, 22.0);
 }

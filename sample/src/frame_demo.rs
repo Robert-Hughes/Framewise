@@ -9,6 +9,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
+    widgets::label::{label, LabelSpecBuilder},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -120,8 +121,6 @@ pub fn draw_frame_page(
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);
-    let mut ghost = ButtonStyle::ghost_from_theme(&theme);
-    ghost.disabled_alpha = 1.0; // So buttons used as labels are more visible
 
     let frame_style = FrameStyle::from_theme(&theme);
 
@@ -133,17 +132,13 @@ pub fn draw_frame_page(
         );
 
         // Heading: Left Column Title
-        button(
+        label(
             &mut left_col,
-            ButtonSpecBuilder::new()
-                .text("1. Dynamic & Axis Sizing Showcase")
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new().text("1. Dynamic & Axis Sizing Showcase"),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(30.0),
             },
-            &mut ButtonState::default(),
         );
 
         // Sub-row: Add / Remove Controls
@@ -185,17 +180,13 @@ pub fn draw_frame_page(
 
         // Subheading: Dynamic Frame
         let label_style = format!("Auto-Sizing Frame (Current Items: {})", state.item_count);
-        button(
+        label(
             &mut left_col,
-            ButtonSpecBuilder::new()
-                .text(&label_style)
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new().text(&label_style),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(24.0),
             },
-            &mut ButtonState::default(),
         );
 
         // ── DYNAMIC FRAME ──
@@ -214,17 +205,13 @@ pub fn draw_frame_page(
             );
 
             if state.item_count == 0 {
-                button(
+                label(
                     &mut dynamic_frame,
-                    ButtonSpecBuilder::new()
-                        .text("Frame is empty! Use buttons above to add items.")
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text("Frame is empty! Use buttons above to add items."),
                     Placement2D {
                         width: Placement::fill(),
                         height: Placement::fixed(32.0),
                     },
-                    &mut ButtonState::default(),
                 );
             } else {
                 for i in 0..state.item_count {
@@ -252,17 +239,13 @@ pub fn draw_frame_page(
         }
 
         // Subheading: Axis Sizing Dimensions
-        button(
+        label(
             &mut left_col,
-            ButtonSpecBuilder::new()
-                .text("Comparison of Sizing Dimensions")
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new().text("Comparison of Sizing Dimensions"),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(24.0),
             },
-            &mut ButtonState::default(),
         );
 
         // Row of 4 different Frame Dimension constraints
@@ -284,17 +267,13 @@ pub fn draw_frame_page(
                     ColumnLayout { spacing: 4.0 },
                 );
 
-                button(
+                label(
                     &mut sub_frame,
-                    ButtonSpecBuilder::new()
-                        .text("Fixed frame")
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text("Fixed frame"),
                     Placement2D {
                         width: Placement::fill(),
                         height: Placement::fixed(20.0),
                     },
-                    &mut ButtonState::default(),
                 );
 
                 let text = format!("Cl: {}", state.fixed_clicks);
@@ -326,17 +305,13 @@ pub fn draw_frame_page(
                     ColumnLayout { spacing: 4.0 },
                 );
 
-                button(
+                label(
                     &mut sub_frame,
-                    ButtonSpecBuilder::new()
-                        .text("Auto Width")
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text("Auto Width"),
                     Placement2D {
                         width: Placement::auto(),
                         height: Placement::fixed(20.0),
                     },
-                    &mut ButtonState::default(),
                 );
 
                 let text = format!("Auto Width for me! {}", state.width_auto_clicks);
@@ -368,17 +343,13 @@ pub fn draw_frame_page(
                     ColumnLayout { spacing: 4.0 },
                 );
 
-                button(
+                label(
                     &mut sub_frame,
-                    ButtonSpecBuilder::new()
-                        .text("Auto Height")
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text("Auto Height"),
                     Placement2D {
                         width: Placement::fill(),
                         height: Placement::fixed(20.0),
                     },
-                    &mut ButtonState::default(),
                 );
 
                 let text = format!("Auto H: {}", state.height_auto_clicks);
@@ -417,17 +388,13 @@ pub fn draw_frame_page(
                     ColumnLayout { spacing: 4.0 },
                 );
 
-                button(
+                label(
                     &mut sub_frame,
-                    ButtonSpecBuilder::new()
-                        .text("Fully Auto")
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text("Fully Auto"),
                     Placement2D {
                         width: Placement::auto(),
                         height: Placement::fixed(20.0),
                     },
-                    &mut ButtonState::default(),
                 );
 
                 let text = format!("Fully Auto: {}", state.fully_auto_clicks);
@@ -461,31 +428,23 @@ pub fn draw_frame_page(
         );
 
         // Heading: Right Column Title
-        button(
+        label(
             &mut right_col,
-            ButtonSpecBuilder::new()
-                .text("2. Complex Nesting & Cross-Alignments")
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new().text("2. Complex Nesting & Cross-Alignments"),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(30.0),
             },
-            &mut ButtonState::default(),
         );
 
         // Showcase 1: Symmetrical Nesting Cases (Fixed Panel centered in Fixed Outer)
-        button(
+        label(
             &mut right_col,
-            ButtonSpecBuilder::new()
-                .text("Nesting Showcase (Fixed Panel centered in Fixed Outer)")
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new().text("Nesting Showcase (Fixed Panel centered in Fixed Outer)"),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(24.0),
             },
-            &mut ButtonState::default(),
         );
 
         // Outer Fixed frame (450x180) containing centered inner fixed frame
@@ -559,17 +518,14 @@ pub fn draw_frame_page(
         }
 
         // Showcase 2: Cross-Axis Alignment Demonstration inside a Fit Frame
-        button(
+        label(
             &mut right_col,
-            ButtonSpecBuilder::new()
-                .text("Cross-Axis Alignment within Fit Frame (Auto height, Centered)")
-                .style(ghost)
-                .disabled(true),
+            LabelSpecBuilder::new()
+                .text("Cross-Axis Alignment within Fit Frame (Auto height, Centered)"),
             Placement2D {
                 width: Placement::fill(),
                 height: Placement::fixed(24.0),
             },
-            &mut ButtonState::default(),
         );
 
         // Center-aligned column layout inside an auto-height frame

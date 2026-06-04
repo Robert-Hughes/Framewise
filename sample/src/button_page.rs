@@ -8,6 +8,7 @@ use framewise::{
     types::{Rect, Vec2},
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
+    widgets::label::{label, LabelSpecBuilder},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -172,11 +173,10 @@ pub fn draw_button_page(
             RowLayout { spacing: 10.0 },
         );
 
-        button(
+        label(
             &mut outer_row,
-            ButtonSpecBuilder::new().text("Counter").style(ghost),
+            LabelSpecBuilder::new().text("Counter"),
             Vec2::new(100.0, 96.0).into(),
-            &mut state.counter_btns[0],
         );
 
         {
@@ -200,14 +200,10 @@ pub fn draw_button_page(
                 }
 
                 let count_text = state.counter.to_string();
-                button(
+                label(
                     &mut inner_row,
-                    ButtonSpecBuilder::new()
-                        .text(&count_text)
-                        .style(ghost)
-                        .disabled(true),
+                    LabelSpecBuilder::new().text(&count_text),
                     Vec2::new(120.0, 48.0).into(),
-                    &mut state.counter_btns[2],
                 );
 
                 let r = button(

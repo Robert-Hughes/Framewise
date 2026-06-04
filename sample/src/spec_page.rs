@@ -710,9 +710,9 @@ impl Default for SpecWidgets {
                     ..Default::default()
                 },
                 SwitchState {
-                    checked: false,
+                    checked: false, // multisampling disabled
                     ..Default::default()
-                }, // multisampling disabled
+                },
             ],
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             dn_showcase: vec![
@@ -1156,19 +1156,17 @@ pub fn draw_spec_page(
     #[cfg(feature = "button")]
     let mut should_reset = false;
     {
-        let mut page = {
-            begin_scroll_area(
-                &mut b,
-                ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
-                    extent: ScrollExtent::Unbounded,
-                    vis: ScrollbarVisibility::Auto,
-                }),
-                win_rect,
-                &mut state.page_scroll,
-                ManualLayout,
-            )
-            .ctx
-        };
+        let mut page = begin_scroll_area(
+            &mut b,
+            ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                extent: ScrollExtent::Unbounded,
+                vis: ScrollbarVisibility::Auto,
+            }),
+            win_rect,
+            &mut state.page_scroll,
+            ManualLayout,
+        )
+        .ctx;
         {
             let b = &mut page;
 
@@ -4200,11 +4198,4 @@ fn hero_logo(t: &Theme, lx: f32, y0: f32) -> DrawCommands {
     ]);
 
     cmds
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-#[allow(dead_code)]
-fn opts_dropdown_h(n: usize) -> f32 {
-    n as f32 * 26.0 + 8.0
 }

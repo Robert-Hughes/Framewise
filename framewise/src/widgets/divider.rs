@@ -133,7 +133,7 @@ mod tests {
 
         assert_eq!(
             res.draw,
-            DrawCommands(vec![DrawCmd::StrokeLine {
+            DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
                 p0: Vec2::new(0.0, 5.0),
                 p1: Vec2::new(100.0, 5.0),
                 color: Color::WHITE,
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -174,7 +174,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::divider(
