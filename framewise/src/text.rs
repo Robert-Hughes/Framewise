@@ -1,4 +1,4 @@
-use crate::types::Vec2;
+use crate::types::{Rect, Vec2};
 
 /// A lightweight application-owned font handle.
 ///
@@ -19,30 +19,291 @@ pub enum FontRole {
 ///
 /// Framewise does not know how text is shaped or rasterised. It just passes this
 /// handle to the renderer via `DrawCmd::Text`.
+///
+/// A handle is produced by [`TextSystem::prepare`] and is valid only until the
+/// text system's next frame reset (the implementation clears its run table each
+/// frame). Handles must not be retained across frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextHandle(pub usize);
 
-/// The geometry and handle for a piece of prepared text.
-#[derive(Debug, Clone, Copy)]
-pub struct TextLayout {
-    /// The opaque handle to give to the renderer.
-    pub handle: TextHandle,
-    /// The logical size of the text (used for layout and centering).
-    pub size: Vec2,
+// ── Flow & overflow policy ──────────────────────────────────────────────────
+
+/// How a block of text flows and fills the space it is measured or drawn against.
+///
+/// Covers line breaking, per-line horizontal alignment, and overflow handling.
+/// This struct carries **policy only** — never dimensions. The available space is
+/// supplied separately: as [`TextBounds`] when measuring, or as the concrete
+/// `Rect` when preparing for draw. Keeping size out of here is deliberate: the
+/// same policy applies whether an axis is bounded, unbounded, or fixed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextFlow {
+    /// Soft-wrapping toggle.
+    ///
+    /// - `true` — break the text onto multiple lines to fit the available
+    ///   width. Breaks are preferred at word boundaries (whitespace). A single
+    ///   "word" that is itself wider than the available width is **force-broken**
+    ///   mid-word so it never spills past the edge (think long URLs or hashes).
+    /// - `false` — no soft breaks are ever introduced; the text is laid out as a
+    ///   single run per paragraph and may exceed the available width (where it is
+    ///   then subject to `overflow`).
+    ///
+    /// A literal `'\n'` in the input is a **hard break** and always starts a new
+    /// line, independent of this flag. So `wrap: false` text can still occupy
+    /// multiple lines if the string contains newlines — this flag governs only
+    /// *automatic* (width-driven) breaking, not explicit ones.
+    pub wrap: bool,
+
+    /// What happens to content that does not fit the available space after
+    /// wrapping has been applied. See [`Overflow`].
+    pub overflow: Overflow,
+
+    /// How lines are positioned **horizontally** within the available width.
+    /// See [`HorizontalAlign`].
+    ///
+    /// Vertical placement of the block is *not* handled here — that is the
+    /// caller's responsibility (it positions the block's rect). This only
+    /// distributes each line across the inline axis.
+    pub horizontal_align: HorizontalAlign,
 }
 
-/// A trait implemented by the application to prepare text during the UI pass.
+impl TextFlow {
+    /// A single visual line: no soft wrapping, truncate-and-clip on overflow,
+    /// start-aligned. The classic label/button/field default.
+    ///
+    /// Note this does not *force* one line — a `'\n'` in the string still hard-
+    /// breaks. Constrain the height (via the draw `Rect` or measure
+    /// [`TextBounds`]) to cap the visible line count.
+    pub fn single_line() -> Self {
+        Self {
+            wrap: false,
+            overflow: Overflow::Clip,
+            horizontal_align: HorizontalAlign::Start,
+        }
+    }
+
+    /// Multi-line wrapped text: soft-wrap on, ellipsis on overflow,
+    /// start-aligned. The classic paragraph/caption default.
+    pub fn wrapped() -> Self {
+        Self {
+            wrap: true,
+            overflow: Overflow::Ellipsis,
+            horizontal_align: HorizontalAlign::Start,
+        }
+    }
+}
+
+/// What to do with text that cannot fit the available space.
 ///
-/// This ensures that the cost of shaping and caching text happens explicitly
-/// when the widget is built, keeping the render pass fast and mechanical.
+/// Overflow applies on **both axes** and only takes effect when content actually
+/// exceeds the space:
+/// - **Horizontal** — a line is wider than the available width and no break was
+///   taken there (e.g. `wrap: false`, or an unbreakable run on a wrapped line).
+/// - **Vertical** — there are more lines than the available height admits.
+///
+/// In all cases truncation happens at a **character boundary** — whole glyphs
+/// are kept or dropped, never sliced. (Sub-pixel clipping at the rect edge is a
+/// separate, additional concern handled by the renderer's scissor, not here.)
+///
+/// # Examples
+///
+/// Width fits only `"Hello w"` of `"Hello world"` on a single line:
+/// - `Clip` → renders `Hello w`
+/// - `Ellipsis` → renders `Hello…` (drops *additional* glyphs so the `…` itself
+///   fits within the width)
+///
+/// A wrapped paragraph needs 4 lines but the height admits only 2:
+/// - `Clip` → renders lines 1–2, drops 3–4
+/// - `Ellipsis` → renders lines 1–2 with the tail of line 2 replaced by `…`
+///
+/// When everything fits, `Clip` and `Ellipsis` are identical, no marker is
+/// drawn, and both `truncated_*` flags are `false`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Overflow {
+    /// Drop overflowing glyphs/lines at the character boundary. No marker.
+    Clip,
+    /// Drop overflowing glyphs/lines, then place a `…` ellipsis at the cut point
+    /// (end of the last visible line), re-fitting so the ellipsis stays inside
+    /// the available width.
+    Ellipsis,
+}
+
+/// Horizontal positioning of each line within the available width.
+///
+/// `Start`/`End` are resolved against text direction; for left-to-right text
+/// `Start` is left and `End` is right. Alignment only affects glyph X positions —
+/// it never changes the measured block size or which glyphs are truncated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HorizontalAlign {
+    Start,
+    Center,
+    End,
+}
+
+// ── Measurement inputs & outputs ────────────────────────────────────────────
+
+/// The space available to lay text into, used by [`TextSystem::measure`].
+///
+/// Each axis is `Some(px)` for a finite ceiling, or `None` for unbounded. This
+/// is the reduction of the layout's `AxisBound`: both `Exact(w)` and `AtMost(w)`
+/// become `Some(w)` (the distinction between a committed frame and a bare ceiling
+/// does not matter for measurement — only the limit value does), while
+/// `Unbounded` becomes `None`.
+///
+/// Measurement is **symmetric**: text is reflowable, so its size is a curve, not
+/// a point. Whichever axis is bounded constrains the flow; the unbounded axis is
+/// the answer:
+/// - `max_width: Some, max_height: None` → wrap to width, height grows down
+///   (auto-height label in a column).
+/// - `max_width: None, max_height: Some` → pack to a fixed height, width grows
+///   sideways (fixed-height block that extends horizontally).
+/// - both `Some` → wrap to width and clip/ellipsis to height (fixed box).
+/// - both `None` → natural single line (plus any hard `'\n'` breaks).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextBounds {
+    pub max_width: Option<f32>,
+    pub max_height: Option<f32>,
+}
+
+impl TextBounds {
+    pub const UNBOUNDED: Self = Self {
+        max_width: None,
+        max_height: None,
+    };
+
+    pub fn width(max_width: f32) -> Self {
+        Self {
+            max_width: Some(max_width),
+            max_height: None,
+        }
+    }
+}
+
+/// The measured geometry of a block of text, independent of where it is drawn.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextMetrics {
+    /// Tight size of the laid-out block in logical pixels.
+    ///
+    /// - `x` is the widest line's used advance width (shrink-wrapped — it is `≤`
+    ///   `max_width` when a width bound was given, *not* the bound itself).
+    /// - `y` is `visible_line_count × line_height`, where `line_height` is the
+    ///   font's line spacing at this size.
+    ///
+    /// "Visible" means after any vertical overflow has been applied: a block
+    /// clipped to a height reports the size it actually occupies, not the size
+    /// the full string would have needed.
+    pub size: Vec2,
+
+    /// Number of lines actually laid out (after wrapping, hard breaks, and
+    /// vertical overflow). Always `≥ 1`, even for empty input.
+    pub line_count: u32,
+
+    /// `true` if any line was cut on the inline axis — a glyph run was wider than
+    /// the available width and got clipped/ellipsised. With `wrap: true` this is
+    /// rare (over-long words force-break instead) but can still occur when the
+    /// width is narrower than a single glyph.
+    pub truncated_horizontal: bool,
+
+    /// `true` if whole lines were dropped because the content exceeded the
+    /// available height.
+    pub truncated_vertical: bool,
+}
+
+/// The geometry and handle for a piece of text prepared for drawing.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextLayout {
+    /// The opaque handle to give to the renderer via `DrawCmd::Text`.
+    pub handle: TextHandle,
+    /// The block's measured geometry, identical to what [`TextSystem::measure`]
+    /// would return for the same text, flow policy, and the draw rect's size as
+    /// bounds.
+    pub metrics: TextMetrics,
+}
+
+/// The geometry of a text caret at a given byte position, in block-local
+/// coordinates (origin at the block's top-left, y increasing downward).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CaretGeom {
+    /// X offset of the caret (the leading edge of the glyph at the queried byte,
+    /// or the trailing edge of the last glyph when the byte is at end-of-text).
+    pub x: f32,
+    /// Y offset of the top of the line the caret sits on.
+    pub y_top: f32,
+    /// Height of that line (the caret's drawn height).
+    pub height: f32,
+}
+
+// ── The trait ───────────────────────────────────────────────────────────────
+
+/// Implemented by the application to measure, shape, and cache text.
+///
+/// Framewise owns *policy* (whether to wrap, how much space is available, what to
+/// do on overflow) and hands it down; the `TextSystem` owns *shaping* (where
+/// lines actually break, how the ellipsis is fitted, how glyphs are positioned)
+/// and hands geometry back. Framewise never inspects glyphs.
+///
+/// All positions returned by this trait are in **block-local coordinates**: the
+/// origin is the block's top-left corner, with y increasing downward. The caller
+/// translates the block to its final screen position via the `Rect` it passes to
+/// [`prepare`](Self::prepare) and the rect on `DrawCmd::Text`.
 pub trait TextSystem {
-    /// Prepare the given string at the specified font size.
-    /// Returns a layout containing the text's size and an opaque handle.
-    fn prepare(&mut self, text: &str, size: f32, font: FontId) -> TextLayout;
+    /// Measure `text` without committing it for drawing (no handle is produced).
+    ///
+    /// Used by widgets' intrinsic-sizing companions to learn how large a piece of
+    /// text wants to be inside a given space, before the final rect is resolved.
+    /// The returned [`TextMetrics`] reflect `flow` applied against `bounds` — see
+    /// [`TextBounds`] for how the bounded/unbounded axes drive reflow.
+    ///
+    /// `flow.horizontal_align` has no effect on the result: alignment moves glyphs
+    /// within a line but changes neither the block size nor what is truncated.
+    ///
+    /// Must be free of observable side effects on the run table — calling
+    /// `measure` does not allocate a [`TextHandle`].
+    fn measure(
+        &mut self,
+        text: &str,
+        size: f32,
+        font: FontId,
+        flow: TextFlow,
+        bounds: TextBounds,
+    ) -> TextMetrics;
 
-    /// Get the X offset (in logical pixels) of the character at the given byte index.
-    fn measure_byte_x(&self, handle: TextHandle, byte_index: usize) -> f32;
+    /// Shape `text` for drawing into `rect` and register it, returning a handle.
+    ///
+    /// `rect` is fully concrete by the time this is called: its width is the wrap
+    /// width and its height is the vertical clip extent, so the bounds are implied
+    /// by `rect.size`. The block is laid out as if its top-left sits at the rect
+    /// origin; glyph positions are stored block-locally and offset by the rect
+    /// when rendered.
+    ///
+    /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
+    /// would report for the same `text`/`size`/`font`/`flow` and
+    /// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
+    ///
+    /// The handle is valid until the next frame reset (see [`TextHandle`]).
+    fn prepare(
+        &mut self,
+        text: &str,
+        size: f32,
+        font: FontId,
+        flow: TextFlow,
+        rect: Rect,
+    ) -> TextLayout;
 
-    /// Find the closest byte index to the given X pixel offset.
-    fn hit_test_x(&self, handle: TextHandle, x_offset: f32) -> usize;
+    /// Caret geometry for the character boundary at `byte_index`, in block-local
+    /// coordinates. See [`CaretGeom`].
+    ///
+    /// `byte_index` must fall on a UTF-8 char boundary of the prepared string.
+    /// An index at or past the end returns the caret after the final glyph. If
+    /// the glyph at that index was dropped by overflow, the caret clamps to the
+    /// nearest laid-out boundary.
+    fn caret_geom(&self, handle: TextHandle, byte_index: usize) -> CaretGeom;
+
+    /// Hit-test a point (block-local coordinates) to the nearest character
+    /// boundary, returning a byte index into the prepared string.
+    ///
+    /// The point is resolved to a line by `y` first, then to the nearest gap
+    /// between glyphs by `x`. Points above/below the block clamp to the first/last
+    /// line; points left/right of a line clamp to that line's start/end. The
+    /// result is always a valid char boundary.
+    fn hit_test(&self, handle: TextHandle, pos: Vec2) -> usize;
 }

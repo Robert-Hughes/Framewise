@@ -116,17 +116,25 @@ impl App {
         win_size: (f32, f32),
         text_system: &mut SampleTextSystem,
     ) -> framewise::DrawCommands {
-        use framewise::{Color, DrawCmd, FontId, Rect, TextSystem};
+        use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow, TextSystem};
         let mut cmds = framewise::DrawCommands::new();
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
             color: Color::from_srgb_u8(28, 28, 32, 255),
         });
-        let layout = text_system.prepare("Feature not enabled", 24.0, FontId(1));
-        let cx = (win_size.0 - layout.size.x) * 0.5;
-        let cy = (win_size.1 - layout.size.y) * 0.5;
+        let flow = TextFlow::single_line();
+        let m = text_system.measure("Feature not enabled", 24.0, FontId(1), flow, TextBounds::UNBOUNDED);
+        let cx = (win_size.0 - m.size.x) * 0.5;
+        let cy = (win_size.1 - m.size.y) * 0.5;
+        let layout = text_system.prepare(
+            "Feature not enabled",
+            24.0,
+            FontId(1),
+            flow,
+            Rect::new(cx, cy, m.size.x, m.size.y),
+        );
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(cx, cy, layout.size.x, layout.size.y),
+            rect: Rect::new(cx, cy, m.size.x, m.size.y),
             color: Color::from_srgb_u8(140, 140, 150, 255),
             handle: layout.handle,
         });

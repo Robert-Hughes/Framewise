@@ -45,10 +45,39 @@ pub mod raw {
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let style = &spec.style;
-        let t = text_system.prepare(spec.text, style.text_size, style.font);
+        let t = text_system.measure(
+            spec.text,
+            style.text_size,
+            style.font,
+            crate::text::TextFlow::single_line(),
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let w = t.size.x + 2.0 * style.pad_x;
         let h = (t.size.y + 2.0 * style.pad_y).max(style.min_height);
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
+    }
+
+    /// Shape the label single-line, centered within `rect`, returning the draw
+    /// rect (block top-left + tight size) and the prepared handle.
+    fn centered_text<T: TextSystem>(
+        text: &str,
+        style: &super::ButtonStyle,
+        rect: Rect,
+        text_system: &mut T,
+    ) -> (Rect, crate::text::TextHandle) {
+        let flow = crate::text::TextFlow::single_line();
+        let m = text_system.measure(
+            text,
+            style.text_size,
+            style.font,
+            flow,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let tx = rect.x + (rect.w - m.size.x) * 0.5;
+        let ty = rect.y + (rect.h - m.size.y) * 0.5;
+        let text_rect = Rect::new(tx, ty, m.size.x, m.size.y);
+        let layout = text_system.prepare(text, style.text_size, style.font, flow, text_rect);
+        (text_rect, layout.handle)
     }
 
     /// Low-level button widget function.
@@ -78,13 +107,12 @@ pub mod raw {
                     width: spec.style.border_width,
                 });
             }
-            let text_layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
-            let tx = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
-            let ty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+            let (text_rect, handle) =
+                centered_text(spec.text, &spec.style, spec.rect, text_system);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(tx, ty, text_layout.size.x, text_layout.size.y),
+                rect: text_rect,
                 color: tint(spec.style.text_color),
-                handle: text_layout.handle,
+                handle,
             });
             return ButtonResult {
                 content_bounds: spec.rect.inset(spec.style.border_width),
@@ -176,14 +204,11 @@ pub mod raw {
         }
 
         // Text centered.
-        let text_layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
-        let text_x = spec.rect.x + (spec.rect.w - text_layout.size.x) * 0.5;
-        let text_y = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
-
+        let (text_rect, handle) = centered_text(spec.text, &spec.style, spec.rect, text_system);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(text_x, text_y, text_layout.size.x, text_layout.size.y),
+            rect: text_rect,
             color: spec.style.text_color,
-            handle: text_layout.handle,
+            handle,
         });
 
         ButtonResult {

@@ -43,7 +43,10 @@ pub use layouts::{
     ColumnLayout, ColumnState, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,
     RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
-pub use text::{FontId, FontRole, TextHandle, TextLayout, TextSystem};
+pub use text::{
+    CaretGeom, FontId, FontRole, HorizontalAlign, Overflow, TextBounds, TextFlow, TextHandle,
+    TextLayout, TextMetrics, TextSystem,
+};
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, LayoutViolationPolicy, WidgetContext};
