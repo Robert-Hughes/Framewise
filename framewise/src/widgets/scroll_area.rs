@@ -233,6 +233,10 @@ pub mod raw {
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
+                // Degenerate: bar reserved (Always/Auto) but content fits, so the
+                // thumb fills the track and nothing scrolls. Disable it so it
+                // leaves focus order and dims, while still holding its gutter.
+                disabled: max_scroll.y <= 0.0,
             };
 
             state.vert_slider_state.value = state.offset.y;
@@ -271,6 +275,8 @@ pub mod raw {
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
+                // Degenerate horizontal bar (see vertical case above).
+                disabled: max_scroll.x <= 0.0,
             };
 
             state.horiz_slider_state.value = state.offset.x;
@@ -1449,6 +1455,94 @@ mod tests {
         assert!(
             outer.offset.y > 0.0,
             "Outer should scroll past inner's no-op scrollbars"
+        );
+    }
+
+    /// Build a single-axis (vertical Always) scroll area, run one frame with the
+    /// given input + content height, and return the vertical slider's focus id.
+    fn vert_bar_frame(
+        state: &mut ScrollState,
+        input: &Input,
+        focus_system: &mut FocusSystem,
+        content_h: f32,
+    ) -> FocusId {
+        let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+        focus_system.begin_frame();
+        let spec = ScrollAreaSpec {
+            rect: bounds,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            clip_rect: None,
+            time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
+        };
+        let mut cmds = DrawCommands::new();
+        let token = raw::begin_scroll_area(spec, state, input, focus_system, &mut cmds).token;
+        raw::end_scroll_area(
+            token,
+            Vec2::new(188.0, content_h),
+            state,
+            input,
+            focus_system,
+            &mut cmds,
+        );
+        let id = state.vert_slider_state.focus_id;
+        focus_system.end_frame();
+        id
+    }
+
+    /// Degenerate vertical bar (Always-visible, content fits → max_scroll == 0):
+    /// the scrollbar is drawn disabled, so clicking its track takes no focus.
+    #[test]
+    fn test_degenerate_vbar_is_disabled_no_focus_on_click() {
+        let mut state = ScrollState::default();
+        let mut focus_system = FocusSystem::new();
+
+        let mut input = Input::new();
+        // Vertical track lives at x 188..200, y 0..200. Click inside it.
+        input.mouse_pos = Vec2::new(194.0, 50.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        // content_h = 100 < viewport 200 → max_scroll.y = 0 → degenerate.
+        let bar_id = vert_bar_frame(&mut state, &input, &mut focus_system, 100.0);
+
+        assert_ne!(
+            focus_system.current_focus(),
+            Some(bar_id),
+            "degenerate (disabled) scrollbar must not take focus on click"
+        );
+        assert_eq!(state.offset.y, 0.0);
+    }
+
+    /// Live vertical bar (content overflows): the scrollbar is enabled, so
+    /// clicking its thumb takes focus — proving disabling is conditional.
+    #[test]
+    fn test_live_vbar_is_enabled_takes_focus_on_click() {
+        let mut state = ScrollState::default();
+        let mut focus_system = FocusSystem::new();
+
+        let mut input = Input::new();
+        // Live ratio 200/1000 → thumb at y 0..40. Click on the thumb.
+        input.mouse_pos = Vec2::new(194.0, 10.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        let bar_id = vert_bar_frame(&mut state, &input, &mut focus_system, 1000.0);
+
+        assert_eq!(
+            focus_system.current_focus(),
+            Some(bar_id),
+            "live scrollbar must take focus when its thumb is clicked"
         );
     }
 

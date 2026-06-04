@@ -31,6 +31,11 @@ pub mod raw {
         /// the event to an outer scroll area.
         pub claim_scroll_at_ends: bool,
         pub time: f64,
+        /// When `true`, the slider registers nothing in the focus order and
+        /// ignores all input — it only draws (tinted by `style.disabled_alpha`)
+        /// so it still occupies its reserved track. Used for degenerate
+        /// scrollbars (thumb fills the track, nothing to scroll).
+        pub disabled: bool,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -74,7 +79,13 @@ pub mod raw {
 
         // 1. Calculate Thumb Rect
         let track_rect = spec.rect;
-        let focused = focus_system.register(state.focus_id, track_rect, spec.clip_rect);
+        // Disabled sliders stay out of the focus order entirely (no `register`),
+        // matching the button's disabled path.
+        let focused = if spec.disabled {
+            false
+        } else {
+            focus_system.register(state.focus_id, track_rect, spec.clip_rect)
+        };
         let is_vert = spec.orientation == Orientation::Vertical;
 
         let track_len = if is_vert { track_rect.h } else { track_rect.w };
@@ -131,6 +142,64 @@ pub mod raw {
                 )
             }
         };
+
+        // Disabled: draw the track + thumb tinted, take no input, claim nothing.
+        // The reserved track space is preserved so layout is unaffected.
+        if spec.disabled {
+            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
+            if spec.style.scrollbar_mode {
+                cmds.push(DrawCmd::FillRect {
+                    rect: track_rect,
+                    color: tint(spec.style.track_color),
+                });
+                cmds.push(DrawCmd::FillRect {
+                    rect: thumb_rect,
+                    color: tint(spec.style.thumb_color),
+                });
+            } else {
+                let half_thick = spec.style.thickness * 0.5;
+                let track_line = if is_vert {
+                    let cx = track_rect.x + track_rect.w * 0.5;
+                    Rect::new(
+                        cx - half_thick,
+                        track_rect.y,
+                        spec.style.thickness,
+                        track_rect.h,
+                    )
+                } else {
+                    let cy = track_rect.y + track_rect.h * 0.5;
+                    Rect::new(
+                        track_rect.x,
+                        cy - half_thick,
+                        track_rect.w,
+                        spec.style.thickness,
+                    )
+                };
+                cmds.push(DrawCmd::FillRect {
+                    rect: track_line,
+                    color: tint(spec.style.track_color),
+                });
+                cmds.push(DrawCmd::FillRect {
+                    rect: thumb_rect,
+                    color: tint(spec.style.thumb_color),
+                });
+                if spec.style.thumb_border_width > 0.0 {
+                    cmds.push(DrawCmd::StrokeRect {
+                        rect: thumb_rect,
+                        color: tint(spec.style.thumb_border_color),
+                        width: spec.style.thumb_border_width,
+                    });
+                }
+            }
+            return SliderResult {
+                focused: false,
+                input: InputInfo {
+                    hovered: false,
+                    pressed: false,
+                    clicked: false,
+                },
+            };
+        }
 
         // Helper to get main coordinate
         let get_coord = |v: crate::types::Vec2| if is_vert { v.y } else { v.x };
@@ -530,6 +599,8 @@ pub struct SliderStyle {
     /// that fills the cross-section). When false, renders as a standalone
     /// slider (hairline track, fill bar, square thumb with border).
     pub scrollbar_mode: bool,
+    /// Alpha multiplier applied to every color when the slider is disabled.
+    pub disabled_alpha: f32,
 }
 
 impl SliderStyle {
@@ -547,6 +618,7 @@ impl SliderStyle {
             thickness: 1.5,
             thumb_size: 12.0,
             scrollbar_mode: false,
+            disabled_alpha: 0.32,
         }
     }
 
@@ -564,6 +636,7 @@ impl SliderStyle {
             thickness: 1.5,
             thumb_size: 12.0,
             scrollbar_mode: true,
+            disabled_alpha: 0.4,
         }
     }
 }
@@ -612,6 +685,7 @@ pub struct SliderSpecBuilder {
     pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: Option<bool>,
     pub time: Option<f64>,
+    pub disabled: Option<bool>,
 }
 
 impl SliderSpecBuilder {
@@ -660,6 +734,10 @@ impl SliderSpecBuilder {
         self.time = Some(time);
         self
     }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
 
     /// Sets the bounding rectangle. Called automatically by high-level context
     /// functions from the layout engine — only needed when using the raw API directly.
@@ -694,6 +772,7 @@ impl SliderSpecBuilder {
                 .expect("clip_rect not set — call .clip_rect()"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
             time: self.time.unwrap_or(0.0),
+            disabled: self.disabled.unwrap_or(false),
         }
     }
 }
@@ -1435,6 +1514,7 @@ mod tests {
             clip_rect: None,
             claim_scroll_at_ends: claim_at_ends,
             time: 0.0,
+            disabled: false,
         }
     }
 
@@ -1651,6 +1731,123 @@ mod tests {
             !focus_system.is_active_scroll_down(parent_id),
             "parent should not win"
         );
+    }
+
+    // ── Disabled ─────────────────────────────────────────────────────────────
+
+    fn disabled_spec(scrollbar_mode: bool) -> SliderSpec {
+        let theme = crate::theme::Theme::framewise();
+        let style = if scrollbar_mode {
+            SliderStyle::scrollbar_from_theme(&theme)
+        } else {
+            SliderStyle::from_theme(&theme)
+        };
+        SliderSpec {
+            disabled: true,
+            style,
+            ..test_spec(0.0, 100.0, true)
+        }
+    }
+
+    /// A disabled slider ignores mouse press, drag, wheel, and keyboard, and
+    /// never takes focus (it isn't registered in the focus order).
+    #[test]
+    fn test_disabled_slider_ignores_all_input() {
+        let mut state = SliderState::default();
+        state.value = 50.0;
+        let spec = disabled_spec(false);
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        // Press on the thumb (thumb is centered around value=50).
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        input.scroll_delta.y = 5.0;
+        input.key_pressed_page_down = true;
+        input.key_pressed_end = true;
+
+        focus_system.begin_frame();
+        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        focus_system.end_frame();
+
+        assert_eq!(state.value, 50.0, "disabled slider must not change value");
+        assert!(!state.is_dragging, "disabled slider must not start a drag");
+        assert!(!state.is_track_clicking);
+        assert_eq!(
+            focus_system.current_focus(),
+            None,
+            "disabled slider must not take focus"
+        );
+    }
+
+    /// A disabled slider does not claim scroll, so a parent scroll area still
+    /// wins the wheel even when the cursor is over the (degenerate) bar.
+    #[test]
+    fn test_disabled_slider_does_not_block_parent_scroll() {
+        let mut state = SliderState::default();
+        let mut focus_system = FocusSystem::new();
+        let parent_id = FocusId::new();
+
+        let mut input = Input::new();
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        input.scroll_delta.y = 1.0;
+
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            disabled_spec(true),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        // Parent claims after (inner-first ordering).
+        focus_system.claim_scroll_up(parent_id);
+        focus_system.claim_scroll_down(parent_id);
+        focus_system.end_frame();
+
+        assert!(
+            focus_system.is_active_scroll_up(parent_id),
+            "disabled slider must let the parent win the wheel"
+        );
+    }
+
+    /// A disabled slider still draws (track + thumb), tinted by disabled_alpha,
+    /// so it occupies its reserved track.
+    #[test]
+    fn test_disabled_slider_draws_tinted() {
+        let mut state = SliderState::default();
+        let spec = disabled_spec(true); // scrollbar mode: track fill + thumb fill
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        focus_system.begin_frame();
+        raw::slider(spec.clone(), &mut state, &input_none(), &mut focus_system, &mut cmds);
+        focus_system.end_frame();
+
+        let a = spec.style.disabled_alpha;
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * a);
+        // scrollbar-mode: vertical rect (0,0,20,100), ratio None falls back to
+        // fixed thumb_size? No — test_spec uses thumb_size_ratio None, so thumb_len
+        // = style.thumb_size = 12. We only assert structure + tinted colors here.
+        match (&cmds[0], &cmds[1]) {
+            (
+                DrawCmd::FillRect { rect: tr, color: tc },
+                DrawCmd::FillRect { color: hc, .. },
+            ) => {
+                assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");
+                assert_eq!(*tc, tint(spec.style.track_color));
+                assert_eq!(*hc, tint(spec.style.thumb_color));
+            }
+            other => panic!("unexpected draw commands: {:?}", other),
+        }
+        assert_eq!(cmds.len(), 2, "scrollbar-mode disabled draws track + thumb");
+    }
+
+    fn input_none() -> Input {
+        Input::new()
     }
 
     // ── Visual Tests ───────────────────────────────────────────────────────────

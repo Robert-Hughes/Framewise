@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Scrollbars that aren't needed should be drawn in disabled state - blend in, no focus/interaction
-
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 
