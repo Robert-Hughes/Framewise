@@ -131,10 +131,7 @@ impl SampleTextSystem {
         });
         self.layout.append(&[font], &TextStyle::new("…", size, 0));
         let glyphs = self.layout.glyphs().clone();
-        let width = glyphs
-            .last()
-            .map(|g| g.x + g.width as f32)
-            .unwrap_or(0.0);
+        let width = glyphs.last().map(|g| g.x + g.width as f32).unwrap_or(0.0);
         let baseline = self
             .layout
             .lines()
@@ -183,7 +180,14 @@ impl SampleTextSystem {
             .lines()
             .map(|ls| {
                 ls.iter()
-                    .map(|l| (l.glyph_start, l.baseline_y, l.max_ascent, l.max_new_line_size))
+                    .map(|l| {
+                        (
+                            l.glyph_start,
+                            l.baseline_y,
+                            l.max_ascent,
+                            l.max_new_line_size,
+                        )
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -210,10 +214,7 @@ impl SampleTextSystem {
                 } else {
                     glyphs0.len()
                 };
-                let byte_start = glyphs0
-                    .get(gs)
-                    .map(|g| g.byte_offset)
-                    .unwrap_or(text.len());
+                let byte_start = glyphs0.get(gs).map(|g| g.byte_offset).unwrap_or(text.len());
                 let width = if ge > gs {
                     let g = &glyphs0[ge - 1];
                     g.x + g.width as f32
@@ -274,7 +275,7 @@ impl SampleTextSystem {
                 }
             }
 
-            let overflows_w = max_w.map_or(false, |w| line.width > w + 0.5);
+            let overflows_w = max_w.is_some_and(|w| line.width > w + 0.5);
             if overflows_w {
                 truncated_horizontal = true;
             }
@@ -714,7 +715,10 @@ mod tests {
         );
         let _ = layout;
         let text = visible(&sys, layout.handle);
-        assert!(text.ends_with('…'), "expected trailing ellipsis, got {text:?}");
+        assert!(
+            text.ends_with('…'),
+            "expected trailing ellipsis, got {text:?}"
+        );
     }
 
     #[test]
@@ -730,7 +734,10 @@ mod tests {
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
-        assert!(text.contains('…'), "expected an ellipsis somewhere, got {text:?}");
+        assert!(
+            text.contains('…'),
+            "expected an ellipsis somewhere, got {text:?}"
+        );
     }
 
     #[test]
@@ -748,7 +755,10 @@ mod tests {
             Rect::new(0.0, 0.0, 200.0, 30.0),
         );
         let first_x = sys.runs[layout.handle.0].glyphs[0].x;
-        assert!(first_x > 50.0, "short line should be pushed right when centered, x={first_x}");
+        assert!(
+            first_x > 50.0,
+            "short line should be pushed right when centered, x={first_x}"
+        );
     }
 
     #[test]
@@ -762,7 +772,10 @@ mod tests {
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
         let c_line2 = sys.caret_geom(layout.handle, 4); // 'd', first char of line 2
-        assert!(c_line2.y_top > 1.0, "second-line caret should sit below the first");
+        assert!(
+            c_line2.y_top > 1.0,
+            "second-line caret should sit below the first"
+        );
     }
 
     // ── Probes for known sample-impl limitations ────────────────────────────
@@ -783,7 +796,10 @@ mod tests {
         );
         let lines = sys.runs[layout.handle.0].lines.len();
         // Trait contract: a word wider than the box force-breaks mid-word.
-        assert!(lines > 1, "expected the long word to break across lines, got {lines}");
+        assert!(
+            lines > 1,
+            "expected the long word to break across lines, got {lines}"
+        );
     }
 
     #[test]
@@ -826,7 +842,10 @@ mod tests {
             .map(|g| g.x)
             .fold(f32::INFINITY, f32::min);
         // A truncated line should still start at/after the box's left edge.
-        assert!(left >= -0.5, "centered overflow line starts off-box at x={left}");
+        assert!(
+            left >= -0.5,
+            "centered overflow line starts off-box at x={left}"
+        );
     }
 
     #[test]

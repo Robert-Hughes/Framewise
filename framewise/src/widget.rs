@@ -241,8 +241,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         &'c mut self,
         placement: LS::Params,
         inner_layout: L2,
-    ) -> WidgetContext<'c, T, L2::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c>
-    {
+    ) -> WidgetContext<
+        'c,
+        T,
+        L2::State,
+        impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c,
+    > {
         // A bare nested layout has no chrome: the inner layout fills the provisional
         // space as-is, and its outer extent is exactly its measured content.
         let policy = self.layout_policy;
@@ -304,7 +308,8 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     where
         L2: Layout,
         Before: FnOnce(&mut DrawCommands, LayoutSpace) -> (U, LayoutSpace),
-        After: FnOnce(U, LayoutToken<'c, LS>, Rect, &mut FocusSystem, &mut T, &mut DrawCommands) + 'c,
+        After:
+            FnOnce(U, LayoutToken<'c, LS>, Rect, &mut FocusSystem, &mut T, &mut DrawCommands) + 'c,
         U: 'c,
     {
         let clip = self.clip_rect; // Clip rect is inherited by default.
@@ -373,8 +378,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)>
-    WidgetContext<'a, T, LS, CF>
+impl<
+        'a,
+        T: TextSystem,
+        LS: LayoutState,
+        CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
+    > WidgetContext<'a, T, LS, CF>
 {
     /// Consume the context, running the on_finish closure and appending its post-commands.
     ///
@@ -385,7 +394,12 @@ impl<'a, T: TextSystem, LS: LayoutState, CF: FnOnce(&mut FocusSystem, &mut T, &m
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
         let font = self.theme.sans_font;
-        (self.on_finish)(self.focus_system, self.text_system, self.cmds, resolved_space);
+        (self.on_finish)(
+            self.focus_system,
+            self.text_system,
+            self.cmds,
+            resolved_space,
+        );
 
         // React to this context's own begin_layout violation (carried here so the
         // fallback rect is concrete).
@@ -672,6 +686,9 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(count, 4, "both children must report begin+end violations (got {count})");
+        assert_eq!(
+            count, 4,
+            "both children must report begin+end violations (got {count})"
+        );
     }
 }

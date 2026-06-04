@@ -1,8 +1,10 @@
-/// Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
-///
-/// The page is feature-gated section by section: a small core (label, divider,
-/// scroll_area) renders the scaffolding, and each `section_NN_*` fn below is
-/// compiled in only when the widgets it demonstrates are enabled.
+#![allow(clippy::too_many_arguments)]
+//! Interactive widget specification page — mirrors mockups/Framewise Widgets.html.
+//!
+//! The page is feature-gated section by section: a small core (label, divider,
+//! scroll_area) renders the scaffolding, and each `section_NN_*` fn below is
+//! compiled in only when the widgets it demonstrates are enabled.
+
 use crate::text::SampleTextSystem;
 #[allow(unused_imports)]
 use framewise::text::TextSystem;
@@ -15,13 +17,17 @@ use framewise::{
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
+    LayoutViolationPolicy,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
 // hero, footer, and the page-level scroll wrapper).
 use framewise::widgets::divider::divider;
 use framewise::widgets::label::label;
-use framewise::widgets::scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder, ScrollState};
+use framewise::widgets::scroll_area::{
+    begin_scroll_area, ScrollAreaSpecBuilder, ScrollAxis, ScrollExtent, ScrollState,
+    ScrollbarVisibility,
+};
 use framewise::widgets::{DividerSpecBuilder, LabelSpecBuilder, LabelStyle};
 
 #[allow(unused_imports)]
@@ -30,49 +36,49 @@ use framewise::types::Color;
 // Per-widget imports — present only when the owning feature is enabled. Marked
 // `unused_imports`-allowed because a widget feature can be on while the (possibly
 // multi-widget) section that consumes it is off.
-#[cfg(feature = "button")]
-#[allow(unused_imports)]
-use framewise::widgets::{
-    button::{button, ButtonState, ButtonStyle},
-    ButtonSpecBuilder,
-};
 #[cfg(feature = "checkbox")]
 #[allow(unused_imports)]
 use framewise::widgets::checkbox::{
-    checkbox, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState, CheckedState,
+    checkbox, raw::checkbox as raw_checkbox, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState,
+    CheckboxStyle, CheckedState,
 };
 #[cfg(feature = "chip")]
 #[allow(unused_imports)]
 use framewise::widgets::chip::{chip, ChipSpecBuilder, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
 #[allow(unused_imports)]
-use framewise::widgets::color_swatch::color_swatch;
+use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpecBuilder};
 #[cfg(feature = "drag_number")]
 #[allow(unused_imports)]
 use framewise::widgets::drag_number::{
-    drag_number, raw::DragNumberSpec, DragNumberSpecBuilder, DragNumberState,
+    drag_number, raw::drag_number as raw_drag_number, raw::DragNumberSpec, DragNumberSpecBuilder,
+    DragNumberState, DragNumberStyle,
 };
 #[cfg(feature = "keycap")]
 #[allow(unused_imports)]
-use framewise::widgets::keycap::keycap;
+use framewise::widgets::keycap::{keycap, KeycapSpecBuilder};
 #[cfg(feature = "menu")]
 #[allow(unused_imports)]
-use framewise::widgets::menu::{menu, MenuItem};
+use framewise::widgets::menu::{menu, MenuItem, MenuSpecBuilder};
 #[cfg(feature = "meter")]
 #[allow(unused_imports)]
-use framewise::widgets::meter::meter;
+use framewise::widgets::meter::{meter, MeterSpecBuilder};
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
 use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpecBuilder};
 #[cfg(feature = "radio")]
 #[allow(unused_imports)]
-use framewise::widgets::radio::{radio, raw::RadioSpec, RadioSpecBuilder, RadioState};
+use framewise::widgets::radio::{
+    radio, raw::radio as raw_radio, raw::RadioSpec, RadioSpecBuilder, RadioState, RadioStyle,
+};
 #[cfg(feature = "segmented")]
 #[allow(unused_imports)]
 use framewise::widgets::segmented::{segmented, SegmentedSpecBuilder, SegmentedState};
 #[cfg(feature = "select")]
 #[allow(unused_imports)]
-use framewise::widgets::select::{raw::SelectSpec, select, SelectSpecBuilder, SelectState};
+use framewise::widgets::select::{
+    raw::select as raw_select, raw::SelectSpec, select, SelectSpecBuilder, SelectState, SelectStyle,
+};
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{slider, SliderSpecBuilder, SliderState};
@@ -81,10 +87,12 @@ use framewise::widgets::slider::{slider, SliderSpecBuilder, SliderState};
 use framewise::widgets::spinner::{spinner, SpinnerSpecBuilder};
 #[cfg(feature = "status")]
 #[allow(unused_imports)]
-use framewise::widgets::status::{status, StatusVariant};
+use framewise::widgets::status::{status, StatusSpecBuilder, StatusVariant};
 #[cfg(feature = "switch")]
 #[allow(unused_imports)]
-use framewise::widgets::switch::{raw::SwitchSpec, switch, SwitchSpecBuilder, SwitchState};
+use framewise::widgets::switch::{
+    raw::switch as raw_switch, raw::SwitchSpec, switch, SwitchSpecBuilder, SwitchState, SwitchStyle,
+};
 #[cfg(feature = "tabs")]
 #[allow(unused_imports)]
 use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
@@ -93,13 +101,19 @@ use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
 use framewise::widgets::text_edit::{text_edit, TextEditSpecBuilder, TextEditState};
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
-use framewise::widgets::tooltip::{tooltip, TooltipVariant};
+use framewise::widgets::tooltip::{tooltip, TooltipSpecBuilder, TooltipVariant};
 #[cfg(feature = "tree")]
 #[allow(unused_imports)]
-use framewise::widgets::tree::{tree, TreeRow};
+use framewise::widgets::tree::{tree, TreeRow, TreeSpecBuilder};
 #[cfg(feature = "window")]
 #[allow(unused_imports)]
-use framewise::widgets::window::{begin_window, WindowButton};
+use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
+#[cfg(feature = "button")]
+#[allow(unused_imports)]
+use framewise::widgets::{
+    button::{button, raw::button as raw_button, ButtonState, ButtonStyle},
+    ButtonSpecBuilder,
+};
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
@@ -126,16 +140,11 @@ fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, CF>(
     let spec = CheckboxSpec {
         rect,
         disabled: is_disabled,
-        style: framewise::widgets::checkbox::CheckboxStyle::from_theme(&b.theme),
+        style: CheckboxStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    let result = framewise::widgets::checkbox::raw::checkbox(
-        spec,
-        &mut state,
-        &dummy_input,
-        &mut dummy_focus_sys,
-    );
+    let result = raw_checkbox(spec, &mut state, &dummy_input, &mut dummy_focus_sys);
     {
         let cmds = result.draw;
         b.append_cmds(cmds);
@@ -165,12 +174,11 @@ fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, CF>(
     let spec = RadioSpec {
         rect,
         disabled: is_disabled,
-        style: framewise::widgets::radio::RadioStyle::from_theme(&b.theme),
+        style: RadioStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    let result =
-        framewise::widgets::radio::raw::radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys);
+    let result = raw_radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys);
     {
         let cmds = result.draw;
         b.append_cmds(cmds);
@@ -200,16 +208,11 @@ fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, CF>(
     let spec = SwitchSpec {
         rect,
         disabled: is_disabled,
-        style: framewise::widgets::switch::SwitchStyle::from_theme(&b.theme),
+        style: SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    let result = framewise::widgets::switch::raw::switch(
-        spec,
-        &mut state,
-        &dummy_input,
-        &mut dummy_focus_sys,
-    );
+    let result = raw_switch(spec, &mut state, &dummy_input, &mut dummy_focus_sys);
     {
         let cmds = result.draw;
         b.append_cmds(cmds);
@@ -245,11 +248,11 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
         value,
         items: options,
         disabled: is_disabled,
-        style: framewise::widgets::select::SelectStyle::from_theme(&b.theme),
+        style: SelectStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    let result = framewise::widgets::select::raw::select(
+    let result = raw_select(
         spec,
         &mut state,
         &dummy_input,
@@ -273,7 +276,7 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
     is_active: bool,
 ) {
     let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-    let mut state = framewise::widgets::DragNumberState {
+    let mut state = DragNumberState {
         value: val,
         is_dragging: is_active,
         ..Default::default()
@@ -286,12 +289,12 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
         min,
         max,
         disabled: false,
-        style: framewise::widgets::drag_number::DragNumberStyle::from_theme(&b.theme),
+        style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
     let mut dummy_focus_sys = FocusSystem::new();
-    let result = framewise::widgets::drag_number::raw::drag_number(
+    let result = raw_drag_number(
         spec,
         &mut state,
         &dummy_input,
@@ -344,7 +347,7 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
         .clip_rect(None)
         .build();
 
-    framewise::widgets::button::raw::button(
+    raw_button(
         spec,
         &mut state,
         &fake_input,
@@ -413,13 +416,33 @@ pub struct SpecWidgets {
     pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400) — W stays fake
 
     // 05 Selection
-    #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+    #[cfg(all(
+        feature = "select",
+        feature = "segmented",
+        feature = "chip",
+        feature = "menu"
+    ))]
     pub sel_state: SelectState,
-    #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+    #[cfg(all(
+        feature = "select",
+        feature = "segmented",
+        feature = "chip",
+        feature = "menu"
+    ))]
     pub seg1_state: SegmentedState,
-    #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+    #[cfg(all(
+        feature = "select",
+        feature = "segmented",
+        feature = "chip",
+        feature = "menu"
+    ))]
     pub seg2_state: SegmentedState,
-    #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+    #[cfg(all(
+        feature = "select",
+        feature = "segmented",
+        feature = "chip",
+        feature = "menu"
+    ))]
     pub chip_states: Vec<ChipState>, // opengl, vulkan, metal, wgpu, + add backend
 
     // 07 Tabs
@@ -445,25 +468,135 @@ pub struct SpecWidgets {
     pub scroll_both_axes: ScrollState,
 
     // 12 In Use
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_backend: SegmentedState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_tabs: TabsState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_fps_slider: SliderState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_btns: Vec<ButtonState>, // [Reset, Cancel, Apply]
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_log_scroll: ScrollState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_vsync: SwitchState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_msaa: SegmentedState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_vp_w: DragNumberState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_vp_h: DragNumberState,
-    #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+    #[cfg(all(
+        feature = "window",
+        feature = "tabs",
+        feature = "segmented",
+        feature = "slider",
+        feature = "switch",
+        feature = "drag_number",
+        feature = "color_swatch",
+        feature = "checkbox",
+        feature = "button",
+        feature = "menu"
+    ))]
     pub iu_options: Vec<CheckboxState>,
 }
 
@@ -596,19 +729,39 @@ impl Default for SpecWidgets {
                     ..Default::default()
                 },
             ],
-            #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+            #[cfg(all(
+                feature = "select",
+                feature = "segmented",
+                feature = "chip",
+                feature = "menu"
+            ))]
             sel_state: SelectState::default(),
-            #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+            #[cfg(all(
+                feature = "select",
+                feature = "segmented",
+                feature = "chip",
+                feature = "menu"
+            ))]
             seg1_state: SegmentedState {
                 active_index: 0,
                 ..Default::default()
             },
-            #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+            #[cfg(all(
+                feature = "select",
+                feature = "segmented",
+                feature = "chip",
+                feature = "menu"
+            ))]
             seg2_state: SegmentedState {
                 active_index: 1,
                 ..Default::default()
             },
-            #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+            #[cfg(all(
+                feature = "select",
+                feature = "segmented",
+                feature = "chip",
+                feature = "menu"
+            ))]
             chip_states: vec![
                 ChipState {
                     checked: true,
@@ -679,46 +832,156 @@ impl Default for SpecWidgets {
             scroll_both: ScrollState::default(),
             #[cfg(feature = "scroll_area")]
             scroll_both_axes: ScrollState::default(),
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_backend: SegmentedState {
                 active_index: 1,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_tabs: TabsState {
                 active_index: 0,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_fps_slider: SliderState {
                 value: 60.0,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_btns: (0..3).map(|_| ButtonState::default()).collect(),
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_log_scroll: ScrollState::default(),
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_vsync: SwitchState {
                 checked: true,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_msaa: SegmentedState {
                 active_index: 2,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_vp_w: DragNumberState {
                 value: 1920.0,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_vp_h: DragNumberState {
                 value: 1080.0,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             iu_options: vec![
                 CheckboxState {
                     checked: CheckedState::Checked,
@@ -748,8 +1011,6 @@ const GROUP_GAP: f32 = 28.0;
 #[allow(dead_code)]
 const COL_GAP: f32 = 16.0;
 
-pub const CONTENT_HEIGHT: f32 = 5800.0;
-
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
 // Used only by sections that show fake/static states; may be unused in minimal builds.
@@ -767,7 +1028,7 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF>(
         let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
             size,
             text_color: color,
-            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+            ..LabelStyle::from_theme(t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -795,7 +1056,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF>(
         let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
             size,
             text_color: color,
-            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+            ..LabelStyle::from_theme(t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -807,7 +1068,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF>(
             size: 18.0,
             font,
             text_color: color,
-            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+            ..LabelStyle::from_theme(t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -820,7 +1081,7 @@ fn sec_y<LS: LayoutState<Params = Rect>, CF>(
             size,
             font,
             text_color: color,
-            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+            ..LabelStyle::from_theme(t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -842,7 +1103,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF>(
         let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
             size,
             text_color: color,
-            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+            ..LabelStyle::from_theme(t)
         });
         label(b, spec_builder, layout_params)
     };
@@ -881,7 +1142,7 @@ pub fn draw_spec_page(
         w_ctx.debug_layout = debug_layout;
         // Highlight unsatisfiable layout requests in red rather than panicking (Panic is
         // the default, kept for tests).
-        w_ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
+        w_ctx.layout_policy = LayoutViolationPolicy::Highlight;
         w_ctx
     };
 
@@ -896,17 +1157,12 @@ pub fn draw_spec_page(
     let mut should_reset = false;
     {
         let mut page = {
-            let content_size = Vec2::new(content_w, CONTENT_HEIGHT);
             begin_scroll_area(
                 &mut b,
-                ScrollAreaSpecBuilder::new().vertical(
-                    framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::fixed(
-                            content_size.y,
-                        ),
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                    },
-                ),
+                ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                    extent: ScrollExtent::Unbounded,
+                    vis: ScrollbarVisibility::Auto,
+                }),
                 win_rect,
                 &mut state.page_scroll,
                 ManualLayout,
@@ -934,7 +1190,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -951,7 +1207,7 @@ pub fn draw_spec_page(
                                 size: 56.0,
                                 font,
                                 text_color: color,
-                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                                ..LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -966,7 +1222,7 @@ pub fn draw_spec_page(
                                 size: 56.0,
                                 font,
                                 text_color: color,
-                                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                                ..LabelStyle::from_theme(&t)
                             });
                     label(b, spec_builder, layout_params)
                 };
@@ -982,7 +1238,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -997,7 +1253,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -1012,7 +1268,7 @@ pub fn draw_spec_page(
                             size: 15.0,
                             font,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -1037,7 +1293,7 @@ pub fn draw_spec_page(
                             size,
                             font,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1051,7 +1307,7 @@ pub fn draw_spec_page(
                             size,
                             font,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1080,7 +1336,12 @@ pub fn draw_spec_page(
             {
                 y = section_04_sliders(b, &t, lx, content_w, y, &mut state.w);
             }
-            #[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+            #[cfg(all(
+                feature = "select",
+                feature = "segmented",
+                feature = "chip",
+                feature = "menu"
+            ))]
             {
                 y = section_05_selection(b, &t, lx, content_w, y, &mut state.w);
             }
@@ -1092,7 +1353,12 @@ pub fn draw_spec_page(
             {
                 y = section_07_tabs(b, &t, lx, content_w, y, &mut state.w);
             }
-            #[cfg(all(feature = "progress_bar", feature = "meter", feature = "spinner", feature = "status"))]
+            #[cfg(all(
+                feature = "progress_bar",
+                feature = "meter",
+                feature = "spinner",
+                feature = "status"
+            ))]
             {
                 y = section_08_progress(b, &t, lx, content_w, y, time);
             }
@@ -1108,7 +1374,18 @@ pub fn draw_spec_page(
             {
                 y = section_11_window(b, &t, lx, content_w, y, &mut state.w);
             }
-            #[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+            #[cfg(all(
+                feature = "window",
+                feature = "tabs",
+                feature = "segmented",
+                feature = "slider",
+                feature = "switch",
+                feature = "drag_number",
+                feature = "color_swatch",
+                feature = "checkbox",
+                feature = "button",
+                feature = "menu"
+            ))]
             {
                 y = section_12_in_use(b, &t, lx, content_w, y, &mut state.w);
             }
@@ -1137,7 +1414,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1149,7 +1426,7 @@ pub fn draw_spec_page(
                         let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
                             size,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                         label(b, spec_builder, layout_params)
                     };
@@ -1164,7 +1441,7 @@ pub fn draw_spec_page(
                         .style(LabelStyle {
                             size,
                             text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                            ..LabelStyle::from_theme(&t)
                         });
                     label(b, spec_builder, layout_params)
                 };
@@ -1173,8 +1450,8 @@ pub fn draw_spec_page(
         } // end content block (drops `b` alias, releases borrow on `page`)
         page.finish()
     }; // end page_cmds block
-    // `state`/`time` are only consumed by feature-gated sections; silence unused
-    // warnings in builds where those sections are compiled out.
+       // `state`/`time` are only consumed by feature-gated sections; silence unused
+       // warnings in builds where those sections are compiled out.
     let _ = (&state, time);
     #[cfg(feature = "button")]
     if should_reset {
@@ -1204,26 +1481,10 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
     y += 20.0;
     {
         let styles: &[(&str, ButtonStyle, bool)] = &[
-            (
-                "Apply changes",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-                false,
-            ),
-            (
-                "Cancel",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-                false,
-            ),
-            (
-                "Reset",
-                framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
-                false,
-            ),
-            (
-                "Publish v0.2",
-                framewise::widgets::button::ButtonStyle::accent_from_theme(&t),
-                false,
-            ),
+            ("Apply changes", ButtonStyle::primary_from_theme(&t), false),
+            ("Cancel", ButtonStyle::primary_from_theme(&t), false),
+            ("Reset", ButtonStyle::ghost_from_theme(&t), false),
+            ("Publish v0.2", ButtonStyle::accent_from_theme(&t), false),
         ];
         let mut bx = lx;
         for (i, (label, style, _)) in styles.iter().enumerate() {
@@ -1251,10 +1512,10 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
         let row_labels = ["secondary", "primary", "accent", "ghost"];
         let row_styles: &[ButtonStyle] = &[
-            framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            framewise::widgets::button::ButtonStyle::accent_from_theme(&t),
-            framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
+            ButtonStyle::primary_from_theme(&t),
+            ButtonStyle::primary_from_theme(&t),
+            ButtonStyle::accent_from_theme(&t),
+            ButtonStyle::ghost_from_theme(&t),
         ];
         let label_w = 80.0_f32;
         let cell_w = 88.0_f32;
@@ -1273,7 +1534,7 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -1285,17 +1546,15 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(lx, y, label_w - 8.0, t.h_md);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(row_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
             for ci in 0..5 {
-                let rect =
-                    Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
+                let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
                 match ci {
                     1 => draw_button_fake_state(
                         b,
@@ -1349,21 +1608,9 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
     y += 20.0;
     {
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
-            (
-                "22 px",
-                t.h_sm,
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "28 px",
-                t.h_md,
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "36 px",
-                t.h_lg,
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
+            ("22 px", t.h_sm, ButtonStyle::primary_from_theme(&t)),
+            ("28 px", t.h_md, ButtonStyle::primary_from_theme(&t)),
+            ("36 px", t.h_lg, ButtonStyle::primary_from_theme(&t)),
         ];
         let mut bx = lx;
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
@@ -1382,18 +1629,9 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
 
         // button group 1: ← | Frame 248 | →
         let grp1: &[(&str, ButtonStyle)] = &[
-            (
-                "←",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "Frame 248",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "→",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
+            ("←", ButtonStyle::primary_from_theme(&t)),
+            ("Frame 248", ButtonStyle::primary_from_theme(&t)),
+            ("→", ButtonStyle::primary_from_theme(&t)),
         ];
         // draw group border
         for (i, (label, style)) in grp1.iter().enumerate() {
@@ -1412,18 +1650,9 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
 
         // button group 2: Build | Run | Ship
         let grp2: &[(&str, ButtonStyle)] = &[
-            (
-                "Build",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "Run",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "Ship",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
+            ("Build", ButtonStyle::primary_from_theme(&t)),
+            ("Run", ButtonStyle::primary_from_theme(&t)),
+            ("Ship", ButtonStyle::primary_from_theme(&t)),
         ];
         for (i, (label, style)) in grp2.iter().enumerate() {
             let w = label.len() as f32 * 7.0 + 20.0;
@@ -1474,7 +1703,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -1486,12 +1715,11 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(lx, y, label_w - 4.0, t.h_md);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(row_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
             for ci in 0..5 {
@@ -1500,14 +1728,9 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 let disabled = ci == 4;
                 let _info = {
                     let state = &mut state.te_matrix[idx];
-                    let layout_params = Rect::new(
-                        lx + label_w + ci as f32 * (cell_w + 8.0),
-                        y,
-                        cell_w,
-                        t.h_md,
-                    );
-                    let spec_builder =
-                        TextEditSpecBuilder::new().error(error).disabled(disabled);
+                    let layout_params =
+                        Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md);
+                    let spec_builder = TextEditSpecBuilder::new().error(error).disabled(disabled);
                     text_edit(b, spec_builder, layout_params, state)
                 };
             }
@@ -1525,14 +1748,13 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(field_x, y, 120.0, 14.0);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("CRATE NAME")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("CRATE NAME")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
         let _info = {
@@ -1550,7 +1772,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 .style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
             label(b, spec_builder, layout_params)
         };
@@ -1564,7 +1786,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("VERSION").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1588,7 +1810,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("v").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1607,7 +1829,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 .style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
             label(b, spec_builder, layout_params)
         };
@@ -1618,14 +1840,13 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(ml_x, y, 120.0, 14.0);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("DESCRIPTION")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("DESCRIPTION")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
         let _info = {
@@ -1681,7 +1902,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -1696,7 +1917,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("box").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1726,14 +1947,13 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(lx, y, label_w - 4.0, 14.0);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("with label")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("with label")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
@@ -1746,25 +1966,18 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
                     checkbox(b, spec_builder, layout_params, state)
                 };
             } else {
-                draw_checkbox_fake_state(
-                    b,
-                    Rect::new(cx, y, 14.0, 14.0),
-                    *cs,
-                    *focused,
-                    *disabled,
-                );
+                draw_checkbox_fake_state(b, Rect::new(cx, y, 14.0, 14.0), *cs, *focused, *disabled);
             }
 
             let label_alpha = if *disabled { t.muted } else { t.ink };
             {
                 let layout_params = Rect::new(cx + 18.0, y, 60.0, 14.0);
                 let size = t.text_sm;
-                let spec_builder =
-                    LabelSpecBuilder::new().text("vsync").style(LabelStyle {
-                        size,
-                        text_color: label_alpha,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text("vsync").style(LabelStyle {
+                    size,
+                    text_color: label_alpha,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
         }
@@ -1798,12 +2011,11 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(lx + 18.0, ry, 140.0, 14.0);
                 let size = t.text_md;
                 let color = t.ink;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
         }
@@ -1820,13 +2032,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             match i {
                 2 => {
                     static_badge(b, &t, sw_x - 48.0, ry);
-                    draw_switch_fake_state(
-                        b,
-                        Rect::new(sw_x, ry, 30.0, 16.0),
-                        true,
-                        true,
-                        false,
-                    );
+                    draw_switch_fake_state(b, Rect::new(sw_x, ry, 30.0, 16.0), true, true, false);
                 }
                 3 => {
                     let _info = {
@@ -1850,14 +2056,13 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             {
                 let layout_params = Rect::new(sw_x + 36.0, ry, 140.0, 16.0);
                 let size = t.text_md;
-                let spec_builder =
-                    LabelSpecBuilder::new()
-                        .text(switch_label)
-                        .style(LabelStyle {
-                            size,
-                            text_color: label_color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                let spec_builder = LabelSpecBuilder::new()
+                    .text(switch_label)
+                    .style(LabelStyle {
+                        size,
+                        text_color: label_color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                 label(b, spec_builder, layout_params)
             };
         }
@@ -1901,7 +2106,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1921,7 +2126,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1941,7 +2146,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -1962,7 +2167,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2047,7 +2252,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(".24–.76").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2124,7 +2329,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("padding").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2151,7 +2356,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2199,7 +2404,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("−").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2210,7 +2415,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2221,7 +2426,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("+").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2233,9 +2438,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
         for (color, hex) in swatches {
             color_swatch(
                 b,
-                framewise::widgets::ColorSwatchSpecBuilder::new()
-                    .color(*color)
-                    .border(t.line),
+                ColorSwatchSpecBuilder::new().color(*color).border(t.line),
                 Rect::new(bx, y, 18.0, t.h_md),
             );
             {
@@ -2245,7 +2448,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(hex).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -2256,7 +2459,12 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
     y
 }
 
-#[cfg(all(feature = "select", feature = "segmented", feature = "chip", feature = "menu"))]
+#[cfg(all(
+    feature = "select",
+    feature = "segmented",
+    feature = "chip",
+    feature = "menu"
+))]
 fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
@@ -2329,7 +2537,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
                 let spec_builder = ChipSpecBuilder::new().text(label).style(ChipStyle {
                     font: b.theme.sans_font,
-                    ..framewise::widgets::chip::ChipStyle::from_theme(&b.theme)
+                    ..ChipStyle::from_theme(&b.theme)
                 });
                 chip(b, spec_builder, layout_params, state)
             };
@@ -2342,13 +2550,12 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         let _add_info = {
             let state = &mut state.chip_states[4];
             let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
-            let spec_builder =
-                ChipSpecBuilder::new()
-                    .text("+ add backend")
-                    .style(ChipStyle {
-                        font: b.theme.sans_font,
-                        ..framewise::widgets::chip::ChipStyle::from_theme(&b.theme)
-                    });
+            let spec_builder = ChipSpecBuilder::new()
+                .text("+ add backend")
+                .style(ChipStyle {
+                    font: b.theme.sans_font,
+                    ..ChipStyle::from_theme(&b.theme)
+                });
             chip(b, spec_builder, layout_params, state)
         };
     }
@@ -2402,7 +2609,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         ];
         menu(
             b,
-            framewise::widgets::MenuSpecBuilder::new().items(ITEMS1),
+            MenuSpecBuilder::new().items(ITEMS1),
             Rect::new(lx, y, 240.0, 0.0),
         );
 
@@ -2435,7 +2642,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         ];
         menu(
             b,
-            framewise::widgets::MenuSpecBuilder::new().items(ITEMS2),
+            MenuSpecBuilder::new().items(ITEMS2),
             Rect::new(lx + 264.0, y, 200.0, 0.0),
         );
 
@@ -2489,11 +2696,10 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             let mut sa = {
                 begin_scroll_area(
                     b,
-                    ScrollAreaSpecBuilder::new()
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b1_content.y),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        }),
+                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                        extent: ScrollExtent::fixed(b1_content.y),
+                        vis: ScrollbarVisibility::Always,
+                    }),
                     b1,
                     &mut state.scroll_vert,
                     ManualLayout,
@@ -2519,12 +2725,11 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     let layout_params = Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder =
-                        LabelSpecBuilder::new().text(line).style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                    let spec_builder = LabelSpecBuilder::new().text(line).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                     label(&mut sa, spec_builder, layout_params)
                 };
             }
@@ -2534,14 +2739,13 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("vertical · idle")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("vertical · idle")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
 
@@ -2562,11 +2766,10 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             let mut sa = {
                 begin_scroll_area(
                     b,
-                    ScrollAreaSpecBuilder::new()
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b2_content.y),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        }),
+                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                        extent: ScrollExtent::fixed(b2_content.y),
+                        vis: ScrollbarVisibility::Always,
+                    }),
                     b2,
                     &mut state.scroll_horiz,
                     ManualLayout,
@@ -2579,12 +2782,11 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     let text: &str = &format!("// entry {:02}/24 — frame state", i + 1);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder =
-                        LabelSpecBuilder::new().text(text).style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                    let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                     label(&mut sa, spec_builder, layout_params)
                 };
             }
@@ -2599,7 +2801,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 .style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
             label(b, spec_builder, layout_params)
         };
@@ -2622,13 +2824,13 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 begin_scroll_area(
                     b,
                     ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b3_content.x),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        .horizontal(ScrollAxis {
+                            extent: ScrollExtent::fixed(b3_content.x),
+                            vis: ScrollbarVisibility::Always,
                         })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        .vertical(ScrollAxis {
+                            extent: ScrollExtent::FIT,
+                            vis: ScrollbarVisibility::Auto,
                         }),
                     b3,
                     &mut state.scroll_both,
@@ -2645,7 +2847,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     .style(LabelStyle {
                         size,
                         text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                        ..LabelStyle::from_theme(&t)
                     });
                 label(&mut sa, spec_builder, layout_params)
             };
@@ -2655,14 +2857,13 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("horizontal")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("horizontal")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
 
@@ -2684,13 +2885,13 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 begin_scroll_area(
                     b,
                     ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b4_content.x),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        .horizontal(ScrollAxis {
+                            extent: ScrollExtent::fixed(b4_content.x),
+                            vis: ScrollbarVisibility::Always,
                         })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(b4_content.y),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                        .vertical(ScrollAxis {
+                            extent: ScrollExtent::fixed(b4_content.y),
+                            vis: ScrollbarVisibility::Always,
                         }),
                     b4,
                     &mut state.scroll_both_axes,
@@ -2702,26 +2903,28 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(12.0, 10.0, 280.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder = LabelSpecBuilder::new()
-                    .text("scroll surface with")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder =
+                    LabelSpecBuilder::new()
+                        .text("scroll surface with")
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..LabelStyle::from_theme(&t)
+                        });
                 label(&mut sa, spec_builder, layout_params)
             };
             {
                 let layout_params = Rect::new(12.0, 28.0, 280.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder = LabelSpecBuilder::new()
-                    .text("both bars + corner")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder =
+                    LabelSpecBuilder::new()
+                        .text("both bars + corner")
+                        .style(LabelStyle {
+                            size,
+                            text_color: color,
+                            ..LabelStyle::from_theme(&t)
+                        });
                 label(&mut sa, spec_builder, layout_params)
             };
             sa.finish();
@@ -2730,12 +2933,11 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new().text("both axes").style(LabelStyle {
-                    size,
-                    text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                });
+            let spec_builder = LabelSpecBuilder::new().text("both axes").style(LabelStyle {
+                size,
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
             label(b, spec_builder, layout_params)
         };
 
@@ -2781,7 +2983,12 @@ fn section_07_tabs<LS: LayoutState<Params = Rect>, CF>(
     y
 }
 
-#[cfg(all(feature = "progress_bar", feature = "meter", feature = "spinner", feature = "status"))]
+#[cfg(all(
+    feature = "progress_bar",
+    feature = "meter",
+    feature = "spinner",
+    feature = "status"
+))]
 fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
@@ -2819,12 +3026,11 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(bar_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(bar_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
             y += 22.0;
@@ -2846,12 +3052,11 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(bx, y, 36.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(meter_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(meter_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(b, spec_builder, layout_params)
             };
             bx += 40.0;
@@ -2860,22 +3065,18 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
                     let layout_params = Rect::new(bx, y - 1.0, 60.0, 16.0);
                     let size = t.text_sm;
                     let color = t.ink;
-                    let spec_builder =
-                        LabelSpecBuilder::new().text("2.4 ms").style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                    let spec_builder = LabelSpecBuilder::new().text("2.4 ms").style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                     label(b, spec_builder, layout_params)
                 };
                 bx += 70.0;
             } else {
                 meter(
                     b,
-                    framewise::widgets::MeterSpecBuilder::new()
-                        .value(*val)
-                        .peak(*peak)
-                        .bars(10),
+                    MeterSpecBuilder::new().value(*val).peak(*peak).bars(10),
                     Rect::new(bx, y, 100.0, 12.0),
                 );
                 bx += 108.0;
@@ -2895,7 +3096,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("loading").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2912,7 +3113,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("large").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -2928,9 +3129,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
         for (label, variant) in status_items {
             status(
                 b,
-                framewise::widgets::StatusSpecBuilder::new()
-                    .text(label)
-                    .variant(*variant),
+                StatusSpecBuilder::new().text(label).variant(*variant),
                 Rect::new(sx, y + 1.0, 120.0, 12.0),
             );
             sx += 110.0;
@@ -3028,7 +3227,7 @@ fn section_09_tree<LS: LayoutState<Params = Rect>, CF>(
         ];
         tree(
             b,
-            framewise::widgets::TreeSpecBuilder::new().items(WIDGET_TREE),
+            TreeSpecBuilder::new().items(WIDGET_TREE),
             Rect::new(lx, y, 320.0, 0.0),
         );
 
@@ -3085,7 +3284,7 @@ fn section_09_tree<LS: LayoutState<Params = Rect>, CF>(
         ];
         tree(
             b,
-            framewise::widgets::TreeSpecBuilder::new().items(FILE_LIST),
+            TreeSpecBuilder::new().items(FILE_LIST),
             Rect::new(lx + 360.0, y, 240.0, 0.0),
         );
 
@@ -3114,19 +3313,25 @@ fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
     {
         tooltip(
             b,
-            framewise::widgets::TooltipSpecBuilder::new()
+            TooltipSpecBuilder::new()
                 .text("Drag to scrub — hold ⌥ for fine.")
                 .variant(TooltipVariant::Dark),
             Rect::new(lx, y, 0.0, 0.0),
         );
         y += 28.0 + 8.0;
 
-        tooltip(b, framewise::widgets::TooltipSpecBuilder::new().text("Re-described every frame from current application state. No retained nodes.").variant(TooltipVariant::Dark), Rect::new(lx, y, 0.0, 0.0));
+        tooltip(
+            b,
+            TooltipSpecBuilder::new()
+                .text("Re-described every frame from current application state. No retained nodes.")
+                .variant(TooltipVariant::Dark),
+            Rect::new(lx, y, 0.0, 0.0),
+        );
         y += 28.0 + 8.0;
 
         tooltip(
             b,
-            framewise::widgets::TooltipSpecBuilder::new()
+            TooltipSpecBuilder::new()
                 .text("⚠ shader recompiled b frame (12 ms)")
                 .variant(TooltipVariant::Rust),
             Rect::new(lx, y, 0.0, 0.0),
@@ -3150,7 +3355,7 @@ fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
                 let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
                 keycap(
                     b,
-                    framewise::widgets::KeycapSpecBuilder::new().text(key),
+                    KeycapSpecBuilder::new().text(key),
                     Rect::new(kx, y, kw, 22.0),
                 );
                 kx += kw + 4.0;
@@ -3162,7 +3367,7 @@ fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(desc).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -3196,7 +3401,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
         ];
         let win_rect = Rect::new(lx, y, 360.0, 280.0);
         let mut win = {
-            let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+            let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Inspector")
                 .buttons(&win_buttons)
                 .status_bar(true)
@@ -3217,8 +3422,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
-                let spec_builder =
-                    DragNumberSpecBuilder::new().text(label).min(min).max(max);
+                let spec_builder = DragNumberSpecBuilder::new().text(label).min(min).max(max);
                 drag_number(&mut win, spec_builder, layout_params, state)
             };
             drx += (cr_w / 2.0) + 4.0;
@@ -3234,8 +3438,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, t.h_md);
-                let spec_builder =
-                    DragNumberSpecBuilder::new().text(label).min(min).max(max);
+                let spec_builder = DragNumberSpecBuilder::new().text(label).min(min).max(max);
                 drag_number(&mut win, spec_builder, layout_params, state)
             };
             drx += (cr_w / 2.0) + 4.0;
@@ -3259,12 +3462,11 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                 let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
                 let size = t.text_md;
                 let color = t.ink;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(check_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(check_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(&mut win, spec_builder, layout_params)
             };
             iy += 22.0;
@@ -3301,14 +3503,13 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
         {
             let layout_params = Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0);
             let size = t.text_sm;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("FRAMEWISE · DARK")
-                    .style(LabelStyle {
-                        size,
-                        text_color: light,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("FRAMEWISE · DARK")
+                .style(LabelStyle {
+                    size,
+                    text_color: light,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
         {
@@ -3317,7 +3518,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("✕").style(LabelStyle {
                 size,
                 text_color: light,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -3357,7 +3558,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("⌘").style(LabelStyle {
                 size,
                 text_color: light,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -3367,7 +3568,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("K").style(LabelStyle {
                 size,
                 text_color: light,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(b, spec_builder, layout_params)
         };
@@ -3380,7 +3581,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                     .style(LabelStyle {
                         size,
                         text_color: muted_l,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                        ..LabelStyle::from_theme(&t)
                     });
             label(b, spec_builder, layout_params)
         };
@@ -3406,14 +3607,13 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
         {
             let layout_params = Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0);
             let size = t.text_sm;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("type a command…")
-                    .style(LabelStyle {
-                        size,
-                        text_color: muted_l,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("type a command…")
+                .style(LabelStyle {
+                    size,
+                    text_color: muted_l,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(b, spec_builder, layout_params)
         };
 
@@ -3440,7 +3640,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(item).style(LabelStyle {
                     size,
                     text_color: color,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -3469,7 +3669,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
                 let spec_builder = LabelSpecBuilder::new().text(file).style(LabelStyle {
                     size,
                     text_color: muted_l,
-                    ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                    ..LabelStyle::from_theme(&t)
                 });
                 label(b, spec_builder, layout_params)
             };
@@ -3480,7 +3680,18 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
     y
 }
 
-#[cfg(all(feature = "window", feature = "tabs", feature = "segmented", feature = "slider", feature = "switch", feature = "drag_number", feature = "color_swatch", feature = "checkbox", feature = "button", feature = "menu"))]
+#[cfg(all(
+    feature = "window",
+    feature = "tabs",
+    feature = "segmented",
+    feature = "slider",
+    feature = "switch",
+    feature = "drag_number",
+    feature = "color_swatch",
+    feature = "checkbox",
+    feature = "button",
+    feature = "menu"
+))]
 fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
     b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
@@ -3505,7 +3716,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         ];
         let wr = Rect::new(lx, y, win_w_left, win_h_full);
         let mut win = {
-            let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+            let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Renderer Settings")
                 .buttons(&win_buttons)
                 .status_bar(true)
@@ -3541,7 +3752,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("BACKEND").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3560,14 +3771,13 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = t.text_sm;
             let color = t.muted;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("TARGET FPS")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("TARGET FPS")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(&mut win, spec_builder, layout_params)
         };
         {
@@ -3593,7 +3803,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3607,7 +3817,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("VSYNC").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3623,14 +3833,13 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let layout_params = Rect::new(widget_x + 36.0, fy + 7.0, 120.0, 14.0);
             let size = t.text_sm;
             let color = t.ink;
-            let spec_builder =
-                LabelSpecBuilder::new()
-                    .text("match display")
-                    .style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+            let spec_builder = LabelSpecBuilder::new()
+                .text("match display")
+                .style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
             label(&mut win, spec_builder, layout_params)
         };
         fy += row_h + row_gap;
@@ -3643,7 +3852,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("MSAA").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3665,7 +3874,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("VIEWPORT").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3697,15 +3906,13 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("ACCENT").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
         color_swatch(
             &mut win,
-            framewise::widgets::ColorSwatchSpecBuilder::new()
-                .color(t.rust)
-                .border(t.line),
+            ColorSwatchSpecBuilder::new().color(t.rust).border(t.line),
             Rect::new(widget_x, fy + 4.0, 18.0, 20.0),
         );
         {
@@ -3715,7 +3922,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("#c25a2c").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3729,7 +3936,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             let spec_builder = LabelSpecBuilder::new().text("OPTIONS").style(LabelStyle {
                 size,
                 text_color: color,
-                ..framewise::widgets::label::LabelStyle::from_theme(&t)
+                ..LabelStyle::from_theme(&t)
             });
             label(&mut win, spec_builder, layout_params)
         };
@@ -3748,16 +3955,14 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
             };
 
             {
-                let layout_params =
-                    Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0);
+                let layout_params = Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0);
                 let size = t.text_md;
                 let color = t.ink;
-                let spec_builder =
-                    LabelSpecBuilder::new().text(opt_label).style(LabelStyle {
-                        size,
-                        text_color: color,
-                        ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                    });
+                let spec_builder = LabelSpecBuilder::new().text(opt_label).style(LabelStyle {
+                    size,
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
                 label(&mut win, spec_builder, layout_params)
             };
         }
@@ -3773,18 +3978,9 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         // button row
         let mut btn_x = cr_w;
         let btns: &[(&str, ButtonStyle)] = &[
-            (
-                "Apply",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "Cancel",
-                framewise::widgets::button::ButtonStyle::primary_from_theme(&t),
-            ),
-            (
-                "Reset",
-                framewise::widgets::button::ButtonStyle::ghost_from_theme(&t),
-            ),
+            ("Apply", ButtonStyle::primary_from_theme(&t)),
+            ("Cancel", ButtonStyle::primary_from_theme(&t)),
+            ("Reset", ButtonStyle::ghost_from_theme(&t)),
         ];
         for (i, (label, style)) in btns.iter().enumerate() {
             let bw = label.len() as f32 * 7.0 + 20.0;
@@ -3814,7 +4010,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         ];
         let fl_rect = Rect::new(rcol_x, y, rcol_w, fl_h);
         let mut fl_win = {
-            let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+            let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Frame Log")
                 .buttons(&fl_buttons)
                 .status_bar(true)
@@ -3844,17 +4040,13 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         {
             let mut log_page = {
                 let content_size = Vec2::new(fl_scroll_rect.w, log_content_h);
-                let inner_layout = framewise::layouts::ManualLayout;
+                let inner_layout = ManualLayout;
                 begin_scroll_area(
                     &mut fl_win,
-                    ScrollAreaSpecBuilder::new().vertical(
-                        framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::fixed(
-                                content_size.y,
-                            ),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                        },
-                    ),
+                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                        extent: ScrollExtent::fixed(content_size.y),
+                        vis: ScrollbarVisibility::Auto,
+                    }),
                     fl_scroll_rect,
                     &mut state.iu_log_scroll,
                     inner_layout,
@@ -3869,12 +4061,11 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
                     let layout_params = Rect::new(6.0, row_y, ts_w, 14.0);
                     let size = t.text_sm;
                     let color = t.muted;
-                    let spec_builder =
-                        LabelSpecBuilder::new().text(ts_str).style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                    let spec_builder = LabelSpecBuilder::new().text(ts_str).style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                     label(&mut log_page, spec_builder, layout_params)
                 };
                 let msg_color = if *highlight { t.rust } else { t.ink };
@@ -3886,12 +4077,11 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
                         14.0,
                     );
                     let size = t.text_sm;
-                    let spec_builder =
-                        LabelSpecBuilder::new().text(msg).style(LabelStyle {
-                            size,
-                            text_color: msg_color,
-                            ..framewise::widgets::label::LabelStyle::from_theme(&t)
-                        });
+                    let spec_builder = LabelSpecBuilder::new().text(msg).style(LabelStyle {
+                        size,
+                        text_color: msg_color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                     label(&mut log_page, spec_builder, layout_params)
                 };
             }
@@ -3904,7 +4094,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         let qa_buttons = [WindowButton { symbol: "×" }];
         let qa_rect = Rect::new(rcol_x, qa_y, rcol_w, 174.0);
         let mut qa_win = {
-            let widget_spec_builder = framewise::widgets::WindowSpecBuilder::new()
+            let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Quick actions")
                 .buttons(&qa_buttons)
                 .status_bar(false)
@@ -3942,7 +4132,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         ];
         menu(
             &mut qa_win,
-            framewise::widgets::MenuSpecBuilder::new().items(&qa_items),
+            MenuSpecBuilder::new().items(&qa_items),
             Rect::new(0.0, -8.0, qa_cr_w, 0.0),
         );
         qa_win.finish();

@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
@@ -5,8 +7,6 @@ use crate::{
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
-#[cfg(test)]
-use crate::focus::FocusSystem;
 
 pub mod raw {
     use super::*;

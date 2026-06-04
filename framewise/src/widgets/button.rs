@@ -107,8 +107,7 @@ pub mod raw {
                     width: spec.style.border_width,
                 });
             }
-            let (text_rect, handle) =
-                centered_text(spec.text, &spec.style, spec.rect, text_system);
+            let (text_rect, handle) = centered_text(spec.text, &spec.style, spec.rect, text_system);
             cmds.push(DrawCmd::Text {
                 rect: text_rect,
                 color: tint(spec.style.text_color),

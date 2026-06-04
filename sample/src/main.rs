@@ -123,7 +123,13 @@ impl App {
             color: Color::from_srgb_u8(28, 28, 32, 255),
         });
         let flow = TextFlow::single_line();
-        let m = text_system.measure("Feature not enabled", 24.0, FontId(1), flow, TextBounds::UNBOUNDED);
+        let m = text_system.measure(
+            "Feature not enabled",
+            24.0,
+            FontId(1),
+            flow,
+            TextBounds::UNBOUNDED,
+        );
         let cx = (win_size.0 - m.size.x) * 0.5;
         let cy = (win_size.1 - m.size.y) * 0.5;
         let layout = text_system.prepare(

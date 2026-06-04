@@ -146,7 +146,8 @@ pub mod raw {
         // Disabled: draw the track + thumb tinted, take no input, claim nothing.
         // The reserved track space is preserved so layout is unaffected.
         if spec.disabled {
-            let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
+            let tint =
+                |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             if spec.style.scrollbar_mode {
                 cmds.push(DrawCmd::FillRect {
                     rect: track_rect,
@@ -1769,7 +1770,13 @@ mod tests {
         input.key_pressed_end = true;
 
         focus_system.begin_frame();
-        raw::slider(spec.clone(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(state.value, 50.0, "disabled slider must not change value");
@@ -1824,7 +1831,13 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         focus_system.begin_frame();
-        raw::slider(spec.clone(), &mut state, &input_none(), &mut focus_system, &mut cmds);
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input_none(),
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         let a = spec.style.disabled_alpha;
@@ -1834,7 +1847,10 @@ mod tests {
         // = style.thumb_size = 12. We only assert structure + tinted colors here.
         match (&cmds[0], &cmds[1]) {
             (
-                DrawCmd::FillRect { rect: tr, color: tc },
+                DrawCmd::FillRect {
+                    rect: tr,
+                    color: tc,
+                },
                 DrawCmd::FillRect { color: hc, .. },
             ) => {
                 assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");

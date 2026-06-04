@@ -217,7 +217,8 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     builder: FrameSpecBuilder,
     layout_params: S::Params,
     inner_layout: L,
-) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b> {
+) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b>
+{
     let spec = builder
         .defaults_from_theme(&ctx.theme)
         .rect(Rect::PLACEHOLDER)
@@ -255,7 +256,14 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
             let outer_extent = Vec2::new(content.w + inset * 2.0, content.h + inset * 2.0);
             let (bounds, violation) = token.end_layout(outer_extent).into_parts();
             if let Some(v) = violation {
-                crate::widget::react_layout_violation(policy, text_system, cmds, violation_font, v, bounds);
+                crate::widget::react_layout_violation(
+                    policy,
+                    text_system,
+                    cmds,
+                    violation_font,
+                    v,
+                    bounds,
+                );
             }
             raw::end_frame(
                 frame_token,

@@ -82,8 +82,8 @@ pub fn draw_layout_page(
         &mut cmds,
     );
     ctx.debug_layout = debug_layout; // F12 toggles the magenta layout-bounds overlay.
-    // Highlight unsatisfiable layout requests in red rather than panicking — the default
-    // Panic policy is kept for tests. An interactive app would just crash under Panic.
+                                     // Highlight unsatisfiable layout requests in red rather than panicking — the default
+                                     // Panic policy is kept for tests. An interactive app would just crash under Panic.
     ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
     let theme = ctx.theme;
@@ -657,7 +657,9 @@ pub fn draw_layout_page(
 
 /// A full-width disabled ghost button used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
-fn label_row<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
+fn label_row<
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
@@ -677,7 +679,9 @@ fn label_row<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise:
     );
 }
 
-fn heading<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
+fn heading<
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
@@ -685,7 +689,9 @@ fn heading<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::D
     label_row(col, ghost, text, 30.0);
 }
 
-fn subheading<CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect)>(
+fn subheading<
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+>(
     col: &mut WidgetContext<SampleTextSystem, framewise::layouts::ColumnState, CF>,
     ghost: ButtonStyle,
     text: &str,
