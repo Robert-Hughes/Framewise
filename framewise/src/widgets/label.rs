@@ -3,12 +3,15 @@ use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::FontId,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
+    TextSystem,
 };
 
 pub mod raw {
+    use crate::TextSystem;
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
@@ -20,16 +23,38 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct LabelResult {
-        pub draw: DrawCommands,
+        pub content_bounds: Rect,
+    }
+
+    /// Measure a label's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_label_intrinsic_size<T: TextSystem>(
+        spec: &LabelSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let style = &spec.style;
+        let t = text_system.measure(
+            spec.text,
+            style.size,
+            style.font,
+            crate::text::TextFlow::single_line(),
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        crate::layout::IntrinsicSize::preferred(t.size)
     }
 
     /// Low-level label widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
-        let mut cmds = DrawCommands::new();
-
+    pub fn label<T: TextSystem>(
+        spec: LabelSpec,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) -> LabelResult {
         let layout = text_system.prepare(
             spec.text,
             spec.style.size,
@@ -54,7 +79,9 @@ pub mod raw {
             });
         }
 
-        LabelResult { draw: cmds }
+        LabelResult {
+            content_bounds: spec.rect,
+        }
     }
 }
 
@@ -146,15 +173,23 @@ pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> LabelResult {
-    let layout_rect = ctx.layout(layout_params, crate::layout::IntrinsicSize::UNKNOWN);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::label(spec, ctx.text_system);
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_label_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
 
-    ctx.append_cmds(result.draw);
+    let r = raw::label(spec, ctx.text_system, ctx.cmds);
 
     LabelResult {
-        layout: LayoutInfo::tight(rect),
+        layout: LayoutInfo::new(rect, r.content_bounds),
     }
 }
 
@@ -162,7 +197,7 @@ pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::LabelSpec;
     use super::*;
-    use crate::{test_utils::DummyTextSys, text::TextHandle};
+    use crate::{test_utils::DummyTextSys, text::TextHandle, theme, types::Vec2, Input};
 
     struct RecordingTextSys {
         font: Option<FontId>,
@@ -232,15 +267,17 @@ mod tests {
                 rule_color: Color::WHITE,
             },
         };
-        let res = raw::label(spec, &mut sys);
+        let mut cmds = DrawCommands::new();
+        let res = raw::label(spec, &mut sys, &mut cmds);
 
+        assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 50.0));
         assert_eq!(
-            res.draw,
-            DrawCommands::from_vec(vec![DrawCmd::Text {
+            &cmds[..],
+            &[DrawCmd::Text {
                 rect: Rect::new(0.0, 0.0, 100.0, 50.0),
                 color: Color::WHITE,
                 handle: TextHandle(0),
-            }])
+            }]
         );
     }
 
@@ -258,10 +295,12 @@ mod tests {
                 rule_color: Color::WHITE,
             },
         };
-        let res = raw::label(spec, &mut sys);
+        let mut cmds = DrawCommands::new();
+        let res = raw::label(spec, &mut sys, &mut cmds);
+        assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
         assert_eq!(
-            res.draw,
-            DrawCommands::from_vec(vec![
+            &cmds[..],
+            &[
                 DrawCmd::Text {
                     rect: Rect::new(0.0, 0.0, 100.0, 20.0),
                     color: Color::WHITE,
@@ -273,7 +312,7 @@ mod tests {
                     color: Color::WHITE,
                     width: 1.0,
                 }
-            ])
+            ]
         );
     }
 
@@ -293,7 +332,8 @@ mod tests {
             },
         };
 
-        let _ = raw::label(spec, &mut sys);
+        let mut cmds = DrawCommands::new();
+        let _ = raw::label(spec, &mut sys, &mut cmds);
 
         assert_eq!(sys.font, Some(expected));
     }
@@ -323,14 +363,13 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
+    fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
@@ -340,11 +379,83 @@ mod tests {
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        let result = super::label(
-            &mut ctx,
-            LabelSpecBuilder::new().text("X".into()).rect(custom_rect),
-            layout_rect,
+        let result = super::label(&mut ctx, LabelSpecBuilder::new().text("X"), placement);
+        assert_eq!(result.layout.bounds, placement);
+    }
+
+    #[test]
+    fn test_high_level_honors_user_style() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        let theme = crate::theme::Theme::framewise();
+        let custom = LabelStyle {
+            text_color: Color::from_srgb_u8(1, 2, 3, 255),
+            ..LabelStyle::from_theme(&theme)
+        };
+        super::label(
+            &mut ctx,
+            LabelSpecBuilder::new().text("X").style(custom),
+            Rect::new(100.0, 100.0, 40.0, 28.0),
+        );
+        let has_custom_color = cmds
+            .iter()
+            .any(|c| matches!(c, DrawCmd::Text { color, .. } if *color == custom.text_color));
+        assert!(
+            has_custom_color,
+            "high-level label must honor user-set style"
+        );
+    }
+
+    #[test]
+    fn test_calc_label_intrinsic_size() {
+        let mut ts = DummyTextSys;
+        let spec = LabelSpec {
+            rect: Rect::PLACEHOLDER,
+            text: "Hello",
+            style: LabelStyle::from_theme(&crate::theme::Theme::default()),
+        };
+        let i = raw::calc_label_intrinsic_size(&spec, &mut ts);
+        assert_eq!(i.preferred, Some(Vec2::new(40.0, 16.0)));
+    }
+
+    #[test]
+    fn test_label_auto_layout_uses_intrinsic_size() {
+        use crate::layout::Placement2D;
+        use crate::layouts::{ColumnLayout, ManualLayout};
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let mut col = ctx.child_with_layout(
+            Rect::new(10.0, 10.0, 300.0, 400.0),
+            ColumnLayout { spacing: 0.0 },
+        );
+        let r = super::label(
+            &mut col,
+            LabelSpecBuilder::new().text("Hello"),
+            Placement2D::auto(),
+        );
+        assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 40.0, 16.0));
     }
 }
