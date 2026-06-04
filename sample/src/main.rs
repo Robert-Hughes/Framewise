@@ -225,20 +225,23 @@ impl App {
                 }
                 Self::draw_missing_feature_page(win_size, text_system)
             }
-            #[cfg(feature = "page_layout_demo")]
             AppPage::LayoutDemo => {
-                self.focus_system.begin_frame();
-                let cmds = layout_demo::draw_layout_page(
-                    &mut self.layout_demo_state,
-                    &mut self.focus_system,
-                    &self.input,
-                    time,
-                    win_size,
-                    text_system,
-                    self.debug_layout,
-                );
-                self.focus_system.end_frame();
-                cmds
+                #[cfg(feature = "page_layout_demo")]
+                {
+                    self.focus_system.begin_frame();
+                    let cmds = layout_demo::draw_layout_page(
+                        &mut self.layout_demo_state,
+                        &mut self.focus_system,
+                        &self.input,
+                        time,
+                        win_size,
+                        text_system,
+                        self.debug_layout,
+                    );
+                    self.focus_system.end_frame();
+                    return cmds;
+                }
+                Self::draw_missing_feature_page(win_size, text_system)
             }
         }
     }

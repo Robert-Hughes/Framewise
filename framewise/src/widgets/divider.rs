@@ -1,11 +1,12 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
     text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
+#[cfg(test)]
+use crate::focus::FocusSystem;
 
 pub mod raw {
     use super::*;
@@ -103,7 +104,7 @@ pub fn divider<T: TextSystem, S: LayoutState, CF>(
     builder: DividerSpecBuilder,
     layout_params: S::Params,
 ) -> DividerResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params, crate::layout::IntrinsicSize::UNKNOWN);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::divider(spec);

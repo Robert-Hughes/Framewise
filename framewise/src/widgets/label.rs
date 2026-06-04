@@ -1,11 +1,12 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
     text::{FontId, TextSystem},
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
+#[cfg(test)]
+use crate::focus::FocusSystem;
 
 pub mod raw {
     use super::*;
@@ -29,7 +30,13 @@ pub mod raw {
     pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T) -> LabelResult {
         let mut cmds = DrawCommands::new();
 
-        let layout = text_system.prepare(spec.text, spec.style.size, spec.style.font);
+        let layout = text_system.prepare(
+            spec.text,
+            spec.style.size,
+            spec.style.font,
+            crate::text::TextFlow::single_line(),
+            spec.rect,
+        );
 
         cmds.push(DrawCmd::Text {
             rect: spec.rect,
@@ -139,7 +146,7 @@ pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> LabelResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
+    let layout_rect = ctx.layout(layout_params, crate::layout::IntrinsicSize::UNKNOWN);
     let rect = builder.rect.unwrap_or(layout_rect);
     let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
     let result = raw::label(spec, ctx.text_system);

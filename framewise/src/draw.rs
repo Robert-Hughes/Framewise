@@ -84,6 +84,12 @@ impl DrawCommands {
         Self(Vec::new())
     }
 
+    /// Build a command list from an existing vector. Useful for callers that
+    /// assemble a batch of commands up front (e.g. demo/sample code).
+    pub fn from_vec(cmds: Vec<DrawCmd>) -> Self {
+        Self(cmds)
+    }
+
     pub fn push(&mut self, cmd: DrawCmd) {
         self.0.push(cmd);
     }
