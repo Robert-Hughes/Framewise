@@ -5,6 +5,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Labels - show some clipped cases (auto-ellipses?)
+* Labels - auto-wrap
+* Update spec page to use auto-wrapping labels rather than manual splitting into lines
+
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 

@@ -77,8 +77,6 @@ struct Line {
     y_top: f32,
     height: f32,
     baseline_y: f32,
-    /// Natural (unaligned, pre-ellipsis) used width of the line.
-    width: f32,
 }
 
 impl SampleTextSystem {
@@ -205,7 +203,6 @@ impl SampleTextSystem {
                 y_top: 0.0,
                 height: line_height,
                 baseline_y: line_height, // approximate; unused for empty text
-                width: 0.0,
             });
         } else {
             for (i, &(gs, baseline_y, max_ascent, new_line)) in fd_lines.iter().enumerate() {
@@ -215,12 +212,6 @@ impl SampleTextSystem {
                     glyphs0.len()
                 };
                 let byte_start = glyphs0.get(gs).map(|g| g.byte_offset).unwrap_or(text.len());
-                let width = if ge > gs {
-                    let g = &glyphs0[ge - 1];
-                    g.x + g.width as f32
-                } else {
-                    0.0
-                };
                 lines.push(Line {
                     glyph_start: gs,
                     glyph_end: ge,
@@ -229,7 +220,6 @@ impl SampleTextSystem {
                     y_top: baseline_y - max_ascent,
                     height: new_line,
                     baseline_y,
-                    width,
                 });
             }
             // byte_end of each line is the next line's byte_start.
@@ -253,6 +243,12 @@ impl SampleTextSystem {
         }
 
         // ── Per-line: align, clip / ellipsis, rebuild glyph vec ─────────────
+        let global_l = if glyphs0.is_empty() {
+            0.0
+        } else {
+            glyphs0.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
+        };
+
         let mut truncated_horizontal = false;
         let mut out: Vec<GlyphPosition> = Vec::with_capacity(glyphs0.len());
         let mut rec: Vec<LineRec> = Vec::with_capacity(lines.len());
@@ -263,10 +259,39 @@ impl SampleTextSystem {
             let is_last = i + 1 == line_count;
             let mut seg: Vec<GlyphPosition> = glyphs0[line.glyph_start..line.glyph_end].to_vec();
 
-            // Horizontal alignment (we do it ourselves so it also works without
-            // a max_width and uniformly across wrap modes).
+            // Find ink bounds for this line before shifting
+            let (line_l, line_r) = if seg.is_empty() {
+                (0.0, 0.0)
+            } else {
+                let l = seg.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
+                let r = seg
+                    .iter()
+                    .map(|g| g.x + g.width as f32)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                (l, r)
+            };
+            let line_w = line_r - line_l;
+
+            // Apply base shift to align leftmost ink pixel to 0.0 (or keep relative indentation for Start)
+            let base_shift = match flow.horizontal_align {
+                HorizontalAlign::Start => global_l,
+                HorizontalAlign::Center | HorizontalAlign::End => line_l,
+            };
+            if base_shift != 0.0 {
+                for g in &mut seg {
+                    g.x -= base_shift;
+                }
+            }
+
+            // Horizontal alignment offset
             let align_off = match max_w {
-                Some(w) => align_offset(flow.horizontal_align, w, line.width),
+                Some(w) => {
+                    let align_span = match flow.horizontal_align {
+                        HorizontalAlign::Start => line_r - global_l,
+                        HorizontalAlign::Center | HorizontalAlign::End => line_w,
+                    };
+                    align_offset(flow.horizontal_align, w, align_span)
+                }
                 None => 0.0,
             };
             if align_off != 0.0 {
@@ -275,10 +300,18 @@ impl SampleTextSystem {
                 }
             }
 
-            let overflows_w = max_w.is_some_and(|w| line.width > w + 0.5);
+            // Check overflow
+            let overflows_w = max_w.is_some_and(|w| {
+                let check_w = match flow.horizontal_align {
+                    HorizontalAlign::Start => line_r - global_l,
+                    HorizontalAlign::Center | HorizontalAlign::End => line_w,
+                };
+                check_w > w + 0.5
+            });
             if overflows_w {
                 truncated_horizontal = true;
             }
+
             let ellipsis_here = flow.overflow == Overflow::Ellipsis
                 && (overflows_w || (truncated_vertical && is_last));
 
@@ -694,7 +727,7 @@ mod tests {
     #[test]
     fn ellipsis_is_appended_on_single_line_overflow() {
         let mut sys = sys();
-        let layout = sys.prepare(
+        let _layout = sys.prepare(
             "hello world this is long",
             16.0,
             FontId(1),
@@ -862,5 +895,42 @@ mod tests {
         let on_line2 = sys.hit_test(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
         // Start of second line "def" is byte 4 (after "abc\n").
         assert_eq!(on_line2, 4);
+    }
+
+    #[test]
+    fn test_optical_ink_bounds_alignment() {
+        let mut sys = sys();
+        let rect = Rect::new(0.0, 0.0, 500.0, 100.0);
+        let layout = sys.prepare(
+            "Hello World",
+            16.0,
+            FontId(1),
+            TextFlow::single_line(),
+            rect,
+        );
+
+        let run = &sys.runs[layout.handle.0];
+        let l = run.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
+        let r = run
+            .glyphs
+            .iter()
+            .map(|g| g.x + g.width as f32)
+            .fold(f32::NEG_INFINITY, f32::max);
+
+        // Under Approach 2, the leftmost ink pixel must be exactly at 0.0
+        assert_eq!(l, 0.0, "Leftmost ink pixel must be at 0.0");
+        // And the metrics size.x must be exactly r - l = r
+        assert!(
+            (layout.metrics.size.x - r).abs() < 0.001,
+            "Metrics width must match tight ink width"
+        );
+
+        // Caret at index 0 must be at x = 0.0
+        let caret = sys.caret_geom(layout.handle, 0);
+        assert_eq!(caret.x, 0.0, "Caret at index 0 must be at x = 0.0");
+
+        // Hit testing at x = 0.0 must resolve to byte index 0
+        let idx = sys.hit_test(layout.handle, Vec2::new(0.0, 5.0));
+        assert_eq!(idx, 0, "Hit testing near 0.0 must return index 0");
     }
 }

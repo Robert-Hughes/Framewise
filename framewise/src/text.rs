@@ -241,6 +241,13 @@ pub struct CaretGeom {
 /// lines actually break, how the ellipsis is fitted, how glyphs are positioned)
 /// and hands geometry back. Framewise never inspects glyphs.
 ///
+/// ### Optical Ink Bounds Alignment (Approach 2)
+/// To support premium grid alignments in the GUI, all positions returned by this trait
+/// are relative to the text's tight **ink bounds** rather than the typographic space.
+/// The implementing `TextSystem` must shift shaped glyph horizontal positions (`g.x`)
+/// by $-l$ (where $l$ is the leftmost horizontal pixel position across all glyphs in the segment)
+/// so that the first visible pixel begins exactly at `x = 0.0` relative to the bounding box.
+///
 /// All positions returned by this trait are in **block-local coordinates**: the
 /// origin is the block's top-left corner, with y increasing downward. The caller
 /// translates the block to its final screen position via the `Rect` it passes to
@@ -252,6 +259,10 @@ pub trait TextSystem {
     /// text wants to be inside a given space, before the final rect is resolved.
     /// The returned [`TextMetrics`] reflect `flow` applied against `bounds` — see
     /// [`TextBounds`] for how the bounded/unbounded axes drive reflow.
+    ///
+    /// The returned size represents the tight **ink bounds** ($r - l$) of the text run,
+    /// excluding the typographic left-side bearing, ensuring the layout bounding box
+    /// perfectly wraps the visible pixels.
     ///
     /// `flow.horizontal_align` has no effect on the result: alignment moves glyphs
     /// within a line but changes neither the block size nor what is truncated.
@@ -269,11 +280,12 @@ pub trait TextSystem {
 
     /// Shape `text` for drawing into `rect` and register it, returning a handle.
     ///
-    /// `rect` is fully concrete by the time this is called: its width is the wrap
-    /// width and its height is the vertical clip extent, so the bounds are implied
-    /// by `rect.size`. The block is laid out as if its top-left sits at the rect
-    /// origin; glyph positions are stored block-locally and offset by the rect
-    /// when rendered.
+    /// `rect` is the fully concrete **ink-bounds** bounding box by the time this is called:
+    /// its width is the wrap width and its height is the vertical clip extent.
+    ///
+    /// Because `rect` represents the ink bounds, the implementor must shift all shaped
+    /// glyph coordinates by $-l$ (where $l$ is the leftmost horizontal coordinate of the unshifted
+    /// shaped glyphs) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
     ///
     /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
     /// would report for the same `text`/`size`/`font`/`flow` and
@@ -292,6 +304,9 @@ pub trait TextSystem {
     /// Caret geometry for the character boundary at `byte_index`, in block-local
     /// coordinates. See [`CaretGeom`].
     ///
+    /// Because the cached layout is pre-shifted to ink bounds, caret positions
+    /// must also align with the shifted coordinate system ($x = \text{typographic\_x} - l$).
+    ///
     /// `byte_index` must fall on a UTF-8 char boundary of the prepared string.
     /// An index at or past the end returns the caret after the final glyph. If
     /// the glyph at that index was dropped by overflow, the caret clamps to the
@@ -300,6 +315,9 @@ pub trait TextSystem {
 
     /// Hit-test a point (block-local coordinates) to the nearest character
     /// boundary, returning a byte index into the prepared string.
+    ///
+    /// The coordinates `pos` are in the pre-shifted ink-bounds space. Hit testing
+    /// must compare against the shifted glyph positions in the cached run.
     ///
     /// The point is resolved to a line by `y` first, then to the nearest gap
     /// between glyphs by `x`. Points above/below the block clamp to the first/last

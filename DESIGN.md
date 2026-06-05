@@ -579,6 +579,21 @@ To draw text, the widget building pass must have access to a `TextSystem` (provi
 
 Because the `WidgetContext` takes the text system as a generic parameter (`WidgetContext<'a, T: TextSystem, S>`), we guarantee **static dispatch** and maximum inlining, keeping the library zero-cost while maintaining complete renderer agnosticism.
 
+### Optical Ink Bounds Alignment (Approach 2)
+
+A major visual challenge in GUI layouts is aligning text containers perfectly with other visual UI elements (such as borders of text input fields, button margins, or card containers). 
+
+By default, standard text shaping layout engines position glyphs relative to their **typographic origin** ($0.0$), which includes font-specific left-side bearings (spacing). For instance, flat characters (like **H** or **I**) might start 3px from the origin, while round characters (like **O** or **C**) start 1px from the origin to create a micro-typographic optical overlap (overshoot) when aligned next to each other.
+
+Framewise adopts **Approach 2 (Optical Ink Bounds Alignment)** for text rendering:
+* **The contract:** The bounding box returned by `measure` and passed to `prepare` represents the tight **ink bounds** of the text (i.e. the rectangle containing exactly the visible rasterized pixels), rather than the typographic space.
+* **The shift:** The text shaping engine must shift all glyph horizontal positions (`g.x`) by $-l$ (where $l$ is the leftmost horizontal pixel position across all glyphs in the segment) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
+
+#### Why Ink Bounds Alignment (Grid-based) is Chosen over Typographic Origin Alignment:
+1. **Perfect Grid Alignment:** When aligning a label to an input border or button edge directly below it, any left-side typographic bearing creates a visible 2–4px gap, making the text look misaligned or indented. Ink bounds alignment guarantees that the visible text aligns flush with the widget borders.
+2. **Simplified Layout Logic:** The `framewise` layout engine can reason purely about rectangular bounding boxes. As long as the text system ensures the ink fills the bounds exactly, the layout is optically perfect without the layout engine needing to understand or coordinate typographic bearings.
+3. **Decoupled Render & Downstream Systems:** Shifting glyph positions directly in the text system shaping pass means the renderer, hit-testing, and cursor positioning consume the corrected coordinates natively with zero downstream runtime overhead.
+
 ---
 
 ## Colour Pipeline
