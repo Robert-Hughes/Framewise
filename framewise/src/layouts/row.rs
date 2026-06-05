@@ -160,9 +160,16 @@ impl LayoutState for RowState {
 
     fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> LayoutResult<Rect> {
         let pref = Some(extent);
+        let remaining_w = match self.space.width {
+            AxisBound::Exact(w) => AxisBound::Exact((w - (self.current_x - self.space.x)).max(0.0)),
+            AxisBound::AtMost(w) => {
+                AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+            }
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (w, v1) = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .resolve_size(pref.map(|p| p.x), remaining_w)
             .into_parts();
         let (h, v2) = layout_params
             .height
@@ -272,6 +279,59 @@ mod tests {
                 IntrinsicSize::preferred(Vec2::new(90.0, 200.0)),
             );
             // Should clamp to remaining 70px as a fallback
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.w, 70.0);
+            assert!(violation.is_some());
+        }
+    }
+
+    #[test]
+    fn test_row_fill_width_remaining_deferred() {
+        // 1. Exact(100.0) width
+        {
+            let mut state = RowLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child is deferred and fills remaining width
+            let req = Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(200.0),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining width is Exact(70.0)
+            assert_eq!(space.width, AxisBound::Exact(70.0));
+
+            // child completes layout with measured width of, say, 50.0
+            let r = token.end_layout(Vec2::new(50.0, 200.0)).unwrap();
+            // Under Exact bounds, Fill width resolves to 70.0.
+            assert_eq!(r.w, 70.0);
+        }
+
+        // 2. AtMost(100.0) width
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
+            let mut state = RowLayout { spacing: 0.0 }.begin(space);
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child is deferred and fills remaining width
+            let req = Placement2D {
+                width: Placement::fill(),
+                height: Placement::fixed(200.0),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining width is AtMost(70.0)
+            assert_eq!(space.width, AxisBound::AtMost(70.0));
+
+            // child completes layout with measured width larger (90px)
+            let res = token.end_layout(Vec2::new(90.0, 200.0));
+            // Under AtMost bounds, Fill width is resolved using the child's extent, but clamped to the remaining 70.0.
             let (r, violation) = res.into_parts();
             assert_eq!(r.w, 70.0);
             assert!(violation.is_some());

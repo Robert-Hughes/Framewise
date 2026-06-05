@@ -165,9 +165,17 @@ impl LayoutState for ColumnState {
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
             .into_parts();
+
+        let remaining_h = match self.space.height {
+            AxisBound::Exact(h) => AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0)),
+            AxisBound::AtMost(h) => {
+                AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+            }
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (h, v2) = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .resolve_size(pref.map(|p| p.y), remaining_h)
             .into_parts();
 
         let (off, v3) = layout_params
@@ -283,6 +291,59 @@ mod tests {
                 IntrinsicSize::preferred(Vec2::new(200.0, 90.0)),
             );
             // Should clamp to remaining 70px as a fallback
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.h, 70.0);
+            assert!(violation.is_some());
+        }
+    }
+
+    #[test]
+    fn test_column_fill_height_remaining_deferred() {
+        // 1. Exact(100.0) height
+        {
+            let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child is deferred and fills remaining height
+            let req = Placement2D {
+                width: Placement::fixed(200.0),
+                height: Placement::fill(),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining height is Exact(70.0)
+            assert_eq!(space.height, AxisBound::Exact(70.0));
+
+            // child completes layout with measured height of, say, 50.0
+            let r = token.end_layout(Vec2::new(200.0, 50.0)).unwrap();
+            // Under Exact bounds, Fill height resolves to 70.0.
+            assert_eq!(r.h, 70.0);
+        }
+
+        // 2. AtMost(100.0) height
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
+            let mut state = ColumnLayout { spacing: 0.0 }.begin(space);
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child is deferred and fills remaining height
+            let req = Placement2D {
+                width: Placement::fixed(200.0),
+                height: Placement::fill(),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining height is AtMost(70.0)
+            assert_eq!(space.height, AxisBound::AtMost(70.0));
+
+            // child completes layout with measured height larger (90px)
+            let res = token.end_layout(Vec2::new(200.0, 90.0));
+            // Under AtMost bounds, Fill height is resolved using the child's extent, but clamped to the remaining 70.0.
             let (r, violation) = res.into_parts();
             assert_eq!(r.h, 70.0);
             assert!(violation.is_some());

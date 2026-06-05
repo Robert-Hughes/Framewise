@@ -130,22 +130,6 @@ impl LayoutState for WrapState {
 
         let width = AxisBound::Exact(w);
 
-        let height = match layout_params.height {
-            Placement::Sized {
-                size: Size::Fixed(h),
-                ..
-            } => AxisBound::Exact(h),
-            Placement::Fill
-            | Placement::Sized {
-                size: Size::Auto, ..
-            } => match self.space.height {
-                AxisBound::Exact(h) | AxisBound::AtMost(h) => {
-                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
-                }
-                AxisBound::Unbounded => AxisBound::Unbounded,
-            },
-        };
-
         let at_line_start = self.current_x == self.space.x;
         let overflows = match self.space.width {
             AxisBound::Exact(width) | AxisBound::AtMost(width) => {
@@ -158,6 +142,30 @@ impl LayoutState for WrapState {
             self.current_y += self.line_height + self.line_spacing;
             self.line_height = 0.0;
         }
+
+        let height = match layout_params.height {
+            Placement::Sized {
+                size: Size::Fixed(h),
+                ..
+            } => AxisBound::Exact(h),
+            Placement::Fill => match self.space.height {
+                AxisBound::Exact(h) => {
+                    AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::AtMost(h) => {
+                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+            Placement::Sized {
+                size: Size::Auto, ..
+            } => match self.space.height {
+                AxisBound::Exact(h) | AxisBound::AtMost(h) => {
+                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+                }
+                AxisBound::Unbounded => AxisBound::Unbounded,
+            },
+        };
 
         let space = LayoutSpace::new(self.current_x, self.current_y, width, height);
         let token = LayoutToken {
@@ -372,6 +380,79 @@ mod tests {
                 },
                 IntrinsicSize::preferred(Vec2::new(80.0, 90.0)),
             );
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.h, 70.0);
+            assert!(violation.is_some());
+        }
+    }
+
+    #[test]
+    fn test_wrap_fill_height_remaining_deferred() {
+        // 1. Exact(100.0) height
+        {
+            let mut state = WrapLayout {
+                spacing: 0.0,
+                line_spacing: 0.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            // First item takes 80px width, 30px height
+            let _ = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(80.0),
+                        height: Placement::fixed(30.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            // Second item has width 80px (wraps to next line, y=30) and fills remaining height
+            let req = Placement2D {
+                width: Placement::fixed(80.0),
+                height: Placement::fill(),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining height on the wrapped line is Exact(70.0)
+            assert_eq!(space.height, AxisBound::Exact(70.0));
+
+            // child completes layout with measured height of 50.0
+            let r = token.end_layout(Vec2::new(80.0, 50.0)).unwrap();
+            // Under Exact bounds, Fill height resolves to 70.0.
+            assert_eq!(r.h, 70.0);
+        }
+
+        // 2. AtMost(100.0) height
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::Exact(100.0), AxisBound::AtMost(100.0));
+            let mut state = WrapLayout {
+                spacing: 0.0,
+                line_spacing: 0.0,
+            }
+            .begin(space);
+            // First item takes 80px width, 30px height
+            let _ = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(80.0),
+                        height: Placement::fixed(30.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            // Second item has width 80px (wraps to next line, y=30) and fills remaining height
+            let req = Placement2D {
+                width: Placement::fixed(80.0),
+                height: Placement::fill(),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            // In begin_layout, remaining height on the wrapped line is AtMost(70.0)
+            assert_eq!(space.height, AxisBound::AtMost(70.0));
+
+            // child completes layout with measured height larger (90px)
+            let res = token.end_layout(Vec2::new(80.0, 90.0));
+            // Under AtMost bounds, Fill height is resolved using the child's extent, but clamped to the remaining 70.0.
             let (r, violation) = res.into_parts();
             assert_eq!(r.h, 70.0);
             assert!(violation.is_some());
