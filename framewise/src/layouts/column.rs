@@ -51,9 +51,17 @@ impl LayoutState for ColumnState {
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
             .into_parts();
+
+        let remaining_h = match self.space.height {
+            AxisBound::Exact(h) => AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0)),
+            AxisBound::AtMost(h) => {
+                AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+            }
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (h, v2) = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .resolve_size(pref.map(|p| p.y), remaining_h)
             .into_parts();
 
         let (off, v3) = layout_params

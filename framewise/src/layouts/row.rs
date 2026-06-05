@@ -47,9 +47,16 @@ impl LayoutState for RowState {
     ) -> LayoutResult<Rect> {
         let pref = intrinsic.preferred;
         // Main axis (width) advances the cursor; cross axis (height) fills space.
+        let remaining_w = match self.space.width {
+            AxisBound::Exact(w) => AxisBound::Exact((w - (self.current_x - self.space.x)).max(0.0)),
+            AxisBound::AtMost(w) => {
+                AxisBound::AtMost((w - (self.current_x - self.space.x)).max(0.0))
+            }
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (w, v1) = layout_params
             .width
-            .resolve_size(pref.map(|p| p.x), self.space.width)
+            .resolve_size(pref.map(|p| p.x), remaining_w)
             .into_parts();
         let (h, v2) = layout_params
             .height

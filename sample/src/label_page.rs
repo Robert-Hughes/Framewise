@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Align, Placement, Placement2D},
+    layout::{Placement, Placement2D},
     layouts::{ColumnLayout, RowLayout},
     text::{HorizontalAlign, Overflow, TextFlow},
     theme::Theme,
@@ -276,70 +276,6 @@ pub fn draw_label_page(
         row.finish();
     }
 
-    // Section 3: Alignment Showcase
-    {
-        let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
-        };
-        label(
-            &mut ctx,
-            LabelSpecBuilder::new()
-                .text("3. Alignment in Bounded Space")
-                .style(section_header),
-            Placement2D::auto(),
-        );
-
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout { spacing: 20.0 },
-        );
-
-        // Alignment boxes
-        let alignments = [
-            ("Start Aligned", Align::Start),
-            ("Center Aligned", Align::Center),
-            ("End Aligned", Align::End),
-        ];
-
-        for (text, align) in alignments {
-            // Draw a framed box to visualize the alignment bounds
-            let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 60.0),
-                ColumnLayout { spacing: 0.0 },
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new().text(text).style(LabelStyle {
-                    size: 14.0,
-                    font: theme.sans_font,
-                    text_color: theme.ink,
-                    rule: false,
-                    rule_color: theme.line,
-                }),
-                // The frame's interior padding reduces the usable space, so we
-                // align the label using fill on cross-axis and auto on the main axis
-                // with the desired alignment.
-                Placement2D::fixed(200.0, 40.0)
-                    .align_x(align)
-                    .align_y(Align::Center),
-            );
-
-            container.ctx.finish();
-        }
-
-        row.finish();
-    }
-
     // Section 4: Multi-line Wrapping & Overflow
     {
         let section_header = LabelStyle {
@@ -370,7 +306,7 @@ pub fn draw_label_page(
             let mut container = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 150.0),
+                Placement2D::fixed(230.0, 100.0),
                 ColumnLayout { spacing: 8.0 },
             );
 
@@ -418,7 +354,7 @@ pub fn draw_label_page(
             let mut container = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 150.0),
+                Placement2D::fixed(230.0, 100.0),
                 ColumnLayout { spacing: 8.0 },
             );
 
@@ -466,7 +402,7 @@ pub fn draw_label_page(
             let mut container = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 150.0),
+                Placement2D::fixed(230.0, 100.0),
                 ColumnLayout { spacing: 8.0 },
             );
 
@@ -491,6 +427,54 @@ pub fn draw_label_page(
                     .text_flow(TextFlow {
                         wrap: false,
                         overflow: Overflow::Ellipsis,
+                        horizontal_align: HorizontalAlign::Start,
+                    })
+                    .style(LabelStyle {
+                        size: 12.0,
+                        font: theme.sans_font,
+                        text_color: theme.ink,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+            );
+
+            container.ctx.finish();
+        }
+
+        // Box 4: Single Line with Clip on horizontal overflow
+        {
+            let mut container = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(box_style),
+                Placement2D::fixed(230.0, 100.0),
+                ColumnLayout { spacing: 8.0 },
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("Single Line (Clip)")
+                    .style(LabelStyle {
+                        size: 14.0,
+                        font: theme.mono_font,
+                        text_color: theme.rust,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D::auto(),
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("This is a very long line of text that is not allowed to wrap, and will overflow the horizontal boundary of the label box. Consequently, it should truncate without any ellipsis.")
+                    .text_flow(TextFlow {
+                        wrap: false,
+                        overflow: Overflow::Clip,
                         horizontal_align: HorizontalAlign::Start,
                     })
                     .style(LabelStyle {
