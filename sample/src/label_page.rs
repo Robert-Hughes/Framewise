@@ -4,6 +4,7 @@ use framewise::{
     input::Input,
     layout::{Align, Placement, Placement2D},
     layouts::{ColumnLayout, RowLayout},
+    text::{HorizontalAlign, Overflow, TextFlow},
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -40,6 +41,13 @@ pub fn draw_label_page(
     ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
     let theme = ctx.theme;
+
+    let box_style = FrameStyle {
+        background: Color::from_srgb_u8(240, 240, 243, 255),
+        border: Color::from_srgb_u8(210, 210, 215, 255),
+        border_width: 1.0,
+        padding: 8.0,
+    };
 
     // Page Title
     let title_style = LabelStyle {
@@ -84,10 +92,8 @@ pub fn draw_label_page(
 
         // Sans Column
         {
-            let mut col = row.child_with_layout(
-                Placement2D::fixed(350.0, 260.0),
-                ColumnLayout { spacing: 12.0 },
-            );
+            let mut col =
+                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 12.0 });
             label(
                 &mut col,
                 LabelSpecBuilder::new()
@@ -302,13 +308,6 @@ pub fn draw_label_page(
             ("End Aligned", Align::End),
         ];
 
-        let box_style = FrameStyle {
-            background: Color::from_srgb_u8(240, 240, 243, 255),
-            border: Color::from_srgb_u8(210, 210, 215, 255),
-            border_width: 1.0,
-            padding: 8.0,
-        };
-
         for (text, align) in alignments {
             // Draw a framed box to visualize the alignment bounds
             let mut container = begin_frame(
@@ -333,6 +332,263 @@ pub fn draw_label_page(
                 Placement2D::fixed(200.0, 40.0)
                     .align_x(align)
                     .align_y(Align::Center),
+            );
+
+            container.ctx.finish();
+        }
+
+        row.finish();
+    }
+
+    // Section 4: Multi-line Wrapping & Overflow
+    {
+        let section_header = LabelStyle {
+            size: 20.0,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            rule: true,
+            rule_color: theme.line,
+        };
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("4. Multi-line Wrapping & Overflow")
+                .style(section_header),
+            Placement2D::auto(),
+        );
+
+        let mut row = ctx.child_with_layout(
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::auto(),
+            },
+            RowLayout { spacing: 20.0 },
+        );
+
+        // Box 1: Soft wrapping with Ellipsis on vertical overflow
+        {
+            let mut container = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(box_style),
+                Placement2D::fixed(230.0, 150.0),
+                ColumnLayout { spacing: 8.0 },
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("Wrapped (Ellipsis)")
+                    .style(LabelStyle {
+                        size: 14.0,
+                        font: theme.mono_font,
+                        text_color: theme.rust,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D::auto(),
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("This paragraph of text is designed to soft-wrap onto multiple lines within the fixed width. Because the height of this container is limited, any overflow text will be cut off and marked with an ellipsis.")
+                    .text_flow(TextFlow {
+                        wrap: true,
+                        overflow: Overflow::Ellipsis,
+                        horizontal_align: HorizontalAlign::Start,
+                    })
+                    .style(LabelStyle {
+                        size: 12.0,
+                        font: theme.sans_font,
+                        text_color: theme.ink,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fill(),
+                },
+            );
+
+            container.ctx.finish();
+        }
+
+        // Box 2: Soft wrapping with Clip on vertical overflow
+        {
+            let mut container = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(box_style),
+                Placement2D::fixed(230.0, 150.0),
+                ColumnLayout { spacing: 8.0 },
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("Wrapped (Clip)")
+                    .style(LabelStyle {
+                        size: 14.0,
+                        font: theme.mono_font,
+                        text_color: theme.rust,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D::auto(),
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("This paragraph of text is designed to soft-wrap onto multiple lines within the fixed width. Because the height of this container is limited, any overflow text will be cut off silently without an ellipsis.")
+                    .text_flow(TextFlow {
+                        wrap: true,
+                        overflow: Overflow::Clip,
+                        horizontal_align: HorizontalAlign::Start,
+                    })
+                    .style(LabelStyle {
+                        size: 12.0,
+                        font: theme.sans_font,
+                        text_color: theme.ink,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fill(),
+                },
+            );
+
+            container.ctx.finish();
+        }
+
+        // Box 3: Single Line with Ellipsis on horizontal overflow
+        {
+            let mut container = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(box_style),
+                Placement2D::fixed(230.0, 150.0),
+                ColumnLayout { spacing: 8.0 },
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("Single Line (Ellipsis)")
+                    .style(LabelStyle {
+                        size: 14.0,
+                        font: theme.mono_font,
+                        text_color: theme.rust,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D::auto(),
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text("This is a very long line of text that is not allowed to wrap, and will overflow the horizontal boundary of the label box. Consequently, it should truncate and display an ellipsis at the end.")
+                    .text_flow(TextFlow {
+                        wrap: false,
+                        overflow: Overflow::Ellipsis,
+                        horizontal_align: HorizontalAlign::Start,
+                    })
+                    .style(LabelStyle {
+                        size: 12.0,
+                        font: theme.sans_font,
+                        text_color: theme.ink,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+            );
+
+            container.ctx.finish();
+        }
+
+        row.finish();
+    }
+
+    // Section 5: Internal Text Alignment
+    {
+        let section_header = LabelStyle {
+            size: 20.0,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            rule: true,
+            rule_color: theme.line,
+        };
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("5. Internal Text Alignment (Fixed-Width)")
+                .style(section_header),
+            Placement2D::auto(),
+        );
+
+        let mut row = ctx.child_with_layout(
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::auto(),
+            },
+            RowLayout { spacing: 20.0 },
+        );
+
+        let alignments = [
+            ("Start Aligned Text", HorizontalAlign::Start),
+            ("Center Aligned Text", HorizontalAlign::Center),
+            ("End Aligned Text", HorizontalAlign::End),
+        ];
+
+        for (text, text_align) in alignments {
+            let mut container = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(box_style),
+                Placement2D::fixed(230.0, 80.0),
+                ColumnLayout { spacing: 6.0 },
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text(match text_align {
+                        HorizontalAlign::Start => "TextFlow::horizontal_align(Start)",
+                        HorizontalAlign::Center => "TextFlow::horizontal_align(Center)",
+                        HorizontalAlign::End => "TextFlow::horizontal_align(End)",
+                    })
+                    .style(LabelStyle {
+                        size: 11.0,
+                        font: theme.mono_font,
+                        text_color: theme.rust,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D::auto(),
+            );
+
+            label(
+                &mut container.ctx,
+                LabelSpecBuilder::new()
+                    .text(text)
+                    .text_flow(TextFlow {
+                        wrap: false,
+                        overflow: Overflow::Clip,
+                        horizontal_align: text_align,
+                    })
+                    .style(LabelStyle {
+                        size: 14.0,
+                        font: theme.sans_font,
+                        text_color: theme.ink,
+                        rule: false,
+                        rule_color: theme.line,
+                    }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
             );
 
             container.ctx.finish();

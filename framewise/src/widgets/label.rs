@@ -19,6 +19,15 @@ pub mod raw {
         pub rect: Rect,
         pub text: &'a str,
         pub style: super::LabelStyle,
+        /// How text lines flow, align, and clip internally inside the label box.
+        ///
+        /// Note that text alignment (`text_flow.horizontal_align`) aligns the visible ink
+        /// internally within the resolved bounding box (`rect`), while layout alignment
+        /// (`Placement2D::align_x`) moves the entire bounding box inside its parent cell.
+        /// When using `Placement2D::auto()`, the box shrink-wraps the text tightly, meaning
+        /// changing `horizontal_align` has no visual effect since there is no extra space.
+        /// Internal alignment is only visible when the label's box is wider (e.g. `fixed` width or `fill`).
+        pub text_flow: crate::text::TextFlow,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -40,7 +49,7 @@ pub mod raw {
             spec.text,
             style.size,
             style.font,
-            crate::text::TextFlow::single_line(),
+            spec.text_flow,
             crate::text::TextBounds::UNBOUNDED,
         );
         crate::layout::IntrinsicSize::preferred(t.size)
@@ -59,7 +68,7 @@ pub mod raw {
             spec.text,
             spec.style.size,
             spec.style.font,
-            crate::text::TextFlow::single_line(),
+            spec.text_flow,
             spec.rect,
         );
 
@@ -123,6 +132,15 @@ pub struct LabelSpecBuilder<'a> {
     pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<LabelStyle>,
+    /// How text lines flow, align, and clip internally inside the label box.
+    ///
+    /// Note that text alignment (`text_flow.horizontal_align`) aligns the visible ink
+    /// internally within the resolved bounding box (`rect`), while layout alignment
+    /// (`Placement2D::align_x`) moves the entire bounding box inside its parent cell.
+    /// When using `Placement2D::auto()`, the box shrink-wraps the text tightly, meaning
+    /// changing `horizontal_align` has no visual effect since there is no extra space.
+    /// Internal alignment is only visible when the label's box is wider (e.g. `fixed` width or `fill`).
+    pub text_flow: Option<crate::text::TextFlow>,
 }
 
 impl<'a> LabelSpecBuilder<'a> {
@@ -135,6 +153,11 @@ impl<'a> LabelSpecBuilder<'a> {
     }
     pub fn style(mut self, style: LabelStyle) -> Self {
         self.style = Some(style);
+        self
+    }
+    /// Sets the text flow policy (alignment, wrapping, and clipping).
+    pub fn text_flow(mut self, text_flow: crate::text::TextFlow) -> Self {
+        self.text_flow = Some(text_flow);
         self
     }
     /// Sets the bounding rectangle. Called automatically by high-level context
@@ -158,6 +181,9 @@ impl<'a> LabelSpecBuilder<'a> {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
+            text_flow: self
+                .text_flow
+                .unwrap_or_else(crate::text::TextFlow::single_line),
         }
     }
 }
@@ -266,6 +292,7 @@ mod tests {
                 rule: false,
                 rule_color: Color::WHITE,
             },
+            text_flow: crate::text::TextFlow::single_line(),
         };
         let mut cmds = DrawCommands::new();
         let res = raw::label(spec, &mut sys, &mut cmds);
@@ -294,6 +321,7 @@ mod tests {
                 rule: true,
                 rule_color: Color::WHITE,
             },
+            text_flow: crate::text::TextFlow::single_line(),
         };
         let mut cmds = DrawCommands::new();
         let res = raw::label(spec, &mut sys, &mut cmds);
@@ -330,6 +358,7 @@ mod tests {
                 rule: false,
                 rule_color: Color::WHITE,
             },
+            text_flow: crate::text::TextFlow::single_line(),
         };
 
         let mut cmds = DrawCommands::new();
@@ -425,6 +454,7 @@ mod tests {
             rect: Rect::PLACEHOLDER,
             text: "Hello",
             style: LabelStyle::from_theme(&crate::theme::Theme::default()),
+            text_flow: crate::text::TextFlow::single_line(),
         };
         let i = raw::calc_label_intrinsic_size(&spec, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(40.0, 16.0)));
@@ -457,5 +487,51 @@ mod tests {
             Placement2D::auto(),
         );
         assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 40.0, 16.0));
+    }
+
+    #[test]
+    fn test_calc_label_intrinsic_size_with_custom_flow() {
+        let mut ts = DummyTextSys;
+        let flow = crate::text::TextFlow::wrapped();
+        let spec = LabelSpec {
+            rect: Rect::PLACEHOLDER,
+            text: "Hello World",
+            style: LabelStyle::from_theme(&crate::theme::Theme::default()),
+            text_flow: flow,
+        };
+        let i = raw::calc_label_intrinsic_size(&spec, &mut ts);
+        assert_eq!(i.preferred, Some(Vec2::new(88.0, 16.0)));
+    }
+
+    #[test]
+    fn test_label_with_custom_flow() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let flow = crate::text::TextFlow {
+            wrap: true,
+            overflow: crate::text::Overflow::Ellipsis,
+            horizontal_align: crate::text::HorizontalAlign::Center,
+        };
+
+        let result = super::label(
+            &mut ctx,
+            LabelSpecBuilder::new().text("Hello").text_flow(flow),
+            Rect::new(10.0, 20.0, 200.0, 50.0),
+        );
+
+        assert_eq!(result.layout.bounds, Rect::new(10.0, 20.0, 200.0, 50.0));
     }
 }
