@@ -244,6 +244,52 @@ mod tests {
     }
 
     #[test]
+    fn test_column_fill_height_remaining() {
+        // 1. Exact(100.0) height
+        {
+            let mut state = ColumnLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child fills remaining height
+            let r = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(200.0),
+                        height: Placement::fill(),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            assert_eq!(r.h, 70.0);
+        }
+
+        // 2. AtMost(100.0) height
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
+            let mut state = ColumnLayout { spacing: 0.0 }.begin(space);
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child fills remaining height, intrinsic height is larger (90px)
+            let res = state.layout(
+                Placement2D {
+                    width: Placement::fixed(200.0),
+                    height: Placement::fill(),
+                },
+                IntrinsicSize::preferred(Vec2::new(200.0, 90.0)),
+            );
+            // Should clamp to remaining 70px as a fallback
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.h, 70.0);
+            assert!(violation.is_some());
+        }
+    }
+
+    #[test]
     fn test_column_unbounded_height_resolves_concrete() {
         let mut state =
             ColumnLayout { spacing: 5.0 }.begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));

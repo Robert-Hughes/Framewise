@@ -233,6 +233,52 @@ mod tests {
     }
 
     #[test]
+    fn test_row_fill_width_remaining() {
+        // 1. Exact(100.0) width
+        {
+            let mut state = RowLayout { spacing: 0.0 }.begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child fills remaining width
+            let r = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fixed(200.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            assert_eq!(r.w, 70.0);
+        }
+
+        // 2. AtMost(100.0) width
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
+            let mut state = RowLayout { spacing: 0.0 }.begin(space);
+            // First child takes 30px
+            let _ = state
+                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            // Second child fills remaining width, intrinsic width is larger (90px)
+            let res = state.layout(
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fixed(200.0),
+                },
+                IntrinsicSize::preferred(Vec2::new(90.0, 200.0)),
+            );
+            // Should clamp to remaining 70px as a fallback
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.w, 70.0);
+            assert!(violation.is_some());
+        }
+    }
+
+    #[test]
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_fill_on_unbounded_axis_panics() {
         let mut state =
