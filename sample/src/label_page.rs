@@ -278,7 +278,7 @@ pub fn draw_label_page(
 
         row.finish();
     }
-    // Section 4: Multi-line Wrapping & Overflow
+    // Section 4: Overflow (non-wrapping)
     {
         let section_header = LabelStyle {
             size: 20.0,
@@ -290,8 +290,13 @@ pub fn draw_label_page(
         label(
             &mut ctx,
             LabelSpecBuilder::new()
-                .text("4. Multi-line Wrapping & Overflow")
+                .text("4. Overflow (non-wrapping)")
                 .style(section_header),
+            Placement2D::auto(),
+        );
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new().text(r#"All text is the same "hello\nhello" string"#),
             Placement2D::auto(),
         );
 
@@ -312,7 +317,7 @@ pub fn draw_label_page(
                 RowLayout { spacing: 20.0 },
             );
 
-            // Card 1: X: Drop, Y: Drop (hello\nhello inside 25x30)
+            // Card 1: X: Drop, Y: Drop (hello\nhello inside 27x30)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -336,7 +341,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 30.0),
+                        Placement2D::fixed(27.0, 30.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -364,7 +369,7 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 2: X: Keep, Y: Keep (hello\nhello inside 25x30)
+            // Card 2: X: Keep, Y: Keep (hello\nhello inside 27x30)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -388,7 +393,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 30.0),
+                        Placement2D::fixed(27.0, 30.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -416,7 +421,7 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 3: X: Keep, Y: Ellipsis (hello\nhello inside 25x30)
+            // Card 3: X: Keep, Y: Ellipsis (hello\nhello inside 27x30)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -440,7 +445,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 30.0),
+                        Placement2D::fixed(27.0, 30.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -470,7 +475,7 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop) (hello\nhello inside 5x30)
+            // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop) (hello\nhello inside 10x30)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -494,7 +499,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 30.0),
+                        Placement2D::fixed(10.0, 30.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -537,7 +542,7 @@ pub fn draw_label_page(
                 RowLayout { spacing: 20.0 },
             );
 
-            // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep) (hello\nhello inside 5x30)
+            // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep) (hello\nhello inside 10x30)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -561,7 +566,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 30.0),
+                        Placement2D::fixed(10.0, 30.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -645,7 +650,7 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep (hello\nhello inside 5x50)
+            // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep (hello\nhello inside 10x50)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -669,7 +674,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 50.0),
+                        Placement2D::fixed(10.0, 50.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -699,7 +704,7 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep (hello\nhello inside 5x50)
+            // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep (hello\nhello inside 10x50)
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -723,7 +728,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 50.0),
+                        Placement2D::fixed(10.0, 50.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(

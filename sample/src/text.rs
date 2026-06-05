@@ -1296,12 +1296,12 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            Rect::new(0.0, 0.0, 27.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let run = &sys.runs[layout.handle.0];
         for g in &run.glyphs {
-            assert!(g.x + g.width as f32 <= 25.0 + 0.1);
+            assert!(g.x + g.width as f32 <= 27.0 + 0.1);
         }
         assert!(run.glyphs.len() > 0);
     }
@@ -1320,7 +1320,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            Rect::new(0.0, 0.0, 27.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let run = &sys.runs[layout.handle.0];
@@ -1330,7 +1330,7 @@ mod tests {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             if line_glyphs
                 .iter()
-                .any(|g| g.x + g.width as f32 > 25.0 + 0.1)
+                .any(|g| g.x + g.width as f32 > 27.0 + 0.1)
             {
                 if i == 0 {
                     line1_has_overflow = true;
@@ -1360,14 +1360,14 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            Rect::new(0.0, 0.0, 27.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let text = visible(&sys, layout.handle);
         assert!(text.ends_with('…'));
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
-        assert!(last_glyph.x + last_glyph.width as f32 <= 25.0 + 0.1);
+        assert!(last_glyph.x + last_glyph.width as f32 <= 27.0 + 0.1);
     }
 
     #[test]
@@ -1386,7 +1386,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 5.0, lh * 1.5),
+            Rect::new(0.0, 0.0, 10.0, lh * 1.5),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
@@ -1408,13 +1408,13 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 5.0, lh * 1.5),
+            Rect::new(0.0, 0.0, 10.0, lh * 1.5),
         );
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "…");
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
-        assert!(last_glyph.x + last_glyph.width as f32 > 5.0 + 0.1);
+        assert!(last_glyph.x + last_glyph.width as f32 > 10.0 + 0.1);
     }
 
     #[test]
@@ -1462,7 +1462,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 5.0, lh * 2.5),
+            Rect::new(0.0, 0.0, 10.0, lh * 2.5),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
@@ -1484,7 +1484,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 5.0, lh * 2.5),
+            Rect::new(0.0, 0.0, 10.0, lh * 2.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
@@ -1493,7 +1493,7 @@ mod tests {
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             let last_g = line_glyphs.last().unwrap();
-            assert!(last_g.x + last_g.width as f32 > 5.0 + 0.1);
+            assert!(last_g.x + last_g.width as f32 > 10.0 + 0.1);
         }
     }
 
