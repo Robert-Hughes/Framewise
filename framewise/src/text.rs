@@ -35,96 +35,236 @@ pub struct TextHandle(pub usize);
 /// supplied separately: as [`TextBounds`] when measuring, or as the concrete
 /// `Rect` when preparing for draw. Keeping size out of here is deliberate: the
 /// same policy applies whether an axis is bounded, unbounded, or fixed.
+///
+/// Text overflow is modelled independently on the inline axis (`overflow_x`) and
+/// block axis (`overflow_y`) because they answer different questions:
+///
+/// - X overflow asks what to do when the next glyph would not fit wholly within
+///   the current line's horizontal bounds.
+/// - Y overflow asks what to do when the next visual line would not fit wholly
+///   within the block's vertical bounds.
+///
+/// This makes wrapping just one possible X-axis overflow response, rather than
+/// a separate boolean. Hard line breaks (`'\n'`) are always respected before
+/// X-overflow handling is applied.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextFlow {
-    /// Soft-wrapping toggle.
+    /// Inline-axis overflow policy.
     ///
-    /// - `true` — break the text onto multiple lines to fit the available
-    ///   width. Breaks are preferred at word boundaries (whitespace). A single
-    ///   "word" that is itself wider than the available width is **force-broken**
-    ///   mid-word so it never spills past the edge (think long URLs or hashes).
-    /// - `false` — no soft breaks are ever introduced; the text is laid out as a
-    ///   single run per paragraph and may exceed the available width (where it is
-    ///   then subject to `overflow`).
-    ///
-    /// A literal `'\n'` in the input is a **hard break** and always starts a new
-    /// line, independent of this flag. So `wrap: false` text can still occupy
-    /// multiple lines if the string contains newlines — this flag governs only
-    /// *automatic* (width-driven) breaking, not explicit ones.
-    pub wrap: bool,
+    /// Applied independently to each hard-break source line and to each visual
+    /// line produced by wrapping.
+    pub overflow_x: OverflowX,
 
-    /// What happens to content that does not fit the available space after
-    /// wrapping has been applied. See [`Overflow`].
-    pub overflow: Overflow,
-
-    /// How lines are positioned **horizontally** within the available width.
-    /// See [`HorizontalAlign`].
+    /// Block-axis overflow policy.
     ///
-    /// Vertical placement of the block is *not* handled here — that is the
-    /// caller's responsibility (it positions the block's rect). This only
-    /// distributes each line across the inline axis.
+    /// Applied when the next visual line would not fit wholly within the
+    /// available height.
+    pub overflow_y: OverflowY,
+
+    /// How lines are positioned horizontally within the available width.
+    ///
+    /// Alignment only affects placement of lines that are admitted by the
+    /// overflow policies. It does not change measurement, wrapping decisions, or
+    /// truncation decisions. If an over-wide line has no room to align, the text
+    /// system should clamp alignment so the line starts at the leading edge.
     pub horizontal_align: HorizontalAlign,
 }
 
 impl TextFlow {
-    /// A single visual line: no soft wrapping, truncate-and-clip on overflow,
-    /// start-aligned. The classic label/button/field default.
+    /// Single-line-ish label/input default.
     ///
-    /// Note this does not *force* one line — a `'\n'` in the string still hard-
-    /// breaks. Constrain the height (via the draw `Rect` or measure
-    /// [`TextBounds`]) to cap the visible line count.
+    /// Hard `'\n'` still creates additional source lines, but no soft wrapping is
+    /// performed. Horizontally overflowing glyphs are dropped, and vertically
+    /// overflowing lines are dropped.
     pub fn single_line() -> Self {
         Self {
-            wrap: false,
-            overflow: Overflow::Clip,
+            overflow_x: OverflowX::Drop,
+            overflow_y: OverflowY::Drop,
             horizontal_align: HorizontalAlign::Start,
         }
     }
 
-    /// Multi-line wrapped text: soft-wrap on, ellipsis on overflow,
-    /// start-aligned. The classic paragraph/caption default.
+    /// Paragraph/caption default.
+    ///
+    /// Wraps at word boundaries first, falls back to glyph wrapping for over-long
+    /// words, drops a glyph only if even a single glyph cannot fit on an empty
+    /// line, and ellipsises vertical overflow.
     pub fn wrapped() -> Self {
         Self {
-            wrap: true,
-            overflow: Overflow::Ellipsis,
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapGlyph {
+                    fallback: WrapGlyphFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            horizontal_align: HorizontalAlign::Start,
+        }
+    }
+
+    /// Renderer-clipped text viewport default.
+    ///
+    /// This policy may emit glyphs/lines that intersect the bounds but are not
+    /// wholly inside them. It is intended for renderers that apply their own
+    /// scissor/clipping and want edge glyphs to be partially visible.
+    pub fn clipped_viewport() -> Self {
+        Self {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapGlyph {
+                    fallback: WrapGlyphFallback::Keep,
+                },
+            },
+            overflow_y: OverflowY::Keep,
             horizontal_align: HorizontalAlign::Start,
         }
     }
 }
 
-/// What to do with text that cannot fit the available space.
+/// What to do when the next glyph would not fit wholly within the current line's
+/// horizontal bounds.
 ///
-/// Overflow applies on **both axes** and only takes effect when content actually
-/// exceeds the space:
-/// - **Horizontal** — a line is wider than the available width and no break was
-///   taken there (e.g. `wrap: false`, or an unbreakable run on a wrapped line).
-/// - **Vertical** — there are more lines than the available height admits.
+/// Policies are deliberately expressed as a fallback chain. This mirrors the
+/// actual layout decision tree:
 ///
-/// In all cases truncation happens at a **character boundary** — whole glyphs
-/// are kept or dropped, never sliced. (Sub-pixel clipping at the rect edge is a
-/// separate, additional concern handled by the renderer's scissor, not here.)
+/// 1. Prefer a high-level behavior, such as word wrapping.
+/// 2. If that cannot make progress, fall back to a lower-level behavior, such as
+///    glyph wrapping.
+/// 3. If even that cannot make progress, either drop the overflowing unit or keep
+///    it and rely on downstream clipping.
 ///
-/// # Examples
+/// The important contract is:
 ///
-/// Width fits only `"Hello w"` of `"Hello world"` on a single line:
-/// - `Clip` → renders `Hello w`
-/// - `Ellipsis` → renders `Hello…` (drops *additional* glyphs so the `…` itself
-///   fits within the width)
-///
-/// A wrapped paragraph needs 4 lines but the height admits only 2:
-/// - `Clip` → renders lines 1–2, drops 3–4
-/// - `Ellipsis` → renders lines 1–2 with the tail of line 2 replaced by `…`
-///
-/// When everything fits, `Clip` and `Ellipsis` are identical, no marker is
-/// drawn, and both `truncated_*` flags are `false`.
+/// - `Drop`, successful wrapping, and successful ellipsis fitting emit only
+///   glyphs wholly inside the X bounds.
+/// - `Keep` may emit the first overflowing glyph, then truncates the rest of that
+///   line. A renderer/scissor may clip the visible pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Overflow {
-    /// Drop overflowing glyphs/lines at the character boundary. No marker.
-    Clip,
-    /// Drop overflowing glyphs/lines, then place a `…` ellipsis at the cut point
-    /// (end of the last visible line), re-fitting so the ellipsis stays inside
-    /// the available width.
-    Ellipsis,
+pub enum OverflowX {
+    /// Prefer wrapping at word boundaries.
+    ///
+    /// A “word” is an implementation-defined unbreakable run, usually separated
+    /// by whitespace or Unicode line-break opportunities. Hard `'\n'` is not
+    /// handled here; it always breaks before this policy is considered.
+    ///
+    /// If the next word cannot fit on the current line, it is moved to a new
+    /// line. If that word still cannot fit on an empty line, `fallback` decides
+    /// what happens.
+    WrapWord { fallback: WrapWordFallback },
+
+    /// Wrap at glyph/character-cluster boundaries.
+    ///
+    /// If the next glyph does not fit on the current line, it is moved to a new
+    /// line. If it still cannot fit on an empty line, `fallback` decides whether
+    /// it is dropped or kept partially.
+    ///
+    /// “Glyph” here should be read as the smallest drawable unit the text system
+    /// can safely split without corrupting shaping. For complex scripts this may
+    /// need to mean a grapheme cluster or shaped cluster rather than a literal
+    /// font glyph.
+    WrapGlyph { fallback: WrapGlyphFallback },
+
+    /// Replace the overflowing tail of the line with an ellipsis marker.
+    ///
+    /// The text system drops enough trailing glyphs so the ellipsis itself fits
+    /// wholly within the X bounds. If even the ellipsis cannot fit,
+    /// `fallback` decides what to do.
+    Ellipsis { fallback: EllipsisFallback },
+
+    /// Include the first glyph that does not fit wholly within the X bounds, then
+    /// drop the remaining glyphs on that line.
+    ///
+    /// This is the opt-in partial-glyph mode. It is useful when the renderer
+    /// applies clipping and the caller wants edge glyphs to be visibly sliced
+    /// rather than removed entirely.
+    Keep,
+
+    /// Drop the first glyph that does not fit wholly within the X bounds, and
+    /// drop the remaining glyphs on that line.
+    ///
+    /// This is the strict fully-inside truncate behavior.
+    Drop,
+}
+
+/// Fallback used by [`OverflowX::WrapWord`] when a word cannot fit on an empty
+/// line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapWordFallback {
+    /// Try breaking the over-long word at glyph/cluster boundaries, see OverflowX::WrapGlyph.
+    WrapGlyph { fallback: WrapGlyphFallback },
+
+    /// Keep the over-long word's first overflowing glyph/cluster, then truncate. See OverflowX::Keep.
+    ///
+    /// May emit geometry outside the X bounds.
+    Keep,
+
+    /// Drop the over-long word when it cannot fit. See OverflowX::Drop.
+    Drop,
+}
+
+/// Fallback used by glyph wrapping when even one glyph/cluster cannot fit on an
+/// empty line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapGlyphFallback {
+    /// Keep the first overflowing glyph/cluster, then truncate. See OverflowX::Keep.
+    ///
+    /// May emit geometry outside the X bounds.
+    Keep,
+
+    /// Drop the glyph/cluster. See OverflowX::Drop.
+    Drop,
+}
+
+/// What to do when the next visual line would not fit wholly within the block's
+/// vertical bounds.
+///
+/// This policy operates on whole visual lines, not individual glyphs. A visual
+/// line may come from a hard break or from X-axis wrapping.
+///
+/// The same inside/outside contract applies:
+///
+/// - `Drop` and successful `Ellipsis` emit only lines wholly inside the Y bounds.
+/// - `Keep` may emit the first vertically overflowing line, then drops all later
+///   lines. A renderer/scissor may clip it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverflowY {
+    /// Indicate vertical truncation by ellipsising the previous visible line.
+    ///
+    /// The overflowing line itself is not emitted. Instead, the last line that
+    /// fits wholly inside the Y bounds is modified using X-axis ellipsis fitting.
+    ///
+    /// If there is no previous visible line, or if the ellipsis cannot fit in the
+    /// available X bounds, `fallback` decides what to do.
+    Ellipsis { fallback: EllipsisFallback },
+
+    /// Include the first line that does not fit wholly within the Y bounds, then
+    /// drop all later lines.
+    ///
+    /// This is useful for clipped text viewports where partially visible top or
+    /// bottom lines should still render.
+    Keep,
+
+    /// Drop the first line that does not fit wholly within the Y bounds, and drop
+    /// all later lines.
+    Drop,
+}
+
+/// Fallback used when an ellipsis marker cannot be fitted.
+///
+/// `Keep` is intentionally allowed even though ellipsis normally implies a
+/// fully-inside marker. It is useful as a “show something rather than nothing”
+/// policy for extremely small rectangles. Callers that require strict
+/// fully-inside rendering should use `Drop`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EllipsisFallback {
+    /// Keep the first overflowing glyph or line, depending on whether the
+    /// ellipsis failure happened in X or Y handling. See `OverflowX::Keep` and `OverflowY::Keep`.
+    ///
+    /// May emit geometry outside the bounds.
+    Keep,
+
+    /// Emit nothing for the overflowing unit. See `OverflowX::Drop` and `OverflowY::Drop`.
+    Drop,
 }
 
 /// Horizontal positioning of each line within the available width.
