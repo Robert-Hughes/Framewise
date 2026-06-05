@@ -4,7 +4,10 @@ use framewise::{
     input::Input,
     layout::{Placement, Placement2D},
     layouts::{ColumnLayout, RowLayout},
-    text::{HorizontalAlign, Overflow, TextFlow},
+    text::{
+        EllipsisFallback, HorizontalAlign, OverflowX, OverflowY, TextFlow, WrapGlyphFallback,
+        WrapWordFallback,
+    },
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -275,7 +278,6 @@ pub fn draw_label_page(
 
         row.finish();
     }
-
     // Section 4: Multi-line Wrapping & Overflow
     {
         let section_header = LabelStyle {
@@ -293,207 +295,1031 @@ pub fn draw_label_page(
             Placement2D::auto(),
         );
 
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout { spacing: 20.0 },
+        let clip_test_box_style = FrameStyle {
+            background: Color::from_srgb_u8(255, 255, 255, 255),
+            border: Color::from_srgb_u8(180, 50, 50, 255),
+            border_width: 1.0,
+            padding: 0.0,
+        };
+
+        // Row 1: Cards 1 - 4
+        {
+            let mut row = ctx.child_with_layout(
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+                RowLayout { spacing: 20.0 },
+            );
+
+            // Card 1: X: Drop, Y: Drop (hello\nhello inside 25x30)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("1. X: Drop, Y: Drop")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 30.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Drop,
+                                overflow_y: OverflowY::Drop,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 2: X: Keep, Y: Keep (hello\nhello inside 25x30)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("2. X: Keep, Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 30.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Keep,
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 3: X: Keep, Y: Ellipsis (hello\nhello inside 25x30)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("3. X: Keep, Y: Ellipsis")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 30.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Keep,
+                                overflow_y: OverflowY::Ellipsis {
+                                    fallback: EllipsisFallback::Drop,
+                                },
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop) (hello\nhello inside 5x30)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("4. X: Keep, Y: Ell(F:Drop)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 30.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Keep,
+                                overflow_y: OverflowY::Ellipsis {
+                                    fallback: EllipsisFallback::Drop,
+                                },
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            row.finish();
+        }
+
+        // Row 2: Cards 5 - 8
+        {
+            let mut row = ctx.child_with_layout(
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+                RowLayout { spacing: 20.0 },
+            );
+
+            // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep) (hello\nhello inside 5x30)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("5. X: Keep, Y: Ell(F:Keep)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 30.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Keep,
+                                overflow_y: OverflowY::Ellipsis {
+                                    fallback: EllipsisFallback::Keep,
+                                },
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 6: X: Ellipsis, Y: Keep (hello\nhello inside 25x50)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("6. X: Ellipsis, Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 50.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Ellipsis {
+                                    fallback: EllipsisFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep (hello\nhello inside 5x50)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("7. X: Ell(F:Drop), Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 50.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Ellipsis {
+                                    fallback: EllipsisFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep (hello\nhello inside 5x50)
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("8. X: Ell(F:Keep), Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 50.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::Ellipsis {
+                                    fallback: EllipsisFallback::Keep,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            row.finish();
+        }
+    }
+
+    // Section 4.1: Systematic Multi-line Wrapping & Fallbacks
+    {
+        let section_header = LabelStyle {
+            size: 20.0,
+            font: theme.sans_font,
+            text_color: theme.ink,
+            rule: true,
+            rule_color: theme.line,
+        };
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("4.1 Systematic Multi-line Wrapping & Fallbacks")
+                .style(section_header),
+            Placement2D::auto(),
         );
 
-        // Box 1: Soft wrapping with Ellipsis on vertical overflow
+        let clip_test_box_style = FrameStyle {
+            background: Color::from_srgb_u8(255, 255, 255, 255),
+            border: Color::from_srgb_u8(180, 50, 50, 255),
+            border_width: 1.0,
+            padding: 0.0,
+        };
+
+        // Row 1: Cards 1 - 3
         {
-            let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 100.0),
-                ColumnLayout { spacing: 8.0 },
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("Wrapped (Ellipsis)")
-                    .style(LabelStyle {
-                        size: 14.0,
-                        font: theme.mono_font,
-                        text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D::auto(),
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("This paragraph of text is designed to soft-wrap onto multiple lines within the fixed width. Because the height of this container is limited, any overflow text will be cut off and marked with an ellipsis.")
-                    .text_flow(TextFlow {
-                        wrap: true,
-                        overflow: Overflow::Ellipsis,
-                        horizontal_align: HorizontalAlign::Start,
-                    })
-                    .style(LabelStyle {
-                        size: 12.0,
-                        font: theme.sans_font,
-                        text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fill(),
-                },
-            );
-
-            container.ctx.finish();
-        }
-
-        // Box 2: Soft wrapping with Clip on vertical overflow
-        {
-            let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 100.0),
-                ColumnLayout { spacing: 8.0 },
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("Wrapped (Clip)")
-                    .style(LabelStyle {
-                        size: 14.0,
-                        font: theme.mono_font,
-                        text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D::auto(),
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("This paragraph of text is designed to soft-wrap onto multiple lines within the fixed width. Because the height of this container is limited, any overflow text will be cut off silently without an ellipsis.")
-                    .text_flow(TextFlow {
-                        wrap: true,
-                        overflow: Overflow::Clip,
-                        horizontal_align: HorizontalAlign::Start,
-                    })
-                    .style(LabelStyle {
-                        size: 12.0,
-                        font: theme.sans_font,
-                        text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fill(),
-                },
-            );
-
-            container.ctx.finish();
-        }
-
-        // Box 3: Single Line with Ellipsis on horizontal overflow
-        {
-            let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 100.0),
-                ColumnLayout { spacing: 8.0 },
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("Single Line (Ellipsis)")
-                    .style(LabelStyle {
-                        size: 14.0,
-                        font: theme.mono_font,
-                        text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D::auto(),
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("This is a very long line of text that is not allowed to wrap, and will overflow the horizontal boundary of the label box. Consequently, it should truncate and display an ellipsis at the end.")
-                    .text_flow(TextFlow {
-                        wrap: false,
-                        overflow: Overflow::Ellipsis,
-                        horizontal_align: HorizontalAlign::Start,
-                    })
-                    .style(LabelStyle {
-                        size: 12.0,
-                        font: theme.sans_font,
-                        text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
+            let mut row = ctx.child_with_layout(
                 Placement2D {
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
+                RowLayout { spacing: 20.0 },
             );
 
-            container.ctx.finish();
+            // Card 1: X: WrapGlyph, Y: Keep
+            // Keep this card in sync with test_wrap_glyph_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("1. X: WrapGlyph, Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 70.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapGlyph {
+                                    fallback: WrapGlyphFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 2: X: WrapGlyph (F: Drop), Y: Keep
+            // Keep this card in sync with test_wrap_glyph_fallback_drop_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("2. X: WrapGlyph(F:Drop)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 70.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapGlyph {
+                                    fallback: WrapGlyphFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 3: X: WrapGlyph (F: Keep), Y: Keep
+            // Keep this card in sync with test_wrap_glyph_fallback_keep_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 220.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("3. X: WrapGlyph(F:Keep)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 160.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello\nhello")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapGlyph {
+                                    fallback: WrapGlyphFallback::Keep,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            row.finish();
         }
 
-        // Box 4: Single Line with Clip on horizontal overflow
+        // Row 2: Cards 4 - 6
         {
-            let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 100.0),
-                ColumnLayout { spacing: 8.0 },
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("Single Line (Clip)")
-                    .style(LabelStyle {
-                        size: 14.0,
-                        font: theme.mono_font,
-                        text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
-                Placement2D::auto(),
-            );
-
-            label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text("This is a very long line of text that is not allowed to wrap, and will overflow the horizontal boundary of the label box. Consequently, it should truncate without any ellipsis.")
-                    .text_flow(TextFlow {
-                        wrap: false,
-                        overflow: Overflow::Clip,
-                        horizontal_align: HorizontalAlign::Start,
-                    })
-                    .style(LabelStyle {
-                        size: 12.0,
-                        font: theme.sans_font,
-                        text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
+            let mut row = ctx.child_with_layout(
                 Placement2D {
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
+                RowLayout { spacing: 20.0 },
             );
 
-            container.ctx.finish();
+            // Card 4: X: WrapWord, Y: Keep
+            // Keep this card in sync with test_wrap_word_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("4. X: WrapWord, Y: Keep")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(50.0, 70.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 5: X: WrapWord (F: WrapGlyph), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 200.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("5. X: WrapWord(F:WrapG)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 140.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::WrapGlyph {
+                                        fallback: WrapGlyphFallback::Drop,
+                                    },
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 6: X: WrapWord (F: WrapGlyph F: Drop), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 200.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("6. X: WrapWord(F:WG F:Dr)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 140.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::WrapGlyph {
+                                        fallback: WrapGlyphFallback::Drop,
+                                    },
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            row.finish();
         }
 
-        row.finish();
+        // Row 3: Cards 7 - 9
+        {
+            let mut row = ctx.child_with_layout(
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+                RowLayout { spacing: 20.0 },
+            );
+
+            // Card 7: X: WrapWord (F: WrapGlyph F: Keep), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 380.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("7. X: WrapWord(F:WG F:Kp)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(5.0, 320.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::WrapGlyph {
+                                        fallback: WrapGlyphFallback::Keep,
+                                    },
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 8: X: WrapWord (F: Drop), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_drop_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("8. X: WrapWord(F:Drop)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 70.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::Drop,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            // Card 9: X: WrapWord (F: Keep), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_keep_y_keep in sample/src/text.rs
+            {
+                let mut container = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(box_style),
+                    Placement2D::fixed(230.0, 140.0),
+                    ColumnLayout { spacing: 8.0 },
+                );
+                label(
+                    &mut container.ctx,
+                    LabelSpecBuilder::new()
+                        .text("9. X: WrapWord(F:Keep)")
+                        .style(LabelStyle {
+                            size: 13.0,
+                            font: theme.mono_font,
+                            text_color: theme.rust,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
+                    Placement2D::auto(),
+                );
+                {
+                    let mut clip_box = begin_frame(
+                        &mut container.ctx,
+                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        Placement2D::fixed(25.0, 70.0),
+                        ColumnLayout { spacing: 0.0 },
+                    );
+                    label(
+                        &mut clip_box.ctx,
+                        LabelSpecBuilder::new()
+                            .text("hello there\nhello there")
+                            .text_flow(TextFlow {
+                                overflow_x: OverflowX::WrapWord {
+                                    fallback: WrapWordFallback::Keep,
+                                },
+                                overflow_y: OverflowY::Keep,
+                                horizontal_align: HorizontalAlign::Start,
+                            })
+                            .style(LabelStyle {
+                                size: 14.0,
+                                font: theme.sans_font,
+                                text_color: theme.ink,
+                                ..LabelStyle::from_theme(&theme)
+                            }),
+                        Placement2D {
+                            width: Placement::fill(),
+                            height: Placement::fill(),
+                        },
+                    );
+                    clip_box.ctx.finish();
+                }
+                container.ctx.finish();
+            }
+
+            row.finish();
+        }
     }
 
     // Section 5: Internal Text Alignment
@@ -558,8 +1384,8 @@ pub fn draw_label_page(
                 LabelSpecBuilder::new()
                     .text(text)
                     .text_flow(TextFlow {
-                        wrap: false,
-                        overflow: Overflow::Clip,
+                        overflow_x: OverflowX::Drop,
+                        overflow_y: OverflowY::Drop,
                         horizontal_align: text_align,
                     })
                     .style(LabelStyle {

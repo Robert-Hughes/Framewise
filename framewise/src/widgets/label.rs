@@ -521,8 +521,14 @@ mod tests {
         );
 
         let flow = crate::text::TextFlow {
-            wrap: true,
-            overflow: crate::text::Overflow::Ellipsis,
+            overflow_x: crate::text::OverflowX::WrapWord {
+                fallback: crate::text::WrapWordFallback::WrapGlyph {
+                    fallback: crate::text::WrapGlyphFallback::Drop,
+                },
+            },
+            overflow_y: crate::text::OverflowY::Ellipsis {
+                fallback: crate::text::EllipsisFallback::Drop,
+            },
             horizontal_align: crate::text::HorizontalAlign::Center,
         };
 

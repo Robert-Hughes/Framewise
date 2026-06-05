@@ -6,8 +6,9 @@ use fontdue::{
     Font, FontSettings,
 };
 use framewise::{
-    CaretGeom, FontId, HorizontalAlign, Overflow, Rect, TextBounds, TextFlow, TextHandle,
-    TextLayout, TextMetrics, TextSystem, Vec2,
+    CaretGeom, EllipsisFallback, FontId, HorizontalAlign, OverflowX, OverflowY, Rect, TextBounds,
+    TextFlow, TextHandle, TextLayout, TextMetrics, TextSystem, Vec2, WrapGlyphFallback,
+    WrapWordFallback,
 };
 use std::collections::HashMap;
 
@@ -74,8 +75,6 @@ struct Line {
     glyph_end: usize,
     byte_start: usize,
     byte_end: usize,
-    y_top: f32,
-    height: f32,
     baseline_y: f32,
 }
 
@@ -141,6 +140,270 @@ impl SampleTextSystem {
     /// Shape `text` against the given flow and per-axis limits, producing
     /// block-local glyphs, line records, and metrics. Does not touch the atlas
     /// or the run table.
+    fn wrap_glyphs_at_glyphs(
+        glyphs: Vec<GlyphPosition>,
+        w: f32,
+        fallback: WrapGlyphFallback,
+    ) -> Vec<Vec<GlyphPosition>> {
+        let mut lines = Vec::new();
+        if glyphs.is_empty() {
+            return lines;
+        }
+        let mut current_line = Vec::new();
+        let mut current_line_start_x = glyphs[0].x;
+
+        for g in glyphs {
+            let rel_start_x = g.x - current_line_start_x;
+            let rel_end_x = rel_start_x + g.width as f32;
+
+            if rel_end_x <= w {
+                let mut g_moved = g;
+                g_moved.x = rel_start_x;
+                current_line.push(g_moved);
+            } else {
+                if current_line.is_empty() {
+                    match fallback {
+                        WrapGlyphFallback::Keep => {
+                            let mut g_moved = g;
+                            g_moved.x = rel_start_x;
+                            current_line.push(g_moved);
+                            lines.push(current_line);
+                            current_line = Vec::new();
+                            current_line_start_x = g.x + g.width as f32;
+                        }
+                        WrapGlyphFallback::Drop => {
+                            current_line_start_x = g.x;
+                        }
+                    }
+                } else {
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_line_start_x = g.x;
+
+                    let new_rel_start_x = 0.0;
+                    let new_rel_end_x = g.width as f32;
+                    if new_rel_end_x <= w {
+                        let mut g_moved = g;
+                        g_moved.x = new_rel_start_x;
+                        current_line.push(g_moved);
+                    } else {
+                        match fallback {
+                            WrapGlyphFallback::Keep => {
+                                let mut g_moved = g;
+                                g_moved.x = new_rel_start_x;
+                                current_line.push(g_moved);
+                                lines.push(current_line);
+                                current_line = Vec::new();
+                                current_line_start_x = g.x + g.width as f32;
+                            }
+                            WrapGlyphFallback::Drop => {
+                                current_line_start_x = g.x;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+        lines
+    }
+
+    fn wrap_glyphs_at_words(
+        glyphs: Vec<GlyphPosition>,
+        w: f32,
+        fallback: WrapWordFallback,
+    ) -> Vec<Vec<GlyphPosition>> {
+        if glyphs.is_empty() {
+            return Vec::new();
+        }
+
+        // Alternating word/space segments
+        struct Seg {
+            is_space: bool,
+            glyphs: Vec<GlyphPosition>,
+            width: f32,
+        }
+
+        let mut segments: Vec<Seg> = Vec::new();
+        for g in glyphs {
+            let is_space = g.parent == ' ' || g.parent == '\n';
+            if let Some(last) = segments.last_mut() {
+                if last.is_space == is_space {
+                    last.glyphs.push(g);
+                    continue;
+                }
+            }
+            segments.push(Seg {
+                is_space,
+                glyphs: vec![g],
+                width: 0.0,
+            });
+        }
+
+        // Normalize segments to start at 0.0, and compute width
+        for seg in &mut segments {
+            if !seg.glyphs.is_empty() {
+                let seg_l = seg.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
+                for g in &mut seg.glyphs {
+                    g.x -= seg_l;
+                }
+                seg.width = seg
+                    .glyphs
+                    .iter()
+                    .map(|g| g.x + g.width as f32)
+                    .fold(0.0, f32::max);
+            }
+        }
+
+        let mut lines = Vec::new();
+        let mut current_line = Vec::new();
+        let mut current_w = 0.0;
+
+        for seg in segments {
+            if seg.is_space {
+                if !current_line.is_empty() {
+                    // Space segment at the end of the line: only add if it fits or has 0 width
+                    if seg.width == 0.0 || current_w + seg.width <= w {
+                        for g in seg.glyphs {
+                            let mut g_moved = g;
+                            g_moved.x += current_w;
+                            current_line.push(g_moved);
+                        }
+                        current_w += seg.width;
+                    }
+                }
+            } else {
+                let word_w = seg.width;
+                if current_w + word_w <= w {
+                    // Fits on current line
+                    for g in seg.glyphs {
+                        let mut g_moved = g;
+                        g_moved.x += current_w;
+                        current_line.push(g_moved);
+                    }
+                    current_w += word_w;
+                } else {
+                    // Wrap to new line
+                    if !current_line.is_empty() {
+                        lines.push(current_line);
+                        current_line = Vec::new();
+                        current_w = 0.0;
+                    }
+
+                    if word_w <= w {
+                        for g in seg.glyphs {
+                            let mut g_moved = g;
+                            g_moved.x += current_w;
+                            current_line.push(g_moved);
+                        }
+                        current_w += word_w;
+                    } else {
+                        // Word does not fit even on the empty line! Apply fallback.
+                        match &fallback {
+                            WrapWordFallback::WrapGlyph { fallback: gf } => {
+                                let wrapped = Self::wrap_glyphs_at_glyphs(seg.glyphs, w, *gf);
+                                if !wrapped.is_empty() {
+                                    lines.extend(wrapped[..wrapped.len() - 1].to_vec());
+                                    current_line = wrapped.last().unwrap().clone();
+                                    current_w = current_line
+                                        .iter()
+                                        .map(|g| g.x + g.width as f32)
+                                        .fold(0.0, f32::max);
+                                }
+                            }
+                            WrapWordFallback::Drop => {
+                                // Keep only characters that fit
+                                for g in seg.glyphs {
+                                    if g.x + g.width as f32 <= w {
+                                        current_line.push(g);
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                lines.push(current_line);
+                                current_line = Vec::new();
+                                break; // Discard rest of paragraph
+                            }
+                            WrapWordFallback::Keep => {
+                                // Keep characters that fit + first overflowing
+                                for g in seg.glyphs {
+                                    let end_x = g.x + g.width as f32;
+                                    current_line.push(g);
+                                    if end_x > w {
+                                        break;
+                                    }
+                                }
+                                lines.push(current_line);
+                                current_line = Vec::new();
+                                break; // Discard rest of paragraph
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+        lines
+    }
+
+    fn apply_ellipsis_x(
+        &mut self,
+        glyphs: Vec<GlyphPosition>,
+        w: f32,
+        size: f32,
+        font_id: FontId,
+        fallback: EllipsisFallback,
+        line_baseline_y: f32,
+    ) -> Vec<GlyphPosition> {
+        let (ell_glyphs, ell_w, ell_baseline) = self.ellipsis(size, font_id);
+        if ell_w > w {
+            match fallback {
+                EllipsisFallback::Keep => {
+                    let mut out = Vec::new();
+                    for g in ell_glyphs {
+                        let rel_start_x = g.x;
+                        let rel_end_x = g.x + g.width as f32;
+                        if rel_start_x < w {
+                            out.push(g);
+                            if rel_end_x > w {
+                                break;
+                            }
+                        } else {
+                            if out.is_empty() {
+                                out.push(g);
+                            }
+                            break;
+                        }
+                    }
+                    out
+                }
+                EllipsisFallback::Drop => Vec::new(),
+            }
+        } else {
+            let limit = w - ell_w;
+            let mut trimmed = Vec::new();
+            for g in glyphs {
+                if g.x + g.width as f32 <= limit {
+                    trimmed.push(g);
+                } else {
+                    break;
+                }
+            }
+            let pen_x = trimmed.last().map(|g| g.x + g.width as f32).unwrap_or(0.0);
+            let dy = line_baseline_y - ell_baseline;
+            for mut eg in ell_glyphs {
+                eg.x += pen_x;
+                eg.y += dy;
+                trimmed.push(eg);
+            }
+            trimmed
+        }
+    }
+
     fn shape(
         &mut self,
         text: &str,
@@ -153,10 +416,9 @@ impl SampleTextSystem {
         let line_height = self.line_height(size, font_id);
 
         // ── Base layout pass ────────────────────────────────────────────────
-        // When wrapping is off we pass no max_width so fontdue never inserts a
-        // soft break; hard '\n' breaks still apply. We do our own horizontal
-        // alignment and overflow handling, so fontdue is always Left / Top.
-        let wrap_width = if flow.wrap { max_w } else { None };
+        // We do all wrapping ourselves in the shape function using custom
+        // word-wrapping and glyph-wrapping algorithms, so Fontdue is run without max_width.
+        let (wrap_width, wrap_style) = (None, WrapStyle::Word);
         {
             let font = &self.fonts[font_id.0 as usize];
             self.layout.reset(&LayoutSettings {
@@ -165,14 +427,13 @@ impl SampleTextSystem {
                 horizontal_align: FdHAlign::Left,
                 vertical_align: FdVAlign::Top,
                 line_height: 1.0,
-                wrap_style: WrapStyle::Word,
+                wrap_style,
                 wrap_hard_breaks: true,
                 ..LayoutSettings::default()
             });
             self.layout.append(&[font], &TextStyle::new(text, size, 0));
         }
         let glyphs0 = self.layout.glyphs().clone();
-        // Copy only the line fields we need so we drop the borrow on `layout`.
         let fd_lines: Vec<(usize, f32, f32, f32)> = self
             .layout
             .lines()
@@ -191,8 +452,6 @@ impl SampleTextSystem {
             .unwrap_or_default();
 
         // ── Partition glyphs into lines ─────────────────────────────────────
-        // Use each line's glyph_start as the boundary to the next, which avoids
-        // inclusive/empty-range ambiguity in fontdue's glyph_end.
         let mut lines: Vec<Line> = Vec::new();
         if fd_lines.is_empty() {
             lines.push(Line {
@@ -200,12 +459,10 @@ impl SampleTextSystem {
                 glyph_end: 0,
                 byte_start: 0,
                 byte_end: text.len(),
-                y_top: 0.0,
-                height: line_height,
-                baseline_y: line_height, // approximate; unused for empty text
+                baseline_y: line_height,
             });
         } else {
-            for (i, &(gs, baseline_y, max_ascent, new_line)) in fd_lines.iter().enumerate() {
+            for (i, &(gs, baseline_y, _max_ascent, _new_line)) in fd_lines.iter().enumerate() {
                 let ge = if i + 1 < fd_lines.len() {
                     fd_lines[i + 1].0
                 } else {
@@ -216,31 +473,22 @@ impl SampleTextSystem {
                     glyph_start: gs,
                     glyph_end: ge,
                     byte_start,
-                    byte_end: text.len(), // patched below
-                    y_top: baseline_y - max_ascent,
-                    height: new_line,
+                    byte_end: text.len(),
                     baseline_y,
                 });
             }
-            // byte_end of each line is the next line's byte_start.
             for i in 0..lines.len() - 1 {
                 lines[i].byte_end = lines[i + 1].byte_start;
             }
         }
 
-        // ── Vertical overflow: cap visible line count ───────────────────────
-        let max_lines = max_h
-            .map(|h| ((h / line_height).floor() as usize).max(1))
-            .unwrap_or(usize::MAX);
-        let mut truncated_vertical = false;
-        if lines.len() > max_lines {
-            truncated_vertical = true;
-            lines.truncate(max_lines);
-            // The last visible line now absorbs the remaining selectable bytes.
-            if let Some(last) = lines.last_mut() {
-                last.byte_end = text.len();
-            }
-        }
+        let baseline_offset = if fd_lines.is_empty() {
+            line_height
+        } else {
+            let (_, baseline_y, max_ascent, _) = fd_lines[0];
+            let y_top = baseline_y - max_ascent;
+            baseline_y - y_top
+        };
 
         // ── Per-line: align, clip / ellipsis, rebuild glyph vec ─────────────
         let global_l = if glyphs0.is_empty() {
@@ -249,17 +497,19 @@ impl SampleTextSystem {
             glyphs0.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
         };
 
+        struct ProcessedLine {
+            glyphs: Vec<GlyphPosition>,
+            byte_start: usize,
+            byte_end: usize,
+            baseline_y: f32,
+        }
+
         let mut truncated_horizontal = false;
-        let mut out: Vec<GlyphPosition> = Vec::with_capacity(glyphs0.len());
-        let mut rec: Vec<LineRec> = Vec::with_capacity(lines.len());
-        let mut block_width = 0.0_f32;
+        let mut processed_lines: Vec<ProcessedLine> = Vec::new();
 
-        let line_count = lines.len();
-        for (i, line) in lines.iter().enumerate() {
-            let is_last = i + 1 == line_count;
-            let mut seg: Vec<GlyphPosition> = glyphs0[line.glyph_start..line.glyph_end].to_vec();
+        for line in lines {
+            let mut seg = glyphs0[line.glyph_start..line.glyph_end].to_vec();
 
-            // Find ink bounds for this line before shifting
             let (line_l, line_r) = if seg.is_empty() {
                 (0.0, 0.0)
             } else {
@@ -272,7 +522,6 @@ impl SampleTextSystem {
             };
             let line_w = line_r - line_l;
 
-            // Apply base shift to align leftmost ink pixel to 0.0 (or keep relative indentation for Start)
             let base_shift = match flow.horizontal_align {
                 HorizontalAlign::Start => global_l,
                 HorizontalAlign::Center | HorizontalAlign::End => line_l,
@@ -283,89 +532,210 @@ impl SampleTextSystem {
                 }
             }
 
-            // Horizontal alignment offset
+            let mut final_sublines = Vec::new();
+
+            if let Some(w) = max_w {
+                match flow.overflow_x {
+                    OverflowX::WrapWord { fallback } => {
+                        let wrapped = Self::wrap_glyphs_at_words(seg, w, fallback);
+                        final_sublines.extend(wrapped);
+                    }
+                    OverflowX::WrapGlyph { fallback } => {
+                        let wrapped = Self::wrap_glyphs_at_glyphs(seg, w, fallback);
+                        final_sublines.extend(wrapped);
+                    }
+                    _ => {
+                        let overflows_w = line_w > w + 0.5;
+                        if overflows_w {
+                            truncated_horizontal = true;
+                            match flow.overflow_x {
+                                OverflowX::Ellipsis { fallback } => {
+                                    let ellipsised = self.apply_ellipsis_x(
+                                        seg,
+                                        w,
+                                        size,
+                                        font_id,
+                                        fallback,
+                                        line.baseline_y,
+                                    );
+                                    final_sublines.push(ellipsised);
+                                }
+                                OverflowX::Keep => {
+                                    let mut out = Vec::new();
+                                    for g in seg {
+                                        let end_x = g.x + g.width as f32;
+                                        out.push(g);
+                                        if end_x > w {
+                                            break;
+                                        }
+                                    }
+                                    final_sublines.push(out);
+                                }
+                                OverflowX::Drop => {
+                                    let mut out = Vec::new();
+                                    for g in seg {
+                                        if g.x + g.width as f32 <= w {
+                                            out.push(g);
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                    final_sublines.push(out);
+                                }
+                                _ => unreachable!(),
+                            }
+                        } else {
+                            final_sublines.push(seg);
+                        }
+                    }
+                }
+            } else {
+                final_sublines.push(seg);
+            }
+
+            let mut sub_infos = Vec::new();
+            for (j, sub_seg) in final_sublines.iter().enumerate() {
+                let b_start = if j == 0 {
+                    line.byte_start
+                } else {
+                    sub_seg
+                        .first()
+                        .map(|g| g.byte_offset)
+                        .unwrap_or(line.byte_start)
+                };
+                sub_infos.push(b_start);
+            }
+            sub_infos.push(line.byte_end);
+
+            for (j, sub_seg) in final_sublines.into_iter().enumerate() {
+                processed_lines.push(ProcessedLine {
+                    glyphs: sub_seg,
+                    byte_start: sub_infos[j],
+                    byte_end: sub_infos[j + 1],
+                    baseline_y: line.baseline_y,
+                });
+            }
+        }
+
+        // ── Vertical overflow: cap visible line count ───────────────────────
+        let max_lines = max_h
+            .map(|h| (h / line_height).floor() as usize)
+            .unwrap_or(processed_lines.len());
+        let mut truncated_vertical = false;
+        if processed_lines.len() > max_lines {
+            truncated_vertical = true;
+            match flow.overflow_y {
+                OverflowY::Drop => {
+                    processed_lines.truncate(max_lines);
+                }
+                OverflowY::Keep => {
+                    processed_lines.truncate(max_lines + 1);
+                }
+                OverflowY::Ellipsis { fallback } => {
+                    if max_lines > 0 {
+                        let last_idx = max_lines - 1;
+                        let last_line_glyphs =
+                            std::mem::take(&mut processed_lines[last_idx].glyphs);
+                        let w = max_w.unwrap_or(f32::INFINITY);
+                        let ellipsised = self.apply_ellipsis_x(
+                            last_line_glyphs,
+                            w,
+                            size,
+                            font_id,
+                            fallback,
+                            processed_lines[last_idx].baseline_y,
+                        );
+                        processed_lines.truncate(max_lines);
+                        processed_lines[last_idx].glyphs = ellipsised;
+                    } else {
+                        match fallback {
+                            EllipsisFallback::Keep => {
+                                processed_lines.truncate(1);
+                            }
+                            EllipsisFallback::Drop => {
+                                processed_lines.clear();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if processed_lines.is_empty() {
+            processed_lines.push(ProcessedLine {
+                glyphs: Vec::new(),
+                byte_start: 0,
+                byte_end: text.len(),
+                baseline_y: line_height,
+            });
+        }
+
+        let mut out: Vec<GlyphPosition> = Vec::new();
+        let mut rec: Vec<LineRec> = Vec::new();
+        let mut block_width = 0.0_f32;
+
+        let line_count = processed_lines.len();
+        for (i, mut line) in processed_lines.into_iter().enumerate() {
+            let new_baseline_y = i as f32 * line_height + baseline_offset;
+            let new_y_top = i as f32 * line_height;
+
+            for g in &mut line.glyphs {
+                g.y = g.y - line.baseline_y + new_baseline_y;
+            }
+
             let align_off = match max_w {
                 Some(w) => {
-                    let align_span = match flow.horizontal_align {
-                        HorizontalAlign::Start => line_r - global_l,
-                        HorizontalAlign::Center | HorizontalAlign::End => line_w,
+                    let line_w = if line.glyphs.is_empty() {
+                        0.0
+                    } else {
+                        let l = line
+                            .glyphs
+                            .iter()
+                            .map(|g| g.x)
+                            .fold(f32::INFINITY, f32::min);
+                        let r = line
+                            .glyphs
+                            .iter()
+                            .map(|g| g.x + g.width as f32)
+                            .fold(f32::NEG_INFINITY, f32::max);
+                        r - l
                     };
-                    align_offset(flow.horizontal_align, w, align_span)
+                    match flow.horizontal_align {
+                        HorizontalAlign::Start => 0.0,
+                        HorizontalAlign::Center => ((w - line_w) * 0.5).max(0.0),
+                        HorizontalAlign::End => (w - line_w).max(0.0),
+                    }
                 }
                 None => 0.0,
             };
             if align_off != 0.0 {
-                for g in &mut seg {
+                for g in &mut line.glyphs {
                     g.x += align_off;
                 }
             }
 
-            // Check overflow
-            let overflows_w = max_w.is_some_and(|w| {
-                let check_w = match flow.horizontal_align {
-                    HorizontalAlign::Start => line_r - global_l,
-                    HorizontalAlign::Center | HorizontalAlign::End => line_w,
-                };
-                check_w > w + 0.5
-            });
-            if overflows_w {
-                truncated_horizontal = true;
-            }
-
-            let ellipsis_here = flow.overflow == Overflow::Ellipsis
-                && (overflows_w || (truncated_vertical && is_last));
-
-            if ellipsis_here {
-                let (ell_glyphs, ell_w, ell_baseline) = self.ellipsis(size, font_id);
-                // Trim trailing glyphs so the content + ellipsis fits the width.
-                if let Some(w) = max_w {
-                    let limit = align_off + w - ell_w;
-                    while let Some(last) = seg.last() {
-                        if (last.x + last.width as f32) <= limit {
-                            break;
-                        }
-                        seg.pop();
-                    }
-                }
-                let pen_x = seg
-                    .last()
-                    .map(|g| g.x + g.width as f32)
-                    .unwrap_or(align_off);
-                let dy = line.baseline_y - ell_baseline;
-                for mut eg in ell_glyphs {
-                    eg.x += pen_x;
-                    eg.y += dy;
-                    seg.push(eg);
-                }
-            } else if flow.overflow == Overflow::Clip && overflows_w {
-                let limit = align_off + max_w.unwrap();
-                while let Some(last) = seg.last() {
-                    if (last.x + last.width as f32) <= limit {
-                        break;
-                    }
-                    seg.pop();
-                }
-            }
-
-            // Metrics width is the real extent of what was laid out (after any
-            // alignment shift, trim, and ellipsis), measured tightly.
-            let seg_w = if seg.is_empty() {
+            let line_w = if line.glyphs.is_empty() {
                 0.0
             } else {
-                let l = seg.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
-                let r = seg
+                let l = line
+                    .glyphs
+                    .iter()
+                    .map(|g| g.x)
+                    .fold(f32::INFINITY, f32::min);
+                let r = line
+                    .glyphs
                     .iter()
                     .map(|g| g.x + g.width as f32)
                     .fold(f32::NEG_INFINITY, f32::max);
                 r - l
             };
-            block_width = block_width.max(seg_w);
+            block_width = block_width.max(line_w);
 
             let glyph_start = out.len();
-            out.extend(seg);
+            out.extend(line.glyphs);
             rec.push(LineRec {
-                y_top: line.y_top,
-                height: line.height,
+                y_top: new_y_top,
+                height: line_height,
                 glyph_start,
                 glyph_end: out.len(),
                 byte_start: line.byte_start,
@@ -558,18 +928,6 @@ impl TextSystem for SampleTextSystem {
 fn line_start_x(glyphs: &[GlyphPosition]) -> f32 {
     glyphs.first().map(|g| g.x).unwrap_or(0.0)
 }
-
-fn align_offset(align: HorizontalAlign, avail: f32, line_w: f32) -> f32 {
-    let off = match align {
-        HorizontalAlign::Start => 0.0,
-        HorizontalAlign::Center => (avail - line_w) * 0.5,
-        HorizontalAlign::End => avail - line_w,
-    };
-    // A line wider than the box has no room to shift; clamp so it never starts
-    // off the left edge (an overflowing line falls back to start-aligned).
-    off.max(0.0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -709,13 +1067,10 @@ mod tests {
         assert_eq!(near, 0);
     }
 
-    /// Reconstruct the visible glyph string (including any ellipsis) from a
-    /// prepared run, via each glyph's source `parent` char.
     fn visible(sys: &SampleTextSystem, h: TextHandle) -> String {
         sys.runs[h.0].glyphs.iter().map(|g| g.parent).collect()
     }
 
-    /// Rightmost rendered edge across all glyphs in a run.
     fn rendered_width(sys: &SampleTextSystem, h: TextHandle) -> f32 {
         sys.runs[h.0]
             .glyphs
@@ -727,26 +1082,19 @@ mod tests {
     #[test]
     fn ellipsis_is_appended_on_single_line_overflow() {
         let mut sys = sys();
-        let _layout = sys.prepare(
-            "hello world this is long",
-            16.0,
-            FontId(1),
-            TextFlow::single_line(), // single_line uses Clip…
-            Rect::new(0.0, 0.0, 40.0, 30.0),
-        );
-        // …so use an explicit ellipsis flow instead:
         let layout = sys.prepare(
             "hello world this is long",
             16.0,
             FontId(1),
             TextFlow {
-                wrap: false,
-                overflow: Overflow::Ellipsis,
+                overflow_x: OverflowX::Ellipsis {
+                    fallback: EllipsisFallback::Drop,
+                },
+                overflow_y: OverflowY::Drop,
                 horizontal_align: HorizontalAlign::Start,
             },
             Rect::new(0.0, 0.0, 40.0, 30.0),
         );
-        let _ = layout;
         let text = visible(&sys, layout.handle);
         assert!(
             text.ends_with('…'),
@@ -781,8 +1129,8 @@ mod tests {
             16.0,
             FontId(1),
             TextFlow {
-                wrap: false,
-                overflow: Overflow::Clip,
+                overflow_x: OverflowX::Drop,
+                overflow_y: OverflowY::Drop,
                 horizontal_align: HorizontalAlign::Center,
             },
             Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -804,14 +1152,12 @@ mod tests {
             TextFlow::single_line(),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
-        let c_line2 = sys.caret_geom(layout.handle, 4); // 'd', first char of line 2
+        let c_line2 = sys.caret_geom(layout.handle, 4);
         assert!(
             c_line2.y_top > 1.0,
             "second-line caret should sit below the first"
         );
     }
-
-    // ── Probes for known sample-impl limitations ────────────────────────────
 
     #[test]
     fn long_unbreakable_word_is_force_broken() {
@@ -821,14 +1167,17 @@ mod tests {
             16.0,
             FontId(1),
             TextFlow {
-                wrap: true,
-                overflow: Overflow::Clip,
+                overflow_x: OverflowX::WrapWord {
+                    fallback: WrapWordFallback::WrapGlyph {
+                        fallback: WrapGlyphFallback::Drop,
+                    },
+                },
+                overflow_y: OverflowY::Drop,
                 horizontal_align: HorizontalAlign::Start,
             },
             Rect::new(0.0, 0.0, 40.0, 200.0),
         );
         let lines = sys.runs[layout.handle.0].lines.len();
-        // Trait contract: a word wider than the box force-breaks mid-word.
         assert!(
             lines > 1,
             "expected the long word to break across lines, got {lines}"
@@ -839,15 +1188,16 @@ mod tests {
     fn metrics_width_matches_rendered_width_after_ellipsis() {
         let mut sys = sys();
         let flow = TextFlow {
-            wrap: false,
-            overflow: Overflow::Ellipsis,
+            overflow_x: OverflowX::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            overflow_y: OverflowY::Drop,
             horizontal_align: HorizontalAlign::Start,
         };
         let rect = Rect::new(0.0, 0.0, 50.0, 30.0);
         let layout = sys.prepare("hello world this is long", 16.0, FontId(1), flow, rect);
         let reported = layout.metrics.size.x;
         let actual = rendered_width(&sys, layout.handle);
-        // metrics should reflect what was actually laid out, not the box width.
         assert!(
             (reported - actual).abs() < 1.0,
             "metrics width {reported} should match rendered width {actual}",
@@ -863,8 +1213,10 @@ mod tests {
             16.0,
             FontId(1),
             TextFlow {
-                wrap: false,
-                overflow: Overflow::Ellipsis,
+                overflow_x: OverflowX::Ellipsis {
+                    fallback: EllipsisFallback::Drop,
+                },
+                overflow_y: OverflowY::Drop,
                 horizontal_align: HorizontalAlign::Center,
             },
             rect,
@@ -874,7 +1226,6 @@ mod tests {
             .iter()
             .map(|g| g.x)
             .fold(f32::INFINITY, f32::min);
-        // A truncated line should still start at/after the box's left edge.
         assert!(
             left >= -0.5,
             "centered overflow line starts off-box at x={left}"
@@ -893,7 +1244,6 @@ mod tests {
         );
         let lh = sys.line_height(16.0, FontId(0));
         let on_line2 = sys.hit_test(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
-        // Start of second line "def" is byte 4 (after "abc\n").
         assert_eq!(on_line2, 4);
     }
 
@@ -917,20 +1267,502 @@ mod tests {
             .map(|g| g.x + g.width as f32)
             .fold(f32::NEG_INFINITY, f32::max);
 
-        // Under Approach 2, the leftmost ink pixel must be exactly at 0.0
         assert_eq!(l, 0.0, "Leftmost ink pixel must be at 0.0");
-        // And the metrics size.x must be exactly r - l = r
         assert!(
             (layout.metrics.size.x - r).abs() < 0.001,
             "Metrics width must match tight ink width"
         );
 
-        // Caret at index 0 must be at x = 0.0
         let caret = sys.caret_geom(layout.handle, 0);
         assert_eq!(caret.x, 0.0, "Caret at index 0 must be at x = 0.0");
 
-        // Hit testing at x = 0.0 must resolve to byte index 0
         let idx = sys.hit_test(layout.handle, Vec2::new(0.0, 5.0));
         assert_eq!(idx, 0, "Hit testing near 0.0 must return index 0");
+    }
+
+    // ── Systematic unit tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_overflow_x_drop_y_drop() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Drop,
+            overflow_y: OverflowY::Drop,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
+        let run = &sys.runs[layout.handle.0];
+        for g in &run.glyphs {
+            assert!(g.x + g.width as f32 <= 25.0 + 0.1);
+        }
+        assert!(run.glyphs.len() > 0);
+    }
+
+    #[test]
+    fn test_overflow_x_keep_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
+        let run = &sys.runs[layout.handle.0];
+        let mut line1_has_overflow = false;
+        let mut line2_has_overflow = false;
+        for (i, line) in run.lines.iter().enumerate() {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            if line_glyphs
+                .iter()
+                .any(|g| g.x + g.width as f32 > 25.0 + 0.1)
+            {
+                if i == 0 {
+                    line1_has_overflow = true;
+                }
+                if i == 1 {
+                    line2_has_overflow = true;
+                }
+            }
+        }
+        assert!(line1_has_overflow);
+        assert!(line2_has_overflow);
+    }
+
+    #[test]
+    fn test_overflow_x_keep_y_ellipsis() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
+        let text = visible(&sys, layout.handle);
+        assert!(text.ends_with('…'));
+        let run = &sys.runs[layout.handle.0];
+        let last_glyph = run.glyphs.last().unwrap();
+        assert!(last_glyph.x + last_glyph.width as f32 <= 25.0 + 0.1);
+    }
+
+    #[test]
+    fn test_overflow_x_keep_y_ellipsis_fallback_drop() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 5.0, lh * 1.5),
+        );
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.glyphs.len(), 0);
+    }
+
+    #[test]
+    fn test_overflow_x_keep_y_ellipsis_fallback_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Ellipsis {
+                fallback: EllipsisFallback::Keep,
+            },
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 5.0, lh * 1.5),
+        );
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "…");
+        let run = &sys.runs[layout.handle.0];
+        let last_glyph = run.glyphs.last().unwrap();
+        assert!(last_glyph.x + last_glyph.width as f32 > 5.0 + 0.1);
+    }
+
+    #[test]
+    fn test_overflow_x_ellipsis_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 2.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
+        let text = visible(&sys, layout.handle);
+        assert!(text.contains('…'));
+        let run = &sys.runs[layout.handle.0];
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            let last_g = line_glyphs.last().unwrap();
+            assert!(last_g.x + last_g.width as f32 <= 25.0 + 0.1);
+        }
+    }
+
+    #[test]
+    fn test_overflow_x_ellipsis_fallback_drop_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Ellipsis {
+                fallback: EllipsisFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 5.0, lh * 2.5),
+        );
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.glyphs.len(), 0);
+    }
+
+    #[test]
+    fn test_overflow_x_ellipsis_fallback_keep_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::Ellipsis {
+                fallback: EllipsisFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 5.0, lh * 2.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "……");
+        let run = &sys.runs[layout.handle.0];
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            let last_g = line_glyphs.last().unwrap();
+            assert!(last_g.x + last_g.width as f32 > 5.0 + 0.1);
+        }
+    }
+
+    // Keep this test in sync with Card 1 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_glyph_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapGlyph {
+                fallback: WrapGlyphFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 4.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "hello\nhello");
+    }
+
+    // Keep this test in sync with Card 2 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_glyph_fallback_drop_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapGlyph {
+                fallback: WrapGlyphFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 2.0, lh * 4.5),
+        );
+        let text = visible(&sys, layout.handle);
+        assert!(text.trim().is_empty());
+    }
+
+    // Keep this test in sync with Card 3 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_glyph_fallback_keep_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapGlyph {
+                fallback: WrapGlyphFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello\nhello",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 2.0, lh * 13.0),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 11);
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "hello\nhello");
+        let run = &sys.runs[layout.handle.0];
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            assert!(line_glyphs.len() <= 1);
+            if let Some(g) = line_glyphs.first() {
+                if g.parent != '\n' {
+                    assert!(g.x + g.width as f32 > 2.0);
+                }
+            }
+        }
+    }
+
+    // Keep this test in sync with Card 4 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 50.0, lh * 4.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "hello there\nhello there");
+    }
+
+    // Keep this test in sync with Card 5 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_fallback_wrap_glyph_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapGlyph {
+                    fallback: WrapGlyphFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 10.0),
+        );
+        assert!(sys.runs[layout.handle.0].lines.len() > 4);
+        let text = visible(&sys, layout.handle);
+        let run = &sys.runs[layout.handle.0];
+        for (i, line) in run.lines.iter().enumerate() {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            for g in line_glyphs {
+                println!(
+                    "line {}, char={:?}, x={}, width={}",
+                    i, g.parent, g.x, g.width
+                );
+            }
+        }
+        assert_eq!(text, "hello there\nhello there");
+    }
+
+    // Keep this test in sync with Card 6 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapGlyph {
+                    fallback: WrapGlyphFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 2.0, lh * 10.0),
+        );
+        let text = visible(&sys, layout.handle);
+        assert!(text.trim().is_empty());
+    }
+
+    // Keep this test in sync with Card 7 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapGlyph {
+                    fallback: WrapGlyphFallback::Keep,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 2.0, lh * 25.0),
+        );
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "hello there\nhello there");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.lines.len(), 20);
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            let visible_glyphs: Vec<_> = line_glyphs
+                .iter()
+                .filter(|g| g.parent != ' ' && g.parent != '\n')
+                .collect();
+            assert!(visible_glyphs.len() <= 1);
+            if let Some(g) = visible_glyphs.first() {
+                assert!(g.x + g.width as f32 > 2.0);
+            }
+        }
+    }
+
+    // Keep this test in sync with Card 8 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_fallback_drop_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
+        );
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
+        let run = &sys.runs[layout.handle.0];
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            for g in line_glyphs {
+                assert!(g.x + g.width as f32 <= 25.0 + 0.1);
+            }
+        }
+    }
+
+    // Keep this test in sync with Card 9 in Section 4.1 of sample/src/label_page.rs
+    #[test]
+    fn test_wrap_word_fallback_keep_y_keep() {
+        let mut sys = sys();
+        let lh = sys.line_height(16.0, FontId(1));
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            horizontal_align: HorizontalAlign::Start,
+        };
+        let layout = sys.prepare(
+            "hello there\nhello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
+        );
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.lines.len(), 2);
+        let mut has_overflow = false;
+        for line in &run.lines {
+            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+            if let Some(last_g) = line_glyphs.last() {
+                if last_g.parent != '\n'
+                    && last_g.parent != ' '
+                    && last_g.x + last_g.width as f32 > 25.0
+                {
+                    has_overflow = true;
+                }
+            }
+        }
+        assert!(has_overflow);
     }
 }

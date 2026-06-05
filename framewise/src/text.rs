@@ -198,7 +198,10 @@ pub enum WrapWordFallback {
     /// May emit geometry outside the X bounds.
     Keep,
 
-    /// Drop the over-long word when it cannot fit. See OverflowX::Drop.
+    /// Keep the over-long word's characters that fit within the X bounds, dropping
+    /// the first overflowing character and the remaining characters of the word.
+    /// Note: this does *not* drop the whole word!
+    /// See OverflowX::Drop.
     Drop,
 }
 
