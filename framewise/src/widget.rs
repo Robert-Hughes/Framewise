@@ -369,6 +369,16 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
                 rect,
             );
         }
+
+        // Draw the debug outline
+        if self.debug_layout {
+            self.cmds.push(crate::draw::DrawCmd::StrokeRect {
+                rect: rect,
+                color: crate::types::Color::from_srgb_u8(200, 0, 255, 255),
+                width: 1.0,
+            });
+        }
+
         rect
     }
 
