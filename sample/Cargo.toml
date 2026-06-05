@@ -10,7 +10,7 @@ path = "src/main.rs"
 [features]
 # Phase 1 intrinsic-sizing work: only the button page builds against the
 # button-only framewise. Restore the other pages as widgets are migrated.
-default = ["page_button_demo", "page_scroll_demo", "page_frame_demo", "page_layout_demo", "page_spec"]
+default = ["page_button_demo", "page_scroll_demo", "page_frame_demo", "page_layout_demo", "page_spec", "page_label_demo"]
 
 button       = ["framewise/button"]
 checkbox     = ["framewise/checkbox"]
@@ -42,6 +42,7 @@ page_button_demo = ["button", "label"]
 page_scroll_demo = ["button", "scroll_area", "slider"]
 page_frame_demo = ["button", "frame", "label"]
 page_layout_demo = ["button", "label"]
+page_label_demo = ["label"]
 # The spec page renders incrementally: this "core" set enables the scaffolding
 # (section headers, captions, hero, footer, page scroll). Each numbered section
 # appears only when its widgets are also enabled — e.g. add "checkbox", "radio",

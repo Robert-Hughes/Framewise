@@ -2,6 +2,8 @@
 mod button_page;
 #[cfg(feature = "page_frame_demo")]
 mod frame_demo;
+#[cfg(feature = "page_label_demo")]
+mod label_page;
 #[cfg(feature = "page_layout_demo")]
 mod layout_demo;
 mod renderer;
@@ -36,6 +38,8 @@ enum AppPage {
     FrameDemo,
     #[cfg(feature = "page_layout_demo")]
     LayoutDemo,
+    #[cfg(feature = "page_label_demo")]
+    LabelDemo,
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -83,6 +87,8 @@ struct App {
     frame_demo_state: frame_demo::FrameDemoState,
     #[cfg(feature = "page_layout_demo")]
     layout_demo_state: layout_demo::LayoutDemoState,
+    #[cfg(feature = "page_label_demo")]
+    label_page_state: label_page::LabelPageState,
 }
 
 impl App {
@@ -109,6 +115,8 @@ impl App {
             frame_demo_state: frame_demo::FrameDemoState::default(),
             #[cfg(feature = "page_layout_demo")]
             layout_demo_state: layout_demo::LayoutDemoState::default(),
+            #[cfg(feature = "page_label_demo")]
+            label_page_state: label_page::LabelPageState::default(),
         }
     }
 
@@ -249,6 +257,24 @@ impl App {
                 }
                 Self::draw_missing_feature_page(win_size, text_system)
             }
+            AppPage::LabelDemo => {
+                #[cfg(feature = "page_label_demo")]
+                {
+                    self.focus_system.begin_frame();
+                    let cmds = label_page::draw_label_page(
+                        &mut self.label_page_state,
+                        &mut self.focus_system,
+                        &self.input,
+                        time,
+                        win_size,
+                        text_system,
+                        self.debug_layout,
+                    );
+                    self.focus_system.end_frame();
+                    return cmds;
+                }
+                Self::draw_missing_feature_page(win_size, text_system)
+            }
         }
     }
 }
@@ -373,6 +399,10 @@ impl ApplicationHandler for App {
                         #[cfg(feature = "page_layout_demo")]
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F5) => {
                             self.active_page = AppPage::LayoutDemo;
+                        }
+                        #[cfg(feature = "page_label_demo")]
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F6) => {
+                            self.active_page = AppPage::LabelDemo;
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
                             self.debug_layout = !self.debug_layout;
