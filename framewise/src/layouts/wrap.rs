@@ -60,9 +60,32 @@ impl LayoutState for WrapState {
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
             .into_parts();
+
+        // Wrap check happens *before* item is positioned, but we must resolve the size
+        // before we can perform the wrap check (as wrap check depends on width `w`).
+        // Therefore, when resolving the height, we must first predict if it wraps,
+        // so we can resolve height against the remaining height of the correct line.
+        let at_line_start = self.current_x == self.space.x;
+        let overflows = match self.space.width {
+            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
+                self.current_x + w > self.space.x + width
+            }
+            AxisBound::Unbounded => false,
+        };
+        let predicted_y = if !at_line_start && overflows {
+            self.current_y + self.line_height + self.line_spacing
+        } else {
+            self.current_y
+        };
+
+        let remaining_h = match self.space.height {
+            AxisBound::Exact(h) => AxisBound::Exact((h - (predicted_y - self.space.y)).max(0.0)),
+            AxisBound::AtMost(h) => AxisBound::AtMost((h - (predicted_y - self.space.y)).max(0.0)),
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (h, v2) = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .resolve_size(pref.map(|p| p.y), remaining_h)
             .into_parts();
 
         // Wrap before placing if this item would overflow the line — but never
@@ -150,9 +173,17 @@ impl LayoutState for WrapState {
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
             .into_parts();
+
+        let remaining_h = match self.space.height {
+            AxisBound::Exact(h) => AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0)),
+            AxisBound::AtMost(h) => {
+                AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
+            }
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
         let (h, v2) = layout_params
             .height
-            .resolve_size(pref.map(|p| p.y), self.space.height)
+            .resolve_size(pref.map(|p| p.y), remaining_h)
             .into_parts();
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
@@ -280,6 +311,71 @@ mod tests {
         // This item is width 20.
         let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0)).unwrap();
         assert_eq!(resolved_rect2, Rect::new(0.0, 35.0, 20.0, 15.0));
+    }
+
+    #[test]
+    fn test_wrap_fill_height_remaining() {
+        // 1. Exact(100.0) height
+        {
+            let mut state = WrapLayout {
+                spacing: 0.0,
+                line_spacing: 0.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            // First item takes 80px width, 30px height
+            let _ = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(80.0),
+                        height: Placement::fixed(30.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            // Second item has width 80px (wraps to next line, y=30) and fills remaining height
+            let r = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(80.0),
+                        height: Placement::fill(),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            assert_eq!(r.h, 70.0);
+        }
+
+        // 2. AtMost(100.0) height
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::Exact(100.0), AxisBound::AtMost(100.0));
+            let mut state = WrapLayout {
+                spacing: 0.0,
+                line_spacing: 0.0,
+            }
+            .begin(space);
+            // First item takes 80px width, 30px height
+            let _ = state
+                .layout(
+                    Placement2D {
+                        width: Placement::fixed(80.0),
+                        height: Placement::fixed(30.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            // Second item has width 80px (wraps to next line, y=30) and fills remaining height with large intrinsic
+            let res = state.layout(
+                Placement2D {
+                    width: Placement::fixed(80.0),
+                    height: Placement::fill(),
+                },
+                IntrinsicSize::preferred(Vec2::new(80.0, 90.0)),
+            );
+            let (r, violation) = res.into_parts();
+            assert_eq!(r.h, 70.0);
+            assert!(violation.is_some());
+        }
     }
 
     #[test]
