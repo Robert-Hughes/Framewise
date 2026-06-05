@@ -5,8 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Labels - show some clipped cases (auto-ellipses?)
-* Labels - auto-wrap
+* Go through the 'wrapping' cases on the label demo page, make sure they are working and look good, update them (and corresponding unit tests) if necessary.
 * Update spec page to use auto-wrapping labels rather than manual splitting into lines
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
