@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Consider combining TextFlow, FontId, Weight (and other new attributes like italic) into a shared struct for re-use across widgets. Could also use in the TextSystem interface??
-* Itatlic support
 * Support overridden line heights and char spacing, possibly part of the theme to use for "titles", "body text" etc.
 * Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 
@@ -54,6 +52,12 @@ Tooltip and menu must tell the caller their real size — the caller uses it to 
 Segmented/tabs/select also compute a different size, but high-level just passes the original input rect as LayoutInfo.bounds (segmented.rs:338, tabs.rs:328, select.rs:459). The layout system thinks the widget occupies the requested rect. The actual draw spills outside (or under-fills) that box silently.
 
 Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw area. Segmented/tabs/select are "dishonest" — LayoutInfo.bounds is the input rect, not the actual drawn footprint.
+
+
+
+
+
+* Sample app still does full rendering even when in background, minimsed, nothignb changing etc.
 
 
 ## Things Still to Figure Out
@@ -116,6 +120,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Labels and text measurement
   * All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
   * Consider moving some/all of the SampleTextSystem into framewise (or a related crate?)
+  * Itatlic support - as these are separate .ttf files, we'll need to wrap this up somehow in our SampleTextSystem.
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)

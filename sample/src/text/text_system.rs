@@ -175,18 +175,15 @@ impl TextSystem for SampleTextSystem {
     fn measure(
         &mut self,
         text: &str,
-        size: f32,
-        font: FontId,
-        weight: u16,
-        flow: TextFlow,
+        style: framewise::TextStyle,
         bounds: TextBounds,
     ) -> TextMetrics {
         let key = LayoutKey {
             text: text.to_string(),
-            size_bits: (size * 100.0) as u32,
-            font_id: font.0,
-            weight,
-            flow,
+            size_bits: (style.size * 100.0) as u32,
+            font_id: style.font.0,
+            weight: style.weight,
+            flow: style.flow,
             max_w_bits: bounds.max_width.map(|w| (w * 100.0) as u32),
             max_h_bits: bounds.max_height.map(|h| (h * 100.0) as u32),
             absolute_x_bits: None,
@@ -199,23 +196,23 @@ impl TextSystem for SampleTextSystem {
         // Temporarily set the weight for this font before shaping
         let old_weight = self
             .font_weights
-            .get(font.0 as usize)
+            .get(style.font.0 as usize)
             .copied()
             .unwrap_or(400);
-        self.set_font_weight(font, weight);
+        self.set_font_weight(style.font, style.weight);
 
         let (glyphs, lines, metrics) = self.shape_internal(
             text,
-            size,
-            font,
-            flow,
+            style.size,
+            style.font,
+            style.flow,
             bounds.max_width,
             bounds.max_height,
             None,
         );
 
         // Restore old weight
-        self.set_font_weight(font, old_weight);
+        self.set_font_weight(style.font, old_weight);
 
         // Insert into cache, preventing unbounded growth
         if self.layout_cache.len() >= 2000 {
@@ -226,21 +223,13 @@ impl TextSystem for SampleTextSystem {
         metrics
     }
 
-    fn prepare(
-        &mut self,
-        text: &str,
-        size: f32,
-        font: FontId,
-        weight: u16,
-        flow: TextFlow,
-        rect: Rect,
-    ) -> TextLayout {
+    fn prepare(&mut self, text: &str, style: framewise::TextStyle, rect: Rect) -> TextLayout {
         let key = LayoutKey {
             text: text.to_string(),
-            size_bits: (size * 100.0) as u32,
-            font_id: font.0,
-            weight,
-            flow,
+            size_bits: (style.size * 100.0) as u32,
+            font_id: style.font.0,
+            weight: style.weight,
+            flow: style.flow,
             max_w_bits: Some((rect.w * 100.0) as u32),
             max_h_bits: Some((rect.h * 100.0) as u32),
             absolute_x_bits: Some((rect.x * 100.0) as u32),
@@ -253,14 +242,14 @@ impl TextSystem for SampleTextSystem {
 
         if let Some((glyphs, lines, metrics)) = cached {
             // Populate atlas for any cached glyphs that are needed
-            let opsz = self.opsz_for_size(size, font);
+            let opsz = self.opsz_for_size(style.size, style.font);
             for g in &glyphs {
                 let key = GlyphKey {
-                    font_id: font.0,
+                    font_id: style.font.0,
                     glyph_index: g.key.glyph_index,
                     size: (g.key.px * 10.0) as u32,
                     subpixel_x: g.subpixel_x,
-                    weight,
+                    weight: style.weight,
                     opsz: opsz as u16,
                 };
                 self.ensure_glyph(key);
@@ -268,7 +257,7 @@ impl TextSystem for SampleTextSystem {
 
             let handle_id = self.runs.len();
             self.runs.push(CachedLayout {
-                font_id: font,
+                font_id: style.font,
                 glyphs,
                 lines,
             });
@@ -282,31 +271,31 @@ impl TextSystem for SampleTextSystem {
         // Temporarily set the weight for this font before shaping
         let old_weight = self
             .font_weights
-            .get(font.0 as usize)
+            .get(style.font.0 as usize)
             .copied()
             .unwrap_or(400);
-        self.set_font_weight(font, weight);
+        self.set_font_weight(style.font, style.weight);
 
         // Pass the absolute X coordinate (rect.x) to internal shaper to compute correct subpixel offsets
         let (glyphs, lines, metrics) = self.shape_internal(
             text,
-            size,
-            font,
-            flow,
+            style.size,
+            style.font,
+            style.flow,
             Some(rect.w),
             Some(rect.h),
             Some(rect.x),
         );
 
-        let opsz = self.opsz_for_size(size, font);
+        let opsz = self.opsz_for_size(style.size, style.font);
 
         for g in &glyphs {
             let key = GlyphKey {
-                font_id: font.0,
+                font_id: style.font.0,
                 glyph_index: g.key.glyph_index,
                 size: (g.key.px * 10.0) as u32,
                 subpixel_x: g.subpixel_x,
-                weight,
+                weight: style.weight,
                 opsz: opsz as u16,
             };
             self.ensure_glyph(key);
@@ -314,13 +303,13 @@ impl TextSystem for SampleTextSystem {
 
         let handle_id = self.runs.len();
         self.runs.push(CachedLayout {
-            font_id: font,
+            font_id: style.font,
             glyphs: glyphs.clone(),
             lines: lines.clone(),
         });
 
         // Restore old weight
-        self.set_font_weight(font, old_weight);
+        self.set_font_weight(style.font, old_weight);
 
         // Insert into cache, preventing unbounded growth
         if self.layout_cache.len() >= 2000 {

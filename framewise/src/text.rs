@@ -8,6 +8,55 @@ use crate::types::{Rect, Vec2};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FontId(pub u16);
 
+/// Groups typography attributes together for reuse across the text system and widgets.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextStyle {
+    /// The lightweight font handle.
+    pub font: FontId,
+    /// The font size in logical pixels.
+    pub size: f32,
+    /// Font weight (typically 100-900).
+    pub weight: u16,
+    /// How the text flows and handles overflow.
+    pub flow: TextFlow,
+    /// Whether the text should be rendered in italics.
+    pub italic: bool,
+}
+
+impl TextStyle {
+    pub fn new(font: FontId, size: f32, weight: u16, flow: TextFlow) -> Self {
+        Self {
+            font,
+            size,
+            weight,
+            flow,
+            italic: false,
+        }
+    }
+
+    pub fn with_italic(mut self, italic: bool) -> Self {
+        self.italic = italic;
+        self
+    }
+
+    pub fn with_flow(mut self, flow: TextFlow) -> Self {
+        self.flow = flow;
+        self
+    }
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            font: FontId::default(),
+            size: 14.0,
+            weight: 400,
+            flow: TextFlow::single_line(),
+            italic: false,
+        }
+    }
+}
+
 /// Semantic font roles used by themes and builders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FontRole {
@@ -412,15 +461,7 @@ pub trait TextSystem {
     ///
     /// Must be free of observable side effects on the run table — calling
     /// `measure` does not allocate a [`TextHandle`].
-    fn measure(
-        &mut self,
-        text: &str,
-        size: f32,
-        font: FontId,
-        weight: u16,
-        flow: TextFlow,
-        bounds: TextBounds,
-    ) -> TextMetrics;
+    fn measure(&mut self, text: &str, style: TextStyle, bounds: TextBounds) -> TextMetrics;
 
     /// Shape `text` for drawing into `rect` and register it, returning a handle.
     ///
@@ -432,19 +473,11 @@ pub trait TextSystem {
     /// shaped glyphs) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
     ///
     /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
-    /// would report for the same `text`/`size`/`font`/`weight`/`flow` and
+    /// would report for the same `text` and `style`, with
     /// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
     ///
     /// The handle is valid until the next frame reset (see [`TextHandle`]).
-    fn prepare(
-        &mut self,
-        text: &str,
-        size: f32,
-        font: FontId,
-        weight: u16,
-        flow: TextFlow,
-        rect: Rect,
-    ) -> TextLayout;
+    fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout;
 
     /// Caret geometry for the character boundary at `byte_index`, in block-local
     /// coordinates. See [`CaretGeom`].

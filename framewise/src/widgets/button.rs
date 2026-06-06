@@ -3,7 +3,6 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::FontId,
     types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
@@ -47,10 +46,7 @@ pub mod raw {
         let style = &spec.style;
         let t = text_system.measure(
             spec.text,
-            style.text_size,
-            style.font,
-            style.weight,
-            crate::text::TextFlow::single_line(),
+            style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
         let w = t.size.x + 2.0 * style.pad_x;
@@ -66,26 +62,11 @@ pub mod raw {
         rect: Rect,
         text_system: &mut T,
     ) -> (Rect, crate::text::TextHandle) {
-        let flow = crate::text::TextFlow::single_line();
-        let m = text_system.measure(
-            text,
-            style.text_size,
-            style.font,
-            style.weight,
-            flow,
-            crate::text::TextBounds::UNBOUNDED,
-        );
+        let m = text_system.measure(text, style.text_style, crate::text::TextBounds::UNBOUNDED);
         let tx = rect.x + (rect.w - m.size.x) * 0.5;
         let ty = rect.y + (rect.h - m.size.y) * 0.5;
         let text_rect = Rect::new(tx, ty, m.size.x, m.size.y);
-        let layout = text_system.prepare(
-            text,
-            style.text_size,
-            style.font,
-            style.weight,
-            flow,
-            text_rect,
-        );
+        let layout = text_system.prepare(text, style.text_style, text_rect);
         (text_rect, layout.handle)
     }
 
@@ -244,9 +225,7 @@ pub struct ButtonStyle {
     pub focus: Color,
     pub focus_width: f32,
     pub focus_offset: f32,
-    pub text_size: f32,
-    pub font: FontId,
-    pub weight: u16,
+    pub text_style: crate::text::TextStyle,
     pub text_color: Color,
     pub disabled_alpha: f32,
     /// Horizontal padding each side of the label, used for intrinsic width.
@@ -269,9 +248,12 @@ impl ButtonStyle {
             focus: theme.rust,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
-            text_size: theme.text_md,
-            font: theme.sans_font,
-            weight: theme.sans_weight_regular,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -290,9 +272,12 @@ impl ButtonStyle {
             focus: theme.rust,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
-            text_size: theme.text_md,
-            font: theme.sans_font,
-            weight: theme.sans_weight_regular,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             text_color: theme.paper,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -311,9 +296,12 @@ impl ButtonStyle {
             focus: theme.rust,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
-            text_size: theme.text_md,
-            font: theme.sans_font,
-            weight: theme.sans_weight_regular,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             text_color: Color::WHITE,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -332,9 +320,12 @@ impl ButtonStyle {
             focus: theme.rust,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
-            text_size: theme.text_md,
-            font: theme.sans_font,
-            weight: theme.sans_weight_regular,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -475,6 +466,7 @@ mod tests {
     use super::*;
 
     use crate::test_utils::DummyTextSys;
+    use crate::text::FontId;
     use crate::text::TextHandle;
     use crate::theme;
     use crate::types::Vec2;
@@ -1054,7 +1046,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &input,
@@ -1105,7 +1097,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &input,
@@ -1159,7 +1151,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &input,
@@ -1210,7 +1202,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &Input::default(),
@@ -1273,7 +1265,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &Input::default(),
@@ -1329,9 +1321,12 @@ mod tests {
             focus: Color::from_srgb_u8(255, 0, 0, 255),
             focus_width: 2.0,
             focus_offset: 2.0,
-            text_size: 19.5,
-            font: FontId(0),
-            weight: 400,
+            text_style: crate::text::TextStyle::new(
+                FontId(0),
+                19.5,
+                400,
+                crate::text::TextFlow::single_line(),
+            ),
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -1350,7 +1345,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let res = raw::button(
+        let _res = raw::button(
             spec,
             &mut state,
             &input,
@@ -1389,20 +1384,30 @@ mod tests {
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
         let expected = ButtonStyle::secondary_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().font, expected.font);
-        assert_eq!(builder.style.unwrap().text_size, expected.text_size);
+        assert_eq!(
+            builder.style.unwrap().text_style.font,
+            expected.text_style.font
+        );
+        assert_eq!(
+            builder.style.unwrap().text_style.size,
+            expected.text_style.size
+        );
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
+        let default_primary = ButtonStyle::primary_from_theme(&theme::Theme::default());
         let custom_style = ButtonStyle {
-            text_size: 99.0,
-            ..ButtonStyle::primary_from_theme(&theme::Theme::default())
+            text_style: crate::text::TextStyle {
+                size: 99.0,
+                ..default_primary.text_style
+            },
+            ..default_primary
         };
         let builder = ButtonSpecBuilder::new().text("test").style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]

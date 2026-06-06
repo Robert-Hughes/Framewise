@@ -82,9 +82,13 @@ pub fn draw_label_page(
 
     // Page Title
     let title_style = LabelStyle {
-        size: 32.0,
-        font: theme.sans_font,
-        weight: theme.sans_weight_bold,
+        text_style: framewise::TextStyle {
+            font: theme.sans_font,
+            size: 32.0,
+            weight: theme.sans_weight_bold,
+            flow: framewise::text::TextFlow::single_line(),
+            italic: false,
+        },
         text_color: theme.rust,
         rule: true,
         rule_color: theme.rust,
@@ -100,9 +104,13 @@ pub fn draw_label_page(
     // Section 1: Font Families and Sizes
     {
         let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            weight: theme.sans_weight_bold,
+            text_style: framewise::TextStyle {
+                font: theme.sans_font,
+                size: 20.0,
+                weight: theme.sans_weight_bold,
+                flow: framewise::text::TextFlow::single_line(),
+                italic: false,
+            },
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -132,9 +140,13 @@ pub fn draw_label_page(
                 LabelSpecBuilder::new()
                     .text("Sans Serif (Inter Tight)")
                     .style(LabelStyle {
-                        size: 16.0,
-                        font: theme.sans_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.sans_font,
+                            size: 16.0,
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -154,9 +166,13 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
-                        size: sizes[i],
-                        font: theme.sans_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.sans_font,
+                            size: sizes[i],
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -178,9 +194,13 @@ pub fn draw_label_page(
                 LabelSpecBuilder::new()
                     .text("Monospace (JetBrains Mono)")
                     .style(LabelStyle {
-                        size: 16.0,
-                        font: theme.mono_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 16.0,
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -200,9 +220,13 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
-                        size: sizes[i],
-                        font: theme.mono_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: sizes[i],
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -219,9 +243,13 @@ pub fn draw_label_page(
     // Section 2: Colors and Underline Rules
     {
         let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            weight: theme.sans_weight_bold,
+            text_style: framewise::TextStyle {
+                font: theme.sans_font,
+                size: 20.0,
+                weight: theme.sans_weight_bold,
+                flow: framewise::text::TextFlow::single_line(),
+                italic: false,
+            },
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -263,9 +291,13 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
-                        size: 16.0,
-                        font: theme.sans_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.sans_font,
+                            size: 16.0,
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: color,
                         rule: false,
                         rule_color: theme.line,
@@ -296,9 +328,13 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
-                        size: 16.0,
-                        font: theme.sans_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.sans_font,
+                            size: 16.0,
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: text_col,
                         rule: true,
                         rule_color: rule_col,
@@ -314,9 +350,13 @@ pub fn draw_label_page(
     // Section 4: Overflow (non-wrapping)
     {
         let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            weight: theme.sans_weight_bold,
+            text_style: framewise::TextStyle {
+                font: theme.sans_font,
+                size: 20.0,
+                weight: theme.sans_weight_bold,
+                flow: framewise::text::TextFlow::single_line(),
+                italic: false,
+            },
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -364,8 +404,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("1. X: Drop, Y: Drop")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -382,14 +425,17 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Drop,
-                                overflow_y: OverflowY::Drop,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Drop,
+                                        overflow_y: OverflowY::Drop,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -416,8 +462,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("2. X: Keep, Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -434,14 +483,17 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Keep,
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Keep,
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -468,8 +520,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("3. X: Keep, Y: Ellipsis")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -486,16 +541,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Keep,
-                                overflow_y: OverflowY::Ellipsis {
-                                    fallback: EllipsisFallback::Drop,
-                                },
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Keep,
+                                        overflow_y: OverflowY::Ellipsis {
+                                            fallback: EllipsisFallback::Drop,
+                                        },
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -522,8 +580,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("4. X: Keep, Y: Ell(F:Drop)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -540,16 +601,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Keep,
-                                overflow_y: OverflowY::Ellipsis {
-                                    fallback: EllipsisFallback::Drop,
-                                },
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Keep,
+                                        overflow_y: OverflowY::Ellipsis {
+                                            fallback: EllipsisFallback::Drop,
+                                        },
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -589,8 +653,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("5. X: Keep, Y: Ell(F:Keep)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -607,16 +674,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Keep,
-                                overflow_y: OverflowY::Ellipsis {
-                                    fallback: EllipsisFallback::Keep,
-                                },
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Keep,
+                                        overflow_y: OverflowY::Ellipsis {
+                                            fallback: EllipsisFallback::Keep,
+                                        },
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -643,8 +713,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("6. X: Ellipsis, Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -661,16 +734,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Ellipsis {
-                                    fallback: EllipsisFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Ellipsis {
+                                            fallback: EllipsisFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -697,8 +773,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("7. X: Ell(F:Drop), Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -715,16 +794,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Ellipsis {
-                                    fallback: EllipsisFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Ellipsis {
+                                            fallback: EllipsisFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -751,8 +833,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("8. X: Ell(F:Keep), Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -769,16 +854,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::Ellipsis {
-                                    fallback: EllipsisFallback::Keep,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::Ellipsis {
+                                            fallback: EllipsisFallback::Keep,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -799,9 +887,13 @@ pub fn draw_label_page(
     // Section 4.1: Overflow (wrapping)
     {
         let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            weight: theme.sans_weight_bold,
+            text_style: framewise::TextStyle {
+                font: theme.sans_font,
+                size: 20.0,
+                weight: theme.sans_weight_bold,
+                flow: framewise::text::TextFlow::single_line(),
+                italic: false,
+            },
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -851,8 +943,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("1. X: WrapGlyph, Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -869,16 +964,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapGlyph {
-                                    fallback: WrapGlyphFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapGlyph {
+                                            fallback: WrapGlyphFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -906,8 +1004,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("2. X: WrapGlyph(F:Drop)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -924,16 +1025,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapGlyph {
-                                    fallback: WrapGlyphFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapGlyph {
+                                            fallback: WrapGlyphFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -961,8 +1065,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("3. X: WrapGlyph(F:Keep)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -979,16 +1086,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello\nhello")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapGlyph {
-                                    fallback: WrapGlyphFallback::Keep,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapGlyph {
+                                            fallback: WrapGlyphFallback::Keep,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1035,8 +1145,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("4. X: WrapWord, Y: Keep")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1053,16 +1166,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1090,8 +1206,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("5. X: WrapWord(F:WrapG)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1108,18 +1227,21 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::WrapGlyph {
-                                        fallback: WrapGlyphFallback::Drop,
-                                    },
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::WrapGlyph {
+                                                fallback: WrapGlyphFallback::Drop,
+                                            },
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1147,8 +1269,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("6. X: WrapWord(F:WG F:Dr)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1165,18 +1290,21 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::WrapGlyph {
-                                        fallback: WrapGlyphFallback::Drop,
-                                    },
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::WrapGlyph {
+                                                fallback: WrapGlyphFallback::Drop,
+                                            },
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1217,8 +1345,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("7. X: WrapWord(F:WG F:Kp)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1235,18 +1366,21 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::WrapGlyph {
-                                        fallback: WrapGlyphFallback::Keep,
-                                    },
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::WrapGlyph {
+                                                fallback: WrapGlyphFallback::Keep,
+                                            },
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1274,8 +1408,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("8. X: WrapWord(F:Drop)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1292,16 +1429,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::Drop,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::Drop,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1329,8 +1469,11 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new()
                         .text("9. X: WrapWord(F:Keep)")
                         .style(LabelStyle {
-                            size: 13.0,
-                            font: theme.mono_font,
+                            text_style: framewise::TextStyle {
+                                font: theme.mono_font,
+                                size: 13.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
@@ -1347,16 +1490,19 @@ pub fn draw_label_page(
                         &mut clip_box.ctx,
                         LabelSpecBuilder::new()
                             .text("hello there\nhello there")
-                            .text_flow(TextFlow {
-                                overflow_x: OverflowX::WrapWord {
-                                    fallback: WrapWordFallback::Keep,
-                                },
-                                overflow_y: OverflowY::Keep,
-                                horizontal_align: HorizontalAlign::Start,
-                            })
                             .style(LabelStyle {
-                                size: 14.0,
-                                font: theme.sans_font,
+                                text_style: framewise::TextStyle {
+                                    flow: TextFlow {
+                                        overflow_x: OverflowX::WrapWord {
+                                            fallback: WrapWordFallback::Keep,
+                                        },
+                                        overflow_y: OverflowY::Keep,
+                                        horizontal_align: HorizontalAlign::Start,
+                                    },
+                                    font: theme.sans_font,
+                                    size: 14.0,
+                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                },
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
@@ -1377,9 +1523,13 @@ pub fn draw_label_page(
     // Section 5: Internal Text Alignment
     {
         let section_header = LabelStyle {
-            size: 20.0,
-            font: theme.sans_font,
-            weight: theme.sans_weight_bold,
+            text_style: framewise::TextStyle {
+                font: theme.sans_font,
+                size: 20.0,
+                weight: theme.sans_weight_bold,
+                flow: framewise::text::TextFlow::single_line(),
+                italic: false,
+            },
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1423,9 +1573,13 @@ pub fn draw_label_page(
                         HorizontalAlign::End => "TextFlow::horizontal_align(End)",
                     })
                     .style(LabelStyle {
-                        size: 11.0,
-                        font: theme.mono_font,
-                        weight: theme.sans_weight_regular,
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 11.0,
+                            weight: theme.sans_weight_regular,
+                            flow: framewise::text::TextFlow::single_line(),
+                            italic: false,
+                        },
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -1435,21 +1589,22 @@ pub fn draw_label_page(
 
             label(
                 &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text(text)
-                    .text_flow(TextFlow {
-                        overflow_x: OverflowX::Drop,
-                        overflow_y: OverflowY::Drop,
-                        horizontal_align: text_align,
-                    })
-                    .style(LabelStyle {
-                        size: 14.0,
+                LabelSpecBuilder::new().text(text).style(LabelStyle {
+                    text_style: framewise::TextStyle {
                         font: theme.sans_font,
+                        size: 14.0,
                         weight: theme.sans_weight_regular,
-                        text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
-                    }),
+                        flow: TextFlow {
+                            overflow_x: OverflowX::Drop,
+                            overflow_y: OverflowY::Drop,
+                            horizontal_align: text_align,
+                        },
+                        italic: false,
+                    },
+                    text_color: theme.ink,
+                    rule: false,
+                    rule_color: theme.line,
+                }),
                 Placement2D {
                     width: Placement::fill(),
                     height: Placement::auto(),
@@ -1468,9 +1623,13 @@ pub fn draw_label_page(
         LabelSpecBuilder::new()
             .text("Press F1-F5 to navigate to other showcase pages. (F6 for Labels)")
             .style(LabelStyle {
-                size: 12.0,
-                font: theme.mono_font,
-                weight: theme.sans_weight_regular,
+                text_style: framewise::TextStyle {
+                    font: theme.mono_font,
+                    size: 12.0,
+                    weight: theme.sans_weight_regular,
+                    flow: framewise::text::TextFlow::single_line(),
+                    italic: false,
+                },
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
                 rule: false,
                 rule_color: theme.line,

@@ -1878,7 +1878,7 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(
+        let _result = raw::slider(
             spec.clone(),
             &mut state,
             &input,
@@ -1923,7 +1923,7 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(
+        let _result = raw::slider(
             spec.clone(),
             &mut state,
             &input,
@@ -1968,7 +1968,7 @@ mod tests {
         input.mouse_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(
+        let _result = raw::slider(
             spec.clone(),
             &mut state,
             &input,
@@ -2013,7 +2013,7 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let result = raw::slider(
+        let _result = raw::slider(
             spec.clone(),
             &mut state,
             &input,

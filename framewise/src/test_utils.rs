@@ -1,6 +1,4 @@
-use crate::text::{
-    CaretGeom, FontId, TextBounds, TextFlow, TextHandle, TextLayout, TextMetrics, TextSystem,
-};
+use crate::text::{CaretGeom, TextBounds, TextHandle, TextLayout, TextMetrics, TextSystem};
 use crate::types::{Rect, Vec2};
 
 /// A dummy text system for unit tests that provides representative text dimensions.
@@ -22,24 +20,13 @@ impl TextSystem for DummyTextSys {
     fn measure(
         &mut self,
         text: &str,
-        _size: f32,
-        _font: FontId,
-        _weight: u16,
-        _flow: TextFlow,
+        _style: crate::text::TextStyle,
         _bounds: TextBounds,
     ) -> TextMetrics {
         Self::metrics(text)
     }
 
-    fn prepare(
-        &mut self,
-        text: &str,
-        _size: f32,
-        _font: FontId,
-        _weight: u16,
-        _flow: TextFlow,
-        _rect: Rect,
-    ) -> TextLayout {
+    fn prepare(&mut self, text: &str, _style: crate::text::TextStyle, _rect: Rect) -> TextLayout {
         TextLayout {
             handle: TextHandle(0),
             metrics: Self::metrics(text),

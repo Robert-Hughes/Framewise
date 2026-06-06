@@ -3,7 +3,8 @@ mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::{
         EllipsisFallback, FontId, HorizontalAlign, OverflowX, OverflowY, Rect, TextBounds,
-        TextFlow, TextHandle, TextSystem, Vec2, WrapGlyphFallback, WrapWordFallback,
+        TextFlow, TextHandle, TextLayout, TextMetrics, TextStyle, TextSystem, Vec2,
+        WrapGlyphFallback, WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
@@ -20,8 +21,16 @@ mod tests {
         let mut sys = sys();
         let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
 
-        let _ = sys.prepare("A", 12.0, FontId(0), 400, TextFlow::single_line(), rect);
-        let _ = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "A",
+            TextStyle::new(FontId(0), 12.0, 400, TextFlow::single_line()),
+            rect,
+        );
+        let _ = sys.prepare(
+            "A",
+            TextStyle::new(FontId(1), 12.0, 400, TextFlow::single_line()),
+            rect,
+        );
 
         assert!(sys.glyph_cache.keys().any(|key| key.font_id == 0));
         assert!(sys.glyph_cache.keys().any(|key| key.font_id == 1));
@@ -33,17 +42,33 @@ mod tests {
         let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
 
         // 1. Check weight variations
-        let _ = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
-        let _ = sys.prepare("A", 12.0, FontId(1), 700, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "A",
+            TextStyle::new(FontId(1), 12.0, 400, TextFlow::single_line()),
+            rect,
+        );
+        let _ = sys.prepare(
+            "A",
+            TextStyle::new(FontId(1), 12.0, 700, TextFlow::single_line()),
+            rect,
+        );
 
         assert!(sys.glyph_cache.keys().any(|key| key.weight == 400));
         assert!(sys.glyph_cache.keys().any(|key| key.weight == 700));
 
         // 2. Check optical size variations
         // Preparing with size 14.0 -> opsz = 14
-        let _ = sys.prepare("B", 14.0, FontId(1), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "B",
+            TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
+            rect,
+        );
         // Preparing with size 32.0 -> opsz = 32
-        let _ = sys.prepare("B", 32.0, FontId(1), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "B",
+            TextStyle::new(FontId(1), 32.0, 400, TextFlow::single_line()),
+            rect,
+        );
 
         assert!(sys.glyph_cache.keys().any(|key| key.opsz == 14));
         assert!(sys.glyph_cache.keys().any(|key| key.opsz == 32));
@@ -56,18 +81,12 @@ mod tests {
 
         let regular_metrics = sys.measure(
             text,
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
         let bold_metrics = sys.measure(
             text,
-            16.0,
-            FontId(1),
-            700,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 16.0, 700, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
 
@@ -84,7 +103,11 @@ mod tests {
     fn font_without_opsz_uses_zero_opsz() {
         let mut sys = sys();
         let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
-        let _ = sys.prepare("A", 12.0, FontId(0), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "A",
+            TextStyle::new(FontId(0), 12.0, 400, TextFlow::single_line()),
+            rect,
+        );
 
         // FontId(0) (JetBrainsMono) has no opsz range, so opsz should be 0 in the glyph cache
         let keys: Vec<_> = sys
@@ -105,18 +128,12 @@ mod tests {
 
         let regular_metrics = sys.measure(
             text,
-            14.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 14.0, 400, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
         let bold_metrics = sys.measure(
             text,
-            14.0,
-            FontId(0),
-            700,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 14.0, 700, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
 
@@ -129,8 +146,16 @@ mod tests {
 
         // However, they should produce separate cached glyph entries in the atlas
         let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
-        let _ = sys.prepare("M", 14.0, FontId(0), 400, TextFlow::single_line(), rect);
-        let _ = sys.prepare("M", 14.0, FontId(0), 700, TextFlow::single_line(), rect);
+        let _ = sys.prepare(
+            "M",
+            TextStyle::new(FontId(0), 14.0, 400, TextFlow::single_line()),
+            rect,
+        );
+        let _ = sys.prepare(
+            "M",
+            TextStyle::new(FontId(0), 14.0, 700, TextFlow::single_line()),
+            rect,
+        );
 
         assert!(sys
             .glyph_cache
@@ -153,10 +178,7 @@ mod tests {
         // 2. Prepare first layout -> cache miss
         let layout1 = sys.prepare(
             "Cache Test",
-            14.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
             rect,
         );
         assert_eq!(sys.layout_cache.len(), 1);
@@ -164,10 +186,7 @@ mod tests {
         // 3. Prepare identical layout -> cache hit
         let layout2 = sys.prepare(
             "Cache Test",
-            14.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
             rect,
         );
         assert_eq!(sys.layout_cache.len(), 1); // Length did not change
@@ -176,10 +195,7 @@ mod tests {
         // 4. Prepare with different weight -> cache miss (distinct entry)
         let _ = sys.prepare(
             "Cache Test",
-            14.0,
-            FontId(1),
-            700,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.0, 700, TextFlow::single_line()),
             rect,
         );
         assert_eq!(sys.layout_cache.len(), 2);
@@ -188,10 +204,7 @@ mod tests {
         let rect2 = Rect::new(0.0, 0.0, 100.0, 40.0);
         let _ = sys.prepare(
             "Cache Test",
-            14.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
             rect2,
         );
         assert_eq!(sys.layout_cache.len(), 3);
@@ -202,10 +215,7 @@ mod tests {
             let unique_text = format!("text_{i}");
             let _ = sys.prepare(
                 &unique_text,
-                14.0,
-                FontId(1),
-                400,
-                TextFlow::single_line(),
+                TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
                 rect,
             );
         }
@@ -213,7 +223,7 @@ mod tests {
         // After inserting 2005 unique items, the cache should have cleared at least once,
         // and its size should be low (specifically, 6: 1 from the last insert after clear, plus any subsequent ones).
         assert!(sys.layout_cache.len() < 2000);
-        assert!(sys.layout_cache.len() > 0);
+        assert!(!sys.layout_cache.is_empty());
     }
 
     #[test]
@@ -221,10 +231,7 @@ mod tests {
         let mut sys = sys();
         let m = sys.measure(
             "hello world",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
         assert_eq!(m.line_count, 1);
@@ -237,10 +244,7 @@ mod tests {
         let mut sys = sys();
         let m = sys.measure(
             "a\nb\nc",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             TextBounds::UNBOUNDED,
         );
         assert_eq!(m.line_count, 3);
@@ -252,10 +256,7 @@ mod tests {
         let flow = TextFlow::wrapped();
         let layout = sys.prepare(
             "hello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 500.0, 100.0),
         );
         let text = visible(&sys, layout.handle);
@@ -267,20 +268,14 @@ mod tests {
         let mut sys = sys();
         let unwrapped = sys.measure(
             "the quick brown fox jumps over the lazy dog",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::wrapped(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
             TextBounds::UNBOUNDED,
         );
         assert_eq!(unwrapped.line_count, 1);
 
         let wrapped = sys.measure(
             "the quick brown fox jumps over the lazy dog",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::wrapped(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
             TextBounds::width(80.0),
         );
         assert!(wrapped.line_count > 1);
@@ -293,10 +288,7 @@ mod tests {
         let lh = sys.line_height(16.0, FontId(1));
         let m = sys.measure(
             "the quick brown fox jumps over the lazy dog again and again",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::wrapped(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
             TextBounds {
                 max_width: Some(80.0),
                 max_height: Some(lh * 2.0 + 1.0),
@@ -311,10 +303,7 @@ mod tests {
         let mut sys = sys();
         let m = sys.measure(
             "hello world this is a long line",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line()),
             TextBounds {
                 max_width: Some(40.0),
                 max_height: Some(100.0),
@@ -330,10 +319,7 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "abc",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
         let c0 = sys.caret_geom(layout.handle, 0);
@@ -347,10 +333,7 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "abc",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
         let far = sys.hit_test(layout.handle, Vec2::new(1000.0, 5.0));
@@ -365,10 +348,7 @@ mod tests {
         let rect = Rect::new(10.2, 20.7, 500.0, 200.0);
         let layout = sys.prepare(
             "First Line\nSecond Line\nThird Line",
-            14.5,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.5, 400, TextFlow::single_line()),
             rect,
         );
 
@@ -414,7 +394,11 @@ mod tests {
 
         for (abs_x, expected_bin) in test_cases {
             let rect = Rect::new(abs_x, 20.0, 200.0, 40.0);
-            let layout = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
+            let layout = sys.prepare(
+                "A",
+                TextStyle::new(FontId(1), 12.0, 400, TextFlow::single_line()),
+                rect,
+            );
             let run = &sys.runs[layout.handle.0];
             let g = &run.glyphs[0];
             assert_eq!(
@@ -431,10 +415,7 @@ mod tests {
         let rect = Rect::new(10.0, 15.0, 180.0, 30.0);
         let layout = sys.prepare(
             "Headless Test.",
-            14.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
             rect,
         );
         let run = &sys.runs[layout.handle.0];
@@ -469,10 +450,7 @@ mod tests {
         let size = 14.0;
         let layout = sys.prepare(
             text,
-            size,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), size, 400, TextFlow::single_line()),
             Rect::new(10.0, 15.0, 180.0, 30.0),
         );
 
@@ -543,16 +521,18 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "hello world this is long",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow {
-                overflow_x: OverflowX::Ellipsis {
-                    fallback: EllipsisFallback::Drop,
+            TextStyle::new(
+                FontId(1),
+                16.0,
+                400,
+                TextFlow {
+                    overflow_x: OverflowX::Ellipsis {
+                        fallback: EllipsisFallback::Drop,
+                    },
+                    overflow_y: OverflowY::Drop,
+                    horizontal_align: HorizontalAlign::Start,
                 },
-                overflow_y: OverflowY::Drop,
-                horizontal_align: HorizontalAlign::Start,
-            },
+            ),
             Rect::new(0.0, 0.0, 40.0, 30.0),
         );
         let text = visible(&sys, layout.handle);
@@ -568,10 +548,7 @@ mod tests {
         let lh = sys.line_height(16.0, FontId(1));
         let layout = sys.prepare(
             "the quick brown fox jumps over the lazy dog and then keeps going",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::wrapped(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
             Rect::new(0.0, 0.0, 80.0, lh * 2.0 + 1.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
@@ -587,14 +564,16 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "hi",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow {
-                overflow_x: OverflowX::Drop,
-                overflow_y: OverflowY::Drop,
-                horizontal_align: HorizontalAlign::Center,
-            },
+            TextStyle::new(
+                FontId(1),
+                16.0,
+                400,
+                TextFlow {
+                    overflow_x: OverflowX::Drop,
+                    overflow_y: OverflowY::Drop,
+                    horizontal_align: HorizontalAlign::Center,
+                },
+            ),
             Rect::new(0.0, 0.0, 200.0, 30.0),
         );
         let first_x = sys.runs[layout.handle.0].glyphs[0].x;
@@ -609,10 +588,7 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "abc\ndef",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
         let c_line2 = sys.caret_geom(layout.handle, 4);
@@ -627,18 +603,20 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "supercalifragilisticexpialidocious",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow {
-                overflow_x: OverflowX::WrapWord {
-                    fallback: WrapWordFallback::WrapGlyph {
-                        fallback: WrapGlyphFallback::Drop,
+            TextStyle::new(
+                FontId(1),
+                16.0,
+                400,
+                TextFlow {
+                    overflow_x: OverflowX::WrapWord {
+                        fallback: WrapWordFallback::WrapGlyph {
+                            fallback: WrapGlyphFallback::Drop,
+                        },
                     },
+                    overflow_y: OverflowY::Drop,
+                    horizontal_align: HorizontalAlign::Start,
                 },
-                overflow_y: OverflowY::Drop,
-                horizontal_align: HorizontalAlign::Start,
-            },
+            ),
             Rect::new(0.0, 0.0, 40.0, 200.0),
         );
         let lines = sys.runs[layout.handle.0].lines.len();
@@ -659,7 +637,11 @@ mod tests {
             horizontal_align: HorizontalAlign::Start,
         };
         let rect = Rect::new(0.0, 0.0, 50.0, 30.0);
-        let layout = sys.prepare("hello world this is long", 16.0, FontId(1), 400, flow, rect);
+        let layout = sys.prepare(
+            "hello world this is long",
+            TextStyle::new(FontId(1), 16.0, 400, flow),
+            rect,
+        );
         let reported = layout.metrics.size.x;
         let actual = rendered_width(&sys, layout.handle);
         assert!(
@@ -674,16 +656,18 @@ mod tests {
         let rect = Rect::new(0.0, 0.0, 40.0, 30.0);
         let layout = sys.prepare(
             "hello world this is long",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow {
-                overflow_x: OverflowX::Ellipsis {
-                    fallback: EllipsisFallback::Drop,
+            TextStyle::new(
+                FontId(1),
+                16.0,
+                400,
+                TextFlow {
+                    overflow_x: OverflowX::Ellipsis {
+                        fallback: EllipsisFallback::Drop,
+                    },
+                    overflow_y: OverflowY::Drop,
+                    horizontal_align: HorizontalAlign::Center,
                 },
-                overflow_y: OverflowY::Drop,
-                horizontal_align: HorizontalAlign::Center,
-            },
+            ),
             rect,
         );
         let left = sys.runs[layout.handle.0]
@@ -702,10 +686,7 @@ mod tests {
         let mut sys = sys();
         let layout = sys.prepare(
             "abc\ndef",
-            16.0,
-            FontId(0),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
         let lh = sys.line_height(16.0, FontId(0));
@@ -719,10 +700,7 @@ mod tests {
         let rect = Rect::new(0.0, 0.0, 500.0, 100.0);
         let layout = sys.prepare(
             "Hello World",
-            16.0,
-            FontId(1),
-            400,
-            TextFlow::single_line(),
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line()),
             rect,
         );
 
@@ -760,10 +738,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
@@ -785,10 +760,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
@@ -826,10 +798,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
@@ -853,10 +822,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 8.0, lh * 1.5),
         );
         let run = &sys.runs[layout.handle.0];
@@ -876,10 +842,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 8.0, lh * 1.5),
         );
         let text = visible(&sys, layout.handle);
@@ -902,10 +865,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 23.0, lh * 2.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
@@ -932,10 +892,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 8.0, lh * 2.5),
         );
         let run = &sys.runs[layout.handle.0];
@@ -955,10 +912,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 8.0, lh * 2.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
@@ -985,10 +939,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 23.0, 65.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
@@ -1009,10 +960,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 6.0, 70.0),
         );
         let text = visible(&sys, layout.handle);
@@ -1033,10 +981,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 4.0, lh * 13.0),
         );
         // Expect 10 lines: 5 lines for each "hello". The newline character '\n'
@@ -1068,10 +1013,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 48.0, lh * 4.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
@@ -1095,10 +1037,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 23.0, lh * 10.0),
         );
         assert!(sys.runs[layout.handle.0].lines.len() > 4);
@@ -1132,10 +1071,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 6.0, lh * 10.0),
         );
         let text = visible(&sys, layout.handle);
@@ -1158,10 +1094,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 4.0, lh * 25.0),
         );
         let text = visible(&sys, layout.handle);
@@ -1192,10 +1125,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
@@ -1222,10 +1152,7 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            16.0,
-            FontId(1),
-            400,
-            flow,
+            TextStyle::new(FontId(1), 16.0, 400, flow),
             Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );
         let run = &sys.runs[layout.handle.0];
