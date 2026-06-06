@@ -43,6 +43,8 @@ use swash::FontRef;
 
 pub struct SampleTextSystem {
     pub fonts: Vec<FontRef<'static>>,
+    pub font_opsz_ranges: Vec<(f32, f32)>, // (min, max) for each font's opsz axis
+    pub font_weights: Vec<u16>, // Current weight setting for each font (for variable fonts)
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
     pub runs: Vec<CachedLayout>,
@@ -64,15 +66,41 @@ impl SampleTextSystem {
     pub fn new() -> Self {
         let mono_data = include_bytes!("../../assets/JetBrainsMono-Regular.ttf") as &[u8];
         let mono = FontRef::from_index(mono_data, 0).expect("failed to load JetBrainsMono font");
-        let sans_data = include_bytes!("../../assets/InterTight-Regular.ttf") as &[u8];
-        let sans = FontRef::from_index(sans_data, 0).expect("failed to load InterTight font");
-        let sans_bold_data = include_bytes!("../../assets/InterTight-Bold.ttf") as &[u8];
-        let sans_bold =
-            FontRef::from_index(sans_bold_data, 0).expect("failed to load InterTight-Bold font");
+
+        // Load Inter variable font (replaces InterTight-Regular and InterTight-Bold)
+        let sans_data =
+            include_bytes!("../../assets/Inter/Inter-VariableFont_opsz,wght.ttf") as &[u8];
+        let sans = FontRef::from_index(sans_data, 0).expect("failed to load Inter variable font");
+
+        // Extract opsz range from each font
+        let mut font_opsz_ranges = Vec::new();
+
+        // JetBrainsMono has no opsz axis
+        font_opsz_ranges.push((0.0, 0.0));
+
+        // Inter has opsz axis - extract its range
+        let opsz_range = {
+            let variations = sans.variations();
+            let mut range = (14.0, 32.0); // fallback to documented range
+            for var in variations {
+                let tag = var.tag();
+                // 'opsz' = 0x6F70737A
+                if tag == 0x6F70737A {
+                    // Note: swash Variation doesn't expose min/max directly in all versions
+                    // Use documented Inter range for now
+                    range = (14.0, 32.0);
+                    break;
+                }
+            }
+            range
+        };
+        font_opsz_ranges.push(opsz_range);
 
         let atlas_size = 1024;
         Self {
-            fonts: vec![mono, sans, sans_bold],
+            fonts: vec![mono, sans],
+            font_opsz_ranges,
+            font_weights: vec![400, 400], // Default weights for each font
             shape_context: ShapeContext::new(),
             scale_context: ScaleContext::new(),
             runs: Vec::new(),
@@ -83,6 +111,13 @@ impl SampleTextSystem {
             current_y: 0,
             row_height: 0,
             atlas_dirty: false,
+        }
+    }
+
+    /// Set the weight to use for a specific font. Used to control variable font weight axis.
+    pub fn set_font_weight(&mut self, font_id: FontId, weight: u16) {
+        if (font_id.0 as usize) < self.font_weights.len() {
+            self.font_weights[font_id.0 as usize] = weight;
         }
     }
 
@@ -98,9 +133,18 @@ impl TextSystem for SampleTextSystem {
         text: &str,
         size: f32,
         font: FontId,
+        weight: u16,
         flow: TextFlow,
         bounds: TextBounds,
     ) -> TextMetrics {
+        // Temporarily set the weight for this font before shaping
+        let old_weight = self
+            .font_weights
+            .get(font.0 as usize)
+            .copied()
+            .unwrap_or(400);
+        self.set_font_weight(font, weight);
+
         let (_glyphs, _lines, metrics) = self.shape_internal(
             text,
             size,
@@ -110,6 +154,9 @@ impl TextSystem for SampleTextSystem {
             bounds.max_height,
             None,
         );
+
+        // Restore old weight
+        self.set_font_weight(font, old_weight);
         metrics
     }
 
@@ -118,9 +165,18 @@ impl TextSystem for SampleTextSystem {
         text: &str,
         size: f32,
         font: FontId,
+        weight: u16,
         flow: TextFlow,
         rect: Rect,
     ) -> TextLayout {
+        // Temporarily set the weight for this font before shaping
+        let old_weight = self
+            .font_weights
+            .get(font.0 as usize)
+            .copied()
+            .unwrap_or(400);
+        self.set_font_weight(font, weight);
+
         // Pass the absolute X coordinate (rect.x) to internal shaper to compute correct subpixel offsets
         let (glyphs, lines, metrics) = self.shape_internal(
             text,
@@ -132,12 +188,16 @@ impl TextSystem for SampleTextSystem {
             Some(rect.x),
         );
 
+        let opsz = self.opsz_for_size(size, font);
+
         for g in &glyphs {
             let key = GlyphKey {
                 font_id: font.0,
                 glyph_index: g.key.glyph_index,
                 size: (g.key.px * 10.0) as u32,
                 subpixel_x: g.subpixel_x,
+                weight,
+                opsz: opsz as u16,
             };
             self.ensure_glyph(key);
         }
@@ -148,6 +208,9 @@ impl TextSystem for SampleTextSystem {
             glyphs,
             lines,
         });
+
+        // Restore old weight
+        self.set_font_weight(font, old_weight);
 
         TextLayout {
             handle: framewise::TextHandle(handle_id),

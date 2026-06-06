@@ -49,6 +49,7 @@ pub mod raw {
             spec.text,
             style.text_size,
             style.font,
+            style.weight,
             crate::text::TextFlow::single_line(),
             crate::text::TextBounds::UNBOUNDED,
         );
@@ -70,13 +71,21 @@ pub mod raw {
             text,
             style.text_size,
             style.font,
+            style.weight,
             flow,
             crate::text::TextBounds::UNBOUNDED,
         );
         let tx = rect.x + (rect.w - m.size.x) * 0.5;
         let ty = rect.y + (rect.h - m.size.y) * 0.5;
         let text_rect = Rect::new(tx, ty, m.size.x, m.size.y);
-        let layout = text_system.prepare(text, style.text_size, style.font, flow, text_rect);
+        let layout = text_system.prepare(
+            text,
+            style.text_size,
+            style.font,
+            style.weight,
+            flow,
+            text_rect,
+        );
         (text_rect, layout.handle)
     }
 
@@ -237,6 +246,7 @@ pub struct ButtonStyle {
     pub focus_offset: f32,
     pub text_size: f32,
     pub font: FontId,
+    pub weight: u16,
     pub text_color: Color,
     pub disabled_alpha: f32,
     /// Horizontal padding each side of the label, used for intrinsic width.
@@ -261,6 +271,7 @@ impl ButtonStyle {
             focus_offset: theme.focus_offset,
             text_size: theme.text_md,
             font: theme.sans_font,
+            weight: theme.sans_weight_regular,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -281,6 +292,7 @@ impl ButtonStyle {
             focus_offset: theme.focus_offset,
             text_size: theme.text_md,
             font: theme.sans_font,
+            weight: theme.sans_weight_regular,
             text_color: theme.paper,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -301,6 +313,7 @@ impl ButtonStyle {
             focus_offset: theme.focus_offset,
             text_size: theme.text_md,
             font: theme.sans_font,
+            weight: theme.sans_weight_regular,
             text_color: Color::WHITE,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -321,6 +334,7 @@ impl ButtonStyle {
             focus_offset: theme.focus_offset,
             text_size: theme.text_md,
             font: theme.sans_font,
+            weight: theme.sans_weight_regular,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -1317,6 +1331,7 @@ mod tests {
             focus_offset: 2.0,
             text_size: 19.5,
             font: FontId(0),
+            weight: 400,
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
             disabled_alpha: 0.32f32,
             pad_x: 14.0,

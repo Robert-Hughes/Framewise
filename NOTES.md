@@ -6,6 +6,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ---
 
 * Use variable ttf fonts now that we support them?
+  * Inter
+  * JetBrains mono
+* Consider combining TextFlow, FontId, Weight (and other new attributes like italic) into a shared struct for re-use across widgets. Could also use in the TextSystem interface??
+* Itatlic Inter support
 * Support overridden line heights and char spacing, possibly part of the theme to use for "titles", "body text" etc.
 * Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 

@@ -9,7 +9,8 @@ use crate::types::Color;
 pub struct Theme {
     // Fonts
     pub sans_font: FontId,
-    pub sans_bold_font: FontId,
+    pub sans_weight_regular: u16, // Default sans weight (typically 400)
+    pub sans_weight_bold: u16,    // Bold sans weight (typically 700)
     pub mono_font: FontId,
 
     // Palette
@@ -50,7 +51,8 @@ impl Theme {
     pub fn framewise() -> Self {
         Self {
             sans_font: FontId(1),
-            sans_bold_font: FontId(2),
+            sans_weight_regular: 400,
+            sans_weight_bold: 700,
             mono_font: FontId(0),
             ink: Color::from_srgb_u8(21, 19, 15, 255),
             paper: Color::from_srgb_u8(244, 241, 234, 255),

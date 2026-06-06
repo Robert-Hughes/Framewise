@@ -45,10 +45,12 @@ pub mod raw {
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let style = &spec.style;
+
         let t = text_system.measure(
             spec.text,
             style.size,
             style.font,
+            style.weight,
             spec.text_flow,
             crate::text::TextBounds::UNBOUNDED,
         );
@@ -68,6 +70,7 @@ pub mod raw {
             spec.text,
             spec.style.size,
             spec.style.font,
+            spec.style.weight,
             spec.text_flow,
             spec.rect,
         );
@@ -101,6 +104,7 @@ pub mod raw {
 pub struct LabelStyle {
     pub size: f32,
     pub font: FontId,
+    pub weight: u16, // Font weight (100-900)
     pub text_color: Color,
     pub rule: bool,
     pub rule_color: Color,
@@ -111,6 +115,7 @@ impl LabelStyle {
         Self {
             size: theme.text_md,
             font: theme.sans_font,
+            weight: theme.sans_weight_regular,
             text_color: theme.ink,
             rule: false,
             rule_color: theme.line,
@@ -235,6 +240,7 @@ mod tests {
             _text: &str,
             _size: f32,
             _font: FontId,
+            _weight: u16,
             _flow: crate::text::TextFlow,
             _bounds: crate::text::TextBounds,
         ) -> crate::text::TextMetrics {
@@ -251,6 +257,7 @@ mod tests {
             _text: &str,
             _size: f32,
             font: FontId,
+            _weight: u16,
             _flow: crate::text::TextFlow,
             _rect: Rect,
         ) -> crate::text::TextLayout {
@@ -288,6 +295,7 @@ mod tests {
             style: LabelStyle {
                 size: 16.0,
                 font: FontId(1),
+                weight: 400,
                 text_color: Color::WHITE,
                 rule: false,
                 rule_color: Color::WHITE,
@@ -317,6 +325,7 @@ mod tests {
             style: LabelStyle {
                 size: 14.0,
                 font: FontId(1),
+                weight: 400,
                 text_color: Color::WHITE,
                 rule: true,
                 rule_color: Color::WHITE,
@@ -354,6 +363,7 @@ mod tests {
             style: LabelStyle {
                 size: 14.0,
                 font: expected,
+                weight: 400,
                 text_color: Color::WHITE,
                 rule: false,
                 rule_color: Color::WHITE,
@@ -382,6 +392,7 @@ mod tests {
         let custom_style = LabelStyle {
             size: 99.0,
             font: FontId(99),
+            weight: 400,
             text_color: Color::from_srgb_u8(1, 2, 3, 255),
             rule: true,
             rule_color: Color::from_srgb_u8(4, 5, 6, 255),

@@ -1197,13 +1197,15 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
                     let color = t.ink;
-                    let font = t.sans_bold_font;
+                    let font = t.sans_font;
+                    let weight = t.sans_weight_bold;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("A widget set that explains itself.")
                         .text_flow(framewise::text::TextFlow::wrapped())
                         .style(LabelStyle {
                             size: 56.0,
                             font,
+                            weight,
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });
@@ -1242,10 +1244,12 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(mx, my, 60.0, 14.0);
                         let size = t.text_sm;
                         let color = t.ink;
-                        let font = t.sans_bold_font;
+                        let font = t.sans_font;
+                        let weight = t.sans_weight_bold;
                         let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
                             size,
                             font,
+                            weight,
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });

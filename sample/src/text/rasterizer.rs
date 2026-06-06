@@ -12,12 +12,20 @@ impl SampleTextSystem {
         let font = self.fonts[key.font_id as usize];
         let size = key.size as f32 / 10.0;
 
-        let mut scaler = self
-            .scale_context
-            .builder(font)
-            .size(size)
-            .hint(true)
-            .build();
+        // Build variation settings if applicable
+        let variations: &[(&str, f32)] = if key.opsz > 0 {
+            &[("wght", key.weight as f32), ("opsz", key.opsz as f32)]
+        } else {
+            &[]
+        };
+
+        let mut scaler_builder = self.scale_context.builder(font).size(size).hint(true);
+
+        if !variations.is_empty() {
+            scaler_builder = scaler_builder.variations(variations);
+        }
+
+        let mut scaler = scaler_builder.build();
 
         // Calculate horizontal subpixel offset:
         // subpixel_x is 0, 1, 2, or 3 representing 0.0, 0.25, 0.50, 0.75
@@ -105,12 +113,16 @@ impl SampleTextSystem {
         glyph_index: u16,
         size: f32,
         subpixel_x: u8,
+        weight: u16,
+        opsz: u16,
     ) -> (u32, u32) {
         let key = GlyphKey {
             font_id,
             glyph_index,
             size: (size * 10.0) as u32,
             subpixel_x,
+            weight,
+            opsz,
         };
         self.ensure_glyph(key);
         let info = self.glyph_cache.get(&key).unwrap();

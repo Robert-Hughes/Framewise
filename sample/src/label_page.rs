@@ -84,6 +84,7 @@ pub fn draw_label_page(
     let title_style = LabelStyle {
         size: 32.0,
         font: theme.sans_font,
+        weight: theme.sans_weight_bold,
         text_color: theme.rust,
         rule: true,
         rule_color: theme.rust,
@@ -101,6 +102,7 @@ pub fn draw_label_page(
         let section_header = LabelStyle {
             size: 20.0,
             font: theme.sans_font,
+            weight: theme.sans_weight_bold,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -132,6 +134,7 @@ pub fn draw_label_page(
                     .style(LabelStyle {
                         size: 16.0,
                         font: theme.sans_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -153,6 +156,7 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
                         size: sizes[i],
                         font: theme.sans_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -176,6 +180,7 @@ pub fn draw_label_page(
                     .style(LabelStyle {
                         size: 16.0,
                         font: theme.mono_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -197,6 +202,7 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
                         size: sizes[i],
                         font: theme.mono_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -215,6 +221,7 @@ pub fn draw_label_page(
         let section_header = LabelStyle {
             size: 20.0,
             font: theme.sans_font,
+            weight: theme.sans_weight_bold,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -258,6 +265,7 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size: 16.0,
                         font: theme.sans_font,
+                        weight: theme.sans_weight_regular,
                         text_color: color,
                         rule: false,
                         rule_color: theme.line,
@@ -290,6 +298,7 @@ pub fn draw_label_page(
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
                         size: 16.0,
                         font: theme.sans_font,
+                        weight: theme.sans_weight_regular,
                         text_color: text_col,
                         rule: true,
                         rule_color: rule_col,
@@ -307,6 +316,7 @@ pub fn draw_label_page(
         let section_header = LabelStyle {
             size: 20.0,
             font: theme.sans_font,
+            weight: theme.sans_weight_bold,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -791,6 +801,7 @@ pub fn draw_label_page(
         let section_header = LabelStyle {
             size: 20.0,
             font: theme.sans_font,
+            weight: theme.sans_weight_bold,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1368,6 +1379,7 @@ pub fn draw_label_page(
         let section_header = LabelStyle {
             size: 20.0,
             font: theme.sans_font,
+            weight: theme.sans_weight_bold,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1413,6 +1425,7 @@ pub fn draw_label_page(
                     .style(LabelStyle {
                         size: 11.0,
                         font: theme.mono_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -1432,6 +1445,7 @@ pub fn draw_label_page(
                     .style(LabelStyle {
                         size: 14.0,
                         font: theme.sans_font,
+                        weight: theme.sans_weight_regular,
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -1456,6 +1470,7 @@ pub fn draw_label_page(
             .style(LabelStyle {
                 size: 12.0,
                 font: theme.mono_font,
+                weight: theme.sans_weight_regular,
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
                 rule: false,
                 rule_color: theme.line,

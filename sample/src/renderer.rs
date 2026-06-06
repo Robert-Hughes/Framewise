@@ -707,6 +707,8 @@ fn push_text_run(
             glyph_index: g.key.glyph_index,
             size: (g.key.px * 10.0) as u32,
             subpixel_x: g.subpixel_x,
+            weight: g.weight,
+            opsz: g.opsz,
         };
         if let Some(info) = text_system.glyph_cache.get(&key) {
             let src = &info.atlas_rect;
@@ -789,6 +791,7 @@ mod tests {
             "Headless Test.",
             14.0,
             FontId(1),
+            400,
             TextFlow::single_line(),
             rect,
         );
@@ -805,6 +808,8 @@ mod tests {
             glyph_index: glyph.key.glyph_index,
             size: (glyph.key.px * 10.0) as u32,
             subpixel_x: glyph.subpixel_x,
+            weight: glyph.weight,
+            opsz: glyph.opsz,
         };
         let info = text_system
             .glyph_cache

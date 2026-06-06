@@ -89,6 +89,7 @@ mod integration_tests {
             test_str,
             14.0,
             font_id,
+            400,
             flow,
             Rect::new(10.0, 15.0, 180.0, 30.0),
         );

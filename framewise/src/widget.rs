@@ -90,6 +90,7 @@ pub fn react_layout_violation<T: TextSystem>(
                 &violation.to_string(),
                 12.0,
                 font,
+                400,
                 crate::text::TextFlow::single_line(),
                 fallback_rect,
             );

@@ -24,6 +24,7 @@ impl TextSystem for DummyTextSys {
         text: &str,
         _size: f32,
         _font: FontId,
+        _weight: u16,
         _flow: TextFlow,
         _bounds: TextBounds,
     ) -> TextMetrics {
@@ -35,6 +36,7 @@ impl TextSystem for DummyTextSys {
         text: &str,
         _size: f32,
         _font: FontId,
+        _weight: u16,
         _flow: TextFlow,
         _rect: Rect,
     ) -> TextLayout {

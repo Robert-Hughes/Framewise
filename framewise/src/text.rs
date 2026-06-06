@@ -417,6 +417,7 @@ pub trait TextSystem {
         text: &str,
         size: f32,
         font: FontId,
+        weight: u16,
         flow: TextFlow,
         bounds: TextBounds,
     ) -> TextMetrics;
@@ -431,7 +432,7 @@ pub trait TextSystem {
     /// shaped glyphs) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
     ///
     /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
-    /// would report for the same `text`/`size`/`font`/`flow` and
+    /// would report for the same `text`/`size`/`font`/`weight`/`flow` and
     /// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
     ///
     /// The handle is valid until the next frame reset (see [`TextHandle`]).
@@ -440,6 +441,7 @@ pub trait TextSystem {
         text: &str,
         size: f32,
         font: FontId,
+        weight: u16,
         flow: TextFlow,
         rect: Rect,
     ) -> TextLayout;

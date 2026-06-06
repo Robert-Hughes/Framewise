@@ -20,11 +20,82 @@ mod tests {
         let mut sys = sys();
         let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
 
-        let _ = sys.prepare("A", 12.0, FontId(0), TextFlow::single_line(), rect);
-        let _ = sys.prepare("A", 12.0, FontId(1), TextFlow::single_line(), rect);
+        let _ = sys.prepare("A", 12.0, FontId(0), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
 
         assert!(sys.glyph_cache.keys().any(|key| key.font_id == 0));
         assert!(sys.glyph_cache.keys().any(|key| key.font_id == 1));
+    }
+
+    #[test]
+    fn glyph_cache_keys_include_weight_and_opsz() {
+        let mut sys = sys();
+        let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
+
+        // 1. Check weight variations
+        let _ = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare("A", 12.0, FontId(1), 700, TextFlow::single_line(), rect);
+
+        assert!(sys.glyph_cache.keys().any(|key| key.weight == 400));
+        assert!(sys.glyph_cache.keys().any(|key| key.weight == 700));
+
+        // 2. Check optical size variations
+        // Preparing with size 14.0 -> opsz = 14
+        let _ = sys.prepare("B", 14.0, FontId(1), 400, TextFlow::single_line(), rect);
+        // Preparing with size 32.0 -> opsz = 32
+        let _ = sys.prepare("B", 32.0, FontId(1), 400, TextFlow::single_line(), rect);
+
+        assert!(sys.glyph_cache.keys().any(|key| key.opsz == 14));
+        assert!(sys.glyph_cache.keys().any(|key| key.opsz == 32));
+    }
+
+    #[test]
+    fn weight_variation_affects_metrics() {
+        let mut sys = sys();
+        let text = "Framewise Font Variation Test";
+
+        let regular_metrics = sys.measure(
+            text,
+            16.0,
+            FontId(1),
+            400,
+            TextFlow::single_line(),
+            TextBounds::UNBOUNDED,
+        );
+        let bold_metrics = sys.measure(
+            text,
+            16.0,
+            FontId(1),
+            700,
+            TextFlow::single_line(),
+            TextBounds::UNBOUNDED,
+        );
+
+        // Bold text should be wider than regular text for Inter variable font
+        assert!(
+            bold_metrics.size.x > regular_metrics.size.x,
+            "Bold width ({}) should be greater than regular width ({})",
+            bold_metrics.size.x,
+            regular_metrics.size.x
+        );
+    }
+
+    #[test]
+    fn font_without_opsz_uses_zero_opsz() {
+        let mut sys = sys();
+        let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
+        let _ = sys.prepare("A", 12.0, FontId(0), 400, TextFlow::single_line(), rect);
+
+        // FontId(0) (JetBrainsMono) has no opsz range, so opsz should be 0 in the glyph cache
+        let keys: Vec<_> = sys
+            .glyph_cache
+            .keys()
+            .filter(|key| key.font_id == 0)
+            .collect();
+        assert!(!keys.is_empty());
+        for key in keys {
+            assert_eq!(key.opsz, 0);
+        }
     }
 
     #[test]
@@ -34,6 +105,7 @@ mod tests {
             "hello world",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             TextBounds::UNBOUNDED,
         );
@@ -49,6 +121,7 @@ mod tests {
             "a\nb\nc",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             TextBounds::UNBOUNDED,
         );
@@ -63,6 +136,7 @@ mod tests {
             "hello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 500.0, 100.0),
         );
@@ -77,6 +151,7 @@ mod tests {
             "the quick brown fox jumps over the lazy dog",
             16.0,
             FontId(1),
+            400,
             TextFlow::wrapped(),
             TextBounds::UNBOUNDED,
         );
@@ -86,6 +161,7 @@ mod tests {
             "the quick brown fox jumps over the lazy dog",
             16.0,
             FontId(1),
+            400,
             TextFlow::wrapped(),
             TextBounds::width(80.0),
         );
@@ -101,6 +177,7 @@ mod tests {
             "the quick brown fox jumps over the lazy dog again and again",
             16.0,
             FontId(1),
+            400,
             TextFlow::wrapped(),
             TextBounds {
                 max_width: Some(80.0),
@@ -118,6 +195,7 @@ mod tests {
             "hello world this is a long line",
             16.0,
             FontId(1),
+            400,
             TextFlow::single_line(),
             TextBounds {
                 max_width: Some(40.0),
@@ -136,6 +214,7 @@ mod tests {
             "abc",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
@@ -152,6 +231,7 @@ mod tests {
             "abc",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
@@ -169,6 +249,7 @@ mod tests {
             "First Line\nSecond Line\nThird Line",
             14.5,
             FontId(1),
+            400,
             TextFlow::single_line(),
             rect,
         );
@@ -215,7 +296,7 @@ mod tests {
 
         for (abs_x, expected_bin) in test_cases {
             let rect = Rect::new(abs_x, 20.0, 200.0, 40.0);
-            let layout = sys.prepare("A", 12.0, FontId(1), TextFlow::single_line(), rect);
+            let layout = sys.prepare("A", 12.0, FontId(1), 400, TextFlow::single_line(), rect);
             let run = &sys.runs[layout.handle.0];
             let g = &run.glyphs[0];
             assert_eq!(
@@ -234,6 +315,7 @@ mod tests {
             "Headless Test.",
             14.0,
             FontId(1),
+            400,
             TextFlow::single_line(),
             rect,
         );
@@ -248,6 +330,8 @@ mod tests {
                     glyph_index: g.key.glyph_index,
                     size: (g.key.px * 10.0) as u32,
                     subpixel_x: g.subpixel_x,
+                    weight: g.weight,
+                    opsz: g.opsz,
                 };
                 let info = sys.glyph_cache.get(&key)?;
                 (info.atlas_rect.h > 0).then_some(g.y - info.top as f32)
@@ -269,11 +353,12 @@ mod tests {
             text,
             size,
             FontId(1),
+            400,
             TextFlow::single_line(),
             Rect::new(10.0, 15.0, 180.0, 30.0),
         );
 
-        let expected_advance = shaped_advance(text, size, FontId(1));
+        let expected_advance = shaped_advance(text, size, FontId(1), 400);
         let caret = sys.caret_geom(layout.handle, text.len());
 
         assert!(
@@ -283,16 +368,20 @@ mod tests {
         );
     }
 
-    fn shaped_advance(text: &str, size: f32, font_id: FontId) -> f32 {
+    fn shaped_advance(text: &str, size: f32, font_id: FontId, weight: u16) -> f32 {
         let data = match font_id.0 {
             0 => include_bytes!("../../assets/JetBrainsMono-Regular.ttf") as &[u8],
-            1 => include_bytes!("../../assets/InterTight-Regular.ttf") as &[u8],
-            2 => include_bytes!("../../assets/InterTight-Bold.ttf") as &[u8],
+            1 => include_bytes!("../../assets/Inter/Inter-VariableFont_opsz,wght.ttf") as &[u8],
             _ => panic!("unsupported test font id {}", font_id.0),
         };
         let font = FontRef::from_index(data, 0).expect("test font should load");
         let mut shape_context = ShapeContext::new();
-        let mut shaper = shape_context.builder(font).size(size).build();
+        let mut shaper = shape_context.builder(font).size(size);
+        if font_id.0 == 1 {
+            let opsz = size.clamp(14.0, 32.0);
+            shaper = shaper.variations(&[("wght", weight as f32), ("opsz", opsz)]);
+        }
+        let mut shaper = shaper.build();
         shaper.add_str(text);
 
         let mut advance = 0.0;
@@ -335,6 +424,7 @@ mod tests {
             "hello world this is long",
             16.0,
             FontId(1),
+            400,
             TextFlow {
                 overflow_x: OverflowX::Ellipsis {
                     fallback: EllipsisFallback::Drop,
@@ -359,6 +449,7 @@ mod tests {
             "the quick brown fox jumps over the lazy dog and then keeps going",
             16.0,
             FontId(1),
+            400,
             TextFlow::wrapped(),
             Rect::new(0.0, 0.0, 80.0, lh * 2.0 + 1.0),
         );
@@ -377,6 +468,7 @@ mod tests {
             "hi",
             16.0,
             FontId(1),
+            400,
             TextFlow {
                 overflow_x: OverflowX::Drop,
                 overflow_y: OverflowY::Drop,
@@ -398,6 +490,7 @@ mod tests {
             "abc\ndef",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
@@ -415,6 +508,7 @@ mod tests {
             "supercalifragilisticexpialidocious",
             16.0,
             FontId(1),
+            400,
             TextFlow {
                 overflow_x: OverflowX::WrapWord {
                     fallback: WrapWordFallback::WrapGlyph {
@@ -444,7 +538,7 @@ mod tests {
             horizontal_align: HorizontalAlign::Start,
         };
         let rect = Rect::new(0.0, 0.0, 50.0, 30.0);
-        let layout = sys.prepare("hello world this is long", 16.0, FontId(1), flow, rect);
+        let layout = sys.prepare("hello world this is long", 16.0, FontId(1), 400, flow, rect);
         let reported = layout.metrics.size.x;
         let actual = rendered_width(&sys, layout.handle);
         assert!(
@@ -461,6 +555,7 @@ mod tests {
             "hello world this is long",
             16.0,
             FontId(1),
+            400,
             TextFlow {
                 overflow_x: OverflowX::Ellipsis {
                     fallback: EllipsisFallback::Drop,
@@ -488,6 +583,7 @@ mod tests {
             "abc\ndef",
             16.0,
             FontId(0),
+            400,
             TextFlow::single_line(),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
@@ -504,6 +600,7 @@ mod tests {
             "Hello World",
             16.0,
             FontId(1),
+            400,
             TextFlow::single_line(),
             rect,
         );
@@ -544,6 +641,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
@@ -568,6 +666,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
@@ -608,6 +707,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 25.0, lh * 1.5),
         );
@@ -634,6 +734,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 8.0, lh * 1.5),
         );
@@ -656,6 +757,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 8.0, lh * 1.5),
         );
@@ -681,6 +783,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 23.0, lh * 2.5),
         );
@@ -710,6 +813,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 8.0, lh * 2.5),
         );
@@ -732,6 +836,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 8.0, lh * 2.5),
         );
@@ -761,6 +866,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 23.0, 65.0),
         );
@@ -784,6 +890,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 6.0, 70.0),
         );
@@ -807,6 +914,7 @@ mod tests {
             "hello\nhello",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 4.0, lh * 13.0),
         );
@@ -841,6 +949,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 48.0, lh * 4.5),
         );
@@ -867,6 +976,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 23.0, lh * 10.0),
         );
@@ -903,6 +1013,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 6.0, lh * 10.0),
         );
@@ -928,6 +1039,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 4.0, lh * 25.0),
         );
@@ -961,6 +1073,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );
@@ -990,6 +1103,7 @@ mod tests {
             "hello there\nhello there",
             16.0,
             FontId(1),
+            400,
             flow,
             Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );

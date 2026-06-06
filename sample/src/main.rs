@@ -169,6 +169,7 @@ impl App {
             "Feature not enabled",
             24.0,
             FontId(1),
+            400,
             flow,
             TextBounds::UNBOUNDED,
         );
@@ -178,6 +179,7 @@ impl App {
             "Feature not enabled",
             24.0,
             FontId(1),
+            400,
             flow,
             Rect::new(cx, cy, m.size.x, m.size.y),
         );

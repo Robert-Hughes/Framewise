@@ -17,6 +17,8 @@ pub struct GlyphPosition {
     pub byte_offset: usize,
     pub subpixel_x: u8, // 0 = 0.0, 1 = 0.25, 2 = 0.50, 3 = 0.75
     pub advance: f32,   // shaped advance for proper text flow
+    pub weight: u16,    // font weight used for this glyph
+    pub opsz: u16,      // optical size used for this glyph
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,6 +27,8 @@ pub struct GlyphKey {
     pub glyph_index: u16,
     pub size: u32, // store size as u32 (size * 10.0 as u32) for hashing
     pub subpixel_x: u8,
+    pub weight: u16, // 100-900, variable font weight axis
+    pub opsz: u16,   // optical size axis value (typically matches size in pt)
 }
 
 pub struct AtlasRect {

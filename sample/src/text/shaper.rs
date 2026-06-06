@@ -14,8 +14,32 @@ struct Line {
 }
 
 impl SampleTextSystem {
+    /// Get the weight for a given font ID.
+    /// For variable fonts, this returns the currently set weight.
+    pub fn weight_for_font(&self, font_id: FontId) -> u16 {
+        self.font_weights
+            .get(font_id.0 as usize)
+            .copied()
+            .unwrap_or(400)
+    }
+
+    /// Get the optical size value for a given pixel size and font.
+    /// Returns 0.0 if the font doesn't have opsz axis.
+    pub fn opsz_for_size(&self, size: f32, font_id: FontId) -> f32 {
+        let (min_opsz, max_opsz) = self.font_opsz_ranges[font_id.0 as usize];
+        if max_opsz == 0.0 {
+            // Font has no opsz axis
+            return 0.0;
+        }
+        // Clamp size to the font's opsz range
+        size.clamp(min_opsz, max_opsz)
+    }
+
     pub fn line_height(&self, size: f32, font_id: FontId) -> f32 {
         let font = self.fonts[font_id.0 as usize];
+
+        // For now, get metrics without variations - they should be similar enough
+        // TODO: Consider if we need to normalize coords for metrics
         let metrics = font.metrics(&[]);
         let units_per_em = metrics.units_per_em as f32;
         let scale = size / units_per_em;
@@ -58,6 +82,9 @@ impl SampleTextSystem {
     ) -> (Vec<GlyphPosition>, Vec<LineRec>, TextMetrics) {
         let line_height = self.line_height(size, font_id);
         let font = self.fonts[font_id.0 as usize];
+        let weight = self.weight_for_font(font_id);
+        let opsz = self.opsz_for_size(size, font_id);
+
         let metrics = font.metrics(&[]);
         let scale = size / metrics.units_per_em as f32;
         let ascent = metrics.ascent * scale;
@@ -92,7 +119,14 @@ impl SampleTextSystem {
 
             if !segment.is_empty() {
                 let mut temp_glyphs = Vec::new();
-                let mut shaper = self.shape_context.builder(font).size(size).build();
+                let mut shaper = self.shape_context.builder(font).size(size);
+
+                // Apply variation settings if font supports them
+                if opsz > 0.0 {
+                    shaper = shaper.variations(&[("wght", weight as f32), ("opsz", opsz)]);
+                }
+
+                let mut shaper = shaper.build();
                 shaper.add_str(segment);
 
                 shaper.shape_with(|cluster| {
@@ -120,7 +154,14 @@ impl SampleTextSystem {
                     let abs_x = absolute_x.unwrap_or(0.0) + gx;
                     let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
 
-                    let (w, h) = self.get_glyph_metrics(font_id.0, glyph_index, size, subpixel_x);
+                    let (w, h) = self.get_glyph_metrics(
+                        font_id.0,
+                        glyph_index,
+                        size,
+                        subpixel_x,
+                        weight,
+                        opsz as u16,
+                    );
 
                     // Calculate the baseline position for this line
                     let baseline_y = i as f32 * line_height_snapped + baseline_offset;
@@ -138,6 +179,8 @@ impl SampleTextSystem {
                         byte_offset,
                         subpixel_x,
                         advance, // shaped advance for text flow
+                        weight,
+                        opsz: opsz as u16,
                     });
                 }
             }
@@ -156,6 +199,8 @@ impl SampleTextSystem {
                     byte_offset: segment_end,
                     subpixel_x: 0,
                     advance: 0.0,
+                    weight,
+                    opsz: opsz as u16,
                 });
             }
 
