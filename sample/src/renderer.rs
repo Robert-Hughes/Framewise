@@ -715,11 +715,15 @@ fn push_text_run(
             } // Space character
 
             // Snap screen quad coordinates to integer boundaries using .round().
-            // Because horizontal subpixel offsets are already pre-baked into the glyph
-            // bitmaps inside the atlas, the quad itself must be rendered at an integer pixel
-            // boundary to prevent Nearest-neighbor sampling from causing visual jitter or blurring.
-            let gx = (rect.x + g.x + info.left as f32).round();
-            let gy = (rect.y + g.y - info.top as f32).round();
+            // With subpixel-baked bitmaps, snap/quantize the glyph origin first,
+            // then add placement. This ensures correct alignment.
+            let absolute_x = rect.x + g.x;
+            let quantized_x = (absolute_x * 4.0).round() / 4.0; // Snap to subpixel bin
+            let gx = quantized_x.floor() + info.left as f32;
+
+            let absolute_y = rect.y + g.y;
+            let gy = absolute_y.round() - info.top as f32;
+
             let gw = g.width as f32;
             let gh = g.height as f32;
 

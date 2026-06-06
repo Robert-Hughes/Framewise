@@ -109,17 +109,21 @@ impl SampleTextSystem {
                             pen_x + glyph.x,
                             glyph.y,
                             byte_offset,
+                            glyph.advance,
                         ));
                         pen_x += glyph.advance;
                     }
                 });
 
-                for (parent_char, glyph_index, gx, gy, byte_offset) in temp_glyphs {
+                for (parent_char, glyph_index, gx, gy, byte_offset, advance) in temp_glyphs {
                     // Calculate absolute X coordinate to resolve subpixel binning
                     let abs_x = absolute_x.unwrap_or(0.0) + gx;
                     let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
 
                     let (w, h) = self.get_glyph_metrics(font_id.0, glyph_index, size, subpixel_x);
+
+                    // Calculate the baseline position for this line
+                    let baseline_y = i as f32 * line_height_snapped + baseline_offset;
 
                     glyphs0.push(GlyphPosition {
                         parent: parent_char,
@@ -128,11 +132,12 @@ impl SampleTextSystem {
                             px: size,
                         },
                         x: gx,
-                        y: gy, // relative to baseline
-                        width: w as usize,
+                        y: baseline_y + gy, // Store as local baseline position
+                        width: w as usize,  // bitmap width for now
                         height: h as usize,
                         byte_offset,
                         subpixel_x,
+                        advance, // shaped advance for text flow
                     });
                 }
             }
@@ -145,11 +150,12 @@ impl SampleTextSystem {
                         px: size,
                     },
                     x: pen_x,
-                    y: 0.0,
+                    y: i as f32 * line_height_snapped + baseline_offset,
                     width: 0,
                     height: 0,
                     byte_offset: segment_end,
                     subpixel_x: 0,
+                    advance: 0.0,
                 });
             }
 
@@ -357,9 +363,16 @@ impl SampleTextSystem {
             let new_baseline_y = i as f32 * line_height_snapped + baseline_offset;
             let new_y_top = i as f32 * line_height_snapped;
 
+            // Glyphs already have baseline-relative y from original shaping
+            // We need to adjust them to the new baseline position
             for g in &mut line.glyphs {
-                // Snapping final position within the baseline
-                g.y = (g.y - line.baseline_y + new_baseline_y).round();
+                // Extract the original baseline-relative offset (gy from swash)
+                // Since g.y was set to (old_baseline_y + gy), we need to:
+                // 1. Extract gy = g.y - old_baseline_y
+                // 2. Calculate new absolute y = new_baseline_y + gy
+                // 3. Round for snapping
+                let baseline_relative_y = g.y - line.baseline_y;
+                g.y = (new_baseline_y + baseline_relative_y).round();
             }
 
             let align_off = match max_w {

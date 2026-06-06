@@ -173,7 +173,7 @@ impl TextSystem for SampleTextSystem {
         let x = if byte_index >= line.byte_end {
             glyphs
                 .last()
-                .map(|g| g.x + g.width as f32)
+                .map(|g| g.x + g.advance)
                 .unwrap_or_else(|| line_start_x(glyphs))
         } else {
             glyphs
