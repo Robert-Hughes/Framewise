@@ -219,10 +219,14 @@ impl Renderer {
         });
 
         let atlas_view = atlas_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // Use Nearest-neighbor filtering to map atlas pixels 1-to-1 with screen pixels.
+        // Linear filtering would blend adjacent texels under fractional positioning, causing
+        // glyphs to look blurry. Nearest sampling, coupled with pre-shifted horizontal
+        // subpixel glyphs in the atlas, guarantees maximum visual crispness.
         let atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("atlas_sampler"),
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
 
@@ -702,6 +706,7 @@ fn push_text_run(
             font_id: run.font_id.0,
             glyph_index: g.key.glyph_index,
             size: (g.key.px * 10.0) as u32,
+            subpixel_x: g.subpixel_x,
         };
         if let Some(info) = text_system.glyph_cache.get(&key) {
             let src = &info.atlas_rect;
@@ -709,9 +714,12 @@ fn push_text_run(
                 continue;
             } // Space character
 
-            // Destination rect on screen
-            let gx = rect.x + g.x;
-            let gy = rect.y + g.y;
+            // Snap screen quad coordinates to integer boundaries using .round().
+            // Because horizontal subpixel offsets are already pre-baked into the glyph
+            // bitmaps inside the atlas, the quad itself must be rendered at an integer pixel
+            // boundary to prevent Nearest-neighbor sampling from causing visual jitter or blurring.
+            let gx = (rect.x + g.x).round();
+            let gy = (rect.y + g.y).round();
             let gw = g.width as f32;
             let gh = g.height as f32;
 

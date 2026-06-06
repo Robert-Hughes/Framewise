@@ -827,7 +827,7 @@ pub fn draw_label_page(
             );
 
             // Card 1: X: WrapGlyph, Y: Keep
-            // Keep this card in sync with test_wrap_glyph_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_glyph_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -882,7 +882,7 @@ pub fn draw_label_page(
             }
 
             // Card 2: X: WrapGlyph (F: Drop), Y: Keep
-            // Keep this card in sync with test_wrap_glyph_fallback_drop_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -937,7 +937,7 @@ pub fn draw_label_page(
             }
 
             // Card 3: X: WrapGlyph (F: Keep), Y: Keep
-            // Keep this card in sync with test_wrap_glyph_fallback_keep_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1011,7 +1011,7 @@ pub fn draw_label_page(
             );
 
             // Card 4: X: WrapWord, Y: Keep
-            // Keep this card in sync with test_wrap_word_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1066,7 +1066,7 @@ pub fn draw_label_page(
             }
 
             // Card 5: X: WrapWord (F: WrapGlyph), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1123,7 +1123,7 @@ pub fn draw_label_page(
             }
 
             // Card 6: X: WrapWord (F: WrapGlyph F: Drop), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1193,7 +1193,7 @@ pub fn draw_label_page(
             );
 
             // Card 7: X: WrapWord (F: WrapGlyph F: Keep), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1250,7 +1250,7 @@ pub fn draw_label_page(
             }
 
             // Card 8: X: WrapWord (F: Drop), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_drop_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1305,7 +1305,7 @@ pub fn draw_label_page(
             }
 
             // Card 9: X: WrapWord (F: Keep), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_keep_y_keep in sample/src/text.rs
+            // Keep this card in sync with test_wrap_word_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
