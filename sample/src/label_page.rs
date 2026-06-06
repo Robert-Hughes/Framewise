@@ -31,7 +31,7 @@ pub fn draw_label_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
-    let pad = 20.0;
+    let _pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
     #[allow(unused_mut)]
@@ -47,7 +47,7 @@ pub fn draw_label_page(
         #[cfg(feature = "scroll_area")]
         Rect::new(0.0, 0.0, win_w, win_h),
         #[cfg(not(feature = "scroll_area"))]
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        Rect::new(_pad, _pad, win_w - 2.0 * _pad, win_h - 2.0 * _pad),
         &mut cmds,
     );
 
@@ -851,7 +851,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 70.0),
+                        Placement2D::fixed(25.0, 65.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -906,7 +906,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 70.0),
+                        Placement2D::fixed(8.0, 70.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(

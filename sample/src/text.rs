@@ -172,7 +172,7 @@ impl SampleTextSystem {
                             current_line_start_x = g.x + g.width as f32;
                         }
                         WrapGlyphFallback::Drop => {
-                            current_line_start_x = g.x;
+                            break;
                         }
                     }
                 } else {
@@ -197,7 +197,7 @@ impl SampleTextSystem {
                                 current_line_start_x = g.x + g.width as f32;
                             }
                             WrapGlyphFallback::Drop => {
-                                current_line_start_x = g.x;
+                                break;
                             }
                         }
                     }
@@ -303,7 +303,9 @@ impl SampleTextSystem {
                         // Word does not fit even on the empty line! Apply fallback.
                         match &fallback {
                             WrapWordFallback::WrapGlyph { fallback: gf } => {
+                                let seg_len = seg.glyphs.len();
                                 let wrapped = Self::wrap_glyphs_at_glyphs(seg.glyphs, w, *gf);
+                                let mut wrapped_count = 0;
                                 if !wrapped.is_empty() {
                                     lines.extend(wrapped[..wrapped.len() - 1].to_vec());
                                     current_line = wrapped.last().unwrap().clone();
@@ -311,6 +313,10 @@ impl SampleTextSystem {
                                         .iter()
                                         .map(|g| g.x + g.width as f32)
                                         .fold(0.0, f32::max);
+                                    wrapped_count = wrapped.iter().map(|line| line.len()).sum();
+                                }
+                                if *gf == WrapGlyphFallback::Drop && wrapped_count < seg_len {
+                                    break;
                                 }
                             }
                             WrapWordFallback::Drop => {
@@ -1501,7 +1507,6 @@ mod tests {
     #[test]
     fn test_wrap_glyph_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
         let flow = TextFlow {
             overflow_x: OverflowX::WrapGlyph {
                 fallback: WrapGlyphFallback::Drop,
@@ -1514,7 +1519,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 25.0, lh * 4.5),
+            Rect::new(0.0, 0.0, 23.0, 65.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
         let text = visible(&sys, layout.handle);
@@ -1525,7 +1530,6 @@ mod tests {
     #[test]
     fn test_wrap_glyph_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
         let flow = TextFlow {
             overflow_x: OverflowX::WrapGlyph {
                 fallback: WrapGlyphFallback::Drop,
@@ -1538,7 +1542,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 2.0, lh * 4.5),
+            Rect::new(0.0, 0.0, 6.0, 70.0),
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
