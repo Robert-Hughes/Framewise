@@ -34,7 +34,8 @@
 
 use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec};
 use framewise::{
-    CaretGeom, FontId, Rect, TextBounds, TextFlow, TextLayout, TextMetrics, TextSystem, Vec2,
+    CaretGeom, FontId, LineHeight, Rect, TextBounds, TextFlow, TextLayout, TextMetrics, TextSystem,
+    Vec2,
 };
 use std::collections::HashMap;
 
@@ -48,6 +49,8 @@ pub struct LayoutKey {
     pub max_w_bits: Option<u32>,
     pub max_h_bits: Option<u32>,
     pub absolute_x_bits: Option<u32>,
+    pub letter_spacing_bits: i32,
+    pub line_height_val: Option<u32>,
 }
 use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
@@ -187,6 +190,11 @@ impl TextSystem for SampleTextSystem {
             max_w_bits: bounds.max_width.map(|w| (w * 100.0) as u32),
             max_h_bits: bounds.max_height.map(|h| (h * 100.0) as u32),
             absolute_x_bits: None,
+            letter_spacing_bits: (style.letter_spacing * 10000.0) as i32,
+            line_height_val: match style.line_height {
+                LineHeight::Normal => None,
+                LineHeight::Relative(mult) => Some((mult * 1000.0) as u32),
+            },
         };
 
         if let Some((_, _, metrics)) = self.layout_cache.get(&key) {
@@ -201,15 +209,8 @@ impl TextSystem for SampleTextSystem {
             .unwrap_or(400);
         self.set_font_weight(style.font, style.weight);
 
-        let (glyphs, lines, metrics) = self.shape_internal(
-            text,
-            style.size,
-            style.font,
-            style.flow,
-            bounds.max_width,
-            bounds.max_height,
-            None,
-        );
+        let (glyphs, lines, metrics) =
+            self.shape_internal(text, style, bounds.max_width, bounds.max_height, None);
 
         // Restore old weight
         self.set_font_weight(style.font, old_weight);
@@ -233,6 +234,11 @@ impl TextSystem for SampleTextSystem {
             max_w_bits: Some((rect.w * 100.0) as u32),
             max_h_bits: Some((rect.h * 100.0) as u32),
             absolute_x_bits: Some((rect.x * 100.0) as u32),
+            letter_spacing_bits: (style.letter_spacing * 10000.0) as i32,
+            line_height_val: match style.line_height {
+                LineHeight::Normal => None,
+                LineHeight::Relative(mult) => Some((mult * 1000.0) as u32),
+            },
         };
 
         let cached = self
@@ -277,15 +283,8 @@ impl TextSystem for SampleTextSystem {
         self.set_font_weight(style.font, style.weight);
 
         // Pass the absolute X coordinate (rect.x) to internal shaper to compute correct subpixel offsets
-        let (glyphs, lines, metrics) = self.shape_internal(
-            text,
-            style.size,
-            style.font,
-            style.flow,
-            Some(rect.w),
-            Some(rect.h),
-            Some(rect.x),
-        );
+        let (glyphs, lines, metrics) =
+            self.shape_internal(text, style, Some(rect.w), Some(rect.h), Some(rect.x));
 
         let opsz = self.opsz_for_size(style.size, style.font);
 

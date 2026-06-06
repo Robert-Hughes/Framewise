@@ -1,4 +1,4 @@
-use crate::text::{FontId, FontRole};
+use crate::text::{FontId, FontRole, LineHeight, TextFlow, TextStyle};
 use crate::types::Color;
 
 /// The Framewise design-language palette and size constants.
@@ -45,6 +45,15 @@ pub struct Theme {
     pub text_mono: f32, // 12 — mono body
 
     pub scrollbar_width: f32,
+
+    // Semantic Letter Spacing (Tracking)
+    pub heading_letter_spacing: f32,
+    pub overline_letter_spacing: f32,
+    pub body_letter_spacing: f32,
+
+    // Semantic Line Heights
+    pub heading_line_height: LineHeight,
+    pub body_line_height: LineHeight,
 }
 
 impl Theme {
@@ -78,6 +87,13 @@ impl Theme {
             text_md: 13.0,
             text_mono: 12.0,
             scrollbar_width: 12.0,
+
+            heading_letter_spacing: -0.035,
+            overline_letter_spacing: 0.16,
+            body_letter_spacing: 0.0,
+
+            heading_line_height: LineHeight::Relative(0.95),
+            body_line_height: LineHeight::Relative(1.55),
         }
     }
 
@@ -86,6 +102,39 @@ impl Theme {
             FontRole::Sans => self.sans_font,
             FontRole::Mono => self.mono_font,
         }
+    }
+
+    pub fn heading_text_style(&self, size: f32) -> TextStyle {
+        TextStyle::new(
+            self.sans_font,
+            size,
+            self.sans_weight_bold,
+            TextFlow::wrapped(),
+        )
+        .with_letter_spacing(self.heading_letter_spacing)
+        .with_line_height(self.heading_line_height)
+    }
+
+    pub fn body_text_style(&self, size: f32) -> TextStyle {
+        TextStyle::new(
+            self.sans_font,
+            size,
+            self.sans_weight_regular,
+            TextFlow::wrapped(),
+        )
+        .with_letter_spacing(self.body_letter_spacing)
+        .with_line_height(self.body_line_height)
+    }
+
+    pub fn overline_text_style(&self, size: f32) -> TextStyle {
+        TextStyle::new(
+            self.mono_font,
+            size,
+            self.sans_weight_regular,
+            TextFlow::single_line(),
+        )
+        .with_letter_spacing(self.overline_letter_spacing)
+        .with_line_height(LineHeight::Normal)
     }
 }
 

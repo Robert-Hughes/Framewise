@@ -1201,10 +1201,7 @@ pub fn draw_spec_page(
                     let spec_builder = LabelSpecBuilder::new()
                         .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1")
                         .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                size,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
+                            text_style: t.overline_text_style(size),
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });
@@ -1215,18 +1212,10 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
                     let color = t.ink;
-                    let font = t.sans_font;
-                    let weight = t.sans_weight_bold;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("A widget set that explains itself.")
                         .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                flow: framewise::text::TextFlow::wrapped(),
-                                font,
-                                size: 56.0,
-                                weight,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
+                            text_style: t.heading_text_style(56.0),
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });
@@ -1237,11 +1226,13 @@ pub fn draw_spec_page(
                 {
                     let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(600.0), 80.0);
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
-                    let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
                         .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
-                        .style(LabelStyle { text_style: framewise::TextStyle {
-                            flow: framewise::text::TextFlow::wrapped(), font, size: 15.0, ..(LabelStyle::from_theme(&t)).text_style }, text_color: color, ..LabelStyle::from_theme(&t) });
+                        .style(LabelStyle {
+                            text_style: t.body_text_style(15.0),
+                            text_color: color,
+                            ..LabelStyle::from_theme(&t)
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
@@ -1260,14 +1251,11 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(mx, my, 60.0, 14.0);
                         let size = t.text_sm;
                         let color = t.ink;
-                        let font = t.sans_font;
-                        let weight = t.sans_weight_bold;
                         let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font,
-                                size,
-                                weight,
-                                ..(LabelStyle::from_theme(&t)).text_style
+                            text_style: {
+                                let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
+                                ts.weight = t.sans_weight_bold;
+                                ts
                             },
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
@@ -1279,13 +1267,8 @@ pub fn draw_spec_page(
                         let layout_params = Rect::new(mx + key_w, my, 200.0, 14.0);
                         let size = t.text_sm;
                         let color = t.muted;
-                        let font = t.sans_font;
                         let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font,
-                                size,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
+                            text_style: t.overline_text_style(size).with_letter_spacing(0.12),
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });

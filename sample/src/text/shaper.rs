@@ -1,8 +1,8 @@
 use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec};
 use crate::text::SampleTextSystem;
 use framewise::{
-    EllipsisFallback, FontId, HorizontalAlign, OverflowX, OverflowY, TextFlow, TextMetrics, Vec2,
-    WrapGlyphFallback, WrapWordFallback,
+    EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, TextFlow,
+    TextMetrics, TextStyle, Vec2, WrapGlyphFallback, WrapWordFallback,
 };
 
 struct Line {
@@ -35,24 +35,29 @@ impl SampleTextSystem {
         size.clamp(min_opsz, max_opsz)
     }
 
-    pub fn line_height(&self, size: f32, font_id: FontId) -> f32 {
-        let font = self.fonts[font_id.0 as usize];
+    pub fn line_height(&self, size: f32, font_id: FontId, line_height_style: LineHeight) -> f32 {
+        match line_height_style {
+            LineHeight::Normal => {
+                let font = self.fonts[font_id.0 as usize];
 
-        // For now, get metrics without variations - they should be similar enough
-        // TODO: Consider if we need to normalize coords for metrics
-        let metrics = font.metrics(&[]);
-        let units_per_em = metrics.units_per_em as f32;
-        let scale = size / units_per_em;
-        let ascent = metrics.ascent * scale;
-        let descent = (metrics.descent * scale).abs();
-        let line_gap = metrics.leading * scale;
-        ascent + descent + line_gap
+                // For now, get metrics without variations - they should be similar enough
+                // TODO: Consider if we need to normalize coords for metrics
+                let metrics = font.metrics(&[]);
+                let units_per_em = metrics.units_per_em as f32;
+                let scale = size / units_per_em;
+                let ascent = metrics.ascent * scale;
+                let descent = (metrics.descent * scale).abs();
+                let line_gap = metrics.leading * scale;
+                ascent + descent + line_gap
+            }
+            LineHeight::Relative(mult) => size * mult,
+        }
     }
 
     pub fn ellipsis(&mut self, size: f32, font_id: FontId) -> (Vec<GlyphPosition>, f32, f32) {
         let flow = TextFlow::single_line();
-        let (glyphs, lines, _metrics) =
-            self.shape_internal("…", size, font_id, flow, None, None, Some(0.0));
+        let style = TextStyle::new(font_id, size, self.weight_for_font(font_id), flow);
+        let (glyphs, lines, _metrics) = self.shape_internal("…", style, None, None, Some(0.0));
 
         let width = if glyphs.is_empty() {
             0.0
@@ -73,14 +78,16 @@ impl SampleTextSystem {
     pub fn shape_internal(
         &mut self,
         text: &str,
-        size: f32,
-        font_id: FontId,
-        flow: TextFlow,
+        style: TextStyle,
         max_w: Option<f32>,
         max_h: Option<f32>,
         absolute_x: Option<f32>,
     ) -> (Vec<GlyphPosition>, Vec<LineRec>, TextMetrics) {
-        let line_height = self.line_height(size, font_id);
+        let size = style.size;
+        let font_id = style.font;
+        let flow = style.flow;
+        let line_height = self.line_height(size, font_id, style.line_height);
+        let letter_spacing_px = size * style.letter_spacing;
         let font = self.fonts[font_id.0 as usize];
         let weight = self.weight_for_font(font_id);
         let opsz = self.opsz_for_size(size, font_id);
@@ -150,9 +157,9 @@ impl SampleTextSystem {
                             pen_x + glyph.x,
                             glyph.y,
                             byte_offset,
-                            glyph.advance,
+                            glyph.advance + letter_spacing_px,
                         ));
-                        pen_x += glyph.advance;
+                        pen_x += glyph.advance + letter_spacing_px;
                     }
                 });
 

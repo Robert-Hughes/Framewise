@@ -167,26 +167,14 @@ impl App {
         let flow = TextFlow::single_line();
         let m = text_system.measure(
             "Feature not enabled",
-            framewise::TextStyle {
-                font: FontId(1),
-                size: 24.0,
-                weight: 400,
-                flow,
-                italic: false,
-            },
+            framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
             TextBounds::UNBOUNDED,
         );
         let cx = (win_size.0 - m.size.x) * 0.5;
         let cy = (win_size.1 - m.size.y) * 0.5;
         let layout = text_system.prepare(
             "Feature not enabled",
-            framewise::TextStyle {
-                font: FontId(1),
-                size: 24.0,
-                weight: 400,
-                flow,
-                italic: false,
-            },
+            framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
             Rect::new(cx, cy, m.size.x, m.size.y),
         );
         cmds.push(DrawCmd::Text {

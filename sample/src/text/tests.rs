@@ -2,9 +2,9 @@
 mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::{
-        EllipsisFallback, FontId, HorizontalAlign, OverflowX, OverflowY, Rect, TextBounds,
-        TextFlow, TextHandle, TextLayout, TextMetrics, TextStyle, TextSystem, Vec2,
-        WrapGlyphFallback, WrapWordFallback,
+        EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, Rect,
+        TextBounds, TextFlow, TextHandle, TextStyle, TextSystem, Vec2, WrapGlyphFallback,
+        WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn vertical_overflow_truncates_lines() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let m = sys.measure(
             "the quick brown fox jumps over the lazy dog again and again",
             TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
@@ -496,8 +496,8 @@ mod tests {
     fn metrics_introspection_scaling() {
         let sys = sys();
         let font_id = FontId(1);
-        let h1 = sys.line_height(10.0, font_id);
-        let h2 = sys.line_height(20.0, font_id);
+        let h1 = sys.line_height(10.0, font_id, LineHeight::Normal);
+        let h2 = sys.line_height(20.0, font_id, LineHeight::Normal);
 
         // Assert that line height scales roughly linearly with font size
         assert!(
@@ -545,7 +545,7 @@ mod tests {
     #[test]
     fn ellipsis_on_last_line_when_height_clipped() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let layout = sys.prepare(
             "the quick brown fox jumps over the lazy dog and then keeps going",
             TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
@@ -689,7 +689,7 @@ mod tests {
             TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
-        let lh = sys.line_height(16.0, FontId(0));
+        let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
         let on_line2 = sys.hit_test(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
         assert_eq!(on_line2, 4);
     }
@@ -730,7 +730,7 @@ mod tests {
     #[test]
     fn test_overflow_x_drop_y_drop() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Drop,
             overflow_y: OverflowY::Drop,
@@ -752,7 +752,7 @@ mod tests {
     #[test]
     fn test_overflow_x_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Keep,
@@ -788,7 +788,7 @@ mod tests {
     #[test]
     fn test_overflow_x_keep_y_ellipsis() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -812,7 +812,7 @@ mod tests {
     #[test]
     fn test_overflow_x_keep_y_ellipsis_fallback_drop() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -832,7 +832,7 @@ mod tests {
     #[test]
     fn test_overflow_x_keep_y_ellipsis_fallback_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -855,7 +855,7 @@ mod tests {
     #[test]
     fn test_overflow_x_ellipsis_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Drop,
@@ -882,7 +882,7 @@ mod tests {
     #[test]
     fn test_overflow_x_ellipsis_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Drop,
@@ -902,7 +902,7 @@ mod tests {
     #[test]
     fn test_overflow_x_ellipsis_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Keep,
@@ -971,7 +971,7 @@ mod tests {
     #[test]
     fn test_wrap_glyph_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapGlyph {
                 fallback: WrapGlyphFallback::Keep,
@@ -1003,7 +1003,7 @@ mod tests {
     #[test]
     fn test_wrap_word_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Drop,
@@ -1025,7 +1025,7 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1059,7 +1059,7 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1082,7 +1082,7 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1115,7 +1115,7 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Drop,
@@ -1142,7 +1142,7 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1));
+        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Keep,
@@ -1170,5 +1170,84 @@ mod tests {
             }
         }
         assert!(has_overflow);
+    }
+
+    #[test]
+    fn test_letter_spacing_affects_width() {
+        let mut sys = sys();
+        let text = "Hello World";
+        let rect = Rect::new(0.0, 0.0, 500.0, 100.0);
+
+        let style_normal = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let layout_normal = sys.prepare(text, style_normal, rect);
+        let normal_width = layout_normal.metrics.size.x;
+
+        // Positive spacing expands the width
+        let style_expanded = style_normal.with_letter_spacing(0.1); // 0.1 em
+        let layout_expanded = sys.prepare(text, style_expanded, rect);
+        let expanded_width = layout_expanded.metrics.size.x;
+        assert!(
+            expanded_width > normal_width,
+            "Expanded width ({}) should be greater than normal width ({})",
+            expanded_width,
+            normal_width
+        );
+
+        // Negative spacing shrinks the width
+        let style_condensed = style_normal.with_letter_spacing(-0.05); // -0.05 em
+        let layout_condensed = sys.prepare(text, style_condensed, rect);
+        let condensed_width = layout_condensed.metrics.size.x;
+        assert!(
+            condensed_width < normal_width,
+            "Condensed width ({}) should be less than normal width ({})",
+            condensed_width,
+            normal_width
+        );
+    }
+
+    #[test]
+    fn test_relative_line_height_affects_layout() {
+        let mut sys = sys();
+        let text = "Hello\nWorld";
+        let rect = Rect::new(0.0, 0.0, 200.0, 200.0);
+
+        // 1. Normal line height
+        let style_normal = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let layout_normal = sys.prepare(text, style_normal, rect);
+        let height_normal = layout_normal.metrics.size.y;
+        let normal_lh = sys.line_height(16.0, FontId(1), LineHeight::Normal).round();
+        assert_eq!(layout_normal.metrics.line_count, 2);
+        assert!((height_normal - normal_lh * 2.0).abs() < 0.1);
+
+        // 2. Relative line height (larger multiplier, e.g. 1.8)
+        let style_large = style_normal.with_line_height(LineHeight::Relative(1.8));
+        let layout_large = sys.prepare(text, style_large, rect);
+        let height_large = layout_large.metrics.size.y;
+        let large_lh = sys
+            .line_height(16.0, FontId(1), LineHeight::Relative(1.8))
+            .round();
+        assert_eq!(layout_large.metrics.line_count, 2);
+        assert!((height_large - large_lh * 2.0).abs() < 0.1);
+        assert!(height_large > height_normal);
+
+        // 3. Relative line height (smaller multiplier, e.g. 0.8)
+        let style_small = style_normal.with_line_height(LineHeight::Relative(0.8));
+        let layout_small = sys.prepare(text, style_small, rect);
+        let height_small = layout_small.metrics.size.y;
+        let small_lh = sys
+            .line_height(16.0, FontId(1), LineHeight::Relative(0.8))
+            .round();
+        assert_eq!(layout_small.metrics.line_count, 2);
+        assert!((height_small - small_lh * 2.0).abs() < 0.1);
+        assert!(height_small < height_normal);
+
+        // Verify caret y_top reflects line height change
+        let caret_normal = sys.caret_geom(layout_normal.handle, 6); // start of "World"
+        let caret_large = sys.caret_geom(layout_large.handle, 6);
+        let caret_small = sys.caret_geom(layout_small.handle, 6);
+
+        assert!((caret_normal.y_top - normal_lh).abs() < 0.1);
+        assert!((caret_large.y_top - large_lh).abs() < 0.1);
+        assert!((caret_small.y_top - small_lh).abs() < 0.1);
     }
 }

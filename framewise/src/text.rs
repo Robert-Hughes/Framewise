@@ -8,6 +8,15 @@ use crate::types::{Rect, Vec2};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FontId(pub u16);
 
+/// Policy for resolving the visual height of text lines.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LineHeight {
+    /// Use the font's natural typographic metrics (typically 1.2x - 1.4x of size).
+    Normal,
+    /// Override the line height as a multiplier of the font size (e.g. 1.55).
+    Relative(f32),
+}
+
 /// Groups typography attributes together for reuse across the text system and widgets.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextStyle {
@@ -21,6 +30,10 @@ pub struct TextStyle {
     pub flow: TextFlow,
     /// Whether the text should be rendered in italics.
     pub italic: bool,
+    /// Custom spacing between letters, in em units. Defaults to 0.0.
+    pub letter_spacing: f32,
+    /// Custom line height policy. Defaults to LineHeight::Normal.
+    pub line_height: LineHeight,
 }
 
 impl TextStyle {
@@ -31,6 +44,8 @@ impl TextStyle {
             weight,
             flow,
             italic: false,
+            letter_spacing: 0.0,
+            line_height: LineHeight::Normal,
         }
     }
 
@@ -43,6 +58,16 @@ impl TextStyle {
         self.flow = flow;
         self
     }
+
+    pub fn with_letter_spacing(mut self, spacing: f32) -> Self {
+        self.letter_spacing = spacing;
+        self
+    }
+
+    pub fn with_line_height(mut self, line_height: LineHeight) -> Self {
+        self.line_height = line_height;
+        self
+    }
 }
 
 impl Default for TextStyle {
@@ -53,6 +78,8 @@ impl Default for TextStyle {
             weight: 400,
             flow: TextFlow::single_line(),
             italic: false,
+            letter_spacing: 0.0,
+            line_height: LineHeight::Normal,
         }
     }
 }

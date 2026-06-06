@@ -87,13 +87,7 @@ mod integration_tests {
         let test_str = "Headless Test.";
         let layout = text_system.prepare(
             test_str,
-            framewise::TextStyle {
-                font: font_id,
-                size: 14.0,
-                weight: 400,
-                flow,
-                italic: false,
-            },
+            framewise::TextStyle::new(font_id, 14.0, 400, flow),
             Rect::new(10.0, 15.0, 180.0, 30.0),
         );
         cmds.push(DrawCmd::Text {

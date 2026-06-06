@@ -88,13 +88,7 @@ pub fn react_layout_violation<T: TextSystem>(
             // Label at the top-left corner, in the same red.
             let layout = text_system.prepare(
                 &violation.to_string(),
-                crate::text::TextStyle {
-                    font,
-                    size: 12.0,
-                    weight: 400,
-                    flow: crate::text::TextFlow::single_line(),
-                    italic: false,
-                },
+                crate::text::TextStyle::new(font, 12.0, 400, crate::text::TextFlow::single_line()),
                 fallback_rect,
             );
             cmds.push(crate::draw::DrawCmd::Text {

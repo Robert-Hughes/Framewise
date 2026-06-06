@@ -789,13 +789,7 @@ mod tests {
         let rect = Rect::new(10.0, 15.0, 180.0, 30.0);
         let layout = text_system.prepare(
             "Headless Test.",
-            framewise::TextStyle {
-                font: FontId(1),
-                size: 14.0,
-                weight: 400,
-                flow: TextFlow::single_line(),
-                italic: false,
-            },
+            framewise::TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
             rect,
         );
         let run = &text_system.runs[layout.handle.0];

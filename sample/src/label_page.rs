@@ -82,13 +82,12 @@ pub fn draw_label_page(
 
     // Page Title
     let title_style = LabelStyle {
-        text_style: framewise::TextStyle {
-            font: theme.sans_font,
-            size: 32.0,
-            weight: theme.sans_weight_bold,
-            flow: framewise::text::TextFlow::single_line(),
-            italic: false,
-        },
+        text_style: framewise::TextStyle::new(
+            theme.sans_font,
+            32.0,
+            theme.sans_weight_bold,
+            framewise::text::TextFlow::single_line(),
+        ),
         text_color: theme.rust,
         rule: true,
         rule_color: theme.rust,
@@ -104,13 +103,12 @@ pub fn draw_label_page(
     // Section 1: Font Families and Sizes
     {
         let section_header = LabelStyle {
-            text_style: framewise::TextStyle {
-                font: theme.sans_font,
-                size: 20.0,
-                weight: theme.sans_weight_bold,
-                flow: framewise::text::TextFlow::single_line(),
-                italic: false,
-            },
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -140,13 +138,12 @@ pub fn draw_label_page(
                 LabelSpecBuilder::new()
                     .text("Sans Serif (Inter Tight)")
                     .style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.sans_font,
-                            size: 16.0,
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.sans_font,
+                            16.0,
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -166,13 +163,12 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.sans_font,
-                            size: sizes[i],
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.sans_font,
+                            sizes[i],
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -194,13 +190,12 @@ pub fn draw_label_page(
                 LabelSpecBuilder::new()
                     .text("Monospace (JetBrains Mono)")
                     .style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.mono_font,
-                            size: 16.0,
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.mono_font,
+                            16.0,
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -220,13 +215,12 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.mono_font,
-                            size: sizes[i],
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.mono_font,
+                            sizes[i],
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -243,13 +237,12 @@ pub fn draw_label_page(
     // Section 2: Colors and Underline Rules
     {
         let section_header = LabelStyle {
-            text_style: framewise::TextStyle {
-                font: theme.sans_font,
-                size: 20.0,
-                weight: theme.sans_weight_bold,
-                flow: framewise::text::TextFlow::single_line(),
-                italic: false,
-            },
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -291,13 +284,12 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.sans_font,
-                            size: 16.0,
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.sans_font,
+                            16.0,
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: color,
                         rule: false,
                         rule_color: theme.line,
@@ -328,13 +320,12 @@ pub fn draw_label_page(
                 label(
                     &mut col,
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.sans_font,
-                            size: 16.0,
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.sans_font,
+                            16.0,
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: text_col,
                         rule: true,
                         rule_color: rule_col,
@@ -350,13 +341,12 @@ pub fn draw_label_page(
     // Section 4: Overflow (non-wrapping)
     {
         let section_header = LabelStyle {
-            text_style: framewise::TextStyle {
-                font: theme.sans_font,
-                size: 20.0,
-                weight: theme.sans_weight_bold,
-                flow: framewise::text::TextFlow::single_line(),
-                italic: false,
-            },
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -887,13 +877,12 @@ pub fn draw_label_page(
     // Section 4.1: Overflow (wrapping)
     {
         let section_header = LabelStyle {
-            text_style: framewise::TextStyle {
-                font: theme.sans_font,
-                size: 20.0,
-                weight: theme.sans_weight_bold,
-                flow: framewise::text::TextFlow::single_line(),
-                italic: false,
-            },
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1523,13 +1512,12 @@ pub fn draw_label_page(
     // Section 5: Internal Text Alignment
     {
         let section_header = LabelStyle {
-            text_style: framewise::TextStyle {
-                font: theme.sans_font,
-                size: 20.0,
-                weight: theme.sans_weight_bold,
-                flow: framewise::text::TextFlow::single_line(),
-                italic: false,
-            },
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1573,13 +1561,12 @@ pub fn draw_label_page(
                         HorizontalAlign::End => "TextFlow::horizontal_align(End)",
                     })
                     .style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            font: theme.mono_font,
-                            size: 11.0,
-                            weight: theme.sans_weight_regular,
-                            flow: framewise::text::TextFlow::single_line(),
-                            italic: false,
-                        },
+                        text_style: framewise::TextStyle::new(
+                            theme.mono_font,
+                            11.0,
+                            theme.sans_weight_regular,
+                            framewise::text::TextFlow::single_line(),
+                        ),
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -1590,17 +1577,16 @@ pub fn draw_label_page(
             label(
                 &mut container.ctx,
                 LabelSpecBuilder::new().text(text).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        font: theme.sans_font,
-                        size: 14.0,
-                        weight: theme.sans_weight_regular,
-                        flow: TextFlow {
+                    text_style: framewise::TextStyle::new(
+                        theme.sans_font,
+                        14.0,
+                        theme.sans_weight_regular,
+                        TextFlow {
                             overflow_x: OverflowX::Drop,
                             overflow_y: OverflowY::Drop,
                             horizontal_align: text_align,
                         },
-                        italic: false,
-                    },
+                    ),
                     text_color: theme.ink,
                     rule: false,
                     rule_color: theme.line,
@@ -1623,13 +1609,12 @@ pub fn draw_label_page(
         LabelSpecBuilder::new()
             .text("Press F1-F5 to navigate to other showcase pages. (F6 for Labels)")
             .style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    font: theme.mono_font,
-                    size: 12.0,
-                    weight: theme.sans_weight_regular,
-                    flow: framewise::text::TextFlow::single_line(),
-                    italic: false,
-                },
+                text_style: framewise::TextStyle::new(
+                    theme.mono_font,
+                    12.0,
+                    theme.sans_weight_regular,
+                    framewise::text::TextFlow::single_line(),
+                ),
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
                 rule: false,
                 rule_color: theme.line,
