@@ -14,6 +14,8 @@ use framewise::{
     input::Input,
     layout::{IntrinsicSize, LayoutState, Placement},
     layouts::ManualLayout,
+    text::TextFlow,
+    text::TextStyle,
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -1046,9 +1048,17 @@ fn sec_y<CF>(
     detail_text: &str,
 ) {
     {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut b = b.child_with_layout(
+            Placement2D {
+                width: Placement::Fill,
+                height: Placement::Sized {
+                    size: Size::Auto,
+                    align: Align::Start,
+                },
+            },
+            RowLayout { spacing: 16.0 },
+        );
         {
-            let layout_params = Rect::new(0.0, 0.0, 40.0, 20.0);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
@@ -1059,10 +1069,9 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(t)
             });
-            label(&mut b, spec_builder, layout_params)
+            label(&mut b, spec_builder, Placement2D::auto())
         };
         {
-            let layout_params = Rect::new(44.0, 0.0, w - 44.0, 22.0);
             let color = t.ink;
             let font = t.sans_font;
             let spec_builder = LabelSpecBuilder::new().text(title).style(LabelStyle {
@@ -1074,23 +1083,36 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(t)
             });
-            label(&mut b, spec_builder, layout_params)
+            label(&mut b, spec_builder, Placement2D::auto())
         };
         {
-            let layout_params = Rect::new(w - 200.0, 0.0, 200.0, 22.0);
             let size = t.text_sm;
             let color = t.muted;
             let font = t.sans_font;
             let spec_builder = LabelSpecBuilder::new().text(detail_text).style(LabelStyle {
-                text_style: framewise::TextStyle {
+                text_style: TextStyle {
                     font,
                     size,
+                    flow: TextFlow::wrapped(),
                     ..(LabelStyle::from_theme(t)).text_style
                 },
                 text_color: color,
                 ..LabelStyle::from_theme(t)
             });
-            label(&mut b, spec_builder, layout_params)
+            label(
+                &mut b,
+                spec_builder,
+                Placement2D {
+                    width: Placement::Sized {
+                        size: Size::Fixed(330.0),
+                        align: Align::End,
+                    },
+                    height: Placement::Sized {
+                        size: Size::Auto,
+                        align: Align::Start,
+                    },
+                },
+            )
         };
         b.finish();
     }
@@ -1292,7 +1314,7 @@ fn header_section<CF>(
     t: Theme,
     content_w: f32,
 ) {
-    let mut b = b.child_with_layout(Placement2D::fixed(1000.0, 500.0), ManualLayout);
+    let mut b = b.child_with_layout(Placement2D::fixed(content_w, MARGIN + 400.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&t, logo_rect.x, logo_rect.y));
     let tx = 124.0;
@@ -1339,45 +1361,55 @@ fn header_section<CF>(
         label(&mut b, spec_builder, layout_params)
     };
     // Color Meta Row
-    let meta_items: &[(&str, &str)] = &[
-        ("INK", "#15130F"), //TODO: actually show these as colour swatches!
-        ("PAPER", "#F4F1EA"),
-        ("RUST", "#C25A2C"),
-        ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
-    ];
-    let mut mx = tx;
-    let my = MARGIN + 258.0;
-    for (key, val) in meta_items {
-        // key in ink, bold / medium
-        {
-            let layout_params = Rect::new(mx, my, 60.0, 16.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                text_style: {
-                    let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
-                    ts.weight = t.sans_weight_bold;
-                    ts
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(&mut b, spec_builder, layout_params)
-        };
-        let key_w = key.len() as f32 * 7.5 + 4.0;
-        {
-            let layout_params = Rect::new(mx + key_w, my, 200.0, 16.0);
-            let size = t.text_sm;
-            let color = t.muted;
-            let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
-                text_style: t.overline_text_style(size).with_letter_spacing(0.12),
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(&mut b, spec_builder, layout_params)
-        };
-        mx += key_w + val.len() as f32 * 6.5 + 24.0;
+    {
+        let mut b = b.child_with_layout(
+            Rect::new(tx, MARGIN + 258.0, content_w, 100.0),
+            RowLayout { spacing: 16.0 },
+        );
+        let meta_items: &[(&str, &str)] = &[
+            ("INK", "#15130F"), //TODO: actually show these as colour swatches!
+            ("PAPER", "#F4F1EA"),
+            ("RUST", "#C25A2C"),
+            ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
+        ];
+        for (key, val) in meta_items {
+            // key in ink, bold / medium
+            {
+                let size = t.text_sm;
+                let color = t.ink;
+                let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
+                    text_style: {
+                        let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
+                        ts.weight = t.sans_weight_bold;
+                        ts
+                    },
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
+                label(&mut b, spec_builder, Placement2D::auto())
+            };
+            {
+                let size = t.text_sm;
+                let color = t.muted;
+                let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
+                    text_style: t.overline_text_style(size).with_letter_spacing(0.12),
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
+                label(&mut b, spec_builder, Placement2D::auto())
+            };
+            b.layout(Placement2D::fixed(8.0, 0.0), IntrinsicSize::UNKNOWN); // Spacer
+        }
     }
+    {
+        let spec_builder = DividerSpecBuilder::new();
+        divider(
+            &mut b,
+            spec_builder,
+            Rect::new(0.0, MARGIN + 320.0, content_w, 1.0),
+        )
+    };
+
     b.finish();
 }
 fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
