@@ -265,13 +265,31 @@ impl SampleTextSystem {
         }
 
         // Normalize segments to start at 0.0, and compute width
-        for seg in &mut segments {
-            if !seg.glyphs.is_empty() {
-                let seg_l = seg.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
-                for g in &mut seg.glyphs {
-                    g.x -= seg_l;
-                }
-                seg.width = seg
+        let mut seg_starts = Vec::with_capacity(segments.len());
+        for seg in &segments {
+            let seg_l = if seg.glyphs.is_empty() {
+                0.0
+            } else {
+                seg.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
+            };
+            seg_starts.push(seg_l);
+        }
+
+        let seg_len = segments.len();
+        for i in 0..seg_len {
+            if segments[i].glyphs.is_empty() {
+                continue;
+            }
+            let seg_l = seg_starts[i];
+
+            for g in &mut segments[i].glyphs {
+                g.x -= seg_l;
+            }
+
+            if i + 1 < seg_len {
+                segments[i].width = seg_starts[i + 1] - seg_l;
+            } else {
+                segments[i].width = segments[i]
                     .glyphs
                     .iter()
                     .map(|g| g.x + g.width as f32)
@@ -286,15 +304,12 @@ impl SampleTextSystem {
         for seg in segments {
             if seg.is_space {
                 if !current_line.is_empty() {
-                    // Space segment at the end of the line: only add if it fits or has 0 width
-                    if seg.width == 0.0 || current_w + seg.width <= w {
-                        for g in seg.glyphs {
-                            let mut g_moved = g;
-                            g_moved.x += current_w;
-                            current_line.push(g_moved);
-                        }
-                        current_w += seg.width;
+                    for g in seg.glyphs {
+                        let mut g_moved = g;
+                        g_moved.x += current_w;
+                        current_line.push(g_moved);
                     }
+                    current_w += seg.width;
                 }
             } else {
                 let word_w = seg.width;
@@ -1002,6 +1017,21 @@ mod tests {
             TextBounds::UNBOUNDED,
         );
         assert_eq!(m.line_count, 3);
+    }
+
+    #[test]
+    fn test_word_wrap_preserves_spaces() {
+        let mut sys = sys();
+        let flow = TextFlow::wrapped();
+        let layout = sys.prepare(
+            "hello there",
+            16.0,
+            FontId(1),
+            flow,
+            Rect::new(0.0, 0.0, 500.0, 100.0),
+        );
+        let text = visible(&sys, layout.handle);
+        assert_eq!(text, "hello there");
     }
 
     #[test]
