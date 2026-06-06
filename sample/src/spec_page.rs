@@ -1238,7 +1238,7 @@ pub fn draw_spec_page(
 
                 // Color Meta Row
                 let meta_items: &[(&str, &str)] = &[
-                    ("INK", "#15130F"),
+                    ("INK", "#15130F"), //TODO: actually show these as colour swatches!
                     ("PAPER", "#F4F1EA"),
                     ("RUST", "#C25A2C"),
                     ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
@@ -1248,7 +1248,7 @@ pub fn draw_spec_page(
                 for (key, val) in meta_items {
                     // key in ink, bold / medium
                     {
-                        let layout_params = Rect::new(mx, my, 60.0, 14.0);
+                        let layout_params = Rect::new(mx, my, 60.0, 16.0);
                         let size = t.text_sm;
                         let color = t.ink;
                         let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
@@ -1264,7 +1264,7 @@ pub fn draw_spec_page(
                     };
                     let key_w = key.len() as f32 * 7.5 + 4.0;
                     {
-                        let layout_params = Rect::new(mx + key_w, my, 200.0, 14.0);
+                        let layout_params = Rect::new(mx + key_w, my, 200.0, 16.0);
                         let size = t.text_sm;
                         let color = t.muted;
                         let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {

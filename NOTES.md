@@ -5,7 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Support overridden line heights and char spacing, possibly part of the theme to use for "titles", "body text" etc.
+* There's still some suspicious gaps (kerning?) in the body text, like "describes" is more like "de scr ibes". WHat could this be? NO EWDITS YET
 * Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
