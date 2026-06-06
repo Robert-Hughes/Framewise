@@ -1587,7 +1587,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 3.0, lh * 13.0),
+            Rect::new(0.0, 0.0, 4.0, lh * 13.0),
         );
         // Expect 10 lines: 5 lines for each "hello". The newline character '\n'
         // is appended to the end of the first "hello"'s last line (containing 'o'),
@@ -1683,7 +1683,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 3.0, lh * 10.0),
+            Rect::new(0.0, 0.0, 6.0, lh * 10.0),
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
@@ -1708,7 +1708,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 3.0, lh * 25.0),
+            Rect::new(0.0, 0.0, 4.0, lh * 25.0),
         );
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "hello there\nhello there");
@@ -1741,14 +1741,14 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 23.0, lh * 5.5),
+            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             for g in line_glyphs {
-                assert!(g.x + g.width as f32 <= 23.0 + 0.1);
+                assert!(g.x + g.width as f32 <= 25.0 + 0.1);
             }
         }
     }
@@ -1770,7 +1770,7 @@ mod tests {
             16.0,
             FontId(1),
             flow,
-            Rect::new(0.0, 0.0, 23.0, lh * 5.5),
+            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.lines.len(), 2);
@@ -1780,7 +1780,7 @@ mod tests {
             if let Some(last_g) = line_glyphs.last() {
                 if last_g.parent != '\n'
                     && last_g.parent != ' '
-                    && last_g.x + last_g.width as f32 > 23.0
+                    && last_g.x + last_g.width as f32 > 25.0
                 {
                     has_overflow = true;
                 }

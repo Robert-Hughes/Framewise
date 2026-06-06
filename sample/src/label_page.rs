@@ -961,7 +961,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(3.0, 158.0),
+                        Placement2D::fixed(4.0, 162.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1147,7 +1147,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(3.0, 138.0),
+                        Placement2D::fixed(6.0, 138.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1217,7 +1217,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(3.0, 318.0),
+                        Placement2D::fixed(4.0, 318.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1274,7 +1274,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(23.0, 68.0),
+                        Placement2D::fixed(25.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1329,7 +1329,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(23.0, 68.0),
+                        Placement2D::fixed(25.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
