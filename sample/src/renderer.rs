@@ -768,3 +768,67 @@ fn push_text_run(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::push_text_run;
+    use crate::text::{GlyphKey, SampleTextSystem};
+    use framewise::{Color, FontId, Rect, TextFlow, TextSystem};
+
+    #[test]
+    fn text_vertices_snap_origin_before_adding_glyph_placement() {
+        let mut text_system = SampleTextSystem::new();
+        text_system.begin_frame();
+
+        let rect = Rect::new(10.0, 15.0, 180.0, 30.0);
+        let layout = text_system.prepare(
+            "Headless Test.",
+            14.0,
+            FontId(1),
+            TextFlow::single_line(),
+            rect,
+        );
+        let run = &text_system.runs[layout.handle.0];
+
+        let glyph_index = run
+            .glyphs
+            .iter()
+            .position(|g| g.parent == 'e')
+            .expect("test string should contain an e glyph");
+        let glyph = &run.glyphs[glyph_index];
+        let key = GlyphKey {
+            font_id: run.font_id.0,
+            glyph_index: glyph.key.glyph_index,
+            size: (glyph.key.px * 10.0) as u32,
+            subpixel_x: glyph.subpixel_x,
+        };
+        let info = text_system
+            .glyph_cache
+            .get(&key)
+            .expect("prepared glyph should be in cache");
+
+        let mut verts = Vec::new();
+        push_text_run(
+            &mut verts,
+            rect,
+            Color::from_srgb_u8(0, 0, 0, 255),
+            run,
+            &text_system,
+            (200, 50),
+        );
+
+        let actual_x = clip_x_to_pixels(verts[glyph_index * 6].pos[0], 200);
+        let absolute_x = rect.x + glyph.x;
+        let quantized_x = (absolute_x * 4.0).round() / 4.0;
+        let expected_x = quantized_x.floor() + info.left as f32;
+
+        assert_eq!(
+            actual_x, expected_x,
+            "glyph quad x should snap the quantized origin before adding placement.left"
+        );
+    }
+
+    fn clip_x_to_pixels(x: f32, width: u32) -> f32 {
+        ((x + 1.0) * 0.5 * width as f32).round()
+    }
+}

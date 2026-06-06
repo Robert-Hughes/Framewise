@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use crate::text::SampleTextSystem;
+    use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::{
         EllipsisFallback, FontId, HorizontalAlign, OverflowX, OverflowY, Rect, TextBounds,
         TextFlow, TextHandle, TextSystem, Vec2, WrapGlyphFallback, WrapWordFallback,
     };
+    use swash::{shape::ShapeContext, FontRef};
 
     fn sys() -> SampleTextSystem {
         SampleTextSystem::new()
@@ -223,6 +224,84 @@ mod tests {
                 abs_x, expected_bin, g.subpixel_x
             );
         }
+    }
+
+    #[test]
+    fn first_line_glyph_ink_stays_inside_text_rect_top() {
+        let mut sys = sys();
+        let rect = Rect::new(10.0, 15.0, 180.0, 30.0);
+        let layout = sys.prepare(
+            "Headless Test.",
+            14.0,
+            FontId(1),
+            TextFlow::single_line(),
+            rect,
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        let min_relative_top = run
+            .glyphs
+            .iter()
+            .filter_map(|g| {
+                let key = GlyphKey {
+                    font_id: run.font_id.0,
+                    glyph_index: g.key.glyph_index,
+                    size: (g.key.px * 10.0) as u32,
+                    subpixel_x: g.subpixel_x,
+                };
+                let info = sys.glyph_cache.get(&key)?;
+                (info.atlas_rect.h > 0).then_some(g.y - info.top as f32)
+            })
+            .fold(f32::INFINITY, f32::min);
+
+        assert!(
+            min_relative_top >= 0.0,
+            "first line ink should start within the text rect, got relative top {min_relative_top}"
+        );
+    }
+
+    #[test]
+    fn caret_end_uses_shaped_advance_not_bitmap_width() {
+        let mut sys = sys();
+        let text = "Headless Test.";
+        let size = 14.0;
+        let layout = sys.prepare(
+            text,
+            size,
+            FontId(1),
+            TextFlow::single_line(),
+            Rect::new(10.0, 15.0, 180.0, 30.0),
+        );
+
+        let expected_advance = shaped_advance(text, size, FontId(1));
+        let caret = sys.caret_geom(layout.handle, text.len());
+
+        assert!(
+            (caret.x - expected_advance).abs() < 0.25,
+            "caret end x should follow shaped advance {expected_advance}, got {}",
+            caret.x
+        );
+    }
+
+    fn shaped_advance(text: &str, size: f32, font_id: FontId) -> f32 {
+        let data = match font_id.0 {
+            0 => include_bytes!("../../assets/JetBrainsMono-Regular.ttf") as &[u8],
+            1 => include_bytes!("../../assets/InterTight-Regular.ttf") as &[u8],
+            2 => include_bytes!("../../assets/InterTight-Bold.ttf") as &[u8],
+            _ => panic!("unsupported test font id {}", font_id.0),
+        };
+        let font = FontRef::from_index(data, 0).expect("test font should load");
+        let mut shape_context = ShapeContext::new();
+        let mut shaper = shape_context.builder(font).size(size).build();
+        shaper.add_str(text);
+
+        let mut advance = 0.0;
+        shaper.shape_with(|cluster| {
+            for glyph in cluster.glyphs {
+                advance += glyph.advance;
+            }
+        });
+        advance
     }
 
     #[test]
