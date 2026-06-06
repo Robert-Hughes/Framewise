@@ -1186,97 +1186,7 @@ pub fn draw_spec_page(
             let b = &mut page;
 
             // ── HERO ─────────────────────────────────────────────────────────────────
-            {
-                let rect = b.layout(Rect::new(lx, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
-                b.append_cmds(hero_logo(&t, rect.x, rect.y));
-
-                let tx = lx + 124.0; // 28px gap + 96px logo = 124px
-                let hero_w = content_w - 124.0;
-
-                // Overline
-                {
-                    let layout_params = Rect::new(tx, MARGIN, hero_w, 16.0);
-                    let size = t.text_sm;
-                    let color = t.muted;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1")
-                        .style(LabelStyle {
-                            text_style: t.overline_text_style(size),
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-
-                // Two-line Title (56px size, Bold, line-height 0.95)
-                {
-                    let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
-                    let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("A widget set that explains itself.")
-                        .style(LabelStyle {
-                            text_style: t.heading_text_style(56.0),
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-
-                // Description (15px size, regular, line-height 1.55)
-                {
-                    let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(520.0), 80.0);
-                    let color = Color::from_srgb_u8(58, 53, 45, 255);
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
-                        .style(LabelStyle {
-                            text_style: { let mut ts = t.body_text_style(15.0); ts.font = t.heading_font; ts },
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-
-                // Color Meta Row
-                let meta_items: &[(&str, &str)] = &[
-                    ("INK", "#15130F"), //TODO: actually show these as colour swatches!
-                    ("PAPER", "#F4F1EA"),
-                    ("RUST", "#C25A2C"),
-                    ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
-                ];
-                let mut mx = tx;
-                let my = MARGIN + 258.0;
-                for (key, val) in meta_items {
-                    // key in ink, bold / medium
-                    {
-                        let layout_params = Rect::new(mx, my, 60.0, 16.0);
-                        let size = t.text_sm;
-                        let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                            text_style: {
-                                let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
-                                ts.weight = t.sans_weight_bold;
-                                ts
-                            },
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                        label(b, spec_builder, layout_params)
-                    };
-                    let key_w = key.len() as f32 * 7.5 + 4.0;
-                    {
-                        let layout_params = Rect::new(mx + key_w, my, 200.0, 16.0);
-                        let size = t.text_sm;
-                        let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
-                            text_style: t.overline_text_style(size).with_letter_spacing(0.12),
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                        label(b, spec_builder, layout_params)
-                    };
-                    mx += key_w + val.len() as f32 * 6.5 + 24.0;
-                }
-            }
+            header_section(b, t, content_w, lx);
 
             #[allow(unused_mut)]
             let mut y = MARGIN + 334.0;
@@ -1431,6 +1341,99 @@ pub fn draw_spec_page(
     }
     b.finish();
     cmds
+}
+
+fn header_section<LS: LayoutState<Params = Rect>, CF>(
+    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+    t: Theme,
+    content_w: f32,
+    lx: f32,
+) {
+    let rect = b.layout(Rect::new(lx, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
+    b.append_cmds(hero_logo(&t, rect.x, rect.y));
+    let tx = lx + 124.0;
+    // 28px gap + 96px logo = 124px
+    let hero_w = content_w - 124.0;
+    // Overline
+    {
+        let layout_params = Rect::new(tx, MARGIN, hero_w, 16.0);
+        let size = t.text_sm;
+        let color = t.muted;
+        let spec_builder = LabelSpecBuilder::new()
+            .text("FRAMEWISE · WIDGET SPECIFICATION · V0.1")
+            .style(LabelStyle {
+                text_style: t.overline_text_style(size),
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+        label(b, spec_builder, layout_params)
+    };
+    // Two-line Title (56px size, Bold, line-height 0.95)
+    {
+        let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
+        let color = t.ink;
+        let spec_builder = LabelSpecBuilder::new()
+            .text("A widget set that explains itself.")
+            .style(LabelStyle {
+                text_style: t.heading_text_style(56.0),
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+        label(b, spec_builder, layout_params)
+    };
+    // Description (15px size, regular, line-height 1.55)
+    {
+        let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(520.0), 80.0);
+        let color = Color::from_srgb_u8(58, 53, 45, 255);
+        let spec_builder = LabelSpecBuilder::new()
+            .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
+            .style(LabelStyle {
+                text_style: { let mut ts = t.body_text_style(15.0); ts.font = t.heading_font; ts },
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+        label(b, spec_builder, layout_params)
+    };
+    // Color Meta Row
+    let meta_items: &[(&str, &str)] = &[
+        ("INK", "#15130F"), //TODO: actually show these as colour swatches!
+        ("PAPER", "#F4F1EA"),
+        ("RUST", "#C25A2C"),
+        ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
+    ];
+    let mut mx = tx;
+    let my = MARGIN + 258.0;
+    for (key, val) in meta_items {
+        // key in ink, bold / medium
+        {
+            let layout_params = Rect::new(mx, my, 60.0, 16.0);
+            let size = t.text_sm;
+            let color = t.ink;
+            let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
+                text_style: {
+                    let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
+                    ts.weight = t.sans_weight_bold;
+                    ts
+                },
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+            label(b, spec_builder, layout_params)
+        };
+        let key_w = key.len() as f32 * 7.5 + 4.0;
+        {
+            let layout_params = Rect::new(mx + key_w, my, 200.0, 16.0);
+            let size = t.text_sm;
+            let color = t.muted;
+            let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
+                text_style: t.overline_text_style(size).with_letter_spacing(0.12),
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+            label(b, spec_builder, layout_params)
+        };
+        mx += key_w + val.len() as f32 * 6.5 + 24.0;
+    }
 }
 
 #[cfg(feature = "button")]
