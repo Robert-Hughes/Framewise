@@ -5,8 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* There's still some suspicious gaps (kerning?) in the body text, like "describes" is more like "de scr ibes". WHat could this be? NO EWDITS YET
-* Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
+* Letter spacing for "Sharp corners, hairline" etc. not small enough
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
@@ -121,6 +120,7 @@ Features to design and implement, roughly in dependency order:
   * All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
   * Consider moving some/all of the SampleTextSystem into framewise (or a related crate?)
   * Itatlic support - as these are separate .ttf files, we'll need to wrap this up somehow in our SampleTextSystem.
+  * Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)

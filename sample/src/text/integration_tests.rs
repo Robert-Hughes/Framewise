@@ -2,7 +2,7 @@
 mod integration_tests {
     use crate::renderer::Renderer;
     use crate::text::SampleTextSystem;
-    use framewise::{Color, DrawCmd, FontId, Rect, TextFlow, TextSystem};
+    use framewise::{Color, DrawCmd, FontId, LineHeight, Rect, TextFlow, TextSystem};
 
     #[test]
     fn test_headless_text_rendering() {
@@ -56,8 +56,8 @@ mod integration_tests {
         };
 
         // 3. Create Offscreen Texture and View
-        let width = 200;
-        let height = 50;
+        let width = 600;
+        let height = 80;
         let texture_desc = wgpu::TextureDescriptor {
             label: Some("headless_target_texture"),
             size: wgpu::Extent3d {
@@ -83,17 +83,19 @@ mod integration_tests {
         // 5. Layout and Draw Command
         let mut cmds = Vec::new();
         let font_id = FontId(1); // Sans Regular
-        let flow = TextFlow::single_line();
-        let test_str = "Headless Test.";
-        let layout = text_system.prepare(
-            test_str,
-            framewise::TextStyle::new(font_id, 14.0, 400, flow),
-            Rect::new(10.0, 15.0, 180.0, 30.0),
+
+        let body_style = framewise::TextStyle::new(font_id, 15.0, 400, TextFlow::wrapped())
+            .with_line_height(LineHeight::Relative(1.55));
+        let body_rect = Rect::new(0.0, 0.0, 600.0, 80.0);
+        let describe_layout = text_system.prepare(
+            "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.",
+            body_style,
+            body_rect,
         );
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(10.0, 15.0, 180.0, 30.0),
-            color: Color::from_srgb_u8(0, 0, 0, 255), // black ink
-            handle: layout.handle,
+            rect: body_rect,
+            color: Color::from_srgb_u8(0, 0, 0, 255),
+            handle: describe_layout.handle,
         });
 
         // 6. Draw to Texture

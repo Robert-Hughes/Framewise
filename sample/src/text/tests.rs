@@ -410,6 +410,74 @@ mod tests {
     }
 
     #[test]
+    fn subpixel_bins_match_final_glyph_positions_for_body_copy() {
+        let mut sys = sys();
+        let rect = Rect::new(173.0, 232.0, 600.0, 80.0);
+        let layout = sys.prepare(
+            "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.",
+            TextStyle::new(FontId(1), 15.0, 400, TextFlow::wrapped())
+                .with_line_height(LineHeight::Relative(1.55)),
+            rect,
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        for g in &run.glyphs {
+            if g.parent == ' ' || g.parent == '\n' {
+                continue;
+            }
+
+            let expected = subpixel_bin(rect.x + g.x);
+            assert_eq!(
+                g.subpixel_x, expected,
+                "glyph {:?} at final local x={} absolute x={} stored stale subpixel bin {}, expected {}",
+                g.parent,
+                g.x,
+                rect.x + g.x,
+                g.subpixel_x,
+                expected,
+            );
+        }
+    }
+
+    #[test]
+    fn subpixel_bins_match_final_glyph_positions_after_wrapping() {
+        let mut sys = sys();
+        let rect = Rect::new(10.15, 20.0, 72.0, 120.0);
+        let layout = sys.prepare(
+            "hello there hello there",
+            TextStyle::new(FontId(1), 16.0, 400, TextFlow::wrapped()),
+            rect,
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        assert!(
+            run.lines.len() > 1,
+            "test should exercise wrapped line relocation"
+        );
+
+        for g in &run.glyphs {
+            if g.parent == ' ' || g.parent == '\n' {
+                continue;
+            }
+
+            let expected = subpixel_bin(rect.x + g.x);
+            assert_eq!(
+                g.subpixel_x, expected,
+                "glyph {:?} at final local x={} absolute x={} stored stale subpixel bin {}, expected {}",
+                g.parent,
+                g.x,
+                rect.x + g.x,
+                g.subpixel_x,
+                expected,
+            );
+        }
+    }
+
+    fn subpixel_bin(abs_x: f32) -> u8 {
+        (abs_x.fract() * 4.0).round() as u8 % 4
+    }
+
+    #[test]
     fn first_line_glyph_ink_stays_inside_text_rect_top() {
         let mut sys = sys();
         let rect = Rect::new(10.0, 15.0, 180.0, 30.0);

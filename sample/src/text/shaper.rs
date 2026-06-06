@@ -465,6 +465,28 @@ impl SampleTextSystem {
                 }
             }
 
+            for g in &mut line.glyphs {
+                if g.width == 0 && g.height == 0 {
+                    continue;
+                }
+
+                let abs_x = absolute_x.unwrap_or(0.0) + g.x;
+                let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
+                if g.subpixel_x != subpixel_x {
+                    g.subpixel_x = subpixel_x;
+                    let (w, h) = self.get_glyph_metrics(
+                        font_id.0,
+                        g.key.glyph_index,
+                        size,
+                        subpixel_x,
+                        g.weight,
+                        g.opsz,
+                    );
+                    g.width = w as usize;
+                    g.height = h as usize;
+                }
+            }
+
             let line_w = if line.glyphs.is_empty() {
                 0.0
             } else {
