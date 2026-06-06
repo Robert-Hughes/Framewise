@@ -16,7 +16,10 @@ use framewise::{
 };
 
 #[derive(Default)]
-pub struct LabelPageState {}
+pub struct LabelPageState {
+    #[cfg(feature = "scroll_area")]
+    pub scroll: framewise::widgets::scroll_area::ScrollState,
+}
 
 pub fn draw_label_page(
     _state: &mut LabelPageState,
@@ -31,15 +34,40 @@ pub fn draw_label_page(
     let pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
-    let mut ctx = WidgetContext::root(
+    #[allow(unused_mut)]
+    let mut root_ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
+        #[cfg(feature = "scroll_area")]
+        framewise::layouts::ManualLayout,
+        #[cfg(not(feature = "scroll_area"))]
         ColumnLayout { spacing: 28.0 },
+        #[cfg(feature = "scroll_area")]
+        Rect::new(0.0, 0.0, win_w, win_h),
+        #[cfg(not(feature = "scroll_area"))]
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
+
+    #[cfg(feature = "scroll_area")]
+    let framewise::widgets::scroll_area::ScrollAreaResult { layout: _, mut ctx } =
+        framewise::widgets::scroll_area::begin_scroll_area(
+            &mut root_ctx,
+            framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new().vertical(
+                framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::Unbounded,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                },
+            ),
+            Rect::new(0.0, 0.0, win_w, win_h),
+            &mut _state.scroll,
+            ColumnLayout { spacing: 28.0 },
+        );
+    #[cfg(not(feature = "scroll_area"))]
+    let mut ctx = root_ctx;
+
     ctx.debug_layout = debug_layout;
     ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
@@ -1435,6 +1463,14 @@ pub fn draw_label_page(
         Placement2D::auto(),
     );
 
-    ctx.finish();
+    #[cfg(feature = "scroll_area")]
+    {
+        ctx.finish();
+        root_ctx.finish();
+    }
+    #[cfg(not(feature = "scroll_area"))]
+    {
+        ctx.finish();
+    }
     cmds
 }

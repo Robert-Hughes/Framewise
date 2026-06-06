@@ -1303,7 +1303,7 @@ mod tests {
         for g in &run.glyphs {
             assert!(g.x + g.width as f32 <= 27.0 + 0.1);
         }
-        assert!(run.glyphs.len() > 0);
+        assert!(!run.glyphs.is_empty());
     }
 
     #[test]
