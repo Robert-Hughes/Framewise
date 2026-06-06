@@ -113,7 +113,11 @@ use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
 #[cfg(feature = "button")]
 #[allow(unused_imports)]
 use framewise::widgets::{
-    button::{button, raw::button as raw_button, ButtonState, ButtonStyle},
+    button::{
+        button,
+        raw::{button as raw_button, calc_button_intrinsic_size},
+        ButtonState, ButtonStyle,
+    },
     ButtonSpecBuilder,
 };
 
@@ -359,6 +363,25 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
     );
 }
 
+#[cfg(feature = "button")]
+fn button_intrinsic_width<T: TextSystem>(
+    text: &str,
+    style: ButtonStyle,
+    text_system: &mut T,
+) -> f32 {
+    let spec = ButtonSpecBuilder::new()
+        .text(text)
+        .style(style)
+        .rect(Rect::PLACEHOLDER)
+        .clip_rect(None)
+        .build();
+
+    calc_button_intrinsic_size(&spec, text_system)
+        .preferred
+        .expect("button intrinsic size should report preferred size")
+        .x
+}
+
 // ── Page state ────────────────────────────────────────────────────────────────
 
 /// Top-level state for the spec page.
@@ -377,7 +400,7 @@ pub struct SpecPageState {
 pub struct SpecWidgets {
     // 01 Buttons
     #[cfg(feature = "button")]
-    pub btn_variants: Vec<ButtonState>, // [secondary, primary, accent, ghost]
+    pub btn_variants: Vec<ButtonState>, // [primary, secondary, ghost, accent, icon, icon]
     #[cfg(feature = "button")]
     pub btn_matrix: Vec<ButtonState>, // 4 variants × 2 real states (default + disabled) = 8
     #[cfg(feature = "button")]
@@ -620,7 +643,7 @@ impl Default for SpecWidgets {
         }
         Self {
             #[cfg(feature = "button")]
-            btn_variants: (0..4).map(|_| ButtonState::default()).collect(),
+            btn_variants: (0..6).map(|_| ButtonState::default()).collect(),
             #[cfg(feature = "button")]
             btn_matrix: (0..8).map(|_| ButtonState::default()).collect(),
             #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
@@ -1502,15 +1525,17 @@ fn section_01_buttons<CF>(
     {
         let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
 
-        let styles: &[(&str, ButtonStyle, bool)] = &[
-            ("Apply changes", ButtonStyle::primary_from_theme(&t), false),
-            ("Cancel", ButtonStyle::primary_from_theme(&t), false),
-            ("Reset", ButtonStyle::ghost_from_theme(&t), false),
-            ("Publish v0.2", ButtonStyle::accent_from_theme(&t), false),
+        let styles: &[(&str, ButtonStyle, Option<f32>)] = &[
+            ("Apply changes", ButtonStyle::primary_from_theme(&t), None),
+            ("Cancel", ButtonStyle::secondary_from_theme(&t), None),
+            ("Reset", ButtonStyle::ghost_from_theme(&t), None),
+            ("Publish v0.2", ButtonStyle::accent_from_theme(&t), None),
+            ("⊙", ButtonStyle::secondary_from_theme(&t), Some(t.h_md)),
+            ("×", ButtonStyle::secondary_from_theme(&t), Some(t.h_md)),
         ];
         let mut bx = 0.0;
-        for (i, (label, style, _)) in styles.iter().enumerate() {
-            let w = label.len() as f32 * 7.0 + 24.0;
+        for (i, (label, style, width)) in styles.iter().enumerate() {
+            let w = width.unwrap_or_else(|| button_intrinsic_width(label, *style, b.text_system));
             let btn = {
                 let state = &mut state.btn_variants[i];
                 let layout_params = Rect::new(bx, 0.0, w, t.h_md);
@@ -1537,22 +1562,25 @@ fn section_01_buttons<CF>(
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
         let row_labels = ["secondary", "primary", "accent", "ghost"];
         let row_styles: &[ButtonStyle] = &[
-            ButtonStyle::primary_from_theme(&t),
+            ButtonStyle::secondary_from_theme(&t),
             ButtonStyle::primary_from_theme(&t),
             ButtonStyle::accent_from_theme(&t),
             ButtonStyle::ghost_from_theme(&t),
         ];
-        let label_w = 80.0_f32;
-        let cell_w = 88.0_f32;
+        let label_w = 110.0_f32;
+        let col_gap = 18.0_f32;
+        let row_gap = 14.0_f32;
+        let cell_w = ((content_w - label_w - col_gap * 5.0) / 5.0).max(0.0);
 
         // column headers
         for (ci, col) in col_labels.iter().enumerate() {
+            let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
             // Add STATIC badge for fake state columns
             if (1..=3).contains(&ci) {
-                static_badge(&mut b, &t, label_w + ci as f32 * cell_w, y - 14.0);
+                static_badge(&mut b, &t, col_x, y - 14.0);
             }
             {
-                let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
+                let layout_params = Rect::new(col_x, y, cell_w, 16.0);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
@@ -1566,11 +1594,11 @@ fn section_01_buttons<CF>(
                 label(&mut b, spec_builder, layout_params)
             };
         }
-        y += 20.0;
+        y += 16.0 + row_gap;
 
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
-                let layout_params = Rect::new(0.0, y, label_w - 8.0, t.h_md);
+                let layout_params = Rect::new(0.0, y, label_w, t.h_md);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
@@ -1584,7 +1612,8 @@ fn section_01_buttons<CF>(
                 label(&mut b, spec_builder, layout_params)
             };
             for ci in 0..5 {
-                let rect = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
+                let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
+                let rect = Rect::new(col_x, y, cell_w, t.h_md);
                 match ci {
                     1 => draw_button_fake_state(
                         &mut b,
@@ -1628,7 +1657,7 @@ fn section_01_buttons<CF>(
                     }
                 }
             }
-            y += t.h_md + 4.0;
+            y += t.h_md + row_gap;
         }
         b.finish();
     }
@@ -1639,13 +1668,13 @@ fn section_01_buttons<CF>(
         let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
 
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
-            ("22 px", t.h_sm, ButtonStyle::primary_from_theme(&t)),
-            ("28 px", t.h_md, ButtonStyle::primary_from_theme(&t)),
-            ("36 px", t.h_lg, ButtonStyle::primary_from_theme(&t)),
+            ("22 px", t.h_sm, ButtonStyle::secondary_from_theme(&t)),
+            ("28 px", t.h_md, ButtonStyle::secondary_from_theme(&t)),
+            ("36 px", t.h_lg, ButtonStyle::secondary_from_theme(&t)),
         ];
         let mut bx = 0.0;
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
-            let w = label.len() as f32 * 7.0 + 20.0;
+            let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_sizes[i];
                 let layout_params = Rect::new(bx, 40.0, w, *h);
@@ -1660,13 +1689,13 @@ fn section_01_buttons<CF>(
 
         // button group 1: ← | Frame 248 | →
         let grp1: &[(&str, ButtonStyle)] = &[
-            ("←", ButtonStyle::primary_from_theme(&t)),
-            ("Frame 248", ButtonStyle::primary_from_theme(&t)),
-            ("→", ButtonStyle::primary_from_theme(&t)),
+            ("←", ButtonStyle::secondary_from_theme(&t)),
+            ("Frame 248", ButtonStyle::secondary_from_theme(&t)),
+            ("→", ButtonStyle::secondary_from_theme(&t)),
         ];
         // draw group border
         for (i, (label, style)) in grp1.iter().enumerate() {
-            let w = label.len() as f32 * 7.0 + 20.0;
+            let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_grp1[i];
                 let layout_params = Rect::new(bx, 40.0, w, t.h_md);
@@ -1681,12 +1710,12 @@ fn section_01_buttons<CF>(
 
         // button group 2: Build | Run | Ship
         let grp2: &[(&str, ButtonStyle)] = &[
-            ("Build", ButtonStyle::primary_from_theme(&t)),
-            ("Run", ButtonStyle::primary_from_theme(&t)),
+            ("Build", ButtonStyle::secondary_from_theme(&t)),
+            ("Run", ButtonStyle::secondary_from_theme(&t)),
             ("Ship", ButtonStyle::primary_from_theme(&t)),
         ];
         for (i, (label, style)) in grp2.iter().enumerate() {
-            let w = label.len() as f32 * 7.0 + 20.0;
+            let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_grp2[i];
                 let layout_params = Rect::new(bx, 40.0, w, t.h_md);

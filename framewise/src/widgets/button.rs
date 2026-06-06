@@ -251,7 +251,7 @@ impl ButtonStyle {
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
-                theme.sans_weight_regular,
+                500,
                 crate::text::TextFlow::single_line(),
             ),
             text_color: theme.ink,
@@ -275,7 +275,7 @@ impl ButtonStyle {
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
-                theme.sans_weight_regular,
+                500,
                 crate::text::TextFlow::single_line(),
             ),
             text_color: theme.paper,
@@ -299,7 +299,7 @@ impl ButtonStyle {
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
-                theme.sans_weight_regular,
+                500,
                 crate::text::TextFlow::single_line(),
             ),
             text_color: Color::WHITE,
@@ -323,12 +323,12 @@ impl ButtonStyle {
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
-                theme.sans_weight_regular,
+                500,
                 crate::text::TextFlow::single_line(),
             ),
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
-            pad_x: 14.0,
+            pad_x: 10.0,
             pad_y: 6.0,
             min_height: theme.h_md,
         }
