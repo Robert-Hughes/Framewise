@@ -718,8 +718,8 @@ fn push_text_run(
             // Because horizontal subpixel offsets are already pre-baked into the glyph
             // bitmaps inside the atlas, the quad itself must be rendered at an integer pixel
             // boundary to prevent Nearest-neighbor sampling from causing visual jitter or blurring.
-            let gx = (rect.x + g.x).round();
-            let gy = (rect.y + g.y).round();
+            let gx = (rect.x + g.x + info.left as f32).round();
+            let gy = (rect.y + g.y - info.top as f32).round();
             let gw = g.width as f32;
             let gh = g.height as f32;
 

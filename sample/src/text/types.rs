@@ -35,6 +35,8 @@ pub struct AtlasRect {
 
 pub struct GlyphInfo {
     pub atlas_rect: AtlasRect,
+    pub left: i32,
+    pub top: i32,
 }
 
 /// One laid-out line within a prepared run, in block-local coordinates.

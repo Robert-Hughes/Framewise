@@ -5,8 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Go through the 'wrapping' cases on the label demo page, make sure they are working and look good, update them (and corresponding unit tests) if necessary.
-* Update spec page to use auto-wrapping labels rather than manual splitting into lines
+* Use variable ttf fonts now that we support them?
+* Support overridden line heights and char spacing, possibly part of the theme to use for "titles", "body text" etc.
+* Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
@@ -113,6 +114,7 @@ Features to design and implement, roughly in dependency order:
 - [ ] Buttons and toggles
 - [ ] Labels and text measurement
   * All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
+  * Consider moving some/all of the SampleTextSystem into framewise (or a related crate?)
 - [ ] Scrolling and scroll regions
 - [ ] Splitters and drag handles
 - [ ] Text editing (`TextEditState`)

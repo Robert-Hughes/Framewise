@@ -33,10 +33,14 @@ impl SampleTextSystem {
         .offset(offset)
         .render(&mut scaler, key.glyph_index);
 
-        let (w, h, data) = match image {
-            Some(img) if img.placement.width > 0 && img.placement.height > 0 => {
-                (img.placement.width, img.placement.height, img.data)
-            }
+        let (w, h, left, top, data) = match image {
+            Some(img) if img.placement.width > 0 && img.placement.height > 0 => (
+                img.placement.width,
+                img.placement.height,
+                img.placement.left,
+                img.placement.top,
+                img.data,
+            ),
             _ => {
                 // Empty glyph (like space) or failed render
                 self.glyph_cache.insert(
@@ -48,6 +52,8 @@ impl SampleTextSystem {
                             w: 0,
                             h: 0,
                         },
+                        left: 0,
+                        top: 0,
                     },
                 );
                 return;
@@ -87,6 +93,8 @@ impl SampleTextSystem {
             key,
             GlyphInfo {
                 atlas_rect: AtlasRect { x, y, w, h },
+                left,
+                top,
             },
         );
     }

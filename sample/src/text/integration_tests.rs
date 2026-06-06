@@ -164,39 +164,155 @@ mod integration_tests {
 
         let data = buffer_slice.get_mapped_range();
 
-        // Let's assert that we rendered some non-white, non-paper pixels (meaning text was rasterized).
-        // Background clear color: paper (#f4f1ea)
-        // Check if any pixels in the buffer deviate from the background color.
-        let mut found_non_background = false;
-        let paper_r = 244u8;
-        let paper_g = 241u8;
-        let paper_b = 234u8;
-
+        // Extract unpadded RGBA pixel data
+        let mut actual_rgba = vec![0u8; (width * height * bytes_per_pixel) as usize];
         for row in 0..height {
-            let row_start = (row * padded_bytes_per_row) as usize;
-            for col in 0..width {
-                let pixel_start = row_start + (col * bytes_per_pixel) as usize;
-                let r = data[pixel_start];
-                let g = data[pixel_start + 1];
-                let b = data[pixel_start + 2];
-                let a = data[pixel_start + 3];
-
-                if a > 0 && (r != paper_r || g != paper_g || b != paper_b) {
-                    found_non_background = true;
-                    break;
-                }
-            }
-            if found_non_background {
-                break;
-            }
+            let src_start = (row * padded_bytes_per_row) as usize;
+            let src_end = src_start + (width * bytes_per_pixel) as usize;
+            let dst_start = (row * width * bytes_per_pixel) as usize;
+            let dst_end = dst_start + (width * bytes_per_pixel) as usize;
+            actual_rgba[dst_start..dst_end].copy_from_slice(&data[src_start..src_end]);
         }
-
-        assert!(
-            found_non_background,
-            "Headless render failed: target texture contains only background color. No text rendered."
-        );
 
         drop(data);
         output_buffer.unmap();
+
+        let golden_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/text/golden_text.bmp");
+
+        if !golden_path.exists() {
+            write_bmp(golden_path.to_str().unwrap(), width, height, &actual_rgba).unwrap();
+            panic!(
+                "Golden image did not exist. Created a new golden image at {}. Please verify it and check it in to the repository.",
+                golden_path.display()
+            );
+        }
+
+        let (golden_w, golden_h, golden_rgba) = read_bmp(golden_path.to_str().unwrap()).unwrap();
+
+        if golden_w != width || golden_h != height {
+            let actual_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("src/text/golden_text_actual.bmp");
+            write_bmp(actual_path.to_str().unwrap(), width, height, &actual_rgba).unwrap();
+            panic!(
+                "Dimension mismatch: Golden is {}x{}, Actual is {}x{}. Mismatched image written to {}.",
+                golden_w, golden_h, width, height, actual_path.display()
+            );
+        }
+
+        if golden_rgba != actual_rgba {
+            let actual_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("src/text/golden_text_actual.bmp");
+            write_bmp(actual_path.to_str().unwrap(), width, height, &actual_rgba).unwrap();
+            panic!(
+                "Pixel mismatch: Rendered text does not match golden image. Mismatched image written to {} for comparison.",
+                actual_path.display()
+            );
+        }
+    }
+
+    fn write_bmp(path: &str, width: u32, height: u32, rgba_pixels: &[u8]) -> std::io::Result<()> {
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file = File::create(path)?;
+        let pixel_data_size = width * height * 4;
+        let file_size = 54 + pixel_data_size;
+
+        // File Header (14 bytes)
+        file.write_all(b"BM")?;
+        file.write_all(&file_size.to_le_bytes())?;
+        file.write_all(&0u16.to_le_bytes())?; // reserved 1
+        file.write_all(&0u16.to_le_bytes())?; // reserved 2
+        file.write_all(&54u32.to_le_bytes())?; // offset to pixel data
+
+        // Info Header (40 bytes)
+        file.write_all(&40u32.to_le_bytes())?; // biSize
+        file.write_all(&(width as i32).to_le_bytes())?; // biWidth
+        file.write_all(&(-(height as i32)).to_le_bytes())?; // biHeight (negative for top-down)
+        file.write_all(&1u16.to_le_bytes())?; // biPlanes
+        file.write_all(&32u16.to_le_bytes())?; // biBitCount (32 bits for BGRA)
+        file.write_all(&0u32.to_le_bytes())?; // biCompression
+        file.write_all(&pixel_data_size.to_le_bytes())?; // biSizeImage
+        file.write_all(&0i32.to_le_bytes())?; // biXPelsPerMeter
+        file.write_all(&0i32.to_le_bytes())?; // biYPelsPerMeter
+        file.write_all(&0u32.to_le_bytes())?; // biClrUsed
+        file.write_all(&0u32.to_le_bytes())?; // biClrImportant
+
+        // Convert RGBA to BGRA
+        let mut bgra = vec![0u8; pixel_data_size as usize];
+        for i in 0..(width * height) as usize {
+            bgra[i * 4] = rgba_pixels[i * 4 + 2]; // B
+            bgra[i * 4 + 1] = rgba_pixels[i * 4 + 1]; // G
+            bgra[i * 4 + 2] = rgba_pixels[i * 4]; // R
+            bgra[i * 4 + 3] = rgba_pixels[i * 4 + 3]; // A
+        }
+        file.write_all(&bgra)?;
+        Ok(())
+    }
+
+    fn read_bmp(path: &str) -> std::io::Result<(u32, u32, Vec<u8>)> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+        let mut header = [0u8; 54];
+        file.read_exact(&mut header)?;
+
+        if &header[0..2] != b"BM" {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Not a BMP file",
+            ));
+        }
+
+        let offset = u32::from_le_bytes(header[10..14].try_into().unwrap()) as usize;
+        let width = i32::from_le_bytes(header[18..22].try_into().unwrap());
+        let height = i32::from_le_bytes(header[22..26].try_into().unwrap());
+        let bit_count = u16::from_le_bytes(header[28..30].try_into().unwrap());
+
+        if bit_count != 32 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Only 32-bit BMPs are supported, got {}", bit_count),
+            ));
+        }
+
+        if offset > 54 {
+            let mut skip = vec![0u8; offset - 54];
+            file.read_exact(&mut skip)?;
+        }
+
+        let w = width as u32;
+        let h = height.unsigned_abs();
+        let top_down = height < 0;
+
+        let pixel_count = (w * h) as usize;
+        let mut bgra = vec![0u8; pixel_count * 4];
+        file.read_exact(&mut bgra)?;
+
+        let mut rgba = vec![0u8; pixel_count * 4];
+        for i in 0..pixel_count {
+            let b = bgra[i * 4];
+            let g = bgra[i * 4 + 1];
+            let r = bgra[i * 4 + 2];
+            let a = bgra[i * 4 + 3];
+
+            let row = i / w as usize;
+            let col = i % w as usize;
+            let target_row = if top_down {
+                row
+            } else {
+                (h as usize - 1) - row
+            };
+            let target_idx = (target_row * w as usize + col) * 4;
+
+            rgba[target_idx] = r;
+            rgba[target_idx + 1] = g;
+            rgba[target_idx + 2] = b;
+            rgba[target_idx + 3] = a;
+        }
+
+        Ok((w, h, rgba))
     }
 }
