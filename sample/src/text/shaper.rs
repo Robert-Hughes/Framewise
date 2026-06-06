@@ -57,7 +57,7 @@ impl SampleTextSystem {
     pub fn ellipsis(&mut self, size: f32, font_id: FontId) -> (Vec<GlyphPosition>, f32, f32) {
         let flow = TextFlow::single_line();
         let style = TextStyle::new(font_id, size, self.weight_for_font(font_id), flow);
-        let (glyphs, lines, _metrics) = self.shape_internal("…", style, None, None, Some(0.0));
+        let (glyphs, _lines, _metrics) = self.shape_internal("…", style, None, None, Some(0.0));
 
         let width = if glyphs.is_empty() {
             0.0
@@ -70,7 +70,9 @@ impl SampleTextSystem {
             r - l
         };
 
-        let baseline = lines.first().map(|l| l.y_top + l.height).unwrap_or(0.0);
+        let font = self.fonts[font_id.0 as usize];
+        let metrics = font.metrics(&[]);
+        let baseline = (metrics.ascent * size / metrics.units_per_em as f32).round();
         (glyphs, width, baseline)
     }
 

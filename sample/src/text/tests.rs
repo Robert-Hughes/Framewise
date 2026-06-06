@@ -611,6 +611,48 @@ mod tests {
     }
 
     #[test]
+    fn overflow_ellipsis_uses_same_vertical_position_as_shaped_ellipsis() {
+        let mut sys = sys();
+        let style = TextStyle::new(
+            FontId(1),
+            16.0,
+            400,
+            TextFlow {
+                overflow_x: OverflowX::Ellipsis {
+                    fallback: EllipsisFallback::Drop,
+                },
+                overflow_y: OverflowY::Drop,
+                horizontal_align: HorizontalAlign::Start,
+            },
+        );
+
+        let direct = sys.prepare("hello…", style, Rect::new(0.0, 0.0, 200.0, 30.0));
+        let direct_y = sys.runs[direct.handle.0]
+            .glyphs
+            .iter()
+            .find(|g| g.parent == '…')
+            .expect("direct text should contain an ellipsis")
+            .y;
+
+        let overflow = sys.prepare(
+            "hello world this is long",
+            style,
+            Rect::new(0.0, 0.0, 40.0, 30.0),
+        );
+        let overflow_y = sys.runs[overflow.handle.0]
+            .glyphs
+            .iter()
+            .find(|g| g.parent == '…')
+            .expect("overflow text should contain an ellipsis")
+            .y;
+
+        assert!(
+            (overflow_y - direct_y).abs() < 0.5,
+            "overflow ellipsis y {overflow_y} should match shaped ellipsis y {direct_y}",
+        );
+    }
+
+    #[test]
     fn ellipsis_on_last_line_when_height_clipped() {
         let mut sys = sys();
         let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
