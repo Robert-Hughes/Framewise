@@ -209,10 +209,8 @@ pub fn draw_label_page(
 
         // Color Showcase Column
         {
-            let mut col = row.child_with_layout(
-                Placement2D::auto(),
-                ColumnLayout { spacing: 10.0 },
-            );
+            let mut col =
+                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 10.0 });
             let colors = [
                 ("Default Ink Color", theme.ink),
                 ("Accent Rust Color", theme.rust),
@@ -244,10 +242,8 @@ pub fn draw_label_page(
 
         // Rule Showcase Column
         {
-            let mut col = row.child_with_layout(
-                Placement2D::auto(),
-                ColumnLayout { spacing: 18.0 },
-            );
+            let mut col =
+                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 18.0 });
 
             let rule_styles = [
                 ("Underlined Heading", theme.ink, theme.line),
@@ -780,10 +776,10 @@ pub fn draw_label_page(
         );
         label(
             &mut ctx,
-            LabelSpecBuilder::new().text(r#"First row: all text is the same "hello\nhello" string"#),
+            LabelSpecBuilder::new()
+                .text(r#"First row: all text is the same "hello\nhello" string"#),
             Placement2D::auto(),
         );
-
 
         let clip_test_box_style = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
@@ -973,7 +969,8 @@ pub fn draw_label_page(
         // Row 2: Cards 4 - 6
         label(
             &mut ctx,
-            LabelSpecBuilder::new().text(r#"Remaining rows: all text is the same "hello there\nhello there" string"#),
+            LabelSpecBuilder::new()
+                .text(r#"Remaining rows: all text is the same "hello there\nhello there" string"#),
             Placement2D::auto(),
         );
         {

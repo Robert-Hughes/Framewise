@@ -51,6 +51,8 @@ struct GpuState {
     config: wgpu::SurfaceConfiguration,
     renderer: Renderer,
     size: PhysicalSize<u32>,
+    vsync_mode: wgpu::PresentMode,
+    no_vsync_mode: wgpu::PresentMode,
 }
 
 impl GpuState {
@@ -62,6 +64,18 @@ impl GpuState {
         self.config.width = new_size.width;
         self.config.height = new_size.height;
         self.surface.configure(&self.device, &self.config);
+    }
+
+    fn set_vsync(&mut self, vsync: bool) {
+        let target_mode = if vsync {
+            self.vsync_mode
+        } else {
+            self.no_vsync_mode
+        };
+        if self.config.present_mode != target_mode {
+            self.config.present_mode = target_mode;
+            self.surface.configure(&self.device, &self.config);
+        }
     }
 }
 
@@ -77,6 +91,11 @@ struct App {
     clipboard: Option<arboard::Clipboard>,
     active_page: AppPage,
     debug_layout: bool,
+    vsync: bool,
+    last_frame_instant: std::time::Instant,
+    fps_sum_frame_time: f64,
+    fps_frame_count: u32,
+    fps_last_update: std::time::Instant,
     #[cfg(feature = "page_button_demo")]
     button_page_state: button_page::ButtonPageState,
     #[cfg(feature = "page_scroll_demo")]
@@ -93,18 +112,24 @@ struct App {
 
 impl App {
     fn new() -> Self {
+        let now = std::time::Instant::now();
         Self {
             window: None,
             gpu: None,
             text_system: Some(SampleTextSystem::new()),
             focus_system: framewise::focus::FocusSystem::new(),
-            start_time: std::time::Instant::now(),
+            start_time: now,
             click_tracker: framewise::input::ClickTracker::new(),
             modifiers: winit::keyboard::ModifiersState::default(),
             input: Input::new(),
             clipboard: arboard::Clipboard::new().ok(),
             active_page: AppPage::ButtonDemo,
             debug_layout: false,
+            vsync: true,
+            last_frame_instant: now,
+            fps_sum_frame_time: 0.0,
+            fps_frame_count: 0,
+            fps_last_update: now,
             #[cfg(feature = "page_button_demo")]
             button_page_state: button_page::ButtonPageState::default(),
             #[cfg(feature = "page_scroll_demo")]
@@ -380,7 +405,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F12 = toggle layout-debug overlay
+                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
                 if event.state == ElementState::Pressed {
                     match event.physical_key {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
@@ -403,6 +428,25 @@ impl ApplicationHandler for App {
                         #[cfg(feature = "page_label_demo")]
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F6) => {
                             self.active_page = AppPage::LabelDemo;
+                        }
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F11) => {
+                            self.vsync = !self.vsync;
+                            #[cfg(all(
+                                feature = "page_spec",
+                                feature = "window",
+                                feature = "tabs",
+                                feature = "segmented",
+                                feature = "slider",
+                                feature = "switch",
+                                feature = "drag_number",
+                                feature = "color_swatch",
+                                feature = "checkbox",
+                                feature = "button",
+                                feature = "menu"
+                            ))]
+                            {
+                                self.spec_page_state.w.iu_vsync.checked = self.vsync;
+                            }
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
                             self.debug_layout = !self.debug_layout;
@@ -555,7 +599,26 @@ impl ApplicationHandler for App {
 
                 self.input.clear_frame_state();
 
+                #[cfg(all(
+                    feature = "page_spec",
+                    feature = "window",
+                    feature = "tabs",
+                    feature = "segmented",
+                    feature = "slider",
+                    feature = "switch",
+                    feature = "drag_number",
+                    feature = "color_swatch",
+                    feature = "checkbox",
+                    feature = "button",
+                    feature = "menu"
+                ))]
+                if self.active_page == AppPage::WidgetSpec {
+                    self.vsync = self.spec_page_state.w.iu_vsync.checked;
+                }
+
                 if let Some(gpu) = &mut self.gpu {
+                    gpu.set_vsync(self.vsync);
+
                     match gpu.surface.get_current_texture() {
                         Ok(frame) => {
                             let view = frame
@@ -587,6 +650,35 @@ impl ApplicationHandler for App {
                 }
 
                 self.text_system = Some(text_system);
+
+                // Update FPS calculation and window title
+                let now = std::time::Instant::now();
+                let frame_time = now.duration_since(self.last_frame_instant).as_secs_f64();
+                self.last_frame_instant = now;
+
+                self.fps_sum_frame_time += frame_time;
+                self.fps_frame_count += 1;
+
+                if now.duration_since(self.fps_last_update).as_secs_f64() >= 0.2 {
+                    if self.fps_frame_count > 0 {
+                        let avg_frame_time = self.fps_sum_frame_time / self.fps_frame_count as f64;
+                        let fps = if avg_frame_time > 0.0 {
+                            1.0 / avg_frame_time
+                        } else {
+                            0.0
+                        };
+                        if let Some(win) = &self.window {
+                            let vsync_suffix = if self.vsync { "" } else { " (VSYNC OFF)" };
+                            win.set_title(&format!(
+                                "Framewise Sample - {:.1} FPS{}",
+                                fps, vsync_suffix
+                            ));
+                        }
+                    }
+                    self.fps_sum_frame_time = 0.0;
+                    self.fps_frame_count = 0;
+                    self.fps_last_update = now;
+                }
 
                 if let Some(win) = &self.window {
                     win.request_redraw();
@@ -642,12 +734,27 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         .copied()
         .unwrap_or(surface_caps.formats[0]);
 
+    let vsync_mode = surface_caps.present_modes[0];
+    let no_vsync_mode = if surface_caps
+        .present_modes
+        .contains(&wgpu::PresentMode::Immediate)
+    {
+        wgpu::PresentMode::Immediate
+    } else if surface_caps
+        .present_modes
+        .contains(&wgpu::PresentMode::Mailbox)
+    {
+        wgpu::PresentMode::Mailbox
+    } else {
+        vsync_mode
+    };
+
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: surface_fmt,
         width: size.width,
         height: size.height,
-        present_mode: surface_caps.present_modes[0],
+        present_mode: vsync_mode,
         alpha_mode: surface_caps.alpha_modes[0],
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
@@ -663,6 +770,8 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         config,
         renderer,
         size,
+        vsync_mode,
+        no_vsync_mode,
     }
 }
 
