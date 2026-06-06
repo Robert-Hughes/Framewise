@@ -9,7 +9,17 @@ use crate::text::SampleTextSystem;
 #[allow(unused_imports)]
 use framewise::text::TextSystem;
 use framewise::{
-    Align, ColumnLayout, ColumnState, HorizontalAlign, LayoutViolationPolicy, ManualState, Placement2D, RowLayout, Size, draw::{DrawCmd, DrawCommands}, focus::FocusSystem, input::Input, layout::{IntrinsicSize, LayoutState, Placement}, layouts::ManualLayout, text::{TextFlow, TextStyle}, theme::Theme, types::{Rect, Vec2}, widget::WidgetContext
+    draw::{DrawCmd, DrawCommands},
+    focus::FocusSystem,
+    input::Input,
+    layout::{IntrinsicSize, LayoutState, Placement},
+    layouts::ManualLayout,
+    text::{TextFlow, TextStyle},
+    theme::Theme,
+    types::{Rect, Vec2},
+    widget::WidgetContext,
+    Align, ColumnLayout, ColumnState, HorizontalAlign, LayoutViolationPolicy, ManualState,
+    Placement2D, RowLayout, Size,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -1036,6 +1046,7 @@ fn sec_y<CF>(
     title: &str,
     detail_text: &str,
 ) {
+    b.layout(Placement2D::fixed(0.0, 80.0), IntrinsicSize::UNKNOWN); // Spacer
     {
         let mut b = b.child_with_layout(
             Placement2D {
@@ -1077,7 +1088,16 @@ fn sec_y<CF>(
             label(&mut b, spec_builder, Placement2D::auto())
         };
         {
-            let mut b = b.child_with_layout(Placement2D { width: Placement::Fill, height: Placement::Sized { size: Size::Auto, align: Align::Start }}, ColumnLayout { spacing: 0.0 });
+            let mut b = b.child_with_layout(
+                Placement2D {
+                    width: Placement::Fill,
+                    height: Placement::Sized {
+                        size: Size::Auto,
+                        align: Align::Start,
+                    },
+                },
+                ColumnLayout { spacing: 0.0 },
+            );
             let size = t.text_mono;
             let color = t.muted;
             let font = t.mono_font;
@@ -1085,7 +1105,11 @@ fn sec_y<CF>(
                 text_style: TextStyle {
                     font,
                     size,
-                    flow: { let mut tf = TextFlow::wrapped(); tf.horizontal_align = HorizontalAlign::End; tf },
+                    flow: {
+                        let mut tf = TextFlow::wrapped();
+                        tf.horizontal_align = HorizontalAlign::End;
+                        tf
+                    },
                     ..(LabelStyle::from_theme(t)).text_style
                 },
                 text_color: color,
@@ -1095,7 +1119,10 @@ fn sec_y<CF>(
                 &mut b,
                 spec_builder,
                 Placement2D {
-                    width: Placement::Sized { size: Size::Fixed(330.0), align: Align::End },
+                    width: Placement::Sized {
+                        size: Size::Fixed(330.0),
+                        align: Align::End,
+                    },
                     height: Placement::Sized {
                         size: Size::Fixed(48.0),
                         align: Align::Start,
@@ -1304,7 +1331,7 @@ fn header_section<CF>(
     t: Theme,
     content_w: f32,
 ) {
-    let mut b = b.child_with_layout(Placement2D::fixed(content_w, MARGIN + 400.0), ManualLayout);
+    let mut b = b.child_with_layout(Placement2D::fixed(content_w, MARGIN + 320.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&t, logo_rect.x, logo_rect.y));
     let tx = 124.0;
