@@ -1195,73 +1195,29 @@ pub fn draw_spec_page(
 
                 // Two-line Title (56px size, Bold, line-height 0.95)
                 {
-                    let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w, 53.0);
+                    let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
                     let color = t.ink;
                     let font = t.sans_bold_font;
-                    let spec_builder =
-                        LabelSpecBuilder::new()
-                            .text("A widget set that")
-                            .style(LabelStyle {
-                                size: 56.0,
-                                font,
-                                text_color: color,
-                                ..LabelStyle::from_theme(&t)
-                            });
-                    label(b, spec_builder, layout_params)
-                };
-                {
-                    let layout_params = Rect::new(tx, MARGIN + 22.0 + 53.0, hero_w, 53.0);
-                    let color = t.ink;
-                    let font = t.sans_bold_font;
-                    let spec_builder =
-                        LabelSpecBuilder::new()
-                            .text("explains itself.")
-                            .style(LabelStyle {
-                                size: 56.0,
-                                font,
-                                text_color: color,
-                                ..LabelStyle::from_theme(&t)
-                            });
+                    let spec_builder = LabelSpecBuilder::new()
+                        .text("A widget set that explains itself.")
+                        .text_flow(framewise::text::TextFlow::wrapped())
+                        .style(LabelStyle {
+                            size: 56.0,
+                            font,
+                            text_color: color,
+                            ..LabelStyle::from_theme(&t)
+                        });
                     label(b, spec_builder, layout_params)
                 };
 
                 // Description (15px size, regular, line-height 1.55)
                 {
-                    let layout_params = Rect::new(tx, MARGIN + 144.0, hero_w.min(600.0), 23.0);
+                    let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(600.0), 80.0);
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let font = t.sans_font;
                     let spec_builder = LabelSpecBuilder::new()
-                        .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust —")
-                        .style(LabelStyle {
-                            size: 15.0,
-                            font,
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-                {
-                    let layout_params =
-                        Rect::new(tx, MARGIN + 144.0 + 23.0, hero_w.min(600.0), 23.0);
-                    let color = Color::from_srgb_u8(58, 53, 45, 255);
-                    let font = t.sans_font;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("reserved for focus, drag, and primary action. Every widget describes its state")
-                        .style(LabelStyle {
-                            size: 15.0,
-                            font,
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-                {
-                    let layout_params =
-                        Rect::new(tx, MARGIN + 144.0 + 46.0, hero_w.min(600.0), 23.0);
-                    let color = Color::from_srgb_u8(58, 53, 45, 255);
-                    let font = t.sans_font;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("explicitly; nothing is hidden behind animation or chrome.")
+                        .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
+                        .text_flow(framewise::text::TextFlow::wrapped())
                         .style(LabelStyle {
                             size: 15.0,
                             font,
@@ -1279,7 +1235,7 @@ pub fn draw_spec_page(
                     ("TYPE", "INTER TIGHT · JETBRAINS MONO"),
                 ];
                 let mut mx = tx;
-                let my = MARGIN + 234.0;
+                let my = MARGIN + 258.0;
                 for (key, val) in meta_items {
                     // key in ink, bold / medium
                     {
@@ -1314,7 +1270,7 @@ pub fn draw_spec_page(
             }
 
             #[allow(unused_mut)]
-            let mut y = MARGIN + 310.0;
+            let mut y = MARGIN + 334.0;
 
             // Sections are feature-gated: each draws its block, advances `y`, and is
             // skipped entirely when its widgets aren't in the build.
@@ -2898,31 +2854,17 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 .ctx
             };
             {
-                let layout_params = Rect::new(12.0, 10.0, 280.0, 14.0);
+                let layout_params = Rect::new(12.0, 10.0, 160.0, 32.0);
                 let size = t.text_sm;
                 let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new()
-                        .text("scroll surface with")
-                        .style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                label(&mut sa, spec_builder, layout_params)
-            };
-            {
-                let layout_params = Rect::new(12.0, 28.0, 280.0, 14.0);
-                let size = t.text_sm;
-                let color = t.muted;
-                let spec_builder =
-                    LabelSpecBuilder::new()
-                        .text("both bars + corner")
-                        .style(LabelStyle {
-                            size,
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
+                let spec_builder = LabelSpecBuilder::new()
+                    .text("scroll surface with both bars + corner")
+                    .text_flow(framewise::text::TextFlow::wrapped())
+                    .style(LabelStyle {
+                        size,
+                        text_color: color,
+                        ..LabelStyle::from_theme(&t)
+                    });
                 label(&mut sa, spec_builder, layout_params)
             };
             sa.finish();
