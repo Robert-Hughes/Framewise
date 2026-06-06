@@ -327,7 +327,7 @@ pub fn draw_label_page(
         let clip_test_box_style = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
             border: Color::from_srgb_u8(180, 50, 50, 255),
-            border_width: 1.0,
+            border_width: 0.0,
             padding: 0.0,
         };
 
@@ -365,7 +365,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(27.0, 30.0),
+                        Placement2D::fixed(25.0, 28.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -417,7 +417,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(27.0, 30.0),
+                        Placement2D::fixed(25.0, 28.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -469,7 +469,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(27.0, 30.0),
+                        Placement2D::fixed(25.0, 28.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -523,7 +523,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(10.0, 30.0),
+                        Placement2D::fixed(8.0, 28.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -590,7 +590,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(10.0, 30.0),
+                        Placement2D::fixed(8.0, 28.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -644,7 +644,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 50.0),
+                        Placement2D::fixed(23.0, 48.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -698,7 +698,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(10.0, 50.0),
+                        Placement2D::fixed(8.0, 48.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -752,7 +752,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(10.0, 50.0),
+                        Placement2D::fixed(8.0, 48.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -812,7 +812,7 @@ pub fn draw_label_page(
         let clip_test_box_style = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
             border: Color::from_srgb_u8(180, 50, 50, 255),
-            border_width: 1.0,
+            border_width: 0.0,
             padding: 0.0,
         };
 
@@ -851,7 +851,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 65.0),
+                        Placement2D::fixed(23.0, 63.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -906,7 +906,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(8.0, 70.0),
+                        Placement2D::fixed(6.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -961,7 +961,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 160.0),
+                        Placement2D::fixed(3.0, 158.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1035,7 +1035,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(50.0, 70.0),
+                        Placement2D::fixed(48.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1090,7 +1090,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 140.0),
+                        Placement2D::fixed(23.0, 138.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1147,7 +1147,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 140.0),
+                        Placement2D::fixed(3.0, 138.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1217,7 +1217,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(5.0, 320.0),
+                        Placement2D::fixed(3.0, 318.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1274,7 +1274,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 70.0),
+                        Placement2D::fixed(23.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
@@ -1329,7 +1329,7 @@ pub fn draw_label_page(
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 70.0),
+                        Placement2D::fixed(23.0, 68.0),
                         ColumnLayout { spacing: 0.0 },
                     );
                     label(
