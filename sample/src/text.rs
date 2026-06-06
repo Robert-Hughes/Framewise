@@ -153,6 +153,28 @@ impl SampleTextSystem {
         let mut current_line_start_x = glyphs[0].x;
 
         for g in glyphs {
+            if g.parent == '\n' {
+                let mut g_moved = g;
+                let mut appended = false;
+                if current_line.is_empty() {
+                    if let Some(last_line) = lines.last_mut() {
+                        if last_line.last().map(|gl| gl.parent) != Some('\n') {
+                            g_moved.x = 0.0;
+                            last_line.push(g_moved);
+                            appended = true;
+                        }
+                    }
+                }
+                if !appended {
+                    g_moved.x = g.x - current_line_start_x;
+                    current_line.push(g_moved);
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_line_start_x = g.x;
+                }
+                continue;
+            }
+
             let rel_start_x = g.x - current_line_start_x;
             let rel_end_x = rel_start_x + g.width as f32;
 
@@ -1567,13 +1589,18 @@ mod tests {
             flow,
             Rect::new(0.0, 0.0, 3.0, lh * 13.0),
         );
-        assert_eq!(sys.runs[layout.handle.0].lines.len(), 11);
+        // Expect 10 lines: 5 lines for each "hello". The newline character '\n'
+        // is appended to the end of the first "hello"'s last line (containing 'o'),
+        // rather than starting a new blank line.
+        assert_eq!(sys.runs[layout.handle.0].lines.len(), 10);
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "hello\nhello");
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
-            assert!(line_glyphs.len() <= 1);
+            // Since '\n' is appended to the same line as 'o', that line will contain 2 glyphs.
+            // Other lines will contain at most 1 glyph.
+            assert!(line_glyphs.len() <= 2);
         }
     }
 
