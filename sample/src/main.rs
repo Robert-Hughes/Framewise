@@ -108,15 +108,23 @@ struct App {
     layout_demo_state: layout_demo::LayoutDemoState,
     #[cfg(feature = "page_label_demo")]
     label_page_state: label_page::LabelPageState,
+    is_first_frame: bool,
 }
 
 impl App {
     fn new() -> Self {
         let now = std::time::Instant::now();
+        eprintln!("[STARTUP] App::new() starting");
+        let text_system_start = std::time::Instant::now();
+        let text_system = SampleTextSystem::new();
+        eprintln!(
+            "[STARTUP]   SampleTextSystem::new() took {:?}",
+            text_system_start.elapsed()
+        );
         Self {
             window: None,
             gpu: None,
-            text_system: Some(SampleTextSystem::new()),
+            text_system: Some(text_system),
             focus_system: framewise::focus::FocusSystem::new(),
             start_time: now,
             click_tracker: framewise::input::ClickTracker::new(),
@@ -142,6 +150,7 @@ impl App {
             layout_demo_state: layout_demo::LayoutDemoState::default(),
             #[cfg(feature = "page_label_demo")]
             label_page_state: label_page::LabelPageState::default(),
+            is_first_frame: true,
         }
     }
 
@@ -308,10 +317,17 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        eprintln!(
+            "[STARTUP] [{:?}] resumed() entered",
+            self.start_time.elapsed()
+        );
+        let start = std::time::Instant::now();
         let mut attrs = Window::default_attributes()
             .with_title("Framewise Sample")
-            .with_inner_size(PhysicalSize::new(1600u32, 1200u32));
+            .with_inner_size(PhysicalSize::new(1600u32, 1200u32))
+            .with_visible(false);
 
+        let svg_start = std::time::Instant::now();
         let svg_data = include_bytes!("../../logo/framewise-mark.svg");
         let opt = usvg::Options::default();
         let fontdb = usvg::fontdb::Database::new();
@@ -330,17 +346,41 @@ impl ApplicationHandler for App {
                 }
             }
         }
+        eprintln!(
+            "[STARTUP] [{:?}]   SVG icon processing took {:?}",
+            self.start_time.elapsed(),
+            svg_start.elapsed()
+        );
 
+        let win_start = std::time::Instant::now();
         let window = Arc::new(
             event_loop
                 .create_window(attrs)
                 .expect("failed to create window"),
         );
+        eprintln!(
+            "[STARTUP] [{:?}]   window creation took {:?}",
+            self.start_time.elapsed(),
+            win_start.elapsed()
+        );
 
+        let gpu_start = std::time::Instant::now();
         let gpu = pollster::block_on(init_wgpu(Arc::clone(&window)));
+        eprintln!(
+            "[STARTUP] [{:?}]   init_wgpu took {:?}",
+            self.start_time.elapsed(),
+            gpu_start.elapsed()
+        );
 
-        self.window = Some(window);
+        self.window = Some(window.clone());
         self.gpu = Some(gpu);
+        window.set_visible(true);
+        window.request_redraw();
+        eprintln!(
+            "[STARTUP] [{:?}] resumed() completed in {:?}",
+            self.start_time.elapsed(),
+            start.elapsed()
+        );
     }
 
     fn window_event(
@@ -593,9 +633,26 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::RedrawRequested => {
+                let redraw_start = std::time::Instant::now();
+                let is_first = self.is_first_frame;
+                if is_first {
+                    eprintln!(
+                        "[STARTUP] [{:?}] First RedrawRequested starts",
+                        self.start_time.elapsed()
+                    );
+                    self.is_first_frame = false;
+                }
                 let mut text_system = self.text_system.take().unwrap();
                 text_system.begin_frame();
+                let draw_ui_start = std::time::Instant::now();
                 let draw_cmds = self.draw_ui(&mut text_system);
+                if is_first {
+                    eprintln!(
+                        "[STARTUP] [{:?}]   First draw_ui took {:?}",
+                        self.start_time.elapsed(),
+                        draw_ui_start.elapsed()
+                    );
+                }
 
                 self.input.clear_frame_state();
 
@@ -617,10 +674,26 @@ impl ApplicationHandler for App {
                 }
 
                 if let Some(gpu) = &mut self.gpu {
+                    let vsync_start = std::time::Instant::now();
                     gpu.set_vsync(self.vsync);
+                    if is_first {
+                        eprintln!(
+                            "[STARTUP] [{:?}]   First set_vsync took {:?}",
+                            self.start_time.elapsed(),
+                            vsync_start.elapsed()
+                        );
+                    }
 
+                    let tex_start = std::time::Instant::now();
                     match gpu.surface.get_current_texture() {
                         Ok(frame) => {
+                            if is_first {
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First get_current_texture took {:?}",
+                                    self.start_time.elapsed(),
+                                    tex_start.elapsed()
+                                );
+                            }
                             let view = frame
                                 .texture
                                 .create_view(&wgpu::TextureViewDescriptor::default());
@@ -630,6 +703,7 @@ impl ApplicationHandler for App {
                                 },
                             );
 
+                            let render_start = std::time::Instant::now();
                             gpu.renderer.render(
                                 &gpu.device,
                                 &gpu.queue,
@@ -639,9 +713,24 @@ impl ApplicationHandler for App {
                                 (gpu.size.width, gpu.size.height),
                                 &mut text_system,
                             );
+                            if is_first {
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First Renderer::render took {:?}",
+                                    self.start_time.elapsed(),
+                                    render_start.elapsed()
+                                );
+                            }
 
+                            let submit_start = std::time::Instant::now();
                             gpu.queue.submit(std::iter::once(encoder.finish()));
                             frame.present();
+                            if is_first {
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First submit & present took {:?}",
+                                    self.start_time.elapsed(),
+                                    submit_start.elapsed()
+                                );
+                            }
                         }
                         Err(e) => {
                             log::warn!("get_current_texture error: {e}");
@@ -650,6 +739,12 @@ impl ApplicationHandler for App {
                 }
 
                 self.text_system = Some(text_system);
+                if is_first {
+                    eprintln!(
+                        "[STARTUP] First RedrawRequested completed in {:?}",
+                        redraw_start.elapsed()
+                    );
+                }
 
                 // Update FPS calculation and window title
                 let now = std::time::Instant::now();
@@ -694,15 +789,20 @@ impl ApplicationHandler for App {
 
 async fn init_wgpu(window: Arc<Window>) -> GpuState {
     let size = window.inner_size();
+    let t0 = std::time::Instant::now();
 
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
     });
+    eprintln!("[STARTUP]   wgpu::Instance::new took {:?}", t0.elapsed());
+    let t1 = std::time::Instant::now();
 
     let surface = instance
         .create_surface(Arc::clone(&window))
         .expect("failed to create surface");
+    eprintln!("[STARTUP]   create_surface took {:?}", t1.elapsed());
+    let t2 = std::time::Instant::now();
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
@@ -712,6 +812,8 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         })
         .await
         .expect("no suitable wgpu adapter found");
+    eprintln!("[STARTUP]   request_adapter took {:?}", t2.elapsed());
+    let t3 = std::time::Instant::now();
 
     let (device, queue) = adapter
         .request_device(
@@ -725,6 +827,8 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         )
         .await
         .expect("failed to create device");
+    eprintln!("[STARTUP]   request_device took {:?}", t3.elapsed());
+    let t4 = std::time::Instant::now();
 
     let surface_caps = surface.get_capabilities(&adapter);
     let surface_fmt = surface_caps
@@ -760,8 +864,11 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         desired_maximum_frame_latency: 2,
     };
     surface.configure(&device, &config);
+    eprintln!("[STARTUP]   surface configure took {:?}", t4.elapsed());
+    let t5 = std::time::Instant::now();
 
     let renderer = Renderer::new(&device, surface_fmt);
+    eprintln!("[STARTUP]   Renderer::new took {:?}", t5.elapsed());
 
     GpuState {
         surface,
@@ -778,11 +885,18 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
+    let startup_timer = std::time::Instant::now();
+    eprintln!("[STARTUP] main() started");
     env_logger::init();
 
     let event_loop = EventLoop::new().expect("failed to create event loop");
     event_loop.set_control_flow(ControlFlow::Wait);
+    eprintln!(
+        "[STARTUP] EventLoop::new took {:?}",
+        startup_timer.elapsed()
+    );
 
     let mut app = App::new();
+    eprintln!("[STARTUP] App::new took {:?}", startup_timer.elapsed());
     event_loop.run_app(&mut app).expect("event loop error");
 }

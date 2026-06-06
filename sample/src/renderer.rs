@@ -64,17 +64,30 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(device: &wgpu::Device, surface_fmt: wgpu::TextureFormat) -> Self {
+        let t_total = std::time::Instant::now();
+
+        let t0 = std::time::Instant::now();
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("quad_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
+        eprintln!(
+            "[STARTUP]     create_shader_module (quad) took {:?}",
+            t0.elapsed()
+        );
 
+        let t1 = std::time::Instant::now();
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("pipeline_layout"),
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
+        eprintln!(
+            "[STARTUP]     create_pipeline_layout (quad) took {:?}",
+            t1.elapsed()
+        );
 
+        let t2 = std::time::Instant::now();
         let quad_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("quad_pipeline"),
             layout: Some(&pipeline_layout),
@@ -105,11 +118,21 @@ impl Renderer {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
             cache: None,
-        }); // --- Text Pipeline Setup ---
+        });
+        eprintln!(
+            "[STARTUP]     create_render_pipeline (quad) took {:?}",
+            t2.elapsed()
+        );
+
+        let t3 = std::time::Instant::now();
         let text_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("text_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("text.wgsl").into()),
         });
+        eprintln!(
+            "[STARTUP]     create_shader_module (text) took {:?}",
+            t3.elapsed()
+        );
 
         let atlas_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -134,12 +157,18 @@ impl Renderer {
                 ],
             });
 
+        let t4 = std::time::Instant::now();
         let text_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("text_pipeline_layout"),
             bind_group_layouts: &[&atlas_bind_group_layout],
             push_constant_ranges: &[],
         });
+        eprintln!(
+            "[STARTUP]     create_pipeline_layout (text) took {:?}",
+            t4.elapsed()
+        );
 
+        let t5 = std::time::Instant::now();
         let text_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("text_pipeline"),
             layout: Some(&text_pipeline_layout),
@@ -169,6 +198,10 @@ impl Renderer {
             multiview: None,
             cache: None,
         });
+        eprintln!(
+            "[STARTUP]     create_render_pipeline (text) took {:?}",
+            t5.elapsed()
+        );
 
         let atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("atlas_texture"),
@@ -207,6 +240,11 @@ impl Renderer {
                 },
             ],
         });
+
+        eprintln!(
+            "[STARTUP]     Renderer::new total took {:?}",
+            t_total.elapsed()
+        );
 
         Self {
             quad_pipeline,
