@@ -1224,12 +1224,12 @@ pub fn draw_spec_page(
 
                 // Description (15px size, regular, line-height 1.55)
                 {
-                    let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(600.0), 80.0);
+                    let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(520.0), 80.0);
                     let color = Color::from_srgb_u8(58, 53, 45, 255);
                     let spec_builder = LabelSpecBuilder::new()
                         .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
                         .style(LabelStyle {
-                            text_style: t.body_text_style(15.0),
+                            text_style: { let mut ts = t.body_text_style(15.0); ts.font = t.heading_font; ts },
                             text_color: color,
                             ..LabelStyle::from_theme(&t)
                         });

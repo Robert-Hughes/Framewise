@@ -82,18 +82,23 @@ pub struct SampleTextSystem {
 
 impl SampleTextSystem {
     pub fn new() -> Self {
-        let mono_data =
+        let jetbrains_mono_data =
             include_bytes!("../../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
                 as &[u8];
-        let mono =
-            FontRef::from_index(mono_data, 0).expect("failed to load JetBrainsMono variable font");
+        let jetbrains_mono =
+            FontRef::from_index(jetbrains_mono_data, 0).expect("failed to load JetBrainsMono variable font");
 
-        // Load Inter variable font (replaces InterTight-Regular and InterTight-Bold)
-        let sans_data =
+        // Load Inter variable font
+        let inter_data =
             include_bytes!("../../assets/Inter/Inter-VariableFont_opsz,wght.ttf") as &[u8];
-        let sans = FontRef::from_index(sans_data, 0).expect("failed to load Inter variable font");
+        let inter = FontRef::from_index(inter_data, 0).expect("failed to load Inter variable font");
 
-        let fonts = vec![mono, sans];
+        // Inter Tight - specialised for "Hero headings, landing pages, article titles". Slightly different!
+        let inter_tight_data =
+            include_bytes!("../../assets/Inter_Tight/InterTight-VariableFont_wght.ttf") as &[u8];
+        let inter_tight = FontRef::from_index(inter_tight_data, 0).expect("failed to load Inter Tight variable font");
+
+        let fonts = vec![jetbrains_mono, inter, inter_tight];
 
         // Detect supported variation axes for each font
         let mut font_has_wght = Vec::new();
@@ -140,11 +145,14 @@ impl SampleTextSystem {
         };
         font_opsz_ranges.push(opsz_range);
 
+        // Inter Tight has no opsz axis
+        font_opsz_ranges.push((0.0, 0.0));
+
         let atlas_size = 1024;
         Self {
             fonts,
             font_opsz_ranges,
-            font_weights: vec![400, 400], // Default weights for each font
+            font_weights: vec![400, 400, 400], // Default weights for each font
             font_has_wght,
             font_has_opsz,
             shape_context: ShapeContext::new(),

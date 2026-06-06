@@ -11,7 +11,10 @@ pub struct Theme {
     pub sans_font: FontId,
     pub sans_weight_regular: u16, // Default sans weight (typically 400)
     pub sans_weight_bold: u16,    // Bold sans weight (typically 700)
+    pub heading_font: FontId,     // For hero headings and similar elements
+    pub heading_weight: u16,
     pub mono_font: FontId,
+    pub overline_weight: u16,
 
     // Palette
     pub ink: Color,        // #15130f — text, borders, fills
@@ -59,10 +62,15 @@ pub struct Theme {
 impl Theme {
     pub fn framewise() -> Self {
         Self {
+            // Body text, UI labels, forms, documentation: use Inter.
+            // Hero headings, landing pages, article titles: Inter Tight often looks more compact and polished.
             sans_font: FontId(1),
             sans_weight_regular: 400,
             sans_weight_bold: 700,
+            heading_font: FontId(2),
+            heading_weight: 600,
             mono_font: FontId(0),
+            overline_weight: 500,
             ink: Color::from_srgb_u8(21, 19, 15, 255),
             paper: Color::from_srgb_u8(244, 241, 234, 255),
             paper_elev: Color::from_srgb_u8(251, 249, 244, 255),
@@ -106,9 +114,9 @@ impl Theme {
 
     pub fn heading_text_style(&self, size: f32) -> TextStyle {
         TextStyle::new(
-            self.sans_font,
+            self.heading_font,
             size,
-            self.sans_weight_bold,
+            self.heading_weight,
             TextFlow::wrapped(),
         )
         .with_letter_spacing(self.heading_letter_spacing)
@@ -130,7 +138,7 @@ impl Theme {
         TextStyle::new(
             self.mono_font,
             size,
-            self.sans_weight_regular,
+            self.overline_weight,
             TextFlow::single_line(),
         )
         .with_letter_spacing(self.overline_letter_spacing)
