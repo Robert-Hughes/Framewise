@@ -7,6 +7,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * RowLayout allows you to specify alignment in the main axis - doesn't do anything! Actually maybe it does, or at least it should?
 * Ellipses are appearing in the middle of the height?
+* Nothing to tell you that you forgot to .finish() a widgetcontext
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 

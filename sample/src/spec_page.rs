@@ -9,18 +9,7 @@ use crate::text::SampleTextSystem;
 #[allow(unused_imports)]
 use framewise::text::TextSystem;
 use framewise::{
-    draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    input::Input,
-    layout::{IntrinsicSize, LayoutState, Placement},
-    layouts::ManualLayout,
-    text::TextFlow,
-    text::TextStyle,
-    theme::Theme,
-    types::{Rect, Vec2},
-    widget::WidgetContext,
-    Align, ColumnLayout, ColumnState, LayoutViolationPolicy, ManualState, Placement2D, RowLayout,
-    Size,
+    Align, ColumnLayout, ColumnState, HorizontalAlign, LayoutViolationPolicy, ManualState, Placement2D, RowLayout, Size, draw::{DrawCmd, DrawCommands}, focus::FocusSystem, input::Input, layout::{IntrinsicSize, LayoutState, Placement}, layouts::ManualLayout, text::{TextFlow, TextStyle}, theme::Theme, types::{Rect, Vec2}, widget::WidgetContext
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -1059,11 +1048,12 @@ fn sec_y<CF>(
             RowLayout { spacing: 16.0 },
         );
         {
-            let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
                 text_style: framewise::TextStyle {
-                    size,
+                    font: t.mono_font,
+                    size: t.text_sm,
+                    letter_spacing: 0.16,
                     ..(LabelStyle::from_theme(t)).text_style
                 },
                 text_color: color,
@@ -1077,7 +1067,8 @@ fn sec_y<CF>(
             let spec_builder = LabelSpecBuilder::new().text(title).style(LabelStyle {
                 text_style: framewise::TextStyle {
                     font,
-                    size: 18.0,
+                    size: 22.0,
+                    weight: 500,
                     ..(LabelStyle::from_theme(t)).text_style
                 },
                 text_color: color,
@@ -1086,14 +1077,15 @@ fn sec_y<CF>(
             label(&mut b, spec_builder, Placement2D::auto())
         };
         {
-            let size = t.text_sm;
+            let mut b = b.child_with_layout(Placement2D { width: Placement::Fill, height: Placement::Sized { size: Size::Auto, align: Align::Start }}, ColumnLayout { spacing: 0.0 });
+            let size = t.text_mono;
             let color = t.muted;
-            let font = t.sans_font;
+            let font = t.mono_font;
             let spec_builder = LabelSpecBuilder::new().text(detail_text).style(LabelStyle {
                 text_style: TextStyle {
                     font,
                     size,
-                    flow: TextFlow::wrapped(),
+                    flow: { let mut tf = TextFlow::wrapped(); tf.horizontal_align = HorizontalAlign::End; tf },
                     ..(LabelStyle::from_theme(t)).text_style
                 },
                 text_color: color,
@@ -1103,16 +1095,14 @@ fn sec_y<CF>(
                 &mut b,
                 spec_builder,
                 Placement2D {
-                    width: Placement::Sized {
-                        size: Size::Fixed(330.0),
-                        align: Align::End,
-                    },
+                    width: Placement::Sized { size: Size::Fixed(330.0), align: Align::End },
                     height: Placement::Sized {
-                        size: Size::Auto,
+                        size: Size::Fixed(48.0),
                         align: Align::Start,
                     },
                 },
-            )
+            );
+            b.finish();
         };
         b.finish();
     }
@@ -1378,11 +1368,7 @@ fn header_section<CF>(
                 let size = t.text_sm;
                 let color = t.ink;
                 let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                    text_style: {
-                        let mut ts = t.overline_text_style(size).with_letter_spacing(0.12);
-                        ts.weight = t.sans_weight_bold;
-                        ts
-                    },
+                    text_style: t.overline_text_style(size).with_letter_spacing(0.12),
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
