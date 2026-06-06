@@ -32,11 +32,23 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
-use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey};
+use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec};
 use framewise::{
     CaretGeom, FontId, Rect, TextBounds, TextFlow, TextLayout, TextMetrics, TextSystem, Vec2,
 };
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LayoutKey {
+    pub text: String,
+    pub size_bits: u32,
+    pub font_id: u16,
+    pub weight: u16,
+    pub flow: TextFlow,
+    pub max_w_bits: Option<u32>,
+    pub max_h_bits: Option<u32>,
+    pub absolute_x_bits: Option<u32>,
+}
 use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
 use swash::FontRef;
@@ -50,6 +62,7 @@ pub struct SampleTextSystem {
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
     pub runs: Vec<CachedLayout>,
+    pub layout_cache: HashMap<LayoutKey, (Vec<GlyphPosition>, Vec<LineRec>, TextMetrics)>,
 
     // Atlas data
     pub glyph_cache: HashMap<GlyphKey, GlyphInfo>,
@@ -134,6 +147,7 @@ impl SampleTextSystem {
             shape_context: ShapeContext::new(),
             scale_context: ScaleContext::new(),
             runs: Vec::new(),
+            layout_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
             atlas_data: vec![0; (atlas_size * atlas_size) as usize],
             atlas_size,
@@ -167,6 +181,21 @@ impl TextSystem for SampleTextSystem {
         flow: TextFlow,
         bounds: TextBounds,
     ) -> TextMetrics {
+        let key = LayoutKey {
+            text: text.to_string(),
+            size_bits: (size * 100.0) as u32,
+            font_id: font.0,
+            weight,
+            flow,
+            max_w_bits: bounds.max_width.map(|w| (w * 100.0) as u32),
+            max_h_bits: bounds.max_height.map(|h| (h * 100.0) as u32),
+            absolute_x_bits: None,
+        };
+
+        if let Some((_, _, metrics)) = self.layout_cache.get(&key) {
+            return *metrics;
+        }
+
         // Temporarily set the weight for this font before shaping
         let old_weight = self
             .font_weights
@@ -175,7 +204,7 @@ impl TextSystem for SampleTextSystem {
             .unwrap_or(400);
         self.set_font_weight(font, weight);
 
-        let (_glyphs, _lines, metrics) = self.shape_internal(
+        let (glyphs, lines, metrics) = self.shape_internal(
             text,
             size,
             font,
@@ -187,6 +216,13 @@ impl TextSystem for SampleTextSystem {
 
         // Restore old weight
         self.set_font_weight(font, old_weight);
+
+        // Insert into cache, preventing unbounded growth
+        if self.layout_cache.len() >= 2000 {
+            self.layout_cache.clear();
+        }
+        self.layout_cache.insert(key, (glyphs, lines, metrics));
+
         metrics
     }
 
@@ -199,6 +235,50 @@ impl TextSystem for SampleTextSystem {
         flow: TextFlow,
         rect: Rect,
     ) -> TextLayout {
+        let key = LayoutKey {
+            text: text.to_string(),
+            size_bits: (size * 100.0) as u32,
+            font_id: font.0,
+            weight,
+            flow,
+            max_w_bits: Some((rect.w * 100.0) as u32),
+            max_h_bits: Some((rect.h * 100.0) as u32),
+            absolute_x_bits: Some((rect.x * 100.0) as u32),
+        };
+
+        let cached = self
+            .layout_cache
+            .get(&key)
+            .map(|(glyphs, lines, metrics)| (glyphs.clone(), lines.clone(), *metrics));
+
+        if let Some((glyphs, lines, metrics)) = cached {
+            // Populate atlas for any cached glyphs that are needed
+            let opsz = self.opsz_for_size(size, font);
+            for g in &glyphs {
+                let key = GlyphKey {
+                    font_id: font.0,
+                    glyph_index: g.key.glyph_index,
+                    size: (g.key.px * 10.0) as u32,
+                    subpixel_x: g.subpixel_x,
+                    weight,
+                    opsz: opsz as u16,
+                };
+                self.ensure_glyph(key);
+            }
+
+            let handle_id = self.runs.len();
+            self.runs.push(CachedLayout {
+                font_id: font,
+                glyphs,
+                lines,
+            });
+
+            return TextLayout {
+                handle: framewise::TextHandle(handle_id),
+                metrics,
+            };
+        }
+
         // Temporarily set the weight for this font before shaping
         let old_weight = self
             .font_weights
@@ -235,12 +315,18 @@ impl TextSystem for SampleTextSystem {
         let handle_id = self.runs.len();
         self.runs.push(CachedLayout {
             font_id: font,
-            glyphs,
-            lines,
+            glyphs: glyphs.clone(),
+            lines: lines.clone(),
         });
 
         // Restore old weight
         self.set_font_weight(font, old_weight);
+
+        // Insert into cache, preventing unbounded growth
+        if self.layout_cache.len() >= 2000 {
+            self.layout_cache.clear();
+        }
+        self.layout_cache.insert(key, (glyphs, lines, metrics));
 
         TextLayout {
             handle: framewise::TextHandle(handle_id),

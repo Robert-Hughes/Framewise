@@ -47,7 +47,7 @@ pub struct TextHandle(pub usize);
 /// This makes wrapping just one possible X-axis overflow response, rather than
 /// a separate boolean. Hard line breaks (`'\n'`) are always respected before
 /// X-overflow handling is applied.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextFlow {
     /// Inline-axis overflow policy.
     ///
@@ -139,7 +139,7 @@ impl TextFlow {
 ///   glyphs wholly inside the X bounds.
 /// - `Keep` may emit the first overflowing glyph, then truncates the rest of that
 ///   line. A renderer/scissor may clip the visible pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OverflowX {
     /// Prefer wrapping at word boundaries.
     ///
@@ -188,7 +188,7 @@ pub enum OverflowX {
 
 /// Fallback used by [`OverflowX::WrapWord`] when a word cannot fit on an empty
 /// line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WrapWordFallback {
     /// Try breaking the over-long word at glyph/cluster boundaries, see OverflowX::WrapGlyph.
     WrapGlyph { fallback: WrapGlyphFallback },
@@ -207,7 +207,7 @@ pub enum WrapWordFallback {
 
 /// Fallback used by glyph wrapping when even one glyph/cluster cannot fit on an
 /// empty line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WrapGlyphFallback {
     /// Keep the first overflowing glyph/cluster, then truncate. See OverflowX::Keep.
     ///
@@ -229,7 +229,7 @@ pub enum WrapGlyphFallback {
 /// - `Drop` and successful `Ellipsis` emit only lines wholly inside the Y bounds.
 /// - `Keep` may emit the first vertically overflowing line, then drops all later
 ///   lines. A renderer/scissor may clip it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OverflowY {
     /// Indicate vertical truncation by ellipsising the previous visible line.
     ///
@@ -258,7 +258,7 @@ pub enum OverflowY {
 /// fully-inside marker. It is useful as a “show something rather than nothing”
 /// policy for extremely small rectangles. Callers that require strict
 /// fully-inside rendering should use `Drop`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EllipsisFallback {
     /// Keep the first overflowing glyph or line, depending on whether the
     /// ellipsis failure happened in X or Y handling. See `OverflowX::Keep` and `OverflowY::Keep`.
@@ -275,7 +275,7 @@ pub enum EllipsisFallback {
 /// `Start`/`End` are resolved against text direction; for left-to-right text
 /// `Start` is left and `End` is right. Alignment only affects glyph X positions —
 /// it never changes the measured block size or which glyphs are truncated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalAlign {
     Start,
     Center,

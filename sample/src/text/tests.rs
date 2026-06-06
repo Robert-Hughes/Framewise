@@ -143,6 +143,80 @@ mod tests {
     }
 
     #[test]
+    fn layout_cache_hits_and_eviction() {
+        let mut sys = sys();
+        let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
+
+        // 1. Initial state: cache is empty
+        assert_eq!(sys.layout_cache.len(), 0);
+
+        // 2. Prepare first layout -> cache miss
+        let layout1 = sys.prepare(
+            "Cache Test",
+            14.0,
+            FontId(1),
+            400,
+            TextFlow::single_line(),
+            rect,
+        );
+        assert_eq!(sys.layout_cache.len(), 1);
+
+        // 3. Prepare identical layout -> cache hit
+        let layout2 = sys.prepare(
+            "Cache Test",
+            14.0,
+            FontId(1),
+            400,
+            TextFlow::single_line(),
+            rect,
+        );
+        assert_eq!(sys.layout_cache.len(), 1); // Length did not change
+        assert_eq!(layout1.metrics.size, layout2.metrics.size);
+
+        // 4. Prepare with different weight -> cache miss (distinct entry)
+        let _ = sys.prepare(
+            "Cache Test",
+            14.0,
+            FontId(1),
+            700,
+            TextFlow::single_line(),
+            rect,
+        );
+        assert_eq!(sys.layout_cache.len(), 2);
+
+        // 5. Prepare with different bounds -> cache miss (distinct entry)
+        let rect2 = Rect::new(0.0, 0.0, 100.0, 40.0);
+        let _ = sys.prepare(
+            "Cache Test",
+            14.0,
+            FontId(1),
+            400,
+            TextFlow::single_line(),
+            rect2,
+        );
+        assert_eq!(sys.layout_cache.len(), 3);
+
+        // 6. Test eviction (preventing unbounded growth)
+        // Let's populate the cache up to the limit of 2000
+        for i in 0..2005 {
+            let unique_text = format!("text_{i}");
+            let _ = sys.prepare(
+                &unique_text,
+                14.0,
+                FontId(1),
+                400,
+                TextFlow::single_line(),
+                rect,
+            );
+        }
+        // Since the limit is 2000, the cache should clear itself when it reaches 2000.
+        // After inserting 2005 unique items, the cache should have cleared at least once,
+        // and its size should be low (specifically, 6: 1 from the last insert after clear, plus any subsequent ones).
+        assert!(sys.layout_cache.len() < 2000);
+        assert!(sys.layout_cache.len() > 0);
+    }
+
+    #[test]
     fn single_line_is_one_line() {
         let mut sys = sys();
         let m = sys.measure(
