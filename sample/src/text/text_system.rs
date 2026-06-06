@@ -45,6 +45,8 @@ pub struct SampleTextSystem {
     pub fonts: Vec<FontRef<'static>>,
     pub font_opsz_ranges: Vec<(f32, f32)>, // (min, max) for each font's opsz axis
     pub font_weights: Vec<u16>, // Current weight setting for each font (for variable fonts)
+    pub font_has_wght: Vec<bool>, // Whether each font has a wght axis
+    pub font_has_opsz: Vec<bool>, // Whether each font has an opsz axis
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
     pub runs: Vec<CachedLayout>,
@@ -64,13 +66,39 @@ pub struct SampleTextSystem {
 
 impl SampleTextSystem {
     pub fn new() -> Self {
-        let mono_data = include_bytes!("../../assets/JetBrainsMono-Regular.ttf") as &[u8];
-        let mono = FontRef::from_index(mono_data, 0).expect("failed to load JetBrainsMono font");
+        let mono_data =
+            include_bytes!("../../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
+                as &[u8];
+        let mono =
+            FontRef::from_index(mono_data, 0).expect("failed to load JetBrainsMono variable font");
 
         // Load Inter variable font (replaces InterTight-Regular and InterTight-Bold)
         let sans_data =
             include_bytes!("../../assets/Inter/Inter-VariableFont_opsz,wght.ttf") as &[u8];
         let sans = FontRef::from_index(sans_data, 0).expect("failed to load Inter variable font");
+
+        let fonts = vec![mono, sans];
+
+        // Detect supported variation axes for each font
+        let mut font_has_wght = Vec::new();
+        let mut font_has_opsz = Vec::new();
+        for font in &fonts {
+            let mut has_wght = false;
+            let mut has_opsz = false;
+            for var in font.variations() {
+                let tag = var.tag();
+                if tag == 0x77676874 {
+                    // 'wght'
+                    has_wght = true;
+                }
+                if tag == 0x6F70737A {
+                    // 'opsz'
+                    has_opsz = true;
+                }
+            }
+            font_has_wght.push(has_wght);
+            font_has_opsz.push(has_opsz);
+        }
 
         // Extract opsz range from each font
         let mut font_opsz_ranges = Vec::new();
@@ -80,7 +108,7 @@ impl SampleTextSystem {
 
         // Inter has opsz axis - extract its range
         let opsz_range = {
-            let variations = sans.variations();
+            let variations = fonts[1].variations();
             let mut range = (14.0, 32.0); // fallback to documented range
             for var in variations {
                 let tag = var.tag();
@@ -98,9 +126,11 @@ impl SampleTextSystem {
 
         let atlas_size = 1024;
         Self {
-            fonts: vec![mono, sans],
+            fonts,
             font_opsz_ranges,
             font_weights: vec![400, 400], // Default weights for each font
+            font_has_wght,
+            font_has_opsz,
             shape_context: ShapeContext::new(),
             scale_context: ScaleContext::new(),
             runs: Vec::new(),

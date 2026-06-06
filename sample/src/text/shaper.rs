@@ -122,8 +122,15 @@ impl SampleTextSystem {
                 let mut shaper = self.shape_context.builder(font).size(size);
 
                 // Apply variation settings if font supports them
-                if opsz > 0.0 {
-                    shaper = shaper.variations(&[("wght", weight as f32), ("opsz", opsz)]);
+                let mut vars = Vec::new();
+                if self.font_has_wght[font_id.0 as usize] {
+                    vars.push(("wght", weight as f32));
+                }
+                if self.font_has_opsz[font_id.0 as usize] && opsz > 0.0 {
+                    vars.push(("opsz", opsz));
+                }
+                if !vars.is_empty() {
+                    shaper = shaper.variations(&vars);
                 }
 
                 let mut shaper = shaper.build();

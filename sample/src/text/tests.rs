@@ -99,6 +99,50 @@ mod tests {
     }
 
     #[test]
+    fn jetbrains_mono_weight_preserves_monospace_width() {
+        let mut sys = sys();
+        let text = "monospace_test_123456";
+
+        let regular_metrics = sys.measure(
+            text,
+            14.0,
+            FontId(0),
+            400,
+            TextFlow::single_line(),
+            TextBounds::UNBOUNDED,
+        );
+        let bold_metrics = sys.measure(
+            text,
+            14.0,
+            FontId(0),
+            700,
+            TextFlow::single_line(),
+            TextBounds::UNBOUNDED,
+        );
+
+        // Monospace width should remain identical despite weight variation
+        assert_eq!(
+            regular_metrics.size.x, bold_metrics.size.x,
+            "Monospace width should remain identical: regular = {}, bold = {}",
+            regular_metrics.size.x, bold_metrics.size.x
+        );
+
+        // However, they should produce separate cached glyph entries in the atlas
+        let rect = Rect::new(0.0, 0.0, 200.0, 40.0);
+        let _ = sys.prepare("M", 14.0, FontId(0), 400, TextFlow::single_line(), rect);
+        let _ = sys.prepare("M", 14.0, FontId(0), 700, TextFlow::single_line(), rect);
+
+        assert!(sys
+            .glyph_cache
+            .keys()
+            .any(|key| key.font_id == 0 && key.weight == 400));
+        assert!(sys
+            .glyph_cache
+            .keys()
+            .any(|key| key.font_id == 0 && key.weight == 700));
+    }
+
+    #[test]
     fn single_line_is_one_line() {
         let mut sys = sys();
         let m = sys.measure(
@@ -370,14 +414,17 @@ mod tests {
 
     fn shaped_advance(text: &str, size: f32, font_id: FontId, weight: u16) -> f32 {
         let data = match font_id.0 {
-            0 => include_bytes!("../../assets/JetBrainsMono-Regular.ttf") as &[u8],
+            0 => include_bytes!("../../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
+                as &[u8],
             1 => include_bytes!("../../assets/Inter/Inter-VariableFont_opsz,wght.ttf") as &[u8],
             _ => panic!("unsupported test font id {}", font_id.0),
         };
         let font = FontRef::from_index(data, 0).expect("test font should load");
         let mut shape_context = ShapeContext::new();
         let mut shaper = shape_context.builder(font).size(size);
-        if font_id.0 == 1 {
+        if font_id.0 == 0 {
+            shaper = shaper.variations(&[("wght", weight as f32)]);
+        } else if font_id.0 == 1 {
             let opsz = size.clamp(14.0, 32.0);
             shaper = shaper.variations(&[("wght", weight as f32), ("opsz", opsz)]);
         }

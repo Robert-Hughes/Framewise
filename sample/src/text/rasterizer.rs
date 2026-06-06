@@ -13,16 +13,18 @@ impl SampleTextSystem {
         let size = key.size as f32 / 10.0;
 
         // Build variation settings if applicable
-        let variations: &[(&str, f32)] = if key.opsz > 0 {
-            &[("wght", key.weight as f32), ("opsz", key.opsz as f32)]
-        } else {
-            &[]
-        };
+        let mut vars = Vec::new();
+        if self.font_has_wght[key.font_id as usize] {
+            vars.push(("wght", key.weight as f32));
+        }
+        if self.font_has_opsz[key.font_id as usize] && key.opsz > 0 {
+            vars.push(("opsz", key.opsz as f32));
+        }
 
         let mut scaler_builder = self.scale_context.builder(font).size(size).hint(true);
 
-        if !variations.is_empty() {
-            scaler_builder = scaler_builder.variations(variations);
+        if !vars.is_empty() {
+            scaler_builder = scaler_builder.variations(&vars);
         }
 
         let mut scaler = scaler_builder.build();
