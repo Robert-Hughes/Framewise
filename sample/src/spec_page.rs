@@ -12,12 +12,13 @@ use framewise::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    layout::{IntrinsicSize, LayoutState},
+    layout::{IntrinsicSize, LayoutState, Placement},
     layouts::ManualLayout,
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
-    LayoutViolationPolicy,
+    Align, ColumnLayout, ColumnState, LayoutViolationPolicy, ManualState, Placement2D, RowLayout,
+    Size,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -119,7 +120,7 @@ use framewise::widgets::{
 
 #[cfg(feature = "checkbox")]
 fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, LS, CF>,
+    b: &mut WidgetContext<T, ColumnState, CF>,
     layout_params: LS::Params,
     state_val: CheckedState,
     is_focused: bool,
@@ -153,7 +154,7 @@ fn draw_checkbox_fake_state<T: TextSystem, LS: LayoutState, CF>(
 
 #[cfg(feature = "radio")]
 fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, LS, CF>,
+    b: &mut WidgetContext<T, ColumnState, CF>,
     layout_params: LS::Params,
     checked: bool,
     is_focused: bool,
@@ -187,7 +188,7 @@ fn draw_radio_fake_state<T: TextSystem, LS: LayoutState, CF>(
 
 #[cfg(feature = "switch")]
 fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, LS, CF>,
+    b: &mut WidgetContext<T, ColumnState, CF>,
     layout_params: LS::Params,
     checked: bool,
     is_focused: bool,
@@ -221,7 +222,7 @@ fn draw_switch_fake_state<T: TextSystem, LS: LayoutState, CF>(
 
 #[cfg(feature = "select")]
 fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, LS, CF>,
+    b: &mut WidgetContext<T, ColumnState, CF>,
     layout_params: LS::Params,
     value: &'s str,
     options: &'s [&'s str],
@@ -267,7 +268,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
 
 #[cfg(feature = "drag_number")]
 fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, LS, CF>,
+    b: &mut WidgetContext<T, ColumnState, CF>,
     layout_params: LS::Params,
     label: &str,
     val: f32,
@@ -1003,7 +1004,6 @@ impl Default for SpecWidgets {
 // ── Layout constants ──────────────────────────────────────────────────────────
 
 const MARGIN: f32 = 64.0;
-const SEC_GAP: f32 = 64.0;
 // GROUP_GAP/COL_GAP are only referenced by some sections; unused when those are
 // compiled out.
 #[allow(dead_code)]
@@ -1015,8 +1015,8 @@ const COL_GAP: f32 = 16.0;
 
 // Used only by sections that show fake/static states; may be unused in minimal builds.
 #[allow(dead_code)]
-fn static_badge<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn static_badge<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ManualState, CF>,
     t: &Theme,
     x: f32,
     y: f32,
@@ -1037,78 +1037,72 @@ fn static_badge<LS: LayoutState<Params = Rect>, CF>(
     };
 }
 
-fn sec_y<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn sec_y<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
-    y: f32,
     w: f32,
     num: &str,
     title: &str,
     detail_text: &str,
 ) {
     {
-        let layout_params = Rect::new(lx, y, w, 36.0);
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        {
+            let layout_params = Rect::new(0.0, 0.0, 40.0, 20.0);
+            let size = t.text_sm;
+            let color = t.muted;
+            let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
+                text_style: framewise::TextStyle {
+                    size,
+                    ..(LabelStyle::from_theme(t)).text_style
+                },
+                text_color: color,
+                ..LabelStyle::from_theme(t)
+            });
+            label(&mut b, spec_builder, layout_params)
+        };
+        {
+            let layout_params = Rect::new(44.0, 0.0, w - 44.0, 22.0);
+            let color = t.ink;
+            let font = t.sans_font;
+            let spec_builder = LabelSpecBuilder::new().text(title).style(LabelStyle {
+                text_style: framewise::TextStyle {
+                    font,
+                    size: 18.0,
+                    ..(LabelStyle::from_theme(t)).text_style
+                },
+                text_color: color,
+                ..LabelStyle::from_theme(t)
+            });
+            label(&mut b, spec_builder, layout_params)
+        };
+        {
+            let layout_params = Rect::new(w - 200.0, 0.0, 200.0, 22.0);
+            let size = t.text_sm;
+            let color = t.muted;
+            let font = t.sans_font;
+            let spec_builder = LabelSpecBuilder::new().text(detail_text).style(LabelStyle {
+                text_style: framewise::TextStyle {
+                    font,
+                    size,
+                    ..(LabelStyle::from_theme(t)).text_style
+                },
+                text_color: color,
+                ..LabelStyle::from_theme(t)
+            });
+            label(&mut b, spec_builder, layout_params)
+        };
+        b.finish();
+    }
+    {
         let spec_builder = DividerSpecBuilder::new();
-        divider(b, spec_builder, layout_params)
-    };
-    {
-        let layout_params = Rect::new(lx, y, 40.0, 20.0);
-        let size = t.text_sm;
-        let color = t.muted;
-        let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
-            text_style: framewise::TextStyle {
-                size,
-                ..(LabelStyle::from_theme(t)).text_style
-            },
-            text_color: color,
-            ..LabelStyle::from_theme(t)
-        });
-        label(b, spec_builder, layout_params)
-    };
-    {
-        let layout_params = Rect::new(lx + 44.0, y, w - 44.0, 22.0);
-        let color = t.ink;
-        let font = t.sans_font;
-        let spec_builder = LabelSpecBuilder::new().text(title).style(LabelStyle {
-            text_style: framewise::TextStyle {
-                font,
-                size: 18.0,
-                ..(LabelStyle::from_theme(t)).text_style
-            },
-            text_color: color,
-            ..LabelStyle::from_theme(t)
-        });
-        label(b, spec_builder, layout_params)
-    };
-    {
-        let layout_params = Rect::new(lx + w - 200.0, y, 200.0, 22.0);
-        let size = t.text_sm;
-        let color = t.muted;
-        let font = t.sans_font;
-        let spec_builder = LabelSpecBuilder::new().text(detail_text).style(LabelStyle {
-            text_style: framewise::TextStyle {
-                font,
-                size,
-                ..(LabelStyle::from_theme(t)).text_style
-            },
-            text_color: color,
-            ..LabelStyle::from_theme(t)
-        });
-        label(b, spec_builder, layout_params)
+        divider(b, spec_builder, Placement2D::fixed(w, 36.0))
     };
 }
 
 #[allow(dead_code)]
-fn group_y<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
-    t: &Theme,
-    lx: f32,
-    y: f32,
-    text: &str,
-) {
+fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &Theme, text: &str) {
     {
-        let layout_params = Rect::new(lx, y, 400.0, 16.0);
         let text: &str = &text.to_uppercase();
         let size = t.text_sm;
         let color = t.muted;
@@ -1120,7 +1114,7 @@ fn group_y<LS: LayoutState<Params = Rect>, CF>(
             text_color: color,
             ..LabelStyle::from_theme(t)
         });
-        label(b, spec_builder, layout_params)
+        label(b, spec_builder, Placement2D::fixed(400.0, 16.0))
     };
 }
 
@@ -1139,7 +1133,6 @@ pub fn draw_spec_page(
     let t = Theme::framewise();
 
     let content_w = (win_w - MARGIN * 2.0).min(1100.0);
-    let lx = (win_w - content_w) * 0.5;
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
     let mut cmds = DrawCommands::new();
@@ -1179,35 +1172,49 @@ pub fn draw_spec_page(
             }),
             win_rect,
             &mut state.page_scroll,
-            ManualLayout,
+            RowLayout { spacing: 0.0 },
         )
         .ctx;
+        page.layout(
+            Placement2D::fixed(content_w / 4.0, 0.0),
+            IntrinsicSize::UNKNOWN,
+        ); // Spacer
+        let mut content_column = page.child_with_layout(
+            Placement2D {
+                width: Placement::Sized {
+                    size: Size::Fixed(content_w),
+                    align: Align::Center,
+                },
+                height: Placement::Sized {
+                    size: Size::Auto,
+                    align: Align::Start,
+                },
+            },
+            ColumnLayout { spacing: 16.0 },
+        );
         {
-            let b = &mut page;
+            let b = &mut content_column;
 
             // ── HERO ─────────────────────────────────────────────────────────────────
-            header_section(b, t, content_w, lx);
-
-            #[allow(unused_mut)]
-            let mut y = MARGIN + 334.0;
+            header_section(b, t, content_w);
 
             // Sections are feature-gated: each draws its block, advances `y`, and is
             // skipped entirely when its widgets aren't in the build.
             #[cfg(feature = "button")]
             {
-                y = section_01_buttons(b, &t, lx, content_w, y, &mut state.w, &mut should_reset);
+                section_01_buttons(b, &t, content_w, &mut state.w, &mut should_reset);
             }
             #[cfg(feature = "text_edit")]
             {
-                y = section_02_text_inputs(b, &t, lx, content_w, y, &mut state.w);
+                section_02_text_inputs(b, &t, content_w, &mut state.w);
             }
             #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
             {
-                y = section_03_toggles(b, &t, lx, content_w, y, &mut state.w);
+                section_03_toggles(b, &t, content_w, &mut state.w);
             }
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             {
-                y = section_04_sliders(b, &t, lx, content_w, y, &mut state.w);
+                section_04_sliders(b, &t, content_w, &mut state.w);
             }
             #[cfg(all(
                 feature = "select",
@@ -1216,15 +1223,15 @@ pub fn draw_spec_page(
                 feature = "menu"
             ))]
             {
-                y = section_05_selection(b, &t, lx, content_w, y, &mut state.w);
+                section_05_selection(b, &t, content_w, &mut state.w);
             }
             #[cfg(feature = "scroll_area")]
             {
-                y = section_06_scrollbars(b, &t, lx, content_w, y, &mut state.w);
+                section_06_scrollbars(b, &t, content_w, &mut state.w);
             }
             #[cfg(feature = "tabs")]
             {
-                y = section_07_tabs(b, &t, lx, content_w, y, &mut state.w);
+                section_07_tabs(b, &t, content_w, &mut state.w);
             }
             #[cfg(all(
                 feature = "progress_bar",
@@ -1233,19 +1240,19 @@ pub fn draw_spec_page(
                 feature = "status"
             ))]
             {
-                y = section_08_progress(b, &t, lx, content_w, y, time);
+                section_08_progress(b, &t, content_w, time);
             }
             #[cfg(feature = "tree")]
             {
-                y = section_09_tree(b, &t, lx, content_w, y);
+                section_09_tree(b, &t, content_w, y);
             }
             #[cfg(all(feature = "tooltip", feature = "keycap"))]
             {
-                y = section_10_tooltips(b, &t, lx, content_w, y);
+                section_10_tooltips(b, &t, content_w, y);
             }
             #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
             {
-                y = section_11_window(b, &t, lx, content_w, y, &mut state.w);
+                section_11_window(b, &t, content_w, &mut state.w);
             }
             #[cfg(all(
                 feature = "window",
@@ -1260,76 +1267,13 @@ pub fn draw_spec_page(
                 feature = "menu"
             ))]
             {
-                y = section_12_in_use(b, &t, lx, content_w, y, &mut state.w);
+                section_12_in_use(b, &t, content_w, &mut state.w);
             }
 
             // ── FOOTER ───────────────────────────────────────────────────────────────
-            {
-                {
-                    let layout_params = Rect::new(lx, y, content_w, 1.0);
-                    let spec_builder = DividerSpecBuilder::new();
-                    divider(b, spec_builder, layout_params)
-                };
-                y += 10.0;
-                let foot_items: &[(&str, &str)] = &[
-                    ("SPEC", "V0.1 · 12 SECTIONS"),
-                    ("RADIUS", "0 PX"),
-                    ("BORDERS", "1 PX INK"),
-                    ("FOCUS", "2 PX RUST OUTSET"),
-                    ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
-                ];
-                let mut fx = lx;
-                for (key, val) in foot_items {
-                    {
-                        let layout_params = Rect::new(fx, y, 32.0, 14.0);
-                        let size = t.text_sm;
-                        let color = t.ink;
-                        let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                size,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                        label(b, spec_builder, layout_params)
-                    };
-                    let kw = key.len() as f32 * 7.0 + 8.0;
-                    {
-                        let layout_params = Rect::new(fx + kw, y, 220.0, 14.0);
-                        let size = t.text_sm;
-                        let color = t.muted;
-                        let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                size,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                        label(b, spec_builder, layout_params)
-                    };
-                    fx += kw + val.len() as f32 * 6.5 + 24.0;
-                }
-                {
-                    let layout_params = Rect::new(lx + content_w - 200.0, y, 200.0, 14.0);
-                    let size = t.text_sm;
-                    let color = t.ink;
-                    let spec_builder = LabelSpecBuilder::new()
-                        .text("FRAMEWISE · WIDGET SPECIFICATION")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                size,
-                                ..(LabelStyle::from_theme(&t)).text_style
-                            },
-                            text_color: color,
-                            ..LabelStyle::from_theme(&t)
-                        });
-                    label(b, spec_builder, layout_params)
-                };
-            }
-            let _ = (y, b);
+            footer_section(b, t, content_w);
         } // end content block (drops `b` alias, releases borrow on `page`)
+        content_column.finish();
         page.finish()
     }; // end page_cmds block
        // `state`/`time` are only consumed by feature-gated sections; silence unused
@@ -1343,15 +1287,15 @@ pub fn draw_spec_page(
     cmds
 }
 
-fn header_section<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn header_section<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: Theme,
     content_w: f32,
-    lx: f32,
 ) {
-    let rect = b.layout(Rect::new(lx, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
-    b.append_cmds(hero_logo(&t, rect.x, rect.y));
-    let tx = lx + 124.0;
+    let mut b = b.child_with_layout(Placement2D::fixed(1000.0, 500.0), ManualLayout);
+    let logo_rect = b.layout(Rect::new(0.0, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
+    b.append_cmds(hero_logo(&t, logo_rect.x, logo_rect.y));
+    let tx = 124.0;
     // 28px gap + 96px logo = 124px
     let hero_w = content_w - 124.0;
     // Overline
@@ -1366,7 +1310,7 @@ fn header_section<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-        label(b, spec_builder, layout_params)
+        label(&mut b, spec_builder, layout_params)
     };
     // Two-line Title (56px size, Bold, line-height 0.95)
     {
@@ -1379,7 +1323,7 @@ fn header_section<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-        label(b, spec_builder, layout_params)
+        label(&mut b, spec_builder, layout_params)
     };
     // Description (15px size, regular, line-height 1.55)
     {
@@ -1392,7 +1336,7 @@ fn header_section<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-        label(b, spec_builder, layout_params)
+        label(&mut b, spec_builder, layout_params)
     };
     // Color Meta Row
     let meta_items: &[(&str, &str)] = &[
@@ -1418,7 +1362,7 @@ fn header_section<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         let key_w = key.len() as f32 * 7.5 + 4.0;
         {
@@ -1430,60 +1374,121 @@ fn header_section<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         mx += key_w + val.len() as f32 * 6.5 + 24.0;
     }
+    b.finish();
+}
+fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
+    let mut cmds = DrawCommands::new();
+
+    // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
+    let ls = 0.48_f32;
+    let lx0 = x0;
+    let lw = 4.8_f32;
+
+    // Since lines are drawn using "butt end caps" (which terminate flat at endpoints),
+    // we manually extend/overlap connected segment coordinates by half the stroke width
+    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and
+    // simulate square cap endings.
+    let ext = 5.0_f32;
+
+    cmds.extend(vec![
+        // left bracket
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
+            p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
+            color: t.ink,
+            width: lw,
+        },
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
+            p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        // top horizontal
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
+            p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
+            color: t.ink,
+            width: lw,
+        },
+        // middle horizontal (rust)
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
+            p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
+            color: t.rust,
+            width: lw,
+        },
+        // vertical
+        DrawCmd::StrokeLine {
+            p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
+            p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
+            color: t.ink,
+            width: lw,
+        },
+    ]);
+
+    cmds
 }
 
 #[cfg(feature = "button")]
-fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_01_buttons<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
     should_reset: &mut bool,
-) -> f32 {
+) {
     let t = *t;
     // ── 01 · BUTTONS ─────────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "01", "Buttons", "primary fills with ink, accent with rust, ghost stays transparent until hovered. focus = 2px rust ring, outset.");
-    y += 46.0;
+    sec_y(b, &t, content_w, "01", "Buttons", "primary fills with ink, accent with rust, ghost stays transparent until hovered. focus = 2px rust ring, outset.");
 
     // variants row
-    group_y(b, &t, lx, y, "variants");
-    y += 20.0;
+    group_y(b, &t, "variants");
     {
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+
         let styles: &[(&str, ButtonStyle, bool)] = &[
             ("Apply changes", ButtonStyle::primary_from_theme(&t), false),
             ("Cancel", ButtonStyle::primary_from_theme(&t), false),
             ("Reset", ButtonStyle::ghost_from_theme(&t), false),
             ("Publish v0.2", ButtonStyle::accent_from_theme(&t), false),
         ];
-        let mut bx = lx;
+        let mut bx = 0.0;
         for (i, (label, style, _)) in styles.iter().enumerate() {
             let w = label.len() as f32 * 7.0 + 24.0;
             let btn = {
                 let state = &mut state.btn_variants[i];
-                let layout_params = Rect::new(bx, y, w, t.h_md);
+                let layout_params = Rect::new(bx, 0.0, w, t.h_md);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(b, spec_builder, layout_params, state)
+                button(&mut b, spec_builder, layout_params, state)
             };
             if btn.input.clicked && i == 2 {
                 *should_reset = true;
             }
             bx += w + COL_GAP;
         }
+
+        b.finish();
     }
-    y += t.h_md + GROUP_GAP;
 
     // state matrix
-    group_y(b, &t, lx, y, "states · default button");
-    y += 20.0;
+    group_y(b, &t, "states · default button");
     {
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut y = 20.0;
+
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
         let row_labels = ["secondary", "primary", "accent", "ghost"];
         let row_styles: &[ButtonStyle] = &[
@@ -1499,11 +1504,10 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
         for (ci, col) in col_labels.iter().enumerate() {
             // Add STATIC badge for fake state columns
             if (1..=3).contains(&ci) {
-                static_badge(b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                static_badge(&mut b, &t, label_w + ci as f32 * cell_w, y - 14.0);
             }
             {
-                let layout_params =
-                    Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
+                let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 8.0, 16.0);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
@@ -1514,14 +1518,14 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
         }
         y += 20.0;
 
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
-                let layout_params = Rect::new(lx, y, label_w - 8.0, t.h_md);
+                let layout_params = Rect::new(0.0, y, label_w - 8.0, t.h_md);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
@@ -1532,13 +1536,13 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
             for ci in 0..5 {
-                let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
+                let rect = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 8.0, t.h_md);
                 match ci {
                     1 => draw_button_fake_state(
-                        b,
+                        &mut b,
                         rect,
                         "Action",
                         row_styles[ri],
@@ -1547,7 +1551,7 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                         false,
                     ),
                     2 => draw_button_fake_state(
-                        b,
+                        &mut b,
                         rect,
                         "Action",
                         row_styles[ri],
@@ -1556,7 +1560,7 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                         false,
                     ),
                     3 => draw_button_fake_state(
-                        b,
+                        &mut b,
                         rect,
                         "Action",
                         row_styles[ri],
@@ -1574,35 +1578,36 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
                                 .text("Action")
                                 .style(style)
                                 .disabled(disabled);
-                            button(b, spec_builder, rect, state)
+                            button(&mut b, spec_builder, rect, state)
                         };
                     }
                 }
             }
             y += t.h_md + 4.0;
         }
+        b.finish();
     }
-    y += GROUP_GAP;
 
     // sizes & groups
-    group_y(b, &t, lx, y, "sizes  ·  groups");
-    y += 20.0;
+    group_y(b, &t, "sizes  ·  groups");
     {
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
             ("22 px", t.h_sm, ButtonStyle::primary_from_theme(&t)),
             ("28 px", t.h_md, ButtonStyle::primary_from_theme(&t)),
             ("36 px", t.h_lg, ButtonStyle::primary_from_theme(&t)),
         ];
-        let mut bx = lx;
+        let mut bx = 0.0;
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
             let w = label.len() as f32 * 7.0 + 20.0;
             let _btn = {
                 let state = &mut state.btn_sizes[i];
-                let layout_params = Rect::new(bx, y, w, *h);
+                let layout_params = Rect::new(bx, 40.0, w, *h);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(b, spec_builder, layout_params, state)
+                button(&mut b, spec_builder, layout_params, state)
             };
             bx += w + COL_GAP;
         }
@@ -1619,11 +1624,11 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
             let w = label.len() as f32 * 7.0 + 20.0;
             let _btn = {
                 let state = &mut state.btn_grp1[i];
-                let layout_params = Rect::new(bx, y, w, t.h_md);
+                let layout_params = Rect::new(bx, 40.0, w, t.h_md);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(b, spec_builder, layout_params, state)
+                button(&mut b, spec_builder, layout_params, state)
             };
             bx += w;
         }
@@ -1639,35 +1644,34 @@ fn section_01_buttons<LS: LayoutState<Params = Rect>, CF>(
             let w = label.len() as f32 * 7.0 + 20.0;
             let _btn = {
                 let state = &mut state.btn_grp2[i];
-                let layout_params = Rect::new(bx, y, w, t.h_md);
+                let layout_params = Rect::new(bx, 40.0, w, t.h_md);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(b, spec_builder, layout_params, state)
+                button(&mut b, spec_builder, layout_params, state)
             };
             bx += w;
         }
         let _ = bx;
+
+        b.finish();
     }
-    y += t.h_md + SEC_GAP;
-    y
 }
 
 #[cfg(feature = "text_edit")]
-fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_02_text_inputs<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 02 · TEXT INPUTS ─────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "02", "Text inputs", "mono caret in rust signals the live insertion point. focus ring sits inside the border so widgets don't shift.");
+    sec_y(b, &t, y, content_w, "02", "Text inputs", "mono caret in rust signals the live insertion point. focus ring sits inside the border so widgets don't shift.");
     y += 46.0;
 
-    group_y(b, &t, lx, y, "states · single-line");
+    group_y(b, &t, y, "states · single-line");
     y += 20.0;
     {
         let col_labels = ["DEFAULT", "HOVER", "FOCUSED", "ERROR", "DISABLED"];
@@ -1678,7 +1682,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
         for (ci, col) in col_labels.iter().enumerate() {
             {
                 let layout_params =
-                    Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
+                    Rect::new(label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
@@ -1716,7 +1720,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
                 let _info = {
                     let state = &mut state.te_matrix[idx];
                     let layout_params =
-                        Rect::new(lx + label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md);
+                        Rect::new(label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md);
                     let spec_builder = TextEditSpecBuilder::new().error(error).disabled(disabled);
                     text_edit(b, spec_builder, layout_params, state)
                 };
@@ -1726,7 +1730,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
     }
     y += GROUP_GAP;
 
-    group_y(b, &t, lx, y, "labelled  ·  prefixed  ·  multiline");
+    group_y(b, &t, y, "labelled  ·  prefixed  ·  multiline");
     y += 20.0;
     {
         // Labelled field
@@ -1771,7 +1775,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
         };
 
         // Prefixed field (draw prefix addon manually)
-        let pf_x = lx + 200.0;
+        let pf_x = 200.0;
         {
             let layout_params = Rect::new(pf_x, y, 120.0, 14.0);
             let size = t.text_sm;
@@ -1837,7 +1841,7 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
         };
 
         // Multiline field
-        let ml_x = lx + 420.0;
+        let ml_x = 420.0;
         {
             let layout_params = Rect::new(ml_x, y, 120.0, 14.0);
             let size = t.text_sm;
@@ -1866,14 +1870,13 @@ fn section_02_text_inputs<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
-fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_03_toggles<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 03 · CHECK · RADIO · SWITCH ──────────────────────────────────────────
     sec_y(
@@ -1888,7 +1891,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
     );
     y += 46.0;
 
-    group_y(b, &t, lx, y, "checkbox");
+    group_y(b, &t, y, "checkbox");
     y += 20.0;
     {
         let col_labels = ["OFF", "ON", "MIXED", "FOCUSED", "DISABLED"];
@@ -1897,11 +1900,10 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
         for (ci, col) in col_labels.iter().enumerate() {
             // Add STATIC badge for fake state columns
             if (3..=4).contains(&ci) {
-                static_badge(b, &t, lx + label_w + ci as f32 * cell_w, y - 14.0);
+                static_badge(b, &t, label_w + ci as f32 * cell_w, y - 14.0);
             }
             {
-                let layout_params =
-                    Rect::new(lx + label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
+                let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
@@ -1940,7 +1942,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             (CheckedState::Checked, false, true),
         ];
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-            let rect = Rect::new(lx + label_w + ci as f32 * cell_w, y, 14.0, 14.0);
+            let rect = Rect::new(label_w + ci as f32 * cell_w, y, 14.0, 14.0);
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[ci];
@@ -1971,7 +1973,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
             label(b, spec_builder, layout_params)
         };
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-            let cx = lx + label_w + ci as f32 * cell_w;
+            let cx = label_w + ci as f32 * cell_w;
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[3 + ci];
@@ -2002,7 +2004,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
     }
     y += GROUP_GAP;
 
-    group_y(b, &t, lx, y, "radio  ·  switch");
+    group_y(b, &t, y, "radio  ·  switch");
     y += 20.0;
     {
         let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
@@ -2025,7 +2027,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
                 draw_radio_fake_state(b, Rect::new(lx, ry, 14.0, 14.0), false, true, false);
             }
             {
-                let layout_params = Rect::new(lx + 18.0, ry, 140.0, 14.0);
+                let layout_params = Rect::new(18.0, ry, 140.0, 14.0);
                 let size = t.text_md;
                 let color = t.ink;
                 let spec_builder = LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
@@ -2039,7 +2041,7 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
                 label(b, spec_builder, layout_params)
             };
         }
-        let sw_x = lx + 220.0;
+        let sw_x = 220.0;
         let switch_labels = [
             "debug overlay",
             "show layout grid",
@@ -2095,21 +2097,20 @@ fn section_03_toggles<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
-fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_04_sliders<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 04 · SLIDERS · DRAGS ─────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "04", "Sliders & numeric drags",
+    sec_y(b, &t, y, content_w, "04", "Sliders & numeric drags",
         "drag-number reads like a function parameter — label + value, scrubbable in either direction. fill bar shows magnitude.");
     y += 46.0;
 
-    group_y(b, &t, lx, y, "slider · single value");
+    group_y(b, &t, y, "slider · single value");
     y += 20.0;
     {
         let slider_w = 360.0_f32;
@@ -2122,7 +2123,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             slider(b, spec_builder, layout_params, &mut state.slider1_state);
         };
         {
-            let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
             let text: &str = &format!("{:.2}", state.slider1_state.value);
             let size = t.text_sm;
             let color = t.ink;
@@ -2145,7 +2146,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             slider(b, spec_builder, layout_params, &mut state.slider2_state);
         };
         {
-            let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
             let text: &str = &format!("{:.2}", state.slider2_state.value);
             let size = t.text_sm;
             let color = t.ink;
@@ -2168,7 +2169,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             slider(b, spec_builder, layout_params, &mut state.slider3_state);
         };
         {
-            let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
             let text: &str = &format!("{:.2}", state.slider3_state.value);
             let size = t.text_sm;
             let color = t.ink;
@@ -2192,7 +2193,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             slider(b, spec_builder, layout_params, &mut state.slider4_state);
         };
         {
-            let layout_params = Rect::new(lx + slider_w + 12.0, y + 6.0, 80.0, 14.0);
+            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
             let text: &str = &format!("{:.0} / 9", state.slider4_state.value);
             let size = t.text_sm;
             let color = t.ink;
@@ -2211,7 +2212,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
         let tick_h = 4.0;
         let usable = slider_w - 12.0;
         for i in 0..=9usize {
-            let tx = lx + 6.0 + (i as f32 / 9.0) * usable;
+            let tx = 6.0 + (i as f32 / 9.0) * usable;
             {
                 let layout_params = Rect::new(tx - 0.5, tick_y, 1.0, tick_h);
                 let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
@@ -2226,7 +2227,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
     }
     y += GROUP_GAP;
 
-    group_y(b, &t, lx, y, "range slider");
+    group_y(b, &t, y, "range slider");
     y += 20.0;
     {
         let track_w = 360.0_f32;
@@ -2240,8 +2241,8 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
                 let mid_y = r.y + 0.75;
                 let t1 = 0.24_f32;
                 let t2 = 0.76_f32;
-                let fill_x1 = lx + track_w * t1;
-                let fill_x2 = lx + track_w * t2;
+                let fill_x1 = track_w * t1;
+                let fill_x2 = track_w * t2;
                 let ts = 12.0_f32; // thumb size
                 let half_ts = ts * 0.5;
 
@@ -2281,7 +2282,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
             b.append_cmds(cmds);
         };
         {
-            let layout_params = Rect::new(lx + track_w + 12.0, y + 6.0, 80.0, 14.0);
+            let layout_params = Rect::new(track_w + 12.0, y + 6.0, 80.0, 14.0);
             let size = t.text_sm;
             let color = t.ink;
             let spec_builder = LabelSpecBuilder::new().text(".24–.76").style(LabelStyle {
@@ -2297,7 +2298,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
     }
     y += t.h_md + GROUP_GAP;
 
-    group_y(b, &t, lx, y, "drag-number (imgui-style)");
+    group_y(b, &t, y, "drag-number (imgui-style)");
     y += 20.0;
     {
         let mut bx = lx;
@@ -2339,7 +2340,7 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
     }
     y += t.h_md + GROUP_GAP;
 
-    group_y(b, &t, lx, y, "numeric stepper  ·  colour swatch");
+    group_y(b, &t, y, "numeric stepper  ·  colour swatch");
     y += 20.0;
     {
         // prefix + value display
@@ -2521,20 +2522,19 @@ fn section_04_sliders<LS: LayoutState<Params = Rect>, CF>(
     feature = "chip",
     feature = "menu"
 ))]
-fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_05_selection<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 05 · SELECTION ───────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "05", "Selection", "selects, segmented controls, and menus share one rule: the chosen thing is filled ink, paper text. no surprises.");
+    sec_y(b, &t, y, content_w, "05", "Selection", "selects, segmented controls, and menus share one rule: the chosen thing is filled ink, paper text. no surprises.");
     y += 46.0;
 
-    group_y(b, &t, lx, y, "select  ·  segmented  ·  chips");
+    group_y(b, &t, y, "select  ·  segmented  ·  chips");
     y += 20.0;
     {
         // Select widgets
@@ -2565,7 +2565,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         );
 
         // Segmented controls
-        let seg_x = lx + 200.0;
+        let seg_x = 200.0;
         const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
         let _seg1_info = {
             let state = &mut state.seg1_state;
@@ -2584,7 +2584,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         // Chips
         let chip_labels = ["opengl", "vulkan", "metal", "wgpu"];
         let chip_y = y;
-        let mut chip_x = lx + 560.0;
+        let mut chip_x = 560.0;
         for (i, label) in chip_labels.iter().enumerate() {
             let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
             let chip_w = (layout.size.x + 16.0).max(32.0);
@@ -2605,7 +2605,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         let add_w = (add_layout.size.x + 16.0).max(32.0);
         let _add_info = {
             let state = &mut state.chip_states[4];
-            let layout_params = Rect::new(lx + 560.0, y + 28.0, add_w, 22.0);
+            let layout_params = Rect::new(560.0, y + 28.0, add_w, 22.0);
             let spec_builder = ChipSpecBuilder::new()
                 .text("+ add backend")
                 .style(ChipStyle {
@@ -2618,7 +2618,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
     let select_open_h = 3.0 * 26.0 + 8.0;
     y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
 
-    group_y(b, &t, lx, y, "dropdown menu (open)");
+    group_y(b, &t, y, "dropdown menu (open)");
     y += 20.0;
     {
         static ITEMS1: &[MenuItem<'static>] = &[
@@ -2699,7 +2699,7 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
         menu(
             b,
             MenuSpecBuilder::new().items(ITEMS2),
-            Rect::new(lx + 264.0, y, 200.0, 0.0),
+            Rect::new(264.0, y, 200.0, 0.0),
         );
 
         let menu1_h: f32 = ITEMS1
@@ -2718,25 +2718,24 @@ fn section_05_selection<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(feature = "scroll_area")]
-fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_06_scrollbars<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 06 · SCROLLBARS ──────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "06", "Scrollbars",
+    sec_y(b, &t, content_w, "06", "Scrollbars",
         "always visible. thumb length encodes how much of the content fits in view; thumb position encodes scroll offset. dragging shifts the thumb to rust.");
-    y += 46.0;
     {
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+
         let box_gap = 24.0_f32;
         let cap_h = 20.0_f32;
 
         // Box 1: vertical, idle
-        let b1 = Rect::new(lx, y, 180.0, 130.0);
+        let b1 = Rect::new(0.0, 40.0, 180.0, 130.0);
         let b1_content = Vec2::new(180.0, 320.0);
         {
             let rect = b.layout(b1, IntrinsicSize::UNKNOWN);
@@ -2751,7 +2750,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    b,
+                    &mut b,
                     ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
                         extent: ScrollExtent::fixed(b1_content.y),
                         vis: ScrollbarVisibility::Always,
@@ -2795,7 +2794,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             sa.finish();
         }
         {
-            let layout_params = Rect::new(b1.x, y + b1.h + 4.0, b1.w, cap_h);
+            let layout_params = Rect::new(b1.x, 40.0 + b1.h + 4.0, b1.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new()
@@ -2808,12 +2807,12 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // Box 2: vertical, dragging (same implementation, user can drag)
         let b2_x = b1.x + b1.w + box_gap;
-        let b2 = Rect::new(b2_x, y, 180.0, 130.0);
+        let b2 = Rect::new(b2_x, 40.0, 180.0, 130.0);
         let b2_content = Vec2::new(180.0, 300.0);
         {
             let rect = b.layout(b2, IntrinsicSize::UNKNOWN);
@@ -2827,7 +2826,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    b,
+                    &mut b,
                     ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
                         extent: ScrollExtent::fixed(b2_content.y),
                         vis: ScrollbarVisibility::Always,
@@ -2858,7 +2857,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             sa.finish();
         }
         {
-            let layout_params = Rect::new(b2.x, y + b2.h + 4.0, b2.w, cap_h);
+            let layout_params = Rect::new(b2.x, 40.0 + b2.h + 4.0, b2.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new()
@@ -2871,12 +2870,12 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // Box 3: horizontal
         let b3_x = b2_x + b2.w + box_gap;
-        let b3 = Rect::new(b3_x, y + 15.0, 300.0, 100.0);
+        let b3 = Rect::new(b3_x, 40.0 + 15.0, 300.0, 100.0);
         let b3_content = Vec2::new(700.0, 100.0);
         {
             let rect = b.layout(b3, IntrinsicSize::UNKNOWN);
@@ -2890,7 +2889,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    b,
+                    &mut b,
                     ScrollAreaSpecBuilder::new()
                         .horizontal(ScrollAxis {
                             extent: ScrollExtent::fixed(b3_content.x),
@@ -2918,7 +2917,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             sa.finish();
         }
         {
-            let layout_params = Rect::new(b3.x, y + b3.h + 15.0 + 4.0, b3.w, cap_h);
+            let layout_params = Rect::new(b3.x, 40.0 + b3.h + 15.0 + 4.0, b3.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new()
@@ -2931,12 +2930,12 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // Box 4: both axes
         let b4_x = b3_x + b3.w + box_gap;
-        let b4 = Rect::new(b4_x, y, 220.0, 130.0);
+        let b4 = Rect::new(b4_x, 40.0, 220.0, 130.0);
         let b4_content = Vec2::new(320.0, 240.0);
         {
             let rect = b.layout(b4, IntrinsicSize::UNKNOWN);
@@ -2950,7 +2949,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    b,
+                    &mut b,
                     ScrollAreaSpecBuilder::new()
                         .horizontal(ScrollAxis {
                             extent: ScrollExtent::fixed(b4_content.x),
@@ -2986,7 +2985,7 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
             sa.finish();
         }
         {
-            let layout_params = Rect::new(b4.x, y + b4.h + 4.0, b4.w, cap_h);
+            let layout_params = Rect::new(b4.x, 40.0 + b4.h + 4.0, b4.w, cap_h);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text("both axes").style(LabelStyle {
@@ -2997,27 +2996,24 @@ fn section_06_scrollbars<LS: LayoutState<Params = Rect>, CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
-        y += 140.0 + cap_h + 8.0;
+        b.finish();
     }
-    y += SEC_GAP;
-    y
 }
 
 #[cfg(feature = "tabs")]
-fn section_07_tabs<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_07_tabs<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 07 · TABS ────────────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "07", "Tabs", "underline tabs for plain navigation. the rust underbar is the only chrome — no rounded pills, no shadow.");
+    sec_y(b, &t, y, content_w, "07", "Tabs", "underline tabs for plain navigation. the rust underbar is the only chrome — no rounded pills, no shadow.");
     y += 46.0;
     {
         const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
@@ -3048,21 +3044,20 @@ fn section_07_tabs<LS: LayoutState<Params = Rect>, CF>(
     feature = "spinner",
     feature = "status"
 ))]
-fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_08_progress<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     time: f64,
-) -> f32 {
+) {
     let t = *t;
     // ── 08 · PROGRESS · METERS · STATUS ──────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "08", "Progress, meters & status",
+    sec_y(b, &t, y, content_w, "08", "Progress, meters & status",
         "indeterminate progress uses rust; determinate stays ink. status pills carry the only dot of color on the bar.");
     y += 46.0;
 
-    group_y(b, &t, lx, y, "progress");
+    group_y(b, &t, y, "progress");
     y += 20.0;
     {
         let bar_items: &[(f32, bool, &str)] = &[
@@ -3082,7 +3077,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
                 Rect::new(lx, y + 8.0, bar_w, 3.0),
             );
             {
-                let layout_params = Rect::new(lx + bar_w + 12.0, y + 2.0, 180.0, 14.0);
+                let layout_params = Rect::new(bar_w + 12.0, y + 2.0, 180.0, 14.0);
                 let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(bar_label).style(LabelStyle {
@@ -3100,7 +3095,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
     }
     y += GROUP_GAP;
 
-    group_y(b, &t, lx, y, "meters");
+    group_y(b, &t, y, "meters");
     y += 20.0;
     {
         let meters: &[(&str, f32, Option<f32>)] = &[
@@ -3153,12 +3148,12 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
     }
     y += 14.0 + GROUP_GAP;
 
-    group_y(b, &t, lx, y, "spinners  ·  status");
+    group_y(b, &t, y, "spinners  ·  status");
     y += 20.0;
     {
         spinner(b, SpinnerSpecBuilder::new(), Rect::new(lx, y, 16.0, 16.0));
         {
-            let layout_params = Rect::new(lx + 20.0, y + 1.0, 60.0, 14.0);
+            let layout_params = Rect::new(20.0, y + 1.0, 60.0, 14.0);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text("loading").style(LabelStyle {
@@ -3175,10 +3170,10 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
         spinner(
             b,
             SpinnerSpecBuilder::new().large(true),
-            Rect::new(lx + 90.0, y - 4.0, 24.0, 24.0),
+            Rect::new(90.0, y - 4.0, 24.0, 24.0),
         );
         {
-            let layout_params = Rect::new(lx + 118.0, y + 1.0, 50.0, 14.0);
+            let layout_params = Rect::new(118.0, y + 1.0, 50.0, 14.0);
             let size = t.text_sm;
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text("large").style(LabelStyle {
@@ -3199,7 +3194,7 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
             ("PANIC", StatusVariant::Err),
             ("RENDERING", StatusVariant::Live),
         ];
-        let mut sx = lx + 180.0;
+        let mut sx = 180.0;
         for (label, variant) in status_items {
             status(
                 b,
@@ -3214,16 +3209,15 @@ fn section_08_progress<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(feature = "tree")]
-fn section_09_tree<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_09_tree<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
-) -> f32 {
+) {
     let t = *t;
     // ── 09 · TREE / LIST ─────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "09", "Tree & list",
+    sec_y(b, &t, y, content_w, "09", "Tree & list",
         "monospaced rows, ascii carets, ids on the right. the selected row is filled ink — it is unambiguously the focus.");
     y += 46.0;
     {
@@ -3359,7 +3353,7 @@ fn section_09_tree<LS: LayoutState<Params = Rect>, CF>(
         tree(
             b,
             TreeSpecBuilder::new().items(FILE_LIST),
-            Rect::new(lx + 360.0, y, 240.0, 0.0),
+            Rect::new(360.0, y, 240.0, 0.0),
         );
 
         y += WIDGET_TREE.len().max(FILE_LIST.len()) as f32 * 20.0 + 12.0;
@@ -3369,20 +3363,19 @@ fn section_09_tree<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(all(feature = "tooltip", feature = "keycap"))]
-fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_10_tooltips<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
-) -> f32 {
+) {
     let t = *t;
     // ── 10 · TOOLTIPS · KEYCAPS ──────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "10", "Tooltips & keycaps",
+    sec_y(b, &t, y, content_w, "10", "Tooltips & keycaps",
         "tooltips invert the palette — ink on paper becomes paper on ink. keycaps borrow the input border.");
     y += 46.0;
 
-    group_y(b, &t, lx, y, "tooltips");
+    group_y(b, &t, y, "tooltips");
     y += 20.0;
     {
         tooltip(
@@ -3414,7 +3407,7 @@ fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
     }
     y += GROUP_GAP;
 
-    group_y(b, &t, lx, y, "keycaps");
+    group_y(b, &t, y, "keycaps");
     y += 20.0;
     {
         let key_rows: &[(&[&str], &str)] = &[
@@ -3456,17 +3449,16 @@ fn section_10_tooltips<LS: LayoutState<Params = Rect>, CF>(
 }
 
 #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
-fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_11_window<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 11 · WINDOW CHROME ───────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "11", "Window & panel chrome",
+    sec_y(b, &t, y, content_w, "11", "Window & panel chrome",
         "title bar inverts to ink. window controls are typographic — no traffic-light cosplay. status strip carries live state."                );
     y += 46.0;
     {
@@ -3554,7 +3546,7 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
         win.finish();
 
         // Dark variant window (drawn with DrawCmds)
-        let dw = Rect::new(lx + 388.0, y, 300.0, 240.0);
+        let dw = Rect::new(388.0, y, 300.0, 240.0);
         let dark_bg = Color::from_srgb_u8(26, 24, 20, 255);
         let darker = Color::from_srgb_u8(12, 11, 9, 255);
         let dark_bdr = Color::from_srgb_u8(58, 53, 45, 255);
@@ -3796,17 +3788,16 @@ fn section_11_window<LS: LayoutState<Params = Rect>, CF>(
     feature = "button",
     feature = "menu"
 ))]
-fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
-    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
+fn section_12_in_use<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
-    lx: f32,
     content_w: f32,
     mut y: f32,
     state: &mut SpecWidgets,
-) -> f32 {
+) {
     let t = *t;
     // ── 12 · IN USE ──────────────────────────────────────────────────────────
-    sec_y(b, &t, lx, y, content_w, "12", "In use",
+    sec_y(b, &t, y, content_w, "12", "In use",
         "the widgets composed into the kind of panel they were designed for — a settings sheet inside an inspector window.");
     y += 46.0;
     {
@@ -4135,7 +4126,7 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
         win.finish();
 
         // Right column
-        let rcol_x = lx + win_w_left + 24.0;
+        let rcol_x = win_w_left + 24.0;
         let rcol_w = (content_w - win_w_left - 24.0).max(0.0);
 
         // Frame Log window
@@ -4285,62 +4276,73 @@ fn section_12_in_use<LS: LayoutState<Params = Rect>, CF>(
     y
 }
 
-fn hero_logo(t: &Theme, lx: f32, y0: f32) -> DrawCommands {
-    let mut cmds = DrawCommands::new();
+fn footer_section<CF>(
+    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    t: Theme,
+    content_w: f32,
+) {
+    {
+        let spec_builder = DividerSpecBuilder::new();
+        divider(b, spec_builder, Placement2D::fixed(content_w, 1.0))
+    };
+    {
+        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
 
-    // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
-    let ls = 0.48_f32;
-    let lx0 = lx;
-    let lw = 4.8_f32;
-
-    // Since lines are drawn using "butt end caps" (which terminate flat at endpoints),
-    // we manually extend/overlap connected segment coordinates by half the stroke width
-    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and
-    // simulate square cap endings.
-    let ext = 5.0_f32;
-
-    cmds.extend(vec![
-        // left bracket
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
-            color: t.ink,
-            width: lw,
-        },
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
-            p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
-            color: t.ink,
-            width: lw,
-        },
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
-            p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
-            color: t.ink,
-            width: lw,
-        },
-        // top horizontal
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
-            color: t.ink,
-            width: lw,
-        },
-        // middle horizontal (rust)
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
-            p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
-            color: t.rust,
-            width: lw,
-        },
-        // vertical
-        DrawCmd::StrokeLine {
-            p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
-            p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
-            color: t.ink,
-            width: lw,
-        },
-    ]);
-
-    cmds
+        let foot_items: &[(&str, &str)] = &[
+            ("SPEC", "V0.1 · 12 SECTIONS"),
+            ("RADIUS", "0 PX"),
+            ("BORDERS", "1 PX INK"),
+            ("FOCUS", "2 PX RUST OUTSET"),
+            ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
+        ];
+        let mut fx = 0.0;
+        for (key, val) in foot_items {
+            {
+                let layout_params = Rect::new(fx, 10.0, 32.0, 14.0);
+                let size = t.text_sm;
+                let color = t.ink;
+                let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
+                    text_style: framewise::TextStyle {
+                        size,
+                        ..(LabelStyle::from_theme(&t)).text_style
+                    },
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
+                label(&mut b, spec_builder, layout_params)
+            };
+            let kw = key.len() as f32 * 7.0 + 8.0;
+            {
+                let layout_params = Rect::new(fx + kw, 10.0, 220.0, 14.0);
+                let size = t.text_sm;
+                let color = t.muted;
+                let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
+                    text_style: framewise::TextStyle {
+                        size,
+                        ..(LabelStyle::from_theme(&t)).text_style
+                    },
+                    text_color: color,
+                    ..LabelStyle::from_theme(&t)
+                });
+                label(&mut b, spec_builder, layout_params)
+            };
+            fx += kw + val.len() as f32 * 6.5 + 24.0;
+        }
+        b.finish();
+    }
+    {
+        let size = t.text_sm;
+        let color = t.ink;
+        let spec_builder = LabelSpecBuilder::new()
+            .text("FRAMEWISE · WIDGET SPECIFICATION")
+            .style(LabelStyle {
+                text_style: framewise::TextStyle {
+                    size,
+                    ..(LabelStyle::from_theme(&t)).text_style
+                },
+                text_color: color,
+                ..LabelStyle::from_theme(&t)
+            });
+        label(b, spec_builder, Placement2D::auto())
+    };
 }

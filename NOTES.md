@@ -7,6 +7,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Letter spacing for "Sharp corners, hairline" etc. not small enough
 
+* RowLayout allows you to specify alignment in the main axis - doesn't do anything!
+
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 

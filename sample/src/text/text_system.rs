@@ -85,8 +85,8 @@ impl SampleTextSystem {
         let jetbrains_mono_data =
             include_bytes!("../../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
                 as &[u8];
-        let jetbrains_mono =
-            FontRef::from_index(jetbrains_mono_data, 0).expect("failed to load JetBrainsMono variable font");
+        let jetbrains_mono = FontRef::from_index(jetbrains_mono_data, 0)
+            .expect("failed to load JetBrainsMono variable font");
 
         // Load Inter variable font
         let inter_data =
@@ -96,7 +96,8 @@ impl SampleTextSystem {
         // Inter Tight - specialised for "Hero headings, landing pages, article titles". Slightly different!
         let inter_tight_data =
             include_bytes!("../../assets/Inter_Tight/InterTight-VariableFont_wght.ttf") as &[u8];
-        let inter_tight = FontRef::from_index(inter_tight_data, 0).expect("failed to load Inter Tight variable font");
+        let inter_tight = FontRef::from_index(inter_tight_data, 0)
+            .expect("failed to load Inter Tight variable font");
 
         let fonts = vec![jetbrains_mono, inter, inter_tight];
 
