@@ -59,21 +59,12 @@ impl SampleTextSystem {
         let style = TextStyle::new(font_id, size, self.weight_for_font(font_id), flow);
         let (glyphs, _lines, _metrics) = self.shape_internal("…", style, None, None, Some(0.0));
 
-        let width = if glyphs.is_empty() {
-            0.0
-        } else {
-            let l = glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
-            let r = glyphs
-                .iter()
-                .map(|g| g.x + g.width as f32)
-                .fold(f32::NEG_INFINITY, f32::max);
-            r - l
-        };
+        let logical_w = Self::logical_line_width(&glyphs);
 
         let font = self.fonts[font_id.0 as usize];
         let metrics = font.metrics(&[]);
         let baseline = (metrics.ascent * size / metrics.units_per_em as f32).round();
-        (glyphs, width, baseline)
+        (glyphs, logical_w, baseline)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -189,9 +180,9 @@ impl SampleTextSystem {
                             px: size,
                         },
                         x: gx,
-                        y: baseline_y + gy, // Store as local baseline position
-                        width: w as usize,  // bitmap width for now
-                        height: h as usize,
+                        y: baseline_y + gy,   // Store as local baseline position
+                        raster_w: w as usize, // bitmap width for now
+                        raster_h: h as usize,
                         byte_offset,
                         subpixel_x,
                         advance, // shaped advance for text flow
@@ -210,8 +201,8 @@ impl SampleTextSystem {
                     },
                     x: pen_x,
                     y: i as f32 * line_height_snapped + baseline_offset,
-                    width: 0,
-                    height: 0,
+                    raster_w: 0,
+                    raster_h: 0,
                     byte_offset: segment_end,
                     subpixel_x: 0,
                     advance: 0.0,
@@ -236,7 +227,7 @@ impl SampleTextSystem {
         }
 
         // ── Per-line: align, clip / ellipsis, rebuild glyph vec ─────────────
-        let global_l = if glyphs0.is_empty() {
+        let global_line_start = if glyphs0.is_empty() {
             0.0
         } else {
             glyphs0.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
@@ -255,21 +246,12 @@ impl SampleTextSystem {
         for line in lines {
             let mut seg = glyphs0[line.glyph_start..line.glyph_end].to_vec();
 
-            let (line_l, line_r) = if seg.is_empty() {
-                (0.0, 0.0)
-            } else {
-                let l = seg.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
-                let r = seg
-                    .iter()
-                    .map(|g| g.x + g.width as f32)
-                    .fold(f32::NEG_INFINITY, f32::max);
-                (l, r)
-            };
-            let line_w = line_r - line_l;
+            let line_start = Self::logical_line_start(&seg);
+            let logical_line_w = Self::logical_line_width(&seg);
 
             let base_shift = match flow.line_align {
-                TextLineAlign::Start => global_l,
-                TextLineAlign::Center | TextLineAlign::End => line_l,
+                TextLineAlign::Start => global_line_start,
+                TextLineAlign::Center | TextLineAlign::End => line_start,
             };
             if base_shift != 0.0 {
                 for g in &mut seg {
@@ -290,7 +272,7 @@ impl SampleTextSystem {
                         final_sublines.extend(wrapped);
                     }
                     _ => {
-                        let overflows_w = line_w > w + 0.5;
+                        let overflows_w = logical_line_w > w + 0.5;
                         if overflows_w {
                             truncated_horizontal = true;
                             match flow.overflow_x {
@@ -308,7 +290,7 @@ impl SampleTextSystem {
                                 OverflowX::Keep => {
                                     let mut out = Vec::new();
                                     for g in seg {
-                                        let end_x = g.x + g.width as f32;
+                                        let end_x = Self::logical_glyph_end(&g);
                                         out.push(g);
                                         if end_x > w {
                                             break;
@@ -319,7 +301,7 @@ impl SampleTextSystem {
                                 OverflowX::Drop => {
                                     let mut out = Vec::new();
                                     for g in seg {
-                                        if g.x + g.width as f32 <= w {
+                                        if Self::logical_glyph_end(&g) <= w {
                                             out.push(g);
                                         } else {
                                             break;
@@ -442,25 +424,11 @@ impl SampleTextSystem {
 
             let align_off = match max_w {
                 Some(w) => {
-                    let line_w = if line.glyphs.is_empty() {
-                        0.0
-                    } else {
-                        let l = line
-                            .glyphs
-                            .iter()
-                            .map(|g| g.x)
-                            .fold(f32::INFINITY, f32::min);
-                        let r = line
-                            .glyphs
-                            .iter()
-                            .map(|g| g.x + g.width as f32)
-                            .fold(f32::NEG_INFINITY, f32::max);
-                        r - l
-                    };
+                    let logical_line_w = Self::logical_line_width(&line.glyphs);
                     match flow.line_align {
                         TextLineAlign::Start => 0.0,
-                        TextLineAlign::Center => ((w - line_w) * 0.5).max(0.0),
-                        TextLineAlign::End => (w - line_w).max(0.0),
+                        TextLineAlign::Center => ((w - logical_line_w) * 0.5).max(0.0),
+                        TextLineAlign::End => (w - logical_line_w).max(0.0),
                     }
                 }
                 None => 0.0,
@@ -472,7 +440,7 @@ impl SampleTextSystem {
             }
 
             for g in &mut line.glyphs {
-                if g.width == 0 && g.height == 0 {
+                if g.raster_w == 0 && g.raster_h == 0 {
                     continue;
                 }
 
@@ -488,13 +456,13 @@ impl SampleTextSystem {
                         g.weight,
                         g.opsz,
                     );
-                    g.width = w as usize;
-                    g.height = h as usize;
+                    g.raster_w = w as usize;
+                    g.raster_h = h as usize;
                 }
             }
 
             for g in &line.glyphs {
-                if g.width == 0 && g.height == 0 {
+                if g.raster_w == 0 && g.raster_h == 0 {
                     continue;
                 }
 
@@ -521,8 +489,8 @@ impl SampleTextSystem {
                 }
             }
 
-            let line_w = Self::logical_line_width(&line.glyphs);
-            block_width = block_width.max(line_w);
+            let logical_line_w = Self::logical_line_width(&line.glyphs);
+            block_width = block_width.max(logical_line_w);
 
             let glyph_start = out.len();
             out.extend(line.glyphs);
@@ -553,7 +521,20 @@ impl SampleTextSystem {
     }
 
     fn logical_line_width(glyphs: &[GlyphPosition]) -> f32 {
-        glyphs.iter().map(|g| g.x + g.advance).fold(0.0, f32::max)
+        let start = Self::logical_line_start(glyphs);
+        glyphs
+            .iter()
+            .map(Self::logical_glyph_end)
+            .fold(start, f32::max)
+            - start
+    }
+
+    fn logical_line_start(glyphs: &[GlyphPosition]) -> f32 {
+        glyphs.iter().map(|g| g.x).fold(0.0, f32::min)
+    }
+
+    fn logical_glyph_end(g: &GlyphPosition) -> f32 {
+        g.x + g.advance
     }
 
     fn wrap_glyphs_at_glyphs(
@@ -592,7 +573,7 @@ impl SampleTextSystem {
             }
 
             let rel_start_x = g.x - current_line_start_x;
-            let rel_end_x = rel_start_x + g.width as f32;
+            let rel_end_x = rel_start_x + g.advance;
 
             if rel_end_x <= w {
                 let mut g_moved = g;
@@ -607,7 +588,7 @@ impl SampleTextSystem {
                             current_line.push(g_moved);
                             lines.push(current_line);
                             current_line = Vec::new();
-                            current_line_start_x = g.x + g.width as f32;
+                            current_line_start_x = Self::logical_glyph_end(&g);
                         }
                         WrapGlyphFallback::Drop => {
                             break;
@@ -619,7 +600,7 @@ impl SampleTextSystem {
                     current_line_start_x = g.x;
 
                     let new_rel_start_x = 0.0;
-                    let new_rel_end_x = g.width as f32;
+                    let new_rel_end_x = g.advance;
                     if new_rel_end_x <= w {
                         let mut g_moved = g;
                         g_moved.x = new_rel_start_x;
@@ -632,7 +613,7 @@ impl SampleTextSystem {
                                 current_line.push(g_moved);
                                 lines.push(current_line);
                                 current_line = Vec::new();
-                                current_line_start_x = g.x + g.width as f32;
+                                current_line_start_x = Self::logical_glyph_end(&g);
                             }
                             WrapGlyphFallback::Drop => {
                                 break;
@@ -660,7 +641,7 @@ impl SampleTextSystem {
         struct Seg {
             is_space: bool,
             glyphs: Vec<GlyphPosition>,
-            width: f32,
+            logical_w: f32,
         }
 
         let mut segments: Vec<Seg> = Vec::new();
@@ -675,7 +656,7 @@ impl SampleTextSystem {
             segments.push(Seg {
                 is_space,
                 glyphs: vec![g],
-                width: 0.0,
+                logical_w: 0.0,
             });
         }
 
@@ -701,53 +682,49 @@ impl SampleTextSystem {
             }
 
             if i + 1 < seg_len {
-                segments[i].width = seg_starts[i + 1] - seg_l;
+                segments[i].logical_w = seg_starts[i + 1] - seg_l;
             } else {
-                segments[i].width = segments[i]
-                    .glyphs
-                    .iter()
-                    .map(|g| g.x + g.width as f32)
-                    .fold(0.0, f32::max);
+                segments[i].logical_w = Self::logical_line_width(&segments[i].glyphs);
             }
         }
 
         let mut lines = Vec::new();
         let mut current_line = Vec::new();
-        let mut current_w = 0.0;
+        let mut current_logical_w = 0.0;
 
         for seg in segments {
             if seg.is_space {
                 if !current_line.is_empty() {
                     for g in seg.glyphs {
                         let mut g_moved = g;
-                        g_moved.x += current_w;
+                        g_moved.x += current_logical_w;
                         current_line.push(g_moved);
                     }
-                    current_w += seg.width;
+                    current_logical_w += seg.logical_w;
                 }
             } else {
-                let word_w = seg.width;
-                if current_w + word_w <= w {
+                let word_logical_w = seg.logical_w;
+                if current_logical_w + word_logical_w <= w {
                     for g in seg.glyphs {
                         let mut g_moved = g;
-                        g_moved.x += current_w;
+                        g_moved.x += current_logical_w;
                         current_line.push(g_moved);
                     }
-                    current_w += word_w;
+                    current_logical_w += word_logical_w;
                 } else {
                     if !current_line.is_empty() {
                         lines.push(current_line);
                         current_line = Vec::new();
-                        current_w = 0.0;
+                        current_logical_w = 0.0;
                     }
 
-                    if word_w <= w {
+                    if word_logical_w <= w {
                         for g in seg.glyphs {
                             let mut g_moved = g;
-                            g_moved.x += current_w;
+                            g_moved.x += current_logical_w;
                             current_line.push(g_moved);
                         }
-                        current_w += word_w;
+                        current_logical_w += word_logical_w;
                     } else {
                         match &fallback {
                             WrapWordFallback::WrapGlyph { fallback: gf } => {
@@ -757,9 +734,9 @@ impl SampleTextSystem {
                                 if !wrapped.is_empty() {
                                     lines.extend(wrapped[..wrapped.len() - 1].to_vec());
                                     current_line = wrapped.last().unwrap().clone();
-                                    current_w = current_line
+                                    current_logical_w = current_line
                                         .iter()
-                                        .map(|g| g.x + g.width as f32)
+                                        .map(Self::logical_glyph_end)
                                         .fold(0.0, f32::max);
                                     wrapped_count = wrapped.iter().map(|line| line.len()).sum();
                                 }
@@ -769,7 +746,7 @@ impl SampleTextSystem {
                             }
                             WrapWordFallback::Drop => {
                                 for g in seg.glyphs {
-                                    if g.x + g.width as f32 <= w {
+                                    if Self::logical_glyph_end(&g) <= w {
                                         current_line.push(g);
                                     } else {
                                         break;
@@ -781,7 +758,7 @@ impl SampleTextSystem {
                             }
                             WrapWordFallback::Keep => {
                                 for g in seg.glyphs {
-                                    let end_x = g.x + g.width as f32;
+                                    let end_x = Self::logical_glyph_end(&g);
                                     current_line.push(g);
                                     if end_x > w {
                                         break;
@@ -818,7 +795,7 @@ impl SampleTextSystem {
                     let mut out = Vec::new();
                     for g in ell_glyphs {
                         let rel_start_x = g.x;
-                        let rel_end_x = g.x + g.width as f32;
+                        let rel_end_x = Self::logical_glyph_end(&g);
                         if rel_start_x < w {
                             out.push(g);
                             if rel_end_x > w {
@@ -839,13 +816,13 @@ impl SampleTextSystem {
             let limit = w - ell_w;
             let mut trimmed = Vec::new();
             for g in glyphs {
-                if g.x + g.width as f32 <= limit {
+                if Self::logical_glyph_end(&g) <= limit {
                     trimmed.push(g);
                 } else {
                     break;
                 }
             }
-            let pen_x = trimmed.last().map(|g| g.x + g.width as f32).unwrap_or(0.0);
+            let pen_x = trimmed.last().map(Self::logical_glyph_end).unwrap_or(0.0);
             let dy = line_baseline_y - ell_baseline;
             for mut eg in ell_glyphs {
                 eg.x += pen_x;

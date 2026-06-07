@@ -16,6 +16,10 @@ mod tests {
         sys.runs[h.0].glyphs.iter().map(|g| g.parent).collect()
     }
 
+    fn logical_glyph_end(g: &crate::text::types::GlyphPosition) -> f32 {
+        g.x + g.advance
+    }
+
     #[test]
     fn glyph_cache_keys_include_font_id() {
         let mut sys = sys();
@@ -558,6 +562,43 @@ mod tests {
     }
 
     #[test]
+    fn drop_overflow_uses_logical_advance_not_ink_width_for_single_glyph() {
+        let mut sys = sys();
+        let text = "◎";
+        let size = 13.0;
+        let style = TextStyle::new(FontId(0), size, 500, TextFlow::single_line());
+        let width = shaped_advance(text, size, FontId(0), 500).round();
+        let layout = sys.prepare(text, style, Rect::new(0.0, 0.0, width, 28.0));
+
+        assert_eq!(visible(&sys, layout.handle), text);
+        assert!(
+            !layout.metrics.truncated_horizontal,
+            "ink protrusion outside the logical advance should not count as truncation"
+        );
+        assert!(
+            layout.metrics.ink_bounds.x + layout.metrics.ink_bounds.w
+                > layout.metrics.logical_size.x,
+            "test glyph should visibly protrude past its logical box"
+        );
+    }
+
+    #[test]
+    fn drop_overflow_uses_logical_advance_not_ink_width_for_final_glyph() {
+        let mut sys = sys();
+        let text = "Run ◎";
+        let size = 13.0;
+        let style = TextStyle::new(FontId(0), size, 500, TextFlow::single_line());
+        let width = shaped_advance(text, size, FontId(0), 500).round();
+        let layout = sys.prepare(text, style, Rect::new(0.0, 0.0, width, 28.0));
+
+        assert_eq!(visible(&sys, layout.handle), text);
+        assert!(
+            !layout.metrics.truncated_horizontal,
+            "final glyph ink protrusion should not drop the last character"
+        );
+    }
+
+    #[test]
     fn caret_end_uses_shaped_advance_not_bitmap_width() {
         let mut sys = sys();
         let text = "Headless Test.";
@@ -622,11 +663,11 @@ mod tests {
         );
     }
 
-    fn rendered_width(sys: &SampleTextSystem, h: TextHandle) -> f32 {
+    fn logical_run_width(sys: &SampleTextSystem, h: TextHandle) -> f32 {
         sys.runs[h.0]
             .glyphs
             .iter()
-            .map(|g| g.x + g.width as f32)
+            .map(logical_glyph_end)
             .fold(0.0, f32::max)
     }
 
@@ -783,7 +824,7 @@ mod tests {
     }
 
     #[test]
-    fn metrics_width_matches_rendered_width_after_ellipsis() {
+    fn metrics_width_matches_logical_run_width_after_ellipsis() {
         let mut sys = sys();
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
@@ -799,10 +840,10 @@ mod tests {
             rect,
         );
         let reported = layout.metrics.logical_size.x;
-        let actual = rendered_width(&sys, layout.handle);
+        let actual = logical_run_width(&sys, layout.handle);
         assert!(
             (reported - actual).abs() < 1.0,
-            "metrics width {reported} should match rendered width {actual}",
+            "metrics width {reported} should match logical run width {actual}",
         );
     }
 
@@ -917,7 +958,7 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let run = &sys.runs[layout.handle.0];
         for g in &run.glyphs {
-            assert!(g.x + g.width as f32 <= 25.0 + 0.1);
+            assert!(logical_glyph_end(g) <= 25.0 + 0.1);
         }
         assert!(!run.glyphs.is_empty());
     }
@@ -944,7 +985,7 @@ mod tests {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             if line_glyphs
                 .iter()
-                .any(|g| g.x + g.width as f32 > 25.0 + 0.1)
+                .any(|g| logical_glyph_end(g) > 25.0 + 0.1)
             {
                 if i == 0 {
                     line1_has_overflow = true;
@@ -979,7 +1020,7 @@ mod tests {
         assert!(text.ends_with('…'));
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
-        assert!(last_glyph.x + last_glyph.width as f32 <= 25.0 + 0.1);
+        assert!(logical_glyph_end(last_glyph) <= 25.0 + 0.1);
     }
 
     #[test]
@@ -1022,7 +1063,7 @@ mod tests {
         assert_eq!(text, "…");
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
-        assert!(last_glyph.x + last_glyph.width as f32 > 8.0 + 0.1);
+        assert!(logical_glyph_end(last_glyph) > 8.0 + 0.1);
     }
 
     #[test]
@@ -1048,7 +1089,7 @@ mod tests {
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             let last_g = line_glyphs.last().unwrap();
-            assert!(last_g.x + last_g.width as f32 <= 23.0 + 0.1);
+            assert!(logical_glyph_end(last_g) <= 23.0 + 0.1);
         }
     }
 
@@ -1095,7 +1136,7 @@ mod tests {
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             let last_g = line_glyphs.last().unwrap();
-            assert!(last_g.x + last_g.width as f32 > 8.0 + 0.1);
+            assert!(logical_glyph_end(last_g) > 8.0 + 0.1);
         }
     }
 
@@ -1220,8 +1261,8 @@ mod tests {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             for g in line_glyphs {
                 println!(
-                    "line {}, char={:?}, x={}, width={}",
-                    i, g.parent, g.x, g.width
+                    "line {}, char={:?}, x={}, raster_w={}",
+                    i, g.parent, g.x, g.raster_w
                 );
             }
         }
@@ -1306,7 +1347,7 @@ mod tests {
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             for g in line_glyphs {
-                assert!(g.x + g.width as f32 <= 25.0 + 0.1);
+                assert!(logical_glyph_end(g) <= 25.0 + 0.1);
             }
         }
     }
@@ -1334,9 +1375,7 @@ mod tests {
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             if let Some(last_g) = line_glyphs.last() {
-                if last_g.parent != '\n'
-                    && last_g.parent != ' '
-                    && last_g.x + last_g.width as f32 > 25.0
+                if last_g.parent != '\n' && last_g.parent != ' ' && logical_glyph_end(last_g) > 25.0
                 {
                     has_overflow = true;
                 }

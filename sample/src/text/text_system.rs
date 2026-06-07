@@ -381,7 +381,7 @@ impl TextSystem for SampleTextSystem {
             return line.byte_start;
         }
         for g in glyphs {
-            let mid = g.x + g.width as f32 / 2.0;
+            let mid = g.x + g.advance * 0.5;
             if pos.x < mid {
                 return g.byte_offset;
             }

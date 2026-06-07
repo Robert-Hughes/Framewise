@@ -5,14 +5,17 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
+* Recent logical vs. ink layout changes mean that our systematic tests for text wrapping might need tweaking (both in the sample app page and the unit tests)
+
 * Ink alignment for buttons/labels?
-  - Consider renaming TextFlow::horizontal_align: HorizontalAlign to be more line "horizontal line alignment", to avoid confusion with new text alignment settings within a button/label
   - Add to ButtonStyle and LabelStyle a text alignment - all 9 positions, plus a choice of ink/optical or logical. Share these definitions and logic code. Tests!
 
 * RowLayout allows you to specify alignment in the main axis - doesn't do anything! Actually maybe it does, or at least it should?
 * Nothing to tell you that you forgot to .finish() a widgetcontext
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+
+* Test which render spec page to a png and compares to golden
 
 * I may have been using the term "glyph" incorrectly in docs and code - check this
 

@@ -12,8 +12,8 @@ pub struct GlyphPosition {
     pub key: GlyphRasterConfig,
     pub x: f32,
     pub y: f32,
-    pub width: usize, // logical advance width (from shaper)
-    pub height: usize,
+    pub raster_w: usize, // raster bitmap width
+    pub raster_h: usize,
     pub byte_offset: usize,
     pub subpixel_x: u8, // 0 = 0.0, 1 = 0.25, 2 = 0.50, 3 = 0.75
     pub advance: f32,   // shaped advance for proper text flow

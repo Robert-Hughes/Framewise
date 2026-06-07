@@ -726,8 +726,8 @@ fn push_text_run(
             let absolute_y = rect.y + g.y;
             let gy = absolute_y.round() - info.top as f32;
 
-            let gw = g.width as f32;
-            let gh = g.height as f32;
+            let gw = g.raster_w as f32;
+            let gh = g.raster_h as f32;
 
             let tl_pos = to_clip(gx, gy, sw, sh);
             let tr_pos = to_clip(gx + gw, gy, sw, sh);
