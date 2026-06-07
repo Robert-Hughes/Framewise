@@ -2,10 +2,14 @@
 mod button_page;
 #[cfg(feature = "page_frame_demo")]
 mod frame_demo;
+#[cfg(test)]
+mod golden_tests;
 #[cfg(feature = "page_label_demo")]
 mod label_page;
 #[cfg(feature = "page_layout_demo")]
 mod layout_demo;
+#[cfg(test)]
+mod render_test_utils;
 mod renderer;
 #[cfg(feature = "page_scroll_demo")]
 mod scroll_demo;
