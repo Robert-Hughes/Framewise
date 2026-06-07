@@ -51,9 +51,21 @@ pub mod raw {
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> LabelResult {
-        let layout = text_system.prepare(spec.text, spec.style.text_style, spec.rect);
+        let metrics = text_system.measure(
+            spec.text,
+            spec.style.text_style,
+            crate::text::TextBounds {
+                max_width: Some(spec.rect.w),
+                max_height: Some(spec.rect.h),
+            },
+        );
+        let text_rect = spec
+            .style
+            .content_placement
+            .resolve_rect(spec.rect, metrics);
+        let layout = text_system.prepare(spec.text, spec.style.text_style, text_rect);
         cmds.push(DrawCmd::Text {
-            rect: spec.rect,
+            rect: text_rect,
             color: spec.style.text_color,
             handle: layout.handle,
         });
@@ -77,15 +89,16 @@ pub mod raw {
 /// Visual configuration for a label.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LabelStyle {
-    /// How text lines flow, align, and clip internally inside the label box.
+    /// How text lines flow, align, and clip internally inside the prepared text block.
     ///
     /// Note that line alignment (`text_flow.line_align`) positions each shaped line
-    /// internally within the resolved bounding box (`rect`), while layout alignment
+    /// internally within the prepared text block, while layout alignment
     /// (`Placement2D::align_x`) moves the entire bounding box inside its parent cell.
-    /// When using `Placement2D::auto()`, the box shrink-wraps the text tightly, meaning
-    /// changing `line_align` has no visual effect since there is no extra space.
-    /// Internal alignment is only visible when the label's box is wider (e.g. `fixed` width or `fill`).
+    /// Content placement (`content_placement`) moves the prepared text block inside
+    /// the label's own rect.
     pub text_style: crate::text::TextStyle,
+    /// Placement of the prepared text block inside the label's own rect.
+    pub content_placement: crate::text::TextContentPlacement,
     pub text_color: Color,
     pub rule: bool,
     pub rule_color: Color,
@@ -100,6 +113,7 @@ impl LabelStyle {
                 theme.sans_weight_regular,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: false,
             rule_color: theme.line,
@@ -203,6 +217,47 @@ mod tests {
         font: Option<FontId>,
     }
 
+    struct PlacementTextSys {
+        metrics: crate::text::TextMetrics,
+        prepared_rect: Option<Rect>,
+    }
+
+    impl TextSystem for PlacementTextSys {
+        fn measure(
+            &mut self,
+            _text: &str,
+            _style: crate::text::TextStyle,
+            _bounds: crate::text::TextBounds,
+        ) -> crate::text::TextMetrics {
+            self.metrics
+        }
+
+        fn prepare(
+            &mut self,
+            _text: &str,
+            _style: crate::text::TextStyle,
+            rect: Rect,
+        ) -> crate::text::TextLayout {
+            self.prepared_rect = Some(rect);
+            crate::text::TextLayout {
+                handle: TextHandle(7),
+                metrics: self.metrics,
+            }
+        }
+
+        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+            crate::text::CaretGeom {
+                x: 0.0,
+                y_top: 0.0,
+                height: 0.0,
+            }
+        }
+
+        fn hit_test(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+            0
+        }
+    }
+
     impl TextSystem for RecordingTextSys {
         fn measure(
             &mut self,
@@ -264,6 +319,7 @@ mod tests {
                     400,
                     crate::text::TextFlow::single_line(),
                 ),
+                content_placement: crate::text::TextContentPlacement::TOP_LEFT,
                 text_color: Color::WHITE,
                 rule: false,
                 rule_color: Color::WHITE,
@@ -276,7 +332,7 @@ mod tests {
         assert_eq!(
             &cmds[..],
             &[DrawCmd::Text {
-                rect: Rect::new(0.0, 0.0, 100.0, 50.0),
+                rect: Rect::new(0.0, 0.0, 40.0, 16.0),
                 color: Color::WHITE,
                 handle: TextHandle(0),
             }]
@@ -296,6 +352,7 @@ mod tests {
                     400,
                     crate::text::TextFlow::single_line(),
                 ),
+                content_placement: crate::text::TextContentPlacement::TOP_LEFT,
                 text_color: Color::WHITE,
                 rule: true,
                 rule_color: Color::WHITE,
@@ -308,7 +365,7 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::Text {
-                    rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+                    rect: Rect::new(0.0, 0.0, 56.0, 16.0),
                     color: Color::WHITE,
                     handle: TextHandle(0),
                 },
@@ -320,6 +377,60 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[test]
+    fn test_label_logical_content_placement_bottom_right() {
+        let mut sys = DummyTextSys;
+        let spec = LabelSpec {
+            rect: Rect::new(10.0, 20.0, 100.0, 50.0),
+            text: "Hello",
+            style: LabelStyle {
+                content_placement: crate::text::TextContentPlacement::logical(
+                    crate::Align::End,
+                    crate::Align::End,
+                ),
+                ..LabelStyle::from_theme(&theme::Theme::default())
+            },
+        };
+        let mut cmds = DrawCommands::new();
+        let _ = raw::label(spec, &mut sys, &mut cmds);
+
+        assert_eq!(
+            &cmds[..],
+            &[DrawCmd::Text {
+                rect: Rect::new(70.0, 54.0, 40.0, 16.0),
+                color: LabelStyle::from_theme(&theme::Theme::default()).text_color,
+                handle: TextHandle(0),
+            }]
+        );
+    }
+
+    #[test]
+    fn test_label_ink_content_placement_uses_ink_bounds() {
+        let metrics = crate::text::TextMetrics {
+            logical_size: Vec2::new(30.0, 20.0),
+            ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
+            line_count: 1,
+            truncated_horizontal: false,
+            truncated_vertical: false,
+        };
+        let mut sys = PlacementTextSys {
+            metrics,
+            prepared_rect: None,
+        };
+        let spec = LabelSpec {
+            rect: Rect::new(10.0, 20.0, 100.0, 50.0),
+            text: "◎",
+            style: LabelStyle {
+                content_placement: crate::text::TextContentPlacement::INK_CENTER,
+                ..LabelStyle::from_theme(&theme::Theme::default())
+            },
+        };
+        let mut cmds = DrawCommands::new();
+        let _ = raw::label(spec, &mut sys, &mut cmds);
+
+        assert_eq!(sys.prepared_rect, Some(Rect::new(55.0, 37.0, 30.0, 20.0)));
     }
 
     #[test]
@@ -336,6 +447,7 @@ mod tests {
                     400,
                     crate::text::TextFlow::single_line(),
                 ),
+                content_placement: crate::text::TextContentPlacement::TOP_LEFT,
                 text_color: Color::WHITE,
                 rule: false,
                 rule_color: Color::WHITE,
@@ -367,6 +479,7 @@ mod tests {
                 400,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::TOP_LEFT,
             text_color: Color::from_srgb_u8(1, 2, 3, 255),
             rule: true,
             rule_color: Color::from_srgb_u8(4, 5, 6, 255),

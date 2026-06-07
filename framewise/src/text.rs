@@ -1,4 +1,7 @@
-use crate::types::{Rect, Vec2};
+use crate::{
+    layout::Align,
+    types::{Rect, Vec2},
+};
 
 /// A lightweight application-owned font handle.
 ///
@@ -362,6 +365,79 @@ pub enum TextLineAlign {
     Start,
     Center,
     End,
+}
+
+/// Which measured text geometry a widget should align inside its content rect.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TextContentBasis {
+    /// Align the logical text block, based on shaped advances and line height.
+    Logical,
+    /// Align the visible ink bounds for optical/icon-like placement.
+    Ink,
+}
+
+/// Placement of a prepared text block inside a widget's own content rect.
+///
+/// This is widget-local content placement. It is distinct from
+/// [`TextFlow::line_align`], which positions individual lines inside a text
+/// layout block, and from layout [`Align`], which positions a whole widget
+/// inside its parent layout space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TextContentPlacement {
+    pub x: Align,
+    pub y: Align,
+    pub basis: TextContentBasis,
+}
+
+impl TextContentPlacement {
+    pub const TOP_LEFT: Self = Self::logical(Align::Start, Align::Start);
+    pub const CENTER: Self = Self::logical(Align::Center, Align::Center);
+    pub const INK_CENTER: Self = Self::ink(Align::Center, Align::Center);
+
+    pub const fn logical(x: Align, y: Align) -> Self {
+        Self {
+            x,
+            y,
+            basis: TextContentBasis::Logical,
+        }
+    }
+
+    pub const fn ink(x: Align, y: Align) -> Self {
+        Self {
+            x,
+            y,
+            basis: TextContentBasis::Ink,
+        }
+    }
+
+    /// Resolve the logical text block rect to pass to [`TextSystem::prepare`].
+    pub fn resolve_rect(self, content_rect: Rect, metrics: TextMetrics) -> Rect {
+        let logical = metrics.logical_size;
+        let ink = metrics.ink_bounds;
+
+        let (basis_x, basis_w) = match self.basis {
+            TextContentBasis::Logical => (0.0, logical.x),
+            TextContentBasis::Ink if ink.w > 0.0 => (ink.x, ink.w),
+            TextContentBasis::Ink => (0.0, logical.x),
+        };
+        let (basis_y, basis_h) = match self.basis {
+            TextContentBasis::Logical => (0.0, logical.y),
+            TextContentBasis::Ink if ink.h > 0.0 => (ink.y, ink.h),
+            TextContentBasis::Ink => (0.0, logical.y),
+        };
+
+        let x = content_rect.x + align_offset(content_rect.w, basis_w, self.x) - basis_x;
+        let y = content_rect.y + align_offset(content_rect.h, basis_h, self.y) - basis_y;
+        Rect::new(x, y, logical.x, logical.y)
+    }
+}
+
+fn align_offset(available: f32, content: f32, align: Align) -> f32 {
+    match align {
+        Align::Start => 0.0,
+        Align::Center => (available - content) * 0.5,
+        Align::End => available - content,
+    }
 }
 
 // ── Measurement inputs & outputs ────────────────────────────────────────────

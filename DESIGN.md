@@ -620,6 +620,40 @@ Ink bounds are related to logical bounds but are not contained by them in genera
 - Widgets that want optical alignment should use `TextMetrics::ink_bounds`, rather than assuming logical metrics describe visible pixels.
 - Labels, buttons, and icon-like text can deliberately choose between logical and optical alignment by choosing whether they align against `TextMetrics::logical_size` or `TextMetrics::ink_bounds`.
 
+### Alignment Terminology
+
+Framewise has several alignment concepts that sound similar but operate at different layers. They should stay separate in naming, documentation, and implementation.
+
+1. **`TextFlow::line_align`** positions each shaped line horizontally inside the logical text layout block supplied to the text system. It is per-line text flow policy. It does not move the widget, does not choose the text block's vertical position, and does not change text measurement, wrapping, or truncation.
+2. **Layout `Align`** positions a child widget inside the available parent layout space on one axis. It is parent-to-child widget placement, used through types such as `Placement` and `Placement2D`. It moves the widget's resolved `Rect`.
+3. **Widget text/content placement** positions the prepared text block inside the widget's own content rect. It is local to widgets such as labels and buttons. It does not move the widget in its parent, and it should not be implemented by changing `TextFlow::line_align`.
+
+The proposed label/button property should therefore be named for content placement rather than plain alignment, for example:
+
+```rust
+pub struct TextContentPlacement {
+    pub x: Align,
+    pub y: Align,
+    pub basis: TextContentBasis,
+}
+
+pub enum TextContentBasis {
+    Logical,
+    Ink,
+}
+```
+
+`Align` is already the reusable one-dimensional `Start | Center | End` enum. It can represent horizontal placement (`Start` = left, `End` = right in physical widget coordinates) and vertical placement (`Start` = top, `End` = bottom). Reusing it avoids introducing parallel `Left/Middle/Right` and `Top/Middle/Bottom` enums with identical math.
+
+If this reuse feels confusing in API docs, the fix should be to broaden `Align`'s documentation from "cross-axis layout alignment" to "one-dimensional alignment inside a containing extent", then document that layout and content placement use the same primitive for different owners. The owning struct name (`Placement2D` versus `TextContentPlacement`) carries the semantic distinction.
+
+For text content placement, the `basis` field chooses which measured text geometry is aligned inside the widget content rect:
+
+- `Logical` aligns the text block using `TextMetrics::logical_size`. This is the normal choice for labels, button captions, paragraphs, and editable text.
+- `Ink` aligns the visible ink using `TextMetrics::ink_bounds`. This is useful for optical centering of icon-like text, emoji, symbols, and badges whose visible pixels do not match their logical advance box.
+
+The widget should still call `prepare` with a logical text block rect. Ink-based placement adjusts that rect so the returned ink bounds land at the requested position inside the widget content rect.
+
 ---
 
 ## Colour Pipeline

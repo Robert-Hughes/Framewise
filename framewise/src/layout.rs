@@ -148,10 +148,14 @@ impl IntrinsicSize {
     }
 }
 
-/// The cross-axis alignment of a widget inside available layout space.
+/// One-dimensional alignment inside an available extent.
+///
+/// Layout placement uses this to align a widget inside parent layout space.
+/// Widget content placement can also use it to align content inside a widget's
+/// own content rect.
 ///
 /// Default is [`Align::Start`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Align {
     #[default]
     Start,

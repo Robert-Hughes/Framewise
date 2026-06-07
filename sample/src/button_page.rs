@@ -35,6 +35,8 @@ pub struct ButtonPageState {
     pub wrap_btns: [ButtonState; 8],
     // Section 7: alignment showcase
     pub align_btns: [ButtonState; 12],
+    // Section 8: content placement showcase
+    pub content_btns: [ButtonState; 11],
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -471,6 +473,76 @@ pub fn draw_button_page(
             col.finish();
         }
 
+        row.finish();
+    }
+
+    // ── Section 8: Content Placement Showcase ────────────────────────────────
+    // Fixed-size buttons keep the same widget bounds while moving the prepared
+    // text block inside the padded content rect.
+    {
+        let positions = [
+            ("top left", Align::Start, Align::Start),
+            ("top center", Align::Center, Align::Start),
+            ("top right", Align::End, Align::Start),
+            ("middle left", Align::Start, Align::Center),
+            ("center", Align::Center, Align::Center),
+            ("middle right", Align::End, Align::Center),
+            ("bottom left", Align::Start, Align::End),
+            ("bottom center", Align::Center, Align::End),
+            ("bottom right", Align::End, Align::End),
+        ];
+
+        for (row_index, row_positions) in positions.chunks(3).enumerate() {
+            let mut row =
+                outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 54.0).into(), RowLayout);
+
+            for (col_index, (text, x, y)) in row_positions.iter().enumerate() {
+                let index = row_index * 3 + col_index;
+                let style = ButtonStyle {
+                    content_placement: framewise::TextContentPlacement::logical(*x, *y),
+                    ..secondary
+                };
+                button(
+                    &mut row,
+                    ButtonSpecBuilder::new().text(text).style(style),
+                    Placement2D::fixed(150.0, 48.0),
+                    &mut state.content_btns[index],
+                );
+                row.spacer(8.0);
+            }
+
+            row.finish();
+        }
+
+        let mut row = outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 54.0).into(), RowLayout);
+        let logical_icon = ButtonStyle {
+            content_placement: framewise::TextContentPlacement::CENTER,
+            text_style: framewise::TextStyle {
+                size: 22.0,
+                font: theme.mono_font,
+                ..secondary.text_style
+            },
+            pad_x: 0.0,
+            pad_y: 0.0,
+            ..secondary
+        };
+        let ink_icon = ButtonStyle {
+            content_placement: framewise::TextContentPlacement::INK_CENTER,
+            ..logical_icon
+        };
+        button(
+            &mut row,
+            ButtonSpecBuilder::new().text("◎").style(logical_icon),
+            Placement2D::fixed(32.0, 32.0),
+            &mut state.content_btns[9],
+        );
+        row.spacer(8.0);
+        button(
+            &mut row,
+            ButtonSpecBuilder::new().text("◎").style(ink_icon),
+            Placement2D::fixed(32.0, 32.0),
+            &mut state.content_btns[10],
+        );
         row.finish();
     }
 

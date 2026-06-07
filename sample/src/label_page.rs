@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Placement, Placement2D},
+    layout::{Align, Placement, Placement2D},
     layouts::linear::{ColumnLayout, RowLayout},
     text::{
         EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapGlyphFallback,
@@ -88,6 +88,7 @@ pub fn draw_label_page(
             theme.sans_weight_bold,
             framewise::text::TextFlow::single_line(),
         ),
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
         text_color: theme.rust,
         rule: true,
         rule_color: theme.rust,
@@ -110,6 +111,7 @@ pub fn draw_label_page(
                 theme.sans_weight_bold,
                 framewise::text::TextFlow::single_line(),
             ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -144,6 +146,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -169,6 +172,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -195,6 +199,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -220,6 +225,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.ink,
                         rule: false,
                         rule_color: theme.line,
@@ -244,6 +250,7 @@ pub fn draw_label_page(
                 theme.sans_weight_bold,
                 framewise::text::TextFlow::single_line(),
             ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -290,6 +297,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: color,
                         rule: false,
                         rule_color: theme.line,
@@ -327,6 +335,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: text_col,
                         rule: true,
                         rule_color: rule_col,
@@ -351,6 +360,7 @@ pub fn draw_label_page(
                 theme.sans_weight_bold,
                 framewise::text::TextFlow::single_line(),
             ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -910,6 +920,7 @@ pub fn draw_label_page(
                 theme.sans_weight_bold,
                 framewise::text::TextFlow::single_line(),
             ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1561,6 +1572,7 @@ pub fn draw_label_page(
                 theme.sans_weight_bold,
                 framewise::text::TextFlow::single_line(),
             ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
             rule: true,
             rule_color: theme.line,
@@ -1610,6 +1622,7 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
+                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
                         rule: false,
                         rule_color: theme.line,
@@ -1631,6 +1644,7 @@ pub fn draw_label_page(
                             line_align: text_align,
                         },
                     ),
+                    content_placement: framewise::TextContentPlacement::TOP_LEFT,
                     text_color: theme.ink,
                     rule: false,
                     rule_color: theme.line,
@@ -1646,6 +1660,126 @@ pub fn draw_label_page(
 
         row.finish();
     }
+    ctx.spacer(28.0);
+
+    // Section 6: Widget Content Placement
+    {
+        let section_header = LabelStyle {
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                20.0,
+                theme.sans_weight_bold,
+                framewise::text::TextFlow::single_line(),
+            ),
+            content_placement: framewise::TextContentPlacement::TOP_LEFT,
+            text_color: theme.ink,
+            rule: true,
+            rule_color: theme.line,
+        };
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("6. Widget Content Placement")
+                .style(section_header),
+            Placement2D::auto(),
+        );
+
+        let positions = [
+            ("top left", Align::Start, Align::Start),
+            ("top center", Align::Center, Align::Start),
+            ("top right", Align::End, Align::Start),
+            ("middle left", Align::Start, Align::Center),
+            ("center", Align::Center, Align::Center),
+            ("middle right", Align::End, Align::Center),
+            ("bottom left", Align::Start, Align::End),
+            ("bottom center", Align::Center, Align::End),
+            ("bottom right", Align::End, Align::End),
+        ];
+
+        for row_positions in positions.chunks(3) {
+            let mut row = ctx.child_with_layout(
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::auto(),
+                },
+                RowLayout,
+            );
+
+            for (text, x, y) in row_positions {
+                let mut cell = begin_frame(
+                    &mut row,
+                    FrameSpecBuilder::new().style(FrameStyle {
+                        background: Color::from_srgb_u8(255, 255, 255, 255),
+                        border: theme.line,
+                        border_width: 1.0,
+                        padding: 0.0,
+                    }),
+                    Placement2D::fixed(150.0, 72.0),
+                    ColumnLayout,
+                );
+                label(
+                    &mut cell.ctx,
+                    LabelSpecBuilder::new().text(text).style(LabelStyle {
+                        content_placement: framewise::TextContentPlacement::logical(*x, *y),
+                        text_color: theme.ink,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
+                    Placement2D {
+                        width: Placement::fill(),
+                        height: Placement::fill(),
+                    },
+                );
+                cell.ctx.finish();
+            }
+
+            row.finish();
+        }
+
+        let mut row = ctx.child_with_layout(
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::auto(),
+            },
+            RowLayout,
+        );
+        for (caption, placement) in [
+            ("logical center: ◎", framewise::TextContentPlacement::CENTER),
+            ("ink center: ◎", framewise::TextContentPlacement::INK_CENTER),
+        ] {
+            let mut cell = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(FrameStyle {
+                    background: Color::from_srgb_u8(255, 255, 255, 255),
+                    border: theme.line,
+                    border_width: 1.0,
+                    padding: 0.0,
+                }),
+                Placement2D::fixed(230.0, 72.0),
+                ColumnLayout,
+            );
+            label(
+                &mut cell.ctx,
+                LabelSpecBuilder::new().text(caption).style(LabelStyle {
+                    text_style: framewise::TextStyle::new(
+                        theme.mono_font,
+                        18.0,
+                        theme.sans_weight_regular,
+                        framewise::text::TextFlow::single_line(),
+                    ),
+                    content_placement: placement,
+                    text_color: theme.rust,
+                    rule: false,
+                    rule_color: theme.line,
+                }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fill(),
+                },
+            );
+            cell.ctx.finish();
+        }
+        row.finish();
+    }
 
     // Footer info
     label(
@@ -1659,6 +1793,7 @@ pub fn draw_label_page(
                     theme.sans_weight_regular,
                     framewise::text::TextFlow::single_line(),
                 ),
+                content_placement: framewise::TextContentPlacement::TOP_LEFT,
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
                 rule: false,
                 rule_color: theme.line,

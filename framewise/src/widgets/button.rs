@@ -54,18 +54,29 @@ pub mod raw {
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
     }
 
-    /// Shape the label single-line, centered within `rect`, returning the draw
-    /// rect (block top-left + tight size) and the prepared handle.
-    fn centered_text<T: TextSystem>(
+    /// Shape the label inside the button content rect, returning the draw rect
+    /// and the prepared handle.
+    fn placed_text<T: TextSystem>(
         text: &str,
         style: &super::ButtonStyle,
         rect: Rect,
         text_system: &mut T,
     ) -> (Rect, crate::text::TextHandle) {
-        let m = text_system.measure(text, style.text_style, crate::text::TextBounds::UNBOUNDED);
-        let tx = rect.x + (rect.w - m.logical_size.x) * 0.5;
-        let ty = rect.y + (rect.h - m.logical_size.y) * 0.5;
-        let text_rect = Rect::new(tx, ty, m.logical_size.x, m.logical_size.y);
+        let content_rect = Rect::new(
+            rect.x + style.pad_x,
+            rect.y + style.pad_y,
+            (rect.w - 2.0 * style.pad_x).max(0.0),
+            (rect.h - 2.0 * style.pad_y).max(0.0),
+        );
+        let m = text_system.measure(
+            text,
+            style.text_style,
+            crate::text::TextBounds {
+                max_width: Some(content_rect.w),
+                max_height: Some(content_rect.h),
+            },
+        );
+        let text_rect = style.content_placement.resolve_rect(content_rect, m);
         let layout = text_system.prepare(text, style.text_style, text_rect);
         (text_rect, layout.handle)
     }
@@ -97,7 +108,7 @@ pub mod raw {
                     width: spec.style.border_width,
                 });
             }
-            let (text_rect, handle) = centered_text(spec.text, &spec.style, spec.rect, text_system);
+            let (text_rect, handle) = placed_text(spec.text, &spec.style, spec.rect, text_system);
             cmds.push(DrawCmd::Text {
                 rect: text_rect,
                 color: tint(spec.style.text_color),
@@ -193,7 +204,7 @@ pub mod raw {
         }
 
         // Text centered.
-        let (text_rect, handle) = centered_text(spec.text, &spec.style, spec.rect, text_system);
+        let (text_rect, handle) = placed_text(spec.text, &spec.style, spec.rect, text_system);
         cmds.push(DrawCmd::Text {
             rect: text_rect,
             color: spec.style.text_color,
@@ -226,6 +237,8 @@ pub struct ButtonStyle {
     pub focus_width: f32,
     pub focus_offset: f32,
     pub text_style: crate::text::TextStyle,
+    /// Placement of the prepared text block inside the padded button content rect.
+    pub content_placement: crate::text::TextContentPlacement,
     pub text_color: Color,
     pub disabled_alpha: f32,
     /// Horizontal padding each side of the label, used for intrinsic width.
@@ -254,6 +267,7 @@ impl ButtonStyle {
                 500,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -278,6 +292,7 @@ impl ButtonStyle {
                 500,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
             text_color: theme.paper,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -302,6 +317,7 @@ impl ButtonStyle {
                 500,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
             text_color: Color::WHITE,
             disabled_alpha: 0.32f32,
             pad_x: 14.0,
@@ -326,6 +342,7 @@ impl ButtonStyle {
                 500,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
             text_color: theme.ink,
             disabled_alpha: 0.32f32,
             pad_x: 10.0,
@@ -471,6 +488,48 @@ mod tests {
     use crate::theme;
     use crate::types::Vec2;
     use FocusId;
+
+    struct PlacementTextSys {
+        metrics: crate::text::TextMetrics,
+        prepared_rect: Option<Rect>,
+    }
+
+    impl TextSystem for PlacementTextSys {
+        fn measure(
+            &mut self,
+            _text: &str,
+            _style: crate::text::TextStyle,
+            _bounds: crate::text::TextBounds,
+        ) -> crate::text::TextMetrics {
+            self.metrics
+        }
+
+        fn prepare(
+            &mut self,
+            _text: &str,
+            _style: crate::text::TextStyle,
+            rect: Rect,
+        ) -> crate::text::TextLayout {
+            self.prepared_rect = Some(rect);
+            crate::text::TextLayout {
+                handle: TextHandle(7),
+                metrics: self.metrics,
+            }
+        }
+
+        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+            crate::text::CaretGeom {
+                x: 0.0,
+                y_top: 0.0,
+                height: 0.0,
+            }
+        }
+
+        fn hit_test(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+            0
+        }
+    }
+
     fn btn_spec(rect: Rect) -> ButtonSpec<'static> {
         ButtonSpec {
             rect,
@@ -1306,6 +1365,89 @@ mod tests {
     }
 
     #[test]
+    fn test_button_logical_content_placement_respects_padding() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = ButtonState::default();
+        let spec = ButtonSpec {
+            style: ButtonStyle {
+                content_placement: crate::text::TextContentPlacement::logical(
+                    crate::Align::End,
+                    crate::Align::End,
+                ),
+                ..ButtonStyle::primary_from_theme(&theme::Theme::default())
+            },
+            ..btn_spec(Rect::new(10.0, 20.0, 100.0, 50.0))
+        };
+
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        let _ = raw::button(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        assert!(
+            cmds.iter().any(|cmd| matches!(
+                cmd,
+                DrawCmd::Text {
+                    rect,
+                    handle: TextHandle(0),
+                    ..
+                } if *rect == Rect::new(72.0, 48.0, 24.0, 16.0)
+            )),
+            "button text should be bottom-right aligned inside the padded content rect"
+        );
+    }
+
+    #[test]
+    fn test_button_ink_content_placement_uses_ink_bounds_when_disabled() {
+        let metrics = crate::text::TextMetrics {
+            logical_size: Vec2::new(30.0, 20.0),
+            ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
+            line_count: 1,
+            truncated_horizontal: false,
+            truncated_vertical: false,
+        };
+        let mut text_system = PlacementTextSys {
+            metrics,
+            prepared_rect: None,
+        };
+        let mut focus_system = FocusSystem::new();
+        let mut state = ButtonState::default();
+        let spec = ButtonSpec {
+            disabled: true,
+            style: ButtonStyle {
+                content_placement: crate::text::TextContentPlacement::INK_CENTER,
+                ..ButtonStyle::primary_from_theme(&theme::Theme::default())
+            },
+            ..btn_spec(Rect::new(10.0, 20.0, 100.0, 50.0))
+        };
+
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        let _ = raw::button(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            text_system.prepared_rect,
+            Some(Rect::new(55.0, 37.0, 30.0, 20.0))
+        );
+    }
+
+    #[test]
     fn test_regression_custom_style_no_theme_lookup() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
@@ -1327,6 +1469,7 @@ mod tests {
                 400,
                 crate::text::TextFlow::single_line(),
             ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
             text_color: Color::from_srgb_u8(50, 60, 70, 255),
             disabled_alpha: 0.32f32,
             pad_x: 14.0,

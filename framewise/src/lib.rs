@@ -45,8 +45,8 @@ pub use layouts::{
 };
 pub use text::{
     CaretGeom, EllipsisFallback, FontId, FontRole, LineHeight, OverflowX, OverflowY, TextBounds,
-    TextFlow, TextHandle, TextLayout, TextLineAlign, TextMetrics, TextStyle, TextSystem,
-    WrapGlyphFallback, WrapWordFallback,
+    TextContentBasis, TextContentPlacement, TextFlow, TextHandle, TextLayout, TextLineAlign,
+    TextMetrics, TextStyle, TextSystem, WrapGlyphFallback, WrapWordFallback,
 };
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Rect, Vec2};

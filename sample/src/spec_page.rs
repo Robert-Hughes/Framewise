@@ -1527,6 +1527,13 @@ fn section_01_buttons<CF>(
 
         let mut circle_icon_style = ButtonStyle::secondary_from_theme(&t);
         circle_icon_style.text_style.font = t.mono_font;
+        circle_icon_style.pad_x = 0.0;
+        circle_icon_style.pad_y = 0.0;
+        circle_icon_style.content_placement = framewise::TextContentPlacement::INK_CENTER;
+        let mut close_icon_style = ButtonStyle::secondary_from_theme(&t);
+        close_icon_style.pad_x = 0.0;
+        close_icon_style.pad_y = 0.0;
+        close_icon_style.content_placement = framewise::TextContentPlacement::INK_CENTER;
 
         let styles: &[(&str, ButtonStyle, Option<f32>)] = &[
             ("Apply changes", ButtonStyle::primary_from_theme(&t), None),
@@ -1534,7 +1541,7 @@ fn section_01_buttons<CF>(
             ("Reset", ButtonStyle::ghost_from_theme(&t), None),
             ("Publish v0.2", ButtonStyle::accent_from_theme(&t), None),
             ("◎", circle_icon_style, Some(t.h_md)),
-            ("×", ButtonStyle::secondary_from_theme(&t), Some(t.h_md)),
+            ("×", close_icon_style, Some(t.h_md)),
         ];
         let mut bx = 0.0;
         for (i, (label, style, width)) in styles.iter().enumerate() {
@@ -1661,8 +1668,10 @@ fn section_01_buttons<CF>(
     {
         let mut b = b.child_with_layout(Placement2D::fixed(content_w, t.h_lg), RowLayout);
 
+        let mut compact_height_style = ButtonStyle::secondary_from_theme(&t);
+        compact_height_style.pad_y = 2.0;
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
-            ("22 px", t.h_sm, ButtonStyle::secondary_from_theme(&t)),
+            ("22 px", t.h_sm, compact_height_style),
             ("28 px", t.h_md, ButtonStyle::secondary_from_theme(&t)),
             ("36 px", t.h_lg, ButtonStyle::secondary_from_theme(&t)),
         ];

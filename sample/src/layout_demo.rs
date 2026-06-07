@@ -304,7 +304,9 @@ pub fn draw_layout_page(
                     ("End", Align::End),
                 ];
                 let heights = [22.0, 36.0, 50.0];
-                let styles = [primary, secondary, accent];
+                let mut compact_primary = primary;
+                compact_primary.pad_y = 2.0;
+                let styles = [compact_primary, secondary, accent];
                 for (row_idx, (name, align)) in aligns.into_iter().enumerate() {
                     // Fixed 60px height is the Exact cross axis that alignment requires;
                     // each button picks a different height so the alignment is visible.
