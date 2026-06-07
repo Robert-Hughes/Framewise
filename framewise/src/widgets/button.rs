@@ -49,8 +49,8 @@ pub mod raw {
             style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        let w = t.size.x + 2.0 * style.pad_x;
-        let h = (t.size.y + 2.0 * style.pad_y).max(style.min_height);
+        let w = t.logical_size.x + 2.0 * style.pad_x;
+        let h = (t.logical_size.y + 2.0 * style.pad_y).max(style.min_height);
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
     }
 
@@ -63,9 +63,9 @@ pub mod raw {
         text_system: &mut T,
     ) -> (Rect, crate::text::TextHandle) {
         let m = text_system.measure(text, style.text_style, crate::text::TextBounds::UNBOUNDED);
-        let tx = rect.x + (rect.w - m.size.x) * 0.5;
-        let ty = rect.y + (rect.h - m.size.y) * 0.5;
-        let text_rect = Rect::new(tx, ty, m.size.x, m.size.y);
+        let tx = rect.x + (rect.w - m.logical_size.x) * 0.5;
+        let ty = rect.y + (rect.h - m.logical_size.y) * 0.5;
+        let text_rect = Rect::new(tx, ty, m.logical_size.x, m.logical_size.y);
         let layout = text_system.prepare(text, style.text_style, text_rect);
         (text_rect, layout.handle)
     }

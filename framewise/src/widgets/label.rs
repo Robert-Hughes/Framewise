@@ -39,7 +39,7 @@ pub mod raw {
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(t.size)
+        crate::layout::IntrinsicSize::preferred(t.logical_size)
     }
 
     /// Low-level label widget function.
@@ -211,7 +211,8 @@ mod tests {
             _bounds: crate::text::TextBounds,
         ) -> crate::text::TextMetrics {
             crate::text::TextMetrics {
-                size: Vec2::new(0.0, 0.0),
+                logical_size: Vec2::new(0.0, 0.0),
+                ink_bounds: Rect::new(0.0, 0.0, 0.0, 0.0),
                 line_count: 1,
                 truncated_horizontal: false,
                 truncated_vertical: false,
@@ -228,7 +229,8 @@ mod tests {
             crate::text::TextLayout {
                 handle: TextHandle(0),
                 metrics: crate::text::TextMetrics {
-                    size: Vec2::new(0.0, 0.0),
+                    logical_size: Vec2::new(0.0, 0.0),
+                    ink_bounds: Rect::new(0.0, 0.0, 0.0, 0.0),
                     line_count: 1,
                     truncated_horizontal: false,
                     truncated_vertical: false,

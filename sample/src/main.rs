@@ -170,15 +170,15 @@ impl App {
             framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
             TextBounds::UNBOUNDED,
         );
-        let cx = (win_size.0 - m.size.x) * 0.5;
-        let cy = (win_size.1 - m.size.y) * 0.5;
+        let cx = (win_size.0 - m.logical_size.x) * 0.5;
+        let cy = (win_size.1 - m.logical_size.y) * 0.5;
         let layout = text_system.prepare(
             "Feature not enabled",
             framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
-            Rect::new(cx, cy, m.size.x, m.size.y),
+            Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
         );
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(cx, cy, m.size.x, m.size.y),
+            rect: Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
             color: Color::from_srgb_u8(140, 140, 150, 255),
             handle: layout.handle,
         });

@@ -95,8 +95,8 @@ pub fn react_layout_violation<T: TextSystem>(
                 rect: Rect::new(
                     fallback_rect.x,
                     fallback_rect.y,
-                    layout.metrics.size.x,
-                    layout.metrics.size.y,
+                    layout.metrics.logical_size.x,
+                    layout.metrics.logical_size.y,
                 ),
                 color,
                 handle: layout.handle,

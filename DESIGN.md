@@ -579,20 +579,36 @@ To draw text, the widget building pass must have access to a `TextSystem` (provi
 
 Because the `WidgetContext` takes the text system as a generic parameter (`WidgetContext<'a, T: TextSystem, S>`), we guarantee **static dispatch** and maximum inlining, keeping the library zero-cost while maintaining complete renderer agnosticism.
 
-### Optical Ink Bounds Alignment (Approach 2)
+### Logical Layout Bounds and Ink Bounds
 
-A major visual challenge in GUI layouts is aligning text containers perfectly with other visual UI elements (such as borders of text input fields, button margins, or card containers). 
+A major visual challenge in GUI layouts is aligning text containers perfectly with other visual elements such as borders, button centers, input fields, and card edges. Text has two different kinds of geometry, and treating one as the other produces subtle bugs:
 
-By default, standard text shaping layout engines position glyphs relative to their **typographic origin** ($0.0$), which includes font-specific left-side bearings (spacing). For instance, flat characters (like **H** or **I**) might start 3px from the origin, while round characters (like **O** or **C**) start 1px from the origin to create a micro-typographic optical overlap (overshoot) when aligned next to each other.
+- **Logical layout bounds** describe the space used for text flow: advances, baselines, line height, wrapping, ellipsis, caret placement, selection, and hit-testing.
+- **Ink bounds** describe the visible pixels or vector outlines that are actually drawn after shaping, glyph offsets, side bearings, overhangs, accents, and raster placement are applied.
 
-Framewise adopts **Approach 2 (Optical Ink Bounds Alignment)** for text rendering:
-* **The contract:** The bounding box returned by `measure` and passed to `prepare` represents the tight **ink bounds** of the text (i.e. the rectangle containing exactly the visible rasterized pixels), rather than the typographic space.
-* **The shift:** The text shaping engine must shift all glyph horizontal positions (`g.x`) by $-l$ (where $l$ is the leftmost horizontal pixel position across all glyphs in the segment) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
+Framewise treats the bounds supplied to the text system as **logical layout constraints**, not promises that all ink will be contained inside the supplied rectangle.
 
-#### Why Ink Bounds Alignment (Grid-based) is Chosen over Typographic Origin Alignment:
-1. **Perfect Grid Alignment:** When aligning a label to an input border or button edge directly below it, any left-side typographic bearing creates a visible 2–4px gap, making the text look misaligned or indented. Ink bounds alignment guarantees that the visible text aligns flush with the widget borders.
-2. **Simplified Layout Logic:** The `framewise` layout engine can reason purely about rectangular bounding boxes. As long as the text system ensures the ink fills the bounds exactly, the layout is optically perfect without the layout engine needing to understand or coordinate typographic bearings.
-3. **Decoupled Render & Downstream Systems:** Shifting glyph positions directly in the text system shaping pass means the renderer, hit-testing, and cursor positioning consume the corrected coordinates natively with zero downstream runtime overhead.
+For `measure(text, style, TextBounds)`, `TextBounds` answers: "what logical space is available for shaping, wrapping, alignment, and overflow policy?" A bounded width constrains line breaking and horizontal overflow handling. A bounded height constrains which visual lines are admitted. These inputs are available before final ink is known, so they cannot honestly be tight ink boxes.
+
+For `prepare(text, style, Rect)`, the `Rect` is the concrete **logical text block** into which text is shaped and positioned. It supplies the block origin, wrap width, vertical extent, and alignment frame. The renderer or widget may still choose to clip drawing to this rect, but clipping is a rendering policy; it is not the text layout contract.
+
+The `TextMetrics` returned by the interface reports both the resulting **logical** block size and the resulting **ink bounds** after shaping and overflow policy. Under strict policies (`Drop`, successful wrapping, successful ellipsis fitting), the logical size should stay within the provided logical constraints. Policies that explicitly keep overflowing content (`Keep` fallbacks and `OverflowY::Keep`) may report a logical size that exceeds the input constraints; that is the selected overflow behavior, not a contract violation.
+
+Ink bounds are related to logical bounds but are not contained by them in general. The ink may sit wholly inside the logical box, protrude to any side, be much smaller than the logical box, be empty for whitespace, or extend beyond the logical box due to italic overhangs, negative side bearings, accents, combining marks, symbol glyphs, or custom font behavior. The relationship is intentionally loose.
+
+#### Why Logical Bounds Are the Text-System Input
+
+1. **Wrapping and editing are advance-based.** Text flow is driven by glyph advances and shaped clusters. Spaces have advance but no ink; combining marks may have ink but little or no advance. Wrapping by ink would make ordinary text unstable and would make caret and hit-testing behavior harder to reason about.
+2. **The ink box is an output of shaping and rasterization.** The caller cannot provide a tight ink rect before the text system has shaped the string, selected glyphs, applied offsets, and measured raster placement.
+3. **Overflow policy must be explicit.** A caller that needs hard pixel containment should request clipping or a future ink-fit policy. A caller that passes a logical rect should not assume that visible ink cannot spill outside it.
+4. **Different widgets want different alignment bases.** Text labels, editable text, menus, and paragraphs usually want logical centering/alignment. Icon-like glyphs and optical badges may want ink centering. Keeping both concepts explicit lets each widget choose the correct behavior.
+
+#### Practical Consequences
+
+- Regular text layout, wrapping, caret geometry, and hit-testing operate in logical block coordinates.
+- Widgets that require strict visual containment must clip, add padding, or use a future ink-fitting policy.
+- Widgets that want optical alignment should use `TextMetrics::ink_bounds`, rather than assuming logical metrics describe visible pixels.
+- Labels, buttons, and icon-like text can deliberately choose between logical and optical alignment by choosing whether they align against `TextMetrics::logical_size` or `TextMetrics::ink_bounds`.
 
 ---
 
@@ -692,4 +708,3 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 - **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because contexts are finished bottom-up, innermost scroll areas always get first pick of the claim.
 
 - **Standalone Widget Participation**: Standalone widgets like standalone sliders actively participate in this claim system (using `claim_scroll_at_ends`). When hovered or focused, they block scroll inputs from propagating up to outer scroll areas, acting as "hard stops" instead of allowing the parent to suddenly start scrolling when the slider hits its boundary.
-

@@ -8,7 +8,8 @@ pub struct DummyTextSys;
 impl DummyTextSys {
     fn metrics(text: &str) -> TextMetrics {
         TextMetrics {
-            size: Vec2::new(text.chars().count() as f32 * 8.0, 16.0),
+            logical_size: Vec2::new(text.chars().count() as f32 * 8.0, 16.0),
+            ink_bounds: Rect::new(0.0, 0.0, text.chars().count() as f32 * 8.0, 16.0),
             line_count: 1,
             truncated_horizontal: false,
             truncated_vertical: false,

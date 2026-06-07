@@ -1,7 +1,7 @@
 use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec};
 use crate::text::SampleTextSystem;
 use framewise::{
-    EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, TextFlow,
+    EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, Rect, TextFlow,
     TextMetrics, TextStyle, Vec2, WrapGlyphFallback, WrapWordFallback,
 };
 
@@ -418,6 +418,10 @@ impl SampleTextSystem {
         let mut out: Vec<GlyphPosition> = Vec::new();
         let mut rec: Vec<LineRec> = Vec::new();
         let mut block_width = 0.0_f32;
+        let mut ink_l = f32::INFINITY;
+        let mut ink_t = f32::INFINITY;
+        let mut ink_r = f32::NEG_INFINITY;
+        let mut ink_b = f32::NEG_INFINITY;
 
         let line_count = processed_lines.len();
         for (i, mut line) in processed_lines.into_iter().enumerate() {
@@ -489,21 +493,35 @@ impl SampleTextSystem {
                 }
             }
 
-            let line_w = if line.glyphs.is_empty() {
-                0.0
-            } else {
-                let l = line
-                    .glyphs
-                    .iter()
-                    .map(|g| g.x)
-                    .fold(f32::INFINITY, f32::min);
-                let r = line
-                    .glyphs
-                    .iter()
-                    .map(|g| g.x + g.width as f32)
-                    .fold(f32::NEG_INFINITY, f32::max);
-                r - l
-            };
+            for g in &line.glyphs {
+                if g.width == 0 && g.height == 0 {
+                    continue;
+                }
+
+                let key = crate::text::GlyphKey {
+                    font_id: font_id.0,
+                    glyph_index: g.key.glyph_index,
+                    size: (g.key.px * 10.0) as u32,
+                    subpixel_x: g.subpixel_x,
+                    weight: g.weight,
+                    opsz: g.opsz,
+                };
+                if let Some(info) = self.glyph_cache.get(&key) {
+                    if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
+                        continue;
+                    }
+                    let l = g.x + info.left as f32;
+                    let t = g.y - info.top as f32;
+                    let r = l + info.atlas_rect.w as f32;
+                    let b = t + info.atlas_rect.h as f32;
+                    ink_l = ink_l.min(l);
+                    ink_t = ink_t.min(t);
+                    ink_r = ink_r.max(r);
+                    ink_b = ink_b.max(b);
+                }
+            }
+
+            let line_w = Self::logical_line_width(&line.glyphs);
             block_width = block_width.max(line_w);
 
             let glyph_start = out.len();
@@ -519,13 +537,23 @@ impl SampleTextSystem {
         }
 
         // Round final metrics block size
+        let ink_bounds = if ink_l.is_finite() {
+            Rect::new(ink_l, ink_t, ink_r - ink_l, ink_b - ink_t)
+        } else {
+            Rect::new(0.0, 0.0, 0.0, 0.0)
+        };
         let metrics = framewise::TextMetrics {
-            size: Vec2::new(block_width.round(), line_count as f32 * line_height_snapped),
+            logical_size: Vec2::new(block_width.round(), line_count as f32 * line_height_snapped),
+            ink_bounds,
             line_count: line_count as u32,
             truncated_horizontal,
             truncated_vertical,
         };
         (out, rec, metrics)
+    }
+
+    fn logical_line_width(glyphs: &[GlyphPosition]) -> f32 {
+        glyphs.iter().map(|g| g.x + g.advance).fold(0.0, f32::max)
     }
 
     fn wrap_glyphs_at_glyphs(

@@ -104,7 +104,8 @@ pub struct TextHandle(pub usize);
 
 // ── Flow & overflow policy ──────────────────────────────────────────────────
 
-/// How a block of text flows and fills the space it is measured or drawn against.
+/// How a block of text flows and fills the logical space it is measured or
+/// drawn against.
 ///
 /// Covers line breaking, per-line horizontal alignment, and overflow handling.
 /// This struct carries **policy only** — never dimensions. The available space is
@@ -115,10 +116,10 @@ pub struct TextHandle(pub usize);
 /// Text overflow is modelled independently on the inline axis (`overflow_x`) and
 /// block axis (`overflow_y`) because they answer different questions:
 ///
-/// - X overflow asks what to do when the next glyph would not fit wholly within
-///   the current line's horizontal bounds.
-/// - Y overflow asks what to do when the next visual line would not fit wholly
-///   within the block's vertical bounds.
+/// - X overflow asks what to do when the next logical text unit would not fit
+///   within the current line's horizontal layout bounds.
+/// - Y overflow asks what to do when the next visual line would not fit within
+///   the block's vertical layout bounds.
 ///
 /// This makes wrapping just one possible X-axis overflow response, rather than
 /// a separate boolean. Hard line breaks (`'\n'`) are always respected before
@@ -181,9 +182,9 @@ impl TextFlow {
 
     /// Renderer-clipped text viewport default.
     ///
-    /// This policy may emit glyphs/lines that intersect the bounds but are not
-    /// wholly inside them. It is intended for renderers that apply their own
-    /// scissor/clipping and want edge glyphs to be partially visible.
+    /// This policy may emit logical glyphs/lines that exceed the layout bounds.
+    /// It is intended for renderers that apply their own scissor/clipping and
+    /// want edge glyphs to be partially visible.
     pub fn clipped_viewport() -> Self {
         Self {
             overflow_x: OverflowX::WrapWord {
@@ -197,8 +198,8 @@ impl TextFlow {
     }
 }
 
-/// What to do when the next glyph would not fit wholly within the current line's
-/// horizontal bounds.
+/// What to do when the next logical text unit would not fit within the current
+/// line's horizontal layout bounds.
 ///
 /// Policies are deliberately expressed as a fallback chain. This mirrors the
 /// actual layout decision tree:
@@ -211,10 +212,12 @@ impl TextFlow {
 ///
 /// The important contract is:
 ///
-/// - `Drop`, successful wrapping, and successful ellipsis fitting emit only
-///   glyphs wholly inside the X bounds.
-/// - `Keep` may emit the first overflowing glyph, then truncates the rest of that
-///   line. A renderer/scissor may clip the visible pixels.
+/// - `Drop`, successful wrapping, and successful ellipsis fitting keep the
+///   reported logical line inside the X bounds.
+/// - `Keep` may emit the first overflowing unit, then truncates the rest of that
+///   line. The reported logical size may exceed the input constraint, and
+///   visible ink may also spill outside the logical bounds. A renderer/scissor
+///   may clip the visible pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OverflowX {
     /// Prefer wrapping at word boundaries.
@@ -230,9 +233,9 @@ pub enum OverflowX {
 
     /// Wrap at glyph/character-cluster boundaries.
     ///
-    /// If the next glyph does not fit on the current line, it is moved to a new
-    /// line. If it still cannot fit on an empty line, `fallback` decides whether
-    /// it is dropped or kept partially.
+    /// If the next glyph/cluster does not fit logically on the current line, it
+    /// is moved to a new line. If it still cannot fit on an empty line,
+    /// `fallback` decides whether it is dropped or kept partially.
     ///
     /// “Glyph” here should be read as the smallest drawable unit the text system
     /// can safely split without corrupting shaping. For complex scripts this may
@@ -240,23 +243,24 @@ pub enum OverflowX {
     /// font glyph.
     WrapGlyph { fallback: WrapGlyphFallback },
 
-    /// Replace the overflowing tail of the line with an ellipsis marker.
+    /// Replace the logically overflowing tail of the line with an ellipsis
+    /// marker.
     ///
-    /// The text system drops enough trailing glyphs so the ellipsis itself fits
-    /// wholly within the X bounds. If even the ellipsis cannot fit,
+    /// The text system drops enough trailing units so the ellipsis itself fits
+    /// logically within the X bounds. If even the ellipsis cannot fit,
     /// `fallback` decides what to do.
     Ellipsis { fallback: EllipsisFallback },
 
-    /// Include the first glyph that does not fit wholly within the X bounds, then
-    /// drop the remaining glyphs on that line.
+    /// Include the first unit that does not fit logically within the X bounds,
+    /// then drop the remaining units on that line.
     ///
     /// This is the opt-in partial-glyph mode. It is useful when the renderer
     /// applies clipping and the caller wants edge glyphs to be visibly sliced
     /// rather than removed entirely.
     Keep,
 
-    /// Drop the first glyph that does not fit wholly within the X bounds, and
-    /// drop the remaining glyphs on that line.
+    /// Drop the first unit that does not fit logically within the X bounds, and
+    /// drop the remaining units on that line.
     ///
     /// This is the strict fully-inside truncate behavior.
     Drop,
@@ -294,17 +298,19 @@ pub enum WrapGlyphFallback {
     Drop,
 }
 
-/// What to do when the next visual line would not fit wholly within the block's
-/// vertical bounds.
+/// What to do when the next visual line would not fit within the block's
+/// vertical layout bounds.
 ///
 /// This policy operates on whole visual lines, not individual glyphs. A visual
 /// line may come from a hard break or from X-axis wrapping.
 ///
 /// The same inside/outside contract applies:
 ///
-/// - `Drop` and successful `Ellipsis` emit only lines wholly inside the Y bounds.
+/// - `Drop` and successful `Ellipsis` keep the reported logical block inside
+///   the Y bounds.
 /// - `Keep` may emit the first vertically overflowing line, then drops all later
-///   lines. A renderer/scissor may clip it.
+///   lines. The reported logical size may exceed the input constraint. A
+///   renderer/scissor may clip it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OverflowY {
     /// Indicate vertical truncation by ellipsising the previous visible line.
@@ -316,14 +322,14 @@ pub enum OverflowY {
     /// available X bounds, `fallback` decides what to do.
     Ellipsis { fallback: EllipsisFallback },
 
-    /// Include the first line that does not fit wholly within the Y bounds, then
+    /// Include the first line that does not fit within the Y bounds, then
     /// drop all later lines.
     ///
     /// This is useful for clipped text viewports where partially visible top or
     /// bottom lines should still render.
     Keep,
 
-    /// Drop the first line that does not fit wholly within the Y bounds, and drop
+    /// Drop the first line that does not fit within the Y bounds, and drop
     /// all later lines.
     Drop,
 }
@@ -360,7 +366,8 @@ pub enum HorizontalAlign {
 
 // ── Measurement inputs & outputs ────────────────────────────────────────────
 
-/// The space available to lay text into, used by [`TextSystem::measure`].
+/// Logical layout constraints available to text, used by
+/// [`TextSystem::measure`].
 ///
 /// Each axis is `Some(px)` for a finite ceiling, or `None` for unbounded. This
 /// is the reduction of the layout's `AxisBound`: both `Exact(w)` and `AtMost(w)`
@@ -368,9 +375,15 @@ pub enum HorizontalAlign {
 /// does not matter for measurement — only the limit value does), while
 /// `Unbounded` becomes `None`.
 ///
-/// Measurement is **symmetric**: text is reflowable, so its size is a curve, not
-/// a point. Whichever axis is bounded constrains the flow; the unbounded axis is
-/// the answer:
+/// These are logical constraints, not pixel-containment guarantees. They drive
+/// advances, wrapping, alignment, ellipsis, line admission, caret geometry, and
+/// hit-testing. The visible ink may still protrude outside these bounds due to
+/// glyph bearings, overhangs, accents, combining marks, symbol placement, or
+/// custom font behavior.
+///
+/// Measurement is **symmetric**: text is reflowable, so its logical size is a
+/// curve, not a point. Whichever axis is bounded constrains the flow; the
+/// unbounded axis is the answer:
 /// - `max_width: Some, max_height: None` → wrap to width, height grows down
 ///   (auto-height label in a column).
 /// - `max_width: None, max_height: Some` → pack to a fixed height, width grows
@@ -397,20 +410,41 @@ impl TextBounds {
     }
 }
 
-/// The measured geometry of a block of text, independent of where it is drawn.
+/// The measured logical geometry of a block of text, independent of where it is
+/// drawn.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextMetrics {
-    /// Tight size of the laid-out block in logical pixels.
+    /// Logical size of the laid-out block in logical pixels.
     ///
     /// - `x` is the widest line's used advance width (shrink-wrapped — it is `≤`
-    ///   `max_width` when a width bound was given, *not* the bound itself).
+    ///   `max_width` when a width bound was given and the overflow policy keeps
+    ///   content inside, *not* the bound itself).
     /// - `y` is `visible_line_count × line_height`, where `line_height` is the
     ///   font's line spacing at this size.
+    ///
+    /// The size may exceed the input constraints when the selected overflow
+    /// policy explicitly keeps overflowing content (`Keep` fallbacks or
+    /// `OverflowY::Keep`). Separately, the actual ink may extend outside this
+    /// logical size even when the logical size fits.
+    ///
+    /// This field is not a tight ink box. Use [`ink_bounds`](Self::ink_bounds)
+    /// when a caller needs the bounds of the drawn pixels.
     ///
     /// "Visible" means after any vertical overflow has been applied: a block
     /// clipped to a height reports the size it actually occupies, not the size
     /// the full string would have needed.
-    pub size: Vec2,
+    pub logical_size: Vec2,
+
+    /// Tight visual bounds of the ink produced by the laid-out text, in the
+    /// same block-local coordinate system as `prepare`, before the caller's draw
+    /// rect translation is applied.
+    ///
+    /// This may be smaller than, larger than, or offset from
+    /// [`logical_size`](Self::logical_size). It may also be empty, for example
+    /// for whitespace-only text. Callers that need optical centering or visual
+    /// alignment should use this field rather than assuming the logical size
+    /// describes the drawn pixels.
+    pub ink_bounds: Rect,
 
     /// Number of lines actually laid out (after wrapping, hard breaks, and
     /// vertical overflow). Always `≥ 1`, even for empty input.
@@ -433,8 +467,8 @@ pub struct TextLayout {
     /// The opaque handle to give to the renderer via `DrawCmd::Text`.
     pub handle: TextHandle,
     /// The block's measured geometry, identical to what [`TextSystem::measure`]
-    /// would return for the same text, flow policy, and the draw rect's size as
-    /// bounds.
+    /// would return for the same text, flow policy, and the draw rect's logical
+    /// size as bounds.
     pub metrics: TextMetrics,
 }
 
@@ -460,12 +494,23 @@ pub struct CaretGeom {
 /// lines actually break, how the ellipsis is fitted, how glyphs are positioned)
 /// and hands geometry back. Framewise never inspects glyphs.
 ///
-/// ### Optical Ink Bounds Alignment (Approach 2)
-/// To support premium grid alignments in the GUI, all positions returned by this trait
-/// are relative to the text's tight **ink bounds** rather than the typographic space.
-/// The implementing `TextSystem` must shift shaped glyph horizontal positions (`g.x`)
-/// by $-l$ (where $l$ is the leftmost horizontal pixel position across all glyphs in the segment)
-/// so that the first visible pixel begins exactly at `x = 0.0` relative to the bounding box.
+/// ### Logical Bounds and Ink Bounds
+///
+/// The bounds passed into this trait are **logical layout bounds**. They constrain
+/// text flow: advances, wrapping, ellipsis, alignment frames, line admission,
+/// caret positions, and hit-testing. They are not a guarantee that every visible
+/// pixel of ink will be contained inside the same rectangle.
+///
+/// **Ink bounds** are the visible bounds of the shaped/rasterized glyphs. They
+/// are an output of shaping and rendering, not something the caller can know
+/// before calling `measure` or `prepare`. Ink may sit inside the logical box,
+/// protrude outside it, be empty for whitespace, or be offset by glyph bearings,
+/// overhangs, accents, combining marks, or symbol placement.
+///
+/// [`TextMetrics`] reports both logical geometry and ink bounds. Callers that
+/// require strict pixel containment should clip, add padding, or use a future
+/// ink-fitting policy rather than assuming that the input bounds contain all
+/// rendered pixels.
 ///
 /// All positions returned by this trait are in **block-local coordinates**: the
 /// origin is the block's top-left corner, with y increasing downward. The caller
@@ -479,9 +524,15 @@ pub trait TextSystem {
     /// The returned [`TextMetrics`] reflect `flow` applied against `bounds` — see
     /// [`TextBounds`] for how the bounded/unbounded axes drive reflow.
     ///
-    /// The returned size represents the tight **ink bounds** ($r - l$) of the text run,
-    /// excluding the typographic left-side bearing, ensuring the layout bounding box
-    /// perfectly wraps the visible pixels.
+    /// The returned `logical_size` represents logical layout geometry: advance-based
+    /// line width and line-height-based block height after the selected overflow
+    /// policy has been applied. It is not a tight ink box.
+    ///
+    /// With strict overflow policies the logical size should fit within bounded
+    /// input axes. Policies that explicitly keep overflowing content may return
+    /// a logical size larger than the supplied bounds. `ink_bounds` reports the
+    /// visible bounds of the emitted glyphs, which may protrude outside the
+    /// logical size due to font metrics and glyph placement.
     ///
     /// `flow.horizontal_align` has no effect on the result: alignment moves glyphs
     /// within a line but changes neither the block size nor what is truncated.
@@ -492,12 +543,13 @@ pub trait TextSystem {
 
     /// Shape `text` for drawing into `rect` and register it, returning a handle.
     ///
-    /// `rect` is the fully concrete **ink-bounds** bounding box by the time this is called:
-    /// its width is the wrap width and its height is the vertical clip extent.
+    /// `rect` is the fully concrete **logical layout rect** by the time this is
+    /// called: its width is the wrap/alignment width, its height is the vertical
+    /// layout or clip extent, and its origin is the block origin used for
+    /// rendering.
     ///
-    /// Because `rect` represents the ink bounds, the implementor must shift all shaped
-    /// glyph coordinates by $-l$ (where $l$ is the leftmost horizontal coordinate of the unshifted
-    /// shaped glyphs) so that the ink begins exactly at `x = 0.0` relative to the bounding box.
+    /// The text system may produce ink that extends outside this rect. A caller
+    /// that needs hard containment must apply clipping or provide padding.
     ///
     /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
     /// would report for the same `text` and `style`, with
@@ -509,8 +561,9 @@ pub trait TextSystem {
     /// Caret geometry for the character boundary at `byte_index`, in block-local
     /// coordinates. See [`CaretGeom`].
     ///
-    /// Because the cached layout is pre-shifted to ink bounds, caret positions
-    /// must also align with the shifted coordinate system ($x = \text{typographic\_x} - l$).
+    /// Caret positions are in the same logical block coordinate system used by
+    /// `prepare`. They should follow shaped advances and line metrics, not the
+    /// tight ink box of the surrounding glyphs.
     ///
     /// `byte_index` must fall on a UTF-8 char boundary of the prepared string.
     /// An index at or past the end returns the caret after the final glyph. If
@@ -521,8 +574,9 @@ pub trait TextSystem {
     /// Hit-test a point (block-local coordinates) to the nearest character
     /// boundary, returning a byte index into the prepared string.
     ///
-    /// The coordinates `pos` are in the pre-shifted ink-bounds space. Hit testing
-    /// must compare against the shifted glyph positions in the cached run.
+    /// The coordinates `pos` are in the logical block coordinate system used by
+    /// `prepare`. Hit testing should compare against the shaped logical glyph or
+    /// cluster positions in the cached run.
     ///
     /// The point is resolved to a line by `y` first, then to the nearest gap
     /// between glyphs by `x`. Points above/below the block clamp to the first/last

@@ -92,10 +92,10 @@ mod tests {
 
         // Bold text should be wider than regular text for Inter variable font
         assert!(
-            bold_metrics.size.x > regular_metrics.size.x,
+            bold_metrics.logical_size.x > regular_metrics.logical_size.x,
             "Bold width ({}) should be greater than regular width ({})",
-            bold_metrics.size.x,
-            regular_metrics.size.x
+            bold_metrics.logical_size.x,
+            regular_metrics.logical_size.x
         );
     }
 
@@ -139,9 +139,9 @@ mod tests {
 
         // Monospace width should remain identical despite weight variation
         assert_eq!(
-            regular_metrics.size.x, bold_metrics.size.x,
+            regular_metrics.logical_size.x, bold_metrics.logical_size.x,
             "Monospace width should remain identical: regular = {}, bold = {}",
-            regular_metrics.size.x, bold_metrics.size.x
+            regular_metrics.logical_size.x, bold_metrics.logical_size.x
         );
 
         // However, they should produce separate cached glyph entries in the atlas
@@ -190,7 +190,7 @@ mod tests {
             rect,
         );
         assert_eq!(sys.layout_cache.len(), 1); // Length did not change
-        assert_eq!(layout1.metrics.size, layout2.metrics.size);
+        assert_eq!(layout1.metrics.logical_size, layout2.metrics.logical_size);
 
         // 4. Prepare with different weight -> cache miss (distinct entry)
         let _ = sys.prepare(
@@ -236,7 +236,7 @@ mod tests {
         );
         assert_eq!(m.line_count, 1);
         assert!(!m.truncated_horizontal && !m.truncated_vertical);
-        assert!(m.size.x > 0.0);
+        assert!(m.logical_size.x > 0.0);
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod tests {
             TextBounds::width(80.0),
         );
         assert!(wrapped.line_count > 1);
-        assert!(wrapped.size.x <= 80.0 + 0.5);
+        assert!(wrapped.logical_size.x <= 80.0 + 0.5);
     }
 
     #[test]
@@ -311,7 +311,7 @@ mod tests {
         );
         assert_eq!(m.line_count, 1);
         assert!(m.truncated_horizontal);
-        assert!(m.size.x <= 40.0 + 0.5);
+        assert!(m.logical_size.x <= 40.0 + 0.5);
     }
 
     #[test]
@@ -508,6 +508,52 @@ mod tests {
         assert!(
             min_relative_top >= 0.0,
             "first line ink should start within the text rect, got relative top {min_relative_top}"
+        );
+    }
+
+    #[test]
+    fn metrics_report_ink_bounds_separately_from_logical_size() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 13.0, 500, TextFlow::single_line());
+        let layout = sys.prepare("◎", style, Rect::new(0.0, 0.0, 28.0, 28.0));
+        let expected_advance = shaped_advance("◎", 13.0, FontId(0), 500).round();
+
+        assert!(
+            (layout.metrics.logical_size.x - expected_advance).abs() < 0.5,
+            "logical size should follow shaped advance {expected_advance}, got {:?}",
+            layout.metrics.logical_size
+        );
+        assert!(layout.metrics.ink_bounds.w > 0.0);
+        assert!(
+            layout.metrics.ink_bounds.x < 0.0,
+            "JetBrains Mono ◎ has a negative side bearing, ink bounds should expose it: {:?}",
+            layout.metrics.ink_bounds
+        );
+        assert!(
+            layout.metrics.ink_bounds.x + layout.metrics.ink_bounds.w
+                > layout.metrics.logical_size.x,
+            "ink can protrude outside the logical advance box: {:?}, logical {:?}",
+            layout.metrics.ink_bounds,
+            layout.metrics.logical_size
+        );
+    }
+
+    #[test]
+    fn metrics_report_whitespace_logical_advance_without_ink() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 13.0, 400, TextFlow::single_line());
+        let metrics = sys.measure("   ", style, TextBounds::UNBOUNDED);
+        let expected_advance = shaped_advance("   ", 13.0, FontId(1), 400).round();
+
+        assert!(
+            (metrics.logical_size.x - expected_advance).abs() < 0.5,
+            "whitespace should contribute shaped advance {expected_advance}, got {:?}",
+            metrics.logical_size
+        );
+        assert_eq!(
+            metrics.ink_bounds,
+            Rect::new(0.0, 0.0, 0.0, 0.0),
+            "whitespace has no visible ink"
         );
     }
 
@@ -752,7 +798,7 @@ mod tests {
             TextStyle::new(FontId(1), 16.0, 400, flow),
             rect,
         );
-        let reported = layout.metrics.size.x;
+        let reported = layout.metrics.logical_size.x;
         let actual = rendered_width(&sys, layout.handle);
         assert!(
             (reported - actual).abs() < 1.0,
@@ -805,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optical_ink_bounds_alignment() {
+    fn test_ink_bounds_match_rasterized_glyph_extents() {
         let mut sys = sys();
         let rect = Rect::new(0.0, 0.0, 500.0, 100.0);
         let layout = sys.prepare(
@@ -815,17 +861,34 @@ mod tests {
         );
 
         let run = &sys.runs[layout.handle.0];
-        let l = run.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
-        let r = run
-            .glyphs
-            .iter()
-            .map(|g| g.x + g.width as f32)
-            .fold(f32::NEG_INFINITY, f32::max);
+        let mut ink_l = f32::INFINITY;
+        let mut ink_r = f32::NEG_INFINITY;
+        for g in &run.glyphs {
+            let key = GlyphKey {
+                font_id: run.font_id.0,
+                glyph_index: g.key.glyph_index,
+                size: (g.key.px * 10.0) as u32,
+                subpixel_x: g.subpixel_x,
+                weight: g.weight,
+                opsz: g.opsz,
+            };
+            let info = sys.glyph_cache.get(&key).unwrap();
+            if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
+                continue;
+            }
+            let l = g.x + info.left as f32;
+            let r = l + info.atlas_rect.w as f32;
+            ink_l = ink_l.min(l);
+            ink_r = ink_r.max(r);
+        }
 
-        assert_eq!(l, 0.0, "Leftmost ink pixel must be at 0.0");
         assert!(
-            (layout.metrics.size.x - r.round()).abs() < 0.001,
-            "Metrics width must match tight ink width"
+            (layout.metrics.ink_bounds.x - ink_l).abs() < 0.001,
+            "ink bounds x should match rasterized glyph extents"
+        );
+        assert!(
+            (layout.metrics.ink_bounds.w - (ink_r - ink_l)).abs() < 0.001,
+            "ink bounds width should match rasterized glyph extents"
         );
 
         let caret = sys.caret_geom(layout.handle, 0);
@@ -1290,12 +1353,12 @@ mod tests {
 
         let style_normal = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
         let layout_normal = sys.prepare(text, style_normal, rect);
-        let normal_width = layout_normal.metrics.size.x;
+        let normal_width = layout_normal.metrics.logical_size.x;
 
         // Positive spacing expands the width
         let style_expanded = style_normal.with_letter_spacing(0.1); // 0.1 em
         let layout_expanded = sys.prepare(text, style_expanded, rect);
-        let expanded_width = layout_expanded.metrics.size.x;
+        let expanded_width = layout_expanded.metrics.logical_size.x;
         assert!(
             expanded_width > normal_width,
             "Expanded width ({}) should be greater than normal width ({})",
@@ -1306,7 +1369,7 @@ mod tests {
         // Negative spacing shrinks the width
         let style_condensed = style_normal.with_letter_spacing(-0.05); // -0.05 em
         let layout_condensed = sys.prepare(text, style_condensed, rect);
-        let condensed_width = layout_condensed.metrics.size.x;
+        let condensed_width = layout_condensed.metrics.logical_size.x;
         assert!(
             condensed_width < normal_width,
             "Condensed width ({}) should be less than normal width ({})",
@@ -1324,7 +1387,7 @@ mod tests {
         // 1. Normal line height
         let style_normal = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
         let layout_normal = sys.prepare(text, style_normal, rect);
-        let height_normal = layout_normal.metrics.size.y;
+        let height_normal = layout_normal.metrics.logical_size.y;
         let normal_lh = sys.line_height(16.0, FontId(1), LineHeight::Normal).round();
         assert_eq!(layout_normal.metrics.line_count, 2);
         assert!((height_normal - normal_lh * 2.0).abs() < 0.1);
@@ -1332,7 +1395,7 @@ mod tests {
         // 2. Relative line height (larger multiplier, e.g. 1.8)
         let style_large = style_normal.with_line_height(LineHeight::Relative(1.8));
         let layout_large = sys.prepare(text, style_large, rect);
-        let height_large = layout_large.metrics.size.y;
+        let height_large = layout_large.metrics.logical_size.y;
         let large_lh = sys
             .line_height(16.0, FontId(1), LineHeight::Relative(1.8))
             .round();
@@ -1343,7 +1406,7 @@ mod tests {
         // 3. Relative line height (smaller multiplier, e.g. 0.8)
         let style_small = style_normal.with_line_height(LineHeight::Relative(0.8));
         let layout_small = sys.prepare(text, style_small, rect);
-        let height_small = layout_small.metrics.size.y;
+        let height_small = layout_small.metrics.logical_size.y;
         let small_lh = sys
             .line_height(16.0, FontId(1), LineHeight::Relative(0.8))
             .round();
