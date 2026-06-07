@@ -1735,41 +1735,82 @@ pub fn draw_label_page(
             row.finish();
         }
 
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout,
+        let mut row = ctx.child_with_layout(Placement2D::fixed(360.0, 29.0), RowLayout);
+        let comparison_label = LabelStyle {
+            content_placement: framewise::TextContentPlacement::CENTER,
+            ..LabelStyle::from_theme(&theme)
+        };
+        let glyph_flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let glyph_label = LabelStyle {
+            text_style: framewise::TextStyle::new(
+                theme.sans_font,
+                30.0,
+                theme.sans_weight_regular,
+                glyph_flow,
+            ),
+            text_color: theme.rust,
+            ..LabelStyle::from_theme(&theme)
+        };
+        let glyph_frame = FrameStyle {
+            background: Color::from_srgb_u8(255, 255, 255, 255),
+            border: theme.line,
+            border_width: 1.0,
+            padding: 0.0,
+        };
+
+        label(
+            &mut row,
+            LabelSpecBuilder::new()
+                .text("logical center:")
+                .style(comparison_label),
+            Placement2D::fixed(92.0, 29.0),
         );
-        for (caption, placement) in [
-            ("logical center: ◎", framewise::TextContentPlacement::CENTER),
-            ("ink center: ◎", framewise::TextContentPlacement::INK_CENTER),
-        ] {
+        row.spacer(6.0);
+        {
             let mut cell = begin_frame(
                 &mut row,
-                FrameSpecBuilder::new().style(FrameStyle {
-                    background: Color::from_srgb_u8(255, 255, 255, 255),
-                    border: theme.line,
-                    border_width: 1.0,
-                    padding: 0.0,
-                }),
-                Placement2D::fixed(230.0, 72.0),
+                FrameSpecBuilder::new().style(glyph_frame),
+                Placement2D::fixed(29.0, 29.0),
                 ColumnLayout,
             );
             label(
                 &mut cell.ctx,
-                LabelSpecBuilder::new().text(caption).style(LabelStyle {
-                    text_style: framewise::TextStyle::new(
-                        theme.mono_font,
-                        18.0,
-                        theme.sans_weight_regular,
-                        framewise::text::TextFlow::single_line(),
-                    ),
-                    content_placement: placement,
-                    text_color: theme.rust,
-                    rule: false,
-                    rule_color: theme.line,
+                LabelSpecBuilder::new().text("×").style(LabelStyle {
+                    content_placement: framewise::TextContentPlacement::CENTER,
+                    ..glyph_label
+                }),
+                Placement2D {
+                    width: Placement::fill(),
+                    height: Placement::fill(),
+                },
+            );
+            cell.ctx.finish();
+        }
+        row.spacer(18.0);
+        label(
+            &mut row,
+            LabelSpecBuilder::new()
+                .text("ink center:")
+                .style(comparison_label),
+            Placement2D::fixed(72.0, 29.0),
+        );
+        row.spacer(6.0);
+        {
+            let mut cell = begin_frame(
+                &mut row,
+                FrameSpecBuilder::new().style(glyph_frame),
+                Placement2D::fixed(29.0, 29.0),
+                ColumnLayout,
+            );
+            label(
+                &mut cell.ctx,
+                LabelSpecBuilder::new().text("×").style(LabelStyle {
+                    content_placement: framewise::TextContentPlacement::INK_CENTER,
+                    ..glyph_label
                 }),
                 Placement2D {
                     width: Placement::fill(),

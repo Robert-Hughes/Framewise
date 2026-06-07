@@ -155,6 +155,7 @@ Features to design and implement, roughly in dependency order:
     * Go through and make our 'spec page' look as similar as possible to the Claude design mockup. This will be a good way to check off features/improvements!
   * Windows native lookalike
   * Mac native lookalike
+- [ ] DPI awareness/scaling etc.
 
 ---
 
@@ -211,6 +212,8 @@ For SplitRow, do we want an equivlanet SplitCol
 For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
 
 * Each child within a layout has a lot of options (size, align, spacing etc.). Do we want to have any 'defaults' that you can set at the layout level, so you don't need to repeat for every child. e.g. if you want a column of right-aligned widgets.
+
+* How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback?
 
 Phases 1–3, 5, and 6 of the original layout proposal are **implemented and documented in `DESIGN.md`** (intrinsic sizing, three-state `AxisBound`, unbounded axes, deferred scroll, fit-to-children frames). Phase 4 is **partially** done: `SplitRow` (declared count, equal cells) shipped; the weighted/grid/match-tallest cases below did not. This section keeps only what's still unbuilt, plus the conceptual framing that justifies *why* some cases are possible and others never will be.
 

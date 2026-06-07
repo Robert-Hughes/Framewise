@@ -11,7 +11,7 @@ use framewise::{
     types::{Rect, Vec2},
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
-    widgets::label::{label, LabelSpecBuilder},
+    widgets::label::{label, LabelSpecBuilder, LabelStyle},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -514,12 +514,18 @@ pub fn draw_button_page(
             row.finish();
         }
 
-        let mut row = outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 54.0).into(), RowLayout);
+        let mut row = outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 29.0).into(), RowLayout);
+        let glyph_flow = framewise::text::TextFlow {
+            overflow_x: framewise::text::OverflowX::Keep,
+            overflow_y: framewise::text::OverflowY::Keep,
+            line_align: framewise::text::TextLineAlign::Start,
+        };
         let logical_icon = ButtonStyle {
             content_placement: framewise::TextContentPlacement::CENTER,
             text_style: framewise::TextStyle {
-                size: 22.0,
-                font: theme.mono_font,
+                size: 30.0,
+                font: theme.sans_font,
+                flow: glyph_flow,
                 ..secondary.text_style
             },
             pad_x: 0.0,
@@ -530,17 +536,37 @@ pub fn draw_button_page(
             content_placement: framewise::TextContentPlacement::INK_CENTER,
             ..logical_icon
         };
+        let comparison_label = LabelStyle {
+            content_placement: framewise::TextContentPlacement::CENTER,
+            ..LabelStyle::from_theme(&theme)
+        };
+        label(
+            &mut row,
+            LabelSpecBuilder::new()
+                .text("logical center:")
+                .style(comparison_label),
+            Placement2D::fixed(92.0, 29.0),
+        );
+        row.spacer(6.0);
         button(
             &mut row,
-            ButtonSpecBuilder::new().text("◎").style(logical_icon),
-            Placement2D::fixed(32.0, 32.0),
+            ButtonSpecBuilder::new().text("×").style(logical_icon),
+            Placement2D::fixed(29.0, 29.0),
             &mut state.content_btns[9],
         );
-        row.spacer(8.0);
+        row.spacer(18.0);
+        label(
+            &mut row,
+            LabelSpecBuilder::new()
+                .text("ink center:")
+                .style(comparison_label),
+            Placement2D::fixed(72.0, 29.0),
+        );
+        row.spacer(6.0);
         button(
             &mut row,
-            ButtonSpecBuilder::new().text("◎").style(ink_icon),
-            Placement2D::fixed(32.0, 32.0),
+            ButtonSpecBuilder::new().text("×").style(ink_icon),
+            Placement2D::fixed(29.0, 29.0),
             &mut state.content_btns[10],
         );
         row.finish();
