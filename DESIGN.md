@@ -289,6 +289,16 @@ This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `R
 
 Both keep the loud-on-misuse property: any arithmetic on the NaN extent yields NaN rather than a plausible-looking wrong number. Future deferred-own-size containers follow the `Frame` template: keep the Spec intact, hand raw a `pending_extent` rect, patch at `end`, and omit `layout` from the high-level result.
 
+#### Trait-Decoupled Stateful Spacers
+
+To support variable spacing between children in sequential layouts (like `RowLayout` and `ColumnLayout`) without creating loop clutter (the "dangling spacer at the end" problem), Framewise employs a **stateful, lazy spacer** mechanism decoupled via traits:
+
+1. **Stateful Deferral**: A spacer call does not immediately return a `Rect` or advance the cursor. Instead, it registers a `pending_spacing` offset on the layout state.
+2. **Lazy Insertion**: When the next child widget is placed, the layout state shifts the starting coordinate forward by the pending spacing and clears the accumulator.
+3. **Trailing Spacing Elimination**: Because the container's resolved outer size is updated based on the right/bottom edge of the placed child *before* the cursor is advanced, any trailing spacer registered after the last child is naturally ignored when the layout closes. This achieves perfect loop ergonomics without needing conditionals in the caller's code.
+4. **Compile-Time Specialization**: To avoid cluttering non-sequential layouts (like `ManualLayout`), we define a specialized `SpacerLayoutState: LayoutState` trait. The `spacer` method is only exposed on `WidgetContext` when the underlying layout state implements `SpacerLayoutState`. This makes calling `.spacer()` on an incompatible container type a compile-time error.
+5. Each layout can choose the parameter used to define a spacer for that particular layout, e.g. just an f32 or something more complicated, analagous to LayoutParams for regular layout requests.
+
 ---
 
 ## API Shape

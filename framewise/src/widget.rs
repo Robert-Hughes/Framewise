@@ -2,6 +2,7 @@ use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::{
     IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation,
+    SpacerLayoutState,
 };
 use crate::theme::Theme;
 use crate::types::{ClipRect, Rect, Vec2};
@@ -383,6 +384,16 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// Append draw commands to the context's accumulated list.
     pub fn append_cmds(&mut self, cmds: DrawCommands) {
         self.cmds.extend(cmds);
+    }
+}
+
+impl<'a, T, LS, CF> WidgetContext<'a, T, LS, CF>
+where
+    T: TextSystem,
+    LS: SpacerLayoutState,
+{
+    pub fn spacer(&mut self, params: impl Into<LS::SpacerParams>) {
+        self.layout_state.spacer(params.into());
     }
 }
 

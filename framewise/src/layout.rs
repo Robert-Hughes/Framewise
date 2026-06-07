@@ -541,6 +541,11 @@ pub trait LayoutState {
     fn resolve_space(&self) -> Rect;
 }
 
+pub trait SpacerLayoutState: LayoutState {
+    type SpacerParams;
+    fn spacer(&mut self, params: Self::SpacerParams);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

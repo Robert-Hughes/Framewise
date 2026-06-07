@@ -1,4 +1,5 @@
 pub mod column;
+pub mod linear;
 pub mod manual;
 pub mod offset;
 pub mod row;

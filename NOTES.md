@@ -210,6 +210,8 @@ Several of the layouts are very similar to one another, can we simplify by combn
 For SplitRow, do we want an equivlanet SplitCol
 For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
 
+* Each child within a layout has a lot of options (size, align, spacing etc.). Do we want to have any 'defaults' that you can set at the layout level, so you don't need to repeat for every child. e.g. if you want a column of right-aligned widgets.
+
 Phases 1–3, 5, and 6 of the original layout proposal are **implemented and documented in `DESIGN.md`** (intrinsic sizing, three-state `AxisBound`, unbounded axes, deferred scroll, fit-to-children frames). Phase 4 is **partially** done: `SplitRow` (declared count, equal cells) shipped; the weighted/grid/match-tallest cases below did not. This section keeps only what's still unbuilt, plus the conceptual framing that justifies *why* some cases are possible and others never will be.
 
 ### Framing (now in DESIGN.md)

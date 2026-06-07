@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::layout::{
     Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
-    Placement, Placement2D, Size,
+    Placement, Placement2D, Size, SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -11,17 +11,13 @@ use crate::types::{Rect, Vec2};
 pub enum Horizontal {}
 pub enum Vertical {}
 
-pub struct LinearLayout<A> {
-    pub spacing: f32,
+struct LinearLayout<A> {
     _axis: PhantomData<fn() -> A>,
 }
 
 impl<A> LinearLayout<A> {
-    pub fn new(spacing: f32) -> Self {
-        Self {
-            spacing,
-            _axis: PhantomData,
-        }
+    pub fn new() -> Self {
+        Self { _axis: PhantomData }
     }
 }
 
@@ -34,30 +30,70 @@ impl<A: LinearAxis> Layout for LinearLayout<A> {
         LinearState {
             cursor_main: space.origin_main,
             space,
-            spacing: self.spacing,
             content_main: 0.0,
             content_cross: 0.0,
+            pending_spacing: 0.0,
             _axis: PhantomData,
         }
     }
 }
 
-pub type RowLayout = LinearLayout<Horizontal>;
-pub type ColumnLayout = LinearLayout<Vertical>;
-#[allow(dead_code)]
+#[derive(Default)]
+pub struct RowLayout;
+
+impl RowLayout {
+    pub fn new() -> Self {
+        RowLayout
+    }
+}
+
+impl Layout for RowLayout {
+    type Params = Placement2D;
+    type State = RowState;
+
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        LinearLayout::<Horizontal>::new().begin(space)
+    }
+}
+
+#[derive(Default)]
+pub struct ColumnLayout;
+
+impl ColumnLayout {
+    pub fn new() -> Self {
+        ColumnLayout
+    }
+}
+
+impl Layout for ColumnLayout {
+    type Params = Placement2D;
+    type State = ColumnState;
+
+    fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
+        LinearLayout::<Vertical>::new().begin(space)
+    }
+}
+
 pub type RowState = LinearState<Horizontal>;
-#[allow(dead_code)]
 pub type ColumnState = LinearState<Vertical>;
 
 pub struct LinearState<A> {
     space: OrientedSpace,
-    spacing: f32,
     cursor_main: f32,
     /// End edge of the last child relative to the origin, excluding trailing spacing.
     content_main: f32,
     /// Largest child extent reached on the cross axis.
     content_cross: f32,
+    pending_spacing: f32,
     _axis: PhantomData<fn() -> A>,
+}
+
+impl<A: LinearAxis> SpacerLayoutState for LinearState<A> {
+    type SpacerParams = f32;
+
+    fn spacer(&mut self, size: Self::SpacerParams) {
+        self.pending_spacing += size;
+    }
 }
 
 impl<A: LinearAxis> LayoutState for LinearState<A> {
@@ -133,7 +169,7 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
             .into_parts();
 
         let space = OrientedSpace {
-            origin_main: self.cursor_main,
+            origin_main: self.cursor_main + self.pending_spacing,
             origin_cross: self.space.origin_cross + cross_offset,
             main,
             cross,
@@ -184,18 +220,21 @@ impl<A: LinearAxis> LinearState<A> {
             .into_parts();
         let cross_pos = self.space.origin_cross + cross_offset;
 
+        let main_pos = self.cursor_main + self.pending_spacing;
+
         let rect = A::physical_rect(OrientedRect {
-            main: self.cursor_main,
+            main: main_pos,
             cross: cross_pos,
             main_size,
             cross_size,
         });
 
-        self.content_main = (self.cursor_main + main_size) - self.space.origin_main;
+        self.content_main = (main_pos + main_size) - self.space.origin_main;
         self.content_cross = self
             .content_cross
             .max((cross_pos + cross_size) - self.space.origin_cross);
-        self.cursor_main += main_size + self.spacing;
+        self.cursor_main = main_pos + main_size;
+        self.pending_spacing = 0.0;
 
         LayoutResult::from_parts(
             rect,
@@ -204,7 +243,7 @@ impl<A: LinearAxis> LinearState<A> {
     }
 
     fn remaining_main_bound(&self) -> AxisBound {
-        let consumed = self.cursor_main - self.space.origin_main;
+        let consumed = (self.cursor_main + self.pending_spacing) - self.space.origin_main;
         match self.space.main {
             AxisBound::Exact(size) => AxisBound::Exact((size - consumed).max(0.0)),
             AxisBound::AtMost(size) => AxisBound::AtMost((size - consumed).max(0.0)),
@@ -221,7 +260,7 @@ fn at_most_if_bounded(bound: AxisBound) -> AxisBound {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct OrientedSpace {
+pub struct OrientedSpace {
     origin_main: f32,
     origin_cross: f32,
     main: AxisBound,
@@ -240,26 +279,26 @@ impl OrientedSpace {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct OrientedPlacement {
+pub struct OrientedPlacement {
     main: Placement,
     cross: Placement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct OrientedSize {
+pub struct OrientedSize {
     main: f32,
     cross: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct OrientedRect {
+pub struct OrientedRect {
     main: f32,
     cross: f32,
     main_size: f32,
     cross_size: f32,
 }
 
-pub(crate) trait LinearAxis {
+pub trait LinearAxis {
     fn orient_space(space: LayoutSpace) -> OrientedSpace;
     fn physical_space(space: OrientedSpace) -> LayoutSpace;
     fn orient_params(params: Placement2D) -> OrientedPlacement;
@@ -374,21 +413,23 @@ impl LinearAxis for Vertical {
 mod tests {
     use super::*;
 
-    fn row(spacing: f32) -> RowLayout {
-        RowLayout::new(spacing)
+    fn row() -> RowLayout {
+        RowLayout::new()
     }
 
-    fn column(spacing: f32) -> ColumnLayout {
-        ColumnLayout::new(spacing)
+    fn column() -> ColumnLayout {
+        ColumnLayout::new()
     }
 
     #[test]
     fn test_row_layout() {
-        let mut state = row(5.0).begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
         let r1 = state
             .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
+
+        state.spacer(5.0);
 
         let r2 = state
             .layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN)
@@ -399,7 +440,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "needs an intrinsic measurement")]
     fn test_row_auto_without_intrinsic_panics() {
-        let mut state = row(0.0).begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
             .layout(Placement2D::auto(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -407,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_row_auto_width_advances_cursor() {
-        let mut state = row(6.0).begin(Rect::new(0.0, 0.0, 400.0, 50.0));
+        let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 50.0));
         let req = Placement2D {
             width: Placement::auto(),
             height: Placement::fixed(40.0),
@@ -416,6 +457,9 @@ mod tests {
             .layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)))
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 70.0, 40.0));
+
+        state.spacer(6.0);
+
         let r2 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)))
             .unwrap();
@@ -425,7 +469,7 @@ mod tests {
     #[test]
     fn test_row_fill_width_remaining() {
         {
-            let mut state = row(0.0).begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
                 .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -444,7 +488,7 @@ mod tests {
         {
             let space =
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
-            let mut state = row(0.0).begin(space);
+            let mut state = row().begin(space);
             let _ = state
                 .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -464,7 +508,7 @@ mod tests {
     #[test]
     fn test_row_fill_width_remaining_deferred() {
         {
-            let mut state = row(0.0).begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
                 .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -483,7 +527,7 @@ mod tests {
         {
             let space =
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
-            let mut state = row(0.0).begin(space);
+            let mut state = row().begin(space);
             let _ = state
                 .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -505,7 +549,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_row_fill_on_unbounded_axis_panics() {
-        let mut state = row(0.0).begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
+        let mut state = row().begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
         let req = Placement2D {
             width: Placement::fill(),
             height: Placement::fixed(40.0),
@@ -515,10 +559,11 @@ mod tests {
 
     #[test]
     fn test_row_content_extent() {
-        let mut state = row(5.0).begin(Rect::new(0.0, 0.0, 400.0, 100.0));
+        let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
             .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
+        state.spacer(5.0);
         let _ = state
             .layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -529,7 +574,7 @@ mod tests {
     fn test_row_cross_alignment_exact() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Exact(80.0));
 
-        let mut center_state = row(5.0).begin(space);
+        let mut center_state = row().begin(space);
         let r1 = center_state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
@@ -538,7 +583,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 40.0, 40.0, 20.0));
 
-        let mut end_state = row(5.0).begin(space);
+        let mut end_state = row().begin(space);
         let r2 = end_state
             .layout(
                 Placement2D::fixed(40.0, 30.0).align_y(Align::End),
@@ -552,7 +597,7 @@ mod tests {
     #[should_panic(expected = "requires AxisBound::Exact")]
     fn test_row_cross_alignment_panic_at_most() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::AtMost(80.0));
-        let mut state = row(5.0).begin(space);
+        let mut state = row().begin(space);
         let _ = state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
@@ -565,7 +610,7 @@ mod tests {
     #[should_panic(expected = "requires AxisBound::Exact")]
     fn test_row_cross_alignment_panic_unbounded() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
-        let mut state = row(5.0).begin(space);
+        let mut state = row().begin(space);
         let _ = state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_y(Align::End),
@@ -576,7 +621,7 @@ mod tests {
 
     #[test]
     fn test_deferred_row_layout_lifecycle() {
-        let mut state = row(5.0).begin(LayoutSpace::new(
+        let mut state = row().begin(LayoutSpace::new(
             10.0,
             10.0,
             AxisBound::Unbounded,
@@ -598,6 +643,8 @@ mod tests {
         let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(10.0, 10.0, 60.0, 100.0));
 
+        state.spacer(5.0);
+
         let next_rect = state
             .layout(
                 Placement2D::fixed(30.0, 20.0).align_y(Align::Center),
@@ -612,7 +659,7 @@ mod tests {
     fn test_row_begin_layout_propagates_bounds() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(400.0), AxisBound::Exact(150.0));
-        let mut state = row(5.0).begin(parent_space);
+        let mut state = row().begin(parent_space);
 
         let req_fixed = Placement2D {
             width: Placement::fixed(80.0),
@@ -626,6 +673,8 @@ mod tests {
         let _ = state
             .layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
             .unwrap();
+
+        state.spacer(5.0);
 
         let req_auto = Placement2D {
             width: Placement::auto(),
@@ -642,7 +691,7 @@ mod tests {
     fn test_deferred_row_center_align_auto_panic() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = row(10.0).begin(parent_space);
+        let mut state = row().begin(parent_space);
 
         let req = Placement2D {
             width: Placement::fixed(80.0),
@@ -657,21 +706,21 @@ mod tests {
             LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Exact(300.0));
 
         {
-            let mut state = row(10.0).begin(parent_space);
+            let mut state = row().begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
-            let mut state = row(10.0).begin(parent_space);
+            let mut state = row().begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::End);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
-            let mut state = row(10.0).begin(parent_space);
+            let mut state = row().begin(parent_space);
             let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
             let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(80.0, 100.0)).unwrap();
@@ -693,37 +742,38 @@ mod tests {
         let req = Placement2D::fixed(80.0, 100.0);
 
         {
-            let mut state = row(10.0).begin(parent_space_exact);
+            let mut state = row().begin(parent_space_exact);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
-            let mut state = row(10.0).begin(parent_space_at_most);
+            let mut state = row().begin(parent_space_at_most);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
 
         {
-            let mut state = row(10.0).begin(parent_space_at_most_overflow);
+            let mut state = row().begin(parent_space_at_most_overflow);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 50.0);
         }
 
         {
-            let mut state = row(10.0).begin(parent_space_unbounded);
+            let mut state = row().begin(parent_space_unbounded);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
     }
-
     #[test]
     fn test_column_layout() {
-        let mut state = column(10.0).begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+        let mut state = column().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let r1 = state
             .layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
+
+        state.spacer(10.0);
 
         let r2 = state
             .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
@@ -733,7 +783,7 @@ mod tests {
 
     #[test]
     fn test_column_auto_uses_intrinsic_preferred() {
-        let mut state = column(0.0).begin(Rect::new(0.0, 0.0, 200.0, 500.0));
+        let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 500.0));
         let req = Placement2D {
             width: Placement::fixed(120.0),
             height: Placement::auto(),
@@ -745,7 +795,7 @@ mod tests {
 
     #[test]
     fn test_column_fill_cross_axis_uses_bounds_width() {
-        let mut state = column(0.0).begin(Rect::new(5.0, 0.0, 200.0, 500.0));
+        let mut state = column().begin(Rect::new(5.0, 0.0, 200.0, 500.0));
         let req = Placement2D {
             width: Placement::fill(),
             height: Placement::fixed(30.0),
@@ -756,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_column_fill_height_against_exact() {
-        let mut state = column(0.0).begin(Rect::new(0.0, 10.0, 200.0, 500.0));
+        let mut state = column().begin(Rect::new(0.0, 10.0, 200.0, 500.0));
         let req = Placement2D {
             width: Placement::fixed(120.0),
             height: Placement::fill(),
@@ -768,7 +818,7 @@ mod tests {
     #[test]
     fn test_column_fill_height_remaining() {
         {
-            let mut state = column(0.0).begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
                 .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -787,7 +837,7 @@ mod tests {
         {
             let space =
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
-            let mut state = column(0.0).begin(space);
+            let mut state = column().begin(space);
             let _ = state
                 .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -807,7 +857,7 @@ mod tests {
     #[test]
     fn test_column_fill_height_remaining_deferred() {
         {
-            let mut state = column(0.0).begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
                 .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -826,7 +876,7 @@ mod tests {
         {
             let space =
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
-            let mut state = column(0.0).begin(space);
+            let mut state = column().begin(space);
             let _ = state
                 .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
@@ -847,7 +897,7 @@ mod tests {
 
     #[test]
     fn test_column_unbounded_height_resolves_concrete() {
-        let mut state = column(5.0).begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
+        let mut state = column().begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
         let req = Placement2D {
             width: Placement::fill(),
             height: Placement::auto(),
@@ -856,6 +906,9 @@ mod tests {
             .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 24.0)))
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 200.0, 24.0));
+
+        state.spacer(5.0);
+
         let r2 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 30.0)))
             .unwrap();
@@ -866,7 +919,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_column_fill_on_unbounded_axis_panics() {
-        let mut state = column(0.0).begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
+        let mut state = column().begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
         let req = Placement2D {
             width: Placement::fixed(50.0),
             height: Placement::fill(),
@@ -878,11 +931,12 @@ mod tests {
 
     #[test]
     fn test_column_content_extent() {
-        let mut state = column(10.0).begin(Rect::new(5.0, 7.0, 100.0, 500.0));
+        let mut state = column().begin(Rect::new(5.0, 7.0, 100.0, 500.0));
         assert_eq!(state.resolve_space(), Rect::new(5.0, 7.0, 100.0, 500.0));
         let _ = state
             .layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
+        state.spacer(10.0);
         let _ = state
             .layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -893,7 +947,7 @@ mod tests {
     fn test_column_cross_alignment_exact() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Exact(100.0), AxisBound::Unbounded);
 
-        let mut center_state = column(5.0).begin(space);
+        let mut center_state = column().begin(space);
         let r1 = center_state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_x(Align::Center),
@@ -902,7 +956,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(40.0, 10.0, 40.0, 20.0));
 
-        let mut end_state = column(5.0).begin(space);
+        let mut end_state = column().begin(space);
         let r2 = end_state
             .layout(
                 Placement2D::fixed(30.0, 20.0).align_x(Align::End),
@@ -916,7 +970,7 @@ mod tests {
     #[should_panic(expected = "requires AxisBound::Exact")]
     fn test_column_cross_alignment_panic_at_most() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::AtMost(100.0), AxisBound::Unbounded);
-        let mut state = column(5.0).begin(space);
+        let mut state = column().begin(space);
         let _ = state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_x(Align::Center),
@@ -929,7 +983,7 @@ mod tests {
     #[should_panic(expected = "requires AxisBound::Exact")]
     fn test_column_cross_alignment_panic_unbounded() {
         let space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
-        let mut state = column(5.0).begin(space);
+        let mut state = column().begin(space);
         let _ = state
             .layout(
                 Placement2D::fixed(40.0, 20.0).align_x(Align::End),
@@ -940,7 +994,7 @@ mod tests {
 
     #[test]
     fn test_deferred_column_layout_lifecycle() {
-        let mut state = column(8.0).begin(LayoutSpace::new(
+        let mut state = column().begin(LayoutSpace::new(
             0.0,
             0.0,
             AxisBound::Exact(200.0),
@@ -962,6 +1016,8 @@ mod tests {
         let resolved_rect = token.end_layout(Vec2::new(80.0, 50.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(0.0, 0.0, 200.0, 50.0));
 
+        state.spacer(8.0);
+
         let next_rect = state
             .layout(Placement2D::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -972,7 +1028,7 @@ mod tests {
     fn test_column_begin_layout_propagates_bounds() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = column(10.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req_fixed = Placement2D {
             width: Placement::fill(),
@@ -986,6 +1042,8 @@ mod tests {
         let _ = state
             .layout(Placement2D::fixed(200.0, 50.0), IntrinsicSize::UNKNOWN)
             .unwrap();
+
+        state.spacer(10.0);
 
         let req_fill = Placement2D {
             width: Placement::auto(),
@@ -1010,7 +1068,7 @@ mod tests {
     fn test_column_begin_layout_under_parent_at_most() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(150.0), AxisBound::AtMost(250.0));
-        let mut state = column(5.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req1 = Placement2D {
             width: Placement::fill(),
@@ -1024,6 +1082,8 @@ mod tests {
         let _ = state
             .layout(Placement2D::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN)
             .unwrap();
+
+        state.spacer(5.0);
 
         let req2 = Placement2D {
             width: Placement::auto(),
@@ -1039,7 +1099,7 @@ mod tests {
     fn test_deferred_column_center_align_fixed() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = column(10.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req = Placement2D {
             width: Placement::fixed(80.0).align(Align::Center),
@@ -1058,7 +1118,7 @@ mod tests {
     fn test_deferred_column_end_align_fill() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = column(10.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req = Placement2D {
             width: Placement::fill(),
@@ -1077,7 +1137,7 @@ mod tests {
     fn test_deferred_column_start_align_auto() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = column(10.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req = Placement2D {
             width: Placement::auto(),
@@ -1097,7 +1157,7 @@ mod tests {
     fn test_deferred_column_center_align_auto_panic() {
         let parent_space =
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
-        let mut state = column(10.0).begin(parent_space);
+        let mut state = column().begin(parent_space);
 
         let req = Placement2D {
             width: Placement::auto().align(Align::Center),
@@ -1112,21 +1172,21 @@ mod tests {
             LayoutSpace::new(10.0, 20.0, AxisBound::Exact(400.0), AxisBound::Unbounded);
 
         {
-            let mut state = column(10.0).begin(parent_space);
+            let mut state = column().begin(parent_space);
             let req = Placement2D::fixed(180.0, 32.0).align_x(Align::Center);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
-            let mut state = column(10.0).begin(parent_space);
+            let mut state = column().begin(parent_space);
             let req = Placement2D::fixed(180.0, 32.0).align_x(Align::End);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
-            let mut state = column(10.0).begin(parent_space);
+            let mut state = column().begin(parent_space);
             let req = Placement2D::fixed(180.0, 32.0).align_x(Align::Center);
             let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(180.0, 32.0)).unwrap();
@@ -1148,27 +1208,53 @@ mod tests {
         let req = Placement2D::fixed(180.0, 32.0);
 
         {
-            let mut state = column(10.0).begin(parent_space_exact);
+            let mut state = column().begin(parent_space_exact);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
-            let mut state = column(10.0).begin(parent_space_at_most);
+            let mut state = column().begin(parent_space_at_most);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 180.0);
         }
 
         {
-            let mut state = column(10.0).begin(parent_space_at_most_overflow);
+            let mut state = column().begin(parent_space_at_most_overflow);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 100.0);
         }
 
         {
-            let mut state = column(10.0).begin(parent_space_unbounded);
+            let mut state = column().begin(parent_space_unbounded);
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 180.0);
         }
+    }
+
+    #[test]
+    fn test_spacers_accumulation() {
+        let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+        let _ = state
+            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        state.spacer(5.0);
+        state.spacer(10.0);
+        let r = state
+            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        // Should be placed at: 10 + 5 + 10 = 25
+        assert_eq!(r.x, 25.0);
+    }
+
+    #[test]
+    fn test_trailing_spacer_ignored() {
+        let space = LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Unbounded);
+        let mut state = row().begin(space);
+        let _ = state
+            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .unwrap();
+        state.spacer(10.0);
+        assert_eq!(state.resolve_space().w, 10.0); // Not 20!
     }
 }
