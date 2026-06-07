@@ -381,7 +381,8 @@ pub fn draw_label_page(
                 RowLayout { spacing: 20.0 },
             );
 
-            // Card 1: X: Drop, Y: Drop (hello\nhello inside 27x30)
+            // Card 1: X: Drop, Y: Drop
+            // Keep this card in sync with test_overflow_x_drop_y_drop in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -439,7 +440,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 2: X: Keep, Y: Keep (hello\nhello inside 27x30)
+            // Card 2: X: Keep, Y: Keep
+            // Keep this card in sync with test_overflow_x_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -497,7 +499,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 3: X: Keep, Y: Ellipsis (hello\nhello inside 27x30)
+            // Card 3: X: Keep, Y: Ellipsis
+            // Keep this card in sync with test_overflow_x_keep_y_ellipsis in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -557,7 +560,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop) (hello\nhello inside 10x30)
+            // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop)
+            // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_drop in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -630,7 +634,8 @@ pub fn draw_label_page(
                 RowLayout { spacing: 20.0 },
             );
 
-            // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep) (hello\nhello inside 10x30)
+            // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep)
+            // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -690,7 +695,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 6: X: Ellipsis, Y: Keep (hello\nhello inside 25x50)
+            // Card 6: X: Ellipsis, Y: Keep
+            // Keep this card in sync with test_overflow_x_ellipsis_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -750,7 +756,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep (hello\nhello inside 10x50)
+            // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep
+            // Keep this card in sync with test_overflow_x_ellipsis_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -810,7 +817,8 @@ pub fn draw_label_page(
                 container.ctx.finish();
             }
 
-            // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep (hello\nhello inside 10x50)
+            // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep
+            // Keep this card in sync with test_overflow_x_ellipsis_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,

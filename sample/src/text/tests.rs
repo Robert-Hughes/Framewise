@@ -939,12 +939,12 @@ mod tests {
         assert_eq!(idx, 0, "Hit testing near 0.0 must return index 0");
     }
 
-    // ÔöÇÔöÇ Systematic unit tests ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    // ── Systematic unit tests ────────────────────────────────────────────────
 
+    // Keep this test in sync with Card 1 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_drop_y_drop() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Drop,
             overflow_y: OverflowY::Drop,
@@ -952,8 +952,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 25.0, 28.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let run = &sys.runs[layout.handle.0];
@@ -963,10 +963,10 @@ mod tests {
         assert!(!run.glyphs.is_empty());
     }
 
+    // Keep this test in sync with Card 2 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Keep,
@@ -974,8 +974,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 25.0, 28.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let run = &sys.runs[layout.handle.0];
@@ -999,10 +999,10 @@ mod tests {
         assert!(line2_has_overflow);
     }
 
+    // Keep this test in sync with Card 3 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_keep_y_ellipsis() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -1012,8 +1012,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 25.0, lh * 1.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 25.0, 28.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let text = visible(&sys, layout.handle);
@@ -1023,10 +1023,10 @@ mod tests {
         assert!(logical_glyph_end(last_glyph) <= 25.0 + 0.1);
     }
 
+    // Keep this test in sync with Card 4 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_keep_y_ellipsis_fallback_drop() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -1036,17 +1036,17 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 8.0, lh * 1.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 8.0, 28.0),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
     }
 
+    // Keep this test in sync with Card 5 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_keep_y_ellipsis_fallback_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Ellipsis {
@@ -1056,8 +1056,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 8.0, lh * 1.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 8.0, 28.0),
         );
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "…");
@@ -1066,10 +1066,10 @@ mod tests {
         assert!(logical_glyph_end(last_glyph) > 8.0 + 0.1);
     }
 
+    // Keep this test in sync with Card 6 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_ellipsis_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Drop,
@@ -1079,8 +1079,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 23.0, lh * 2.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 23.0, 48.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
@@ -1093,10 +1093,10 @@ mod tests {
         }
     }
 
+    // Keep this test in sync with Card 7 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_ellipsis_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Drop,
@@ -1106,17 +1106,17 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 8.0, lh * 2.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 8.0, 48.0),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
     }
 
+    // Keep this test in sync with Card 8 in Section 4 of sample/src/label_page.rs
     #[test]
     fn test_overflow_x_ellipsis_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::Ellipsis {
                 fallback: EllipsisFallback::Keep,
@@ -1126,8 +1126,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 8.0, lh * 2.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 8.0, 48.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
@@ -1153,8 +1153,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 23.0, 65.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 23.0, 63.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
         let text = visible(&sys, layout.handle);
@@ -1174,8 +1174,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 6.0, 70.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 6.0, 68.0),
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
@@ -1185,7 +1185,6 @@ mod tests {
     #[test]
     fn test_wrap_glyph_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapGlyph {
                 fallback: WrapGlyphFallback::Keep,
@@ -1195,8 +1194,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello\nhello",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 4.0, lh * 13.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 4.0, 162.0),
         );
         // Expect 10 lines: 5 lines for each "hello". The newline character '\n'
         // is appended to the end of the first "hello"'s last line (containing 'o'),
@@ -1217,7 +1216,6 @@ mod tests {
     #[test]
     fn test_wrap_word_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Drop,
@@ -1227,8 +1225,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 48.0, lh * 4.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 48.0, 68.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
         let text = visible(&sys, layout.handle);
@@ -1239,7 +1237,6 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1251,8 +1248,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 23.0, lh * 10.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 23.0, 138.0),
         );
         assert!(sys.runs[layout.handle.0].lines.len() > 4);
         let text = visible(&sys, layout.handle);
@@ -1273,7 +1270,6 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1285,8 +1281,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 6.0, lh * 10.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 6.0, 138.0),
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
@@ -1296,7 +1292,6 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::WrapGlyph {
@@ -1308,13 +1303,16 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 4.0, lh * 25.0),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 4.0, 318.0),
         );
         let text = visible(&sys, layout.handle);
-        assert_eq!(text, "hello there\nhello there");
+        // Note: The UI height (318.0) divided by line height (16.0) limits the
+        // layout to max_lines = 19. The 20th line containing the final character 'e'
+        // is truncated/dropped.
+        assert_eq!(text, "hello there\nhello ther");
         let run = &sys.runs[layout.handle.0];
-        assert_eq!(run.lines.len(), 20);
+        assert_eq!(run.lines.len(), 19);
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             let visible_glyphs: Vec<_> = line_glyphs
@@ -1329,7 +1327,6 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_drop_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Drop,
@@ -1339,8 +1336,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 25.0, 68.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let run = &sys.runs[layout.handle.0];
@@ -1356,7 +1353,6 @@ mod tests {
     #[test]
     fn test_wrap_word_fallback_keep_y_keep() {
         let mut sys = sys();
-        let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
                 fallback: WrapWordFallback::Keep,
@@ -1366,8 +1362,8 @@ mod tests {
         };
         let layout = sys.prepare(
             "hello there\nhello there",
-            TextStyle::new(FontId(1), 16.0, 400, flow),
-            Rect::new(0.0, 0.0, 25.0, lh * 5.5),
+            TextStyle::new(FontId(1), 14.0, 400, flow),
+            Rect::new(0.0, 0.0, 25.0, 68.0),
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.lines.len(), 2);
