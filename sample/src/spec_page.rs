@@ -382,6 +382,12 @@ fn button_intrinsic_width<T: TextSystem>(
         .x
 }
 
+#[cfg(feature = "button")]
+fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
+    style.content_placement = framewise::TextContentPlacement::logical(Align::Start, Align::Center);
+    style
+}
+
 // ── Page state ────────────────────────────────────────────────────────────────
 
 /// Top-level state for the spec page.
@@ -1572,10 +1578,10 @@ fn section_01_buttons<CF>(
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
         let row_labels = ["secondary", "primary", "accent", "ghost"];
         let row_styles: &[ButtonStyle] = &[
-            ButtonStyle::secondary_from_theme(&t),
-            ButtonStyle::primary_from_theme(&t),
-            ButtonStyle::accent_from_theme(&t),
-            ButtonStyle::ghost_from_theme(&t),
+            spec_button_text_left(ButtonStyle::secondary_from_theme(&t)),
+            spec_button_text_left(ButtonStyle::primary_from_theme(&t)),
+            spec_button_text_left(ButtonStyle::accent_from_theme(&t)),
+            spec_button_text_left(ButtonStyle::ghost_from_theme(&t)),
         ];
         let label_w = 110.0_f32;
         let col_gap = 18.0_f32;
