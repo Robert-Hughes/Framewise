@@ -1138,6 +1138,14 @@ mod tests {
             let last_g = line_glyphs.last().unwrap();
             assert!(logical_glyph_end(last_g) > 8.0 + 0.1);
         }
+        let y0 = run.glyphs[0].y;
+        let y1 = run.glyphs[1].y;
+        assert!(
+            y1 > y0 + 10.0,
+            "The second line's ellipsis must be positioned below the first: y0={}, y1={}",
+            y0,
+            y1
+        );
     }
 
     // Keep this test in sync with Card 1 in Section 4.1 of sample/src/label_page.rs

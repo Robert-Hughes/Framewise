@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* Recent logical vs. ink layout changes mean that our systematic tests for text wrapping might need tweaking (both in the sample app page and the unit tests)
-
 * Ink alignment for buttons/labels?
   - Add to ButtonStyle and LabelStyle a text alignment - all 9 positions, plus a choice of ink/optical or logical. Share these definitions and logic code. Tests!
 

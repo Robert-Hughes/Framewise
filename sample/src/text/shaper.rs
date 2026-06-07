@@ -793,16 +793,19 @@ impl SampleTextSystem {
             match fallback {
                 EllipsisFallback::Keep => {
                     let mut out = Vec::new();
-                    for g in ell_glyphs {
+                    let dy = line_baseline_y - ell_baseline;
+                    for mut g in ell_glyphs {
                         let rel_start_x = g.x;
                         let rel_end_x = Self::logical_glyph_end(&g);
                         if rel_start_x < w {
+                            g.y += dy;
                             out.push(g);
                             if rel_end_x > w {
                                 break;
                             }
                         } else {
                             if out.is_empty() {
+                                g.y += dy;
                                 out.push(g);
                             }
                             break;
