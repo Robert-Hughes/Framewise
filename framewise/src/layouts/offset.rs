@@ -1,4 +1,6 @@
-use crate::layout::{IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken};
+use crate::layout::{
+    IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SpacerLayoutState,
+};
 use crate::types::{Rect, Vec2};
 
 // ── OffsetLayout ──────────────────────────────────────────────────────────
@@ -75,16 +77,24 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     }
 }
 
+impl<InnerS: SpacerLayoutState> SpacerLayoutState for OffsetState<InnerS> {
+    type SpacerParams = InnerS::SpacerParams;
+
+    fn spacer(&mut self, params: Self::SpacerParams) {
+        self.inner.spacer(params);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layouts::column::ColumnLayout;
+    use crate::layouts::linear::ColumnLayout;
 
     #[test]
     fn test_offset_content_extent_ignores_offset() {
         let offset = OffsetLayout {
             offset: Vec2::new(13.0, 27.0),
-            inner: ColumnLayout { spacing: 0.0 },
+            inner: ColumnLayout,
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let _ = state
@@ -101,7 +111,7 @@ mod tests {
     fn test_offset_layout() {
         let offset = OffsetLayout {
             offset: Vec2::new(5.0, 15.0),
-            inner: ColumnLayout { spacing: 10.0 },
+            inner: ColumnLayout,
         };
         let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);
         let mut state = offset.begin(bounds);
@@ -112,6 +122,8 @@ mod tests {
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
         assert_eq!(r1, Rect::new(5.0, -5.0, 50.0, 20.0));
+
+        state.spacer(10.0);
 
         let r2 = state
             .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
@@ -124,7 +136,7 @@ mod tests {
     fn test_deferred_offset_layout_lifecycle() {
         let offset = OffsetLayout {
             offset: Vec2::new(10.0, 20.0),
-            inner: ColumnLayout { spacing: 5.0 },
+            inner: ColumnLayout,
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
 

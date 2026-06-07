@@ -3,7 +3,7 @@ use framewise::{
     focus::FocusSystem,
     input::Input,
     layout::{Align, Placement, Placement2D},
-    layouts::{ColumnLayout, RowLayout},
+    layouts::linear::{ColumnLayout, RowLayout},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -114,7 +114,7 @@ pub fn draw_frame_page(
     // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
     let mut root_row = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        RowLayout { spacing: 30.0 },
+        RowLayout,
     );
 
     let theme = root_row.theme;
@@ -128,7 +128,7 @@ pub fn draw_frame_page(
     {
         let mut left_col = root_row.child_with_layout(
             Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
-            ColumnLayout { spacing: 20.0 },
+            ColumnLayout,
         );
 
         // Heading: Left Column Title
@@ -140,6 +140,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(30.0),
             },
         );
+        left_col.spacer(20.0);
 
         // Sub-row: Add / Remove Controls
         {
@@ -148,7 +149,7 @@ pub fn draw_frame_page(
                     width: Placement::fill(),
                     height: Placement::fixed(40.0),
                 },
-                RowLayout { spacing: 12.0 },
+                RowLayout,
             );
 
             let add_r = button(
@@ -162,6 +163,7 @@ pub fn draw_frame_page(
             if add_r.input.clicked && state.item_count < 5 {
                 state.item_count += 1;
             }
+            control_row.spacer(12.0);
 
             let rem_r = button(
                 &mut control_row,
@@ -177,6 +179,7 @@ pub fn draw_frame_page(
 
             control_row.finish();
         }
+        left_col.spacer(20.0);
 
         // Subheading: Dynamic Frame
         let label_style = format!("Auto-Sizing Frame (Current Items: {})", state.item_count);
@@ -188,6 +191,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(24.0),
             },
         );
+        left_col.spacer(20.0);
 
         // ── DYNAMIC FRAME ──
         // Sizes height to children, fills width
@@ -201,7 +205,7 @@ pub fn draw_frame_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                ColumnLayout { spacing: 8.0 },
+                ColumnLayout,
             );
 
             if state.item_count == 0 {
@@ -232,11 +236,13 @@ pub fn draw_frame_page(
                     if r.input.clicked {
                         state.dynamic_clicks[i] += 1;
                     }
+                    dynamic_frame.spacer(8.0);
                 }
             }
 
             dynamic_frame.finish();
         }
+        left_col.spacer(20.0);
 
         // Subheading: Axis Sizing Dimensions
         label(
@@ -247,6 +253,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(24.0),
             },
         );
+        left_col.spacer(20.0);
 
         // Row of 4 different Frame Dimension constraints
         {
@@ -255,7 +262,7 @@ pub fn draw_frame_page(
                     width: Placement::fill(),
                     height: Placement::fixed(180.0),
                 },
-                RowLayout { spacing: 16.0 },
+                RowLayout,
             );
 
             // 1. Fixed-Size Frame (200x120)
@@ -264,7 +271,7 @@ pub fn draw_frame_page(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D::fixed(120.0, 120.0),
-                    ColumnLayout { spacing: 4.0 },
+                    ColumnLayout,
                 );
 
                 label(
@@ -275,6 +282,7 @@ pub fn draw_frame_page(
                         height: Placement::fixed(20.0),
                     },
                 );
+                sub_frame.spacer(4.0);
 
                 let text = format!("Cl: {}", state.fixed_clicks);
                 let r = button(
@@ -292,6 +300,7 @@ pub fn draw_frame_page(
 
                 sub_frame.finish();
             }
+            dimensions_row.spacer(16.0);
 
             // 2. Width Auto, Height Fixed (Auto width wraps to child intrinsic text width!)
             {
@@ -302,7 +311,7 @@ pub fn draw_frame_page(
                         width: Placement::auto(),
                         height: Placement::fixed(120.0),
                     },
-                    ColumnLayout { spacing: 4.0 },
+                    ColumnLayout,
                 );
 
                 label(
@@ -313,6 +322,7 @@ pub fn draw_frame_page(
                         height: Placement::fixed(20.0),
                     },
                 );
+                sub_frame.spacer(4.0);
 
                 let text = format!("Auto Width for me! {}", state.width_auto_clicks);
                 let r = button(
@@ -330,6 +340,7 @@ pub fn draw_frame_page(
 
                 sub_frame.finish();
             }
+            dimensions_row.spacer(16.0);
 
             // 3. Width Fixed, Height Auto
             {
@@ -340,7 +351,7 @@ pub fn draw_frame_page(
                         width: Placement::fixed(130.0),
                         height: Placement::auto(),
                     },
-                    ColumnLayout { spacing: 4.0 },
+                    ColumnLayout,
                 );
 
                 label(
@@ -351,6 +362,7 @@ pub fn draw_frame_page(
                         height: Placement::fixed(20.0),
                     },
                 );
+                sub_frame.spacer(4.0);
 
                 let text = format!("Auto H: {}", state.height_auto_clicks);
                 let r = button(
@@ -365,6 +377,7 @@ pub fn draw_frame_page(
                 if r.input.clicked {
                     state.height_auto_clicks += 1;
                 }
+                sub_frame.spacer(4.0);
 
                 button(
                     &mut sub_frame,
@@ -378,6 +391,7 @@ pub fn draw_frame_page(
 
                 sub_frame.finish();
             }
+            dimensions_row.spacer(16.0);
 
             // 4. Fully Auto (Both Width & Height Auto)
             {
@@ -385,7 +399,7 @@ pub fn draw_frame_page(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
                     Placement2D::auto(),
-                    ColumnLayout { spacing: 4.0 },
+                    ColumnLayout,
                 );
 
                 label(
@@ -396,6 +410,7 @@ pub fn draw_frame_page(
                         height: Placement::fixed(20.0),
                     },
                 );
+                sub_frame.spacer(4.0);
 
                 let text = format!("Fully Auto: {}", state.fully_auto_clicks);
                 let r = button(
@@ -420,11 +435,13 @@ pub fn draw_frame_page(
         left_col.finish();
     }
 
+    root_row.spacer(30.0);
+
     // ── Right Column: Nesting & Alignments ────────────────────────────────────
     {
         let mut right_col = root_row.child_with_layout(
             Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
-            ColumnLayout { spacing: 20.0 },
+            ColumnLayout,
         );
 
         // Heading: Right Column Title
@@ -436,6 +453,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(30.0),
             },
         );
+        right_col.spacer(20.0);
 
         // Showcase 1: Symmetrical Nesting Cases (Fixed Panel centered in Fixed Outer)
         label(
@@ -446,6 +464,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(24.0),
             },
         );
+        right_col.spacer(20.0);
 
         // Outer Fixed frame (450x180) containing centered inner fixed frame
         {
@@ -455,7 +474,7 @@ pub fn draw_frame_page(
                 &mut right_col,
                 FrameSpecBuilder::new().style(frame_style),
                 Placement2D::fixed(450.0, 180.0),
-                ColumnLayout { spacing: 8.0 },
+                ColumnLayout,
             );
 
             let text = format!("Outer Fixed Frame (Clicks: {})", state.nested_clicks[0]);
@@ -471,6 +490,7 @@ pub fn draw_frame_page(
             if r.input.clicked {
                 state.nested_clicks[0] += 1;
             }
+            outer_fixed.spacer(8.0);
 
             // Inner Fixed-Width Frame nested inside Fixed outer!
             {
@@ -486,7 +506,7 @@ pub fn draw_frame_page(
                         width: Placement::fixed(350.0).align(Align::Center),
                         height: Placement::auto(),
                     },
-                    RowLayout { spacing: 12.0 },
+                    RowLayout,
                 );
 
                 let text_c = format!("Inner Center (Clicks: {})", state.nested_clicks[1]);
@@ -499,6 +519,7 @@ pub fn draw_frame_page(
                 if r1.input.clicked {
                     state.nested_clicks[1] += 1;
                 }
+                inner_auto.spacer(12.0);
 
                 let text_e = format!("Inner End (Clicks: {})", state.nested_clicks[2]);
                 let r2 = button(
@@ -516,6 +537,7 @@ pub fn draw_frame_page(
 
             outer_fixed.finish();
         }
+        right_col.spacer(20.0);
 
         // Showcase 2: Cross-Axis Alignment Demonstration inside a Fit Frame
         label(
@@ -527,6 +549,7 @@ pub fn draw_frame_page(
                 height: Placement::fixed(24.0),
             },
         );
+        right_col.spacer(20.0);
 
         // Center-aligned column layout inside an auto-height frame
         {
@@ -539,7 +562,7 @@ pub fn draw_frame_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                ColumnLayout { spacing: 10.0 },
+                ColumnLayout,
             );
 
             // Three buttons of varying widths visually demonstrating centered alignment within dynamic frame
@@ -549,6 +572,7 @@ pub fn draw_frame_page(
                 Placement2D::fixed(120.0, 36.0).align_x(Align::Center),
                 &mut state.align_small_btn,
             );
+            fit_centered.spacer(10.0);
 
             button(
                 &mut fit_centered,
@@ -558,6 +582,7 @@ pub fn draw_frame_page(
                 Placement2D::fixed(240.0, 36.0).align_x(Align::Center),
                 &mut state.align_med_btn,
             );
+            fit_centered.spacer(10.0);
 
             button(
                 &mut fit_centered,

@@ -474,16 +474,13 @@ mod tests {
 
         // Place a column at (10,10) sized 200x400 inside the root manual layout,
         // then a row nested at the column's first slot.
-        let mut col = ctx.child_with_layout(
-            Rect::new(10.0, 10.0, 200.0, 400.0),
-            ColumnLayout { spacing: 5.0 },
-        );
-        let mut row =
-            col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout { spacing: 4.0 });
+        let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 200.0, 400.0), ColumnLayout);
+        let mut row = col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout);
 
         // The row sits at the column's origin (10,10); its first child lands there.
         let first = row.layout(Vec2::new(50.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
+        row.spacer(4.0);
         // Second row child advances by width + spacing.
         let second = row.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
@@ -504,7 +501,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout { spacing: 0.0 },
+            ColumnLayout,
             Rect::new(0.0, 0.0, 200.0, 600.0),
             &mut cmds,
         );
@@ -516,7 +513,7 @@ mod tests {
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                ColumnLayout { spacing: 0.0 },
+                ColumnLayout,
             );
             // Two stacked rows of height 30 → inner content height = 60.
             inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
@@ -545,7 +542,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            RowLayout { spacing: 0.0 },
+            RowLayout,
             Rect::new(0.0, 0.0, 600.0, 200.0),
             &mut cmds,
         );
@@ -557,7 +554,7 @@ mod tests {
                     width: Placement::auto(),
                     height: Placement::fixed(30.0),
                 },
-                ColumnLayout { spacing: 0.0 },
+                ColumnLayout,
             );
             // A single 50-wide row → inner content width = 50.
             inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
@@ -585,16 +582,13 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout { spacing: 0.0 },
+            ColumnLayout,
             Rect::new(0.0, 0.0, 200.0, 600.0),
             &mut cmds,
         );
 
         {
-            let mut inner = ctx.child_with_layout(
-                Placement2D::fixed(80.0, 50.0),
-                ColumnLayout { spacing: 0.0 },
-            );
+            let mut inner = ctx.child_with_layout(Placement2D::fixed(80.0, 50.0), ColumnLayout);
             // Overflowing content: two 100px rows = 200px, far taller than the 50px slot.
             inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
             inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
@@ -618,7 +612,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout { spacing: 0.0 },
+            ColumnLayout,
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(100.0)),
             &mut cmds,
         );
@@ -673,7 +667,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout { spacing: 0.0 },
+            ColumnLayout,
             // AtMost width → a Fixed+Center child can't be centered at begin_layout.
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0)),
             &mut cmds,
@@ -686,7 +680,7 @@ mod tests {
                 width: Placement::fixed(40.0).align(Align::Center),
                 height: Placement::fixed(20.0),
             };
-            let child = ctx.child_with_layout(placement, ColumnLayout { spacing: 0.0 });
+            let child = ctx.child_with_layout(placement, ColumnLayout);
             child.finish();
         }
         ctx.finish();

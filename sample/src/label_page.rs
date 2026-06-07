@@ -3,7 +3,7 @@ use framewise::{
     focus::FocusSystem,
     input::Input,
     layout::{Placement, Placement2D},
-    layouts::{ColumnLayout, RowLayout},
+    layouts::linear::{ColumnLayout, RowLayout},
     text::{
         EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapGlyphFallback,
         WrapWordFallback,
@@ -43,7 +43,7 @@ pub fn draw_label_page(
         #[cfg(feature = "scroll_area")]
         framewise::layouts::ManualLayout,
         #[cfg(not(feature = "scroll_area"))]
-        ColumnLayout { spacing: 28.0 },
+        ColumnLayout,
         #[cfg(feature = "scroll_area")]
         Rect::new(0.0, 0.0, win_w, win_h),
         #[cfg(not(feature = "scroll_area"))]
@@ -63,7 +63,7 @@ pub fn draw_label_page(
             ),
             Rect::new(0.0, 0.0, win_w, win_h),
             &mut _state.scroll,
-            ColumnLayout { spacing: 28.0 },
+            ColumnLayout,
         );
     #[cfg(not(feature = "scroll_area"))]
     let mut ctx = root_ctx;
@@ -99,6 +99,7 @@ pub fn draw_label_page(
             .style(title_style),
         Placement2D::auto(),
     );
+    ctx.spacer(28.0);
 
     // Section 1: Font Families and Sizes
     {
@@ -126,13 +127,12 @@ pub fn draw_label_page(
                 width: Placement::fill(),
                 height: Placement::auto(),
             },
-            RowLayout { spacing: 40.0 },
+            RowLayout,
         );
 
         // Sans Column
         {
-            let mut col =
-                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 12.0 });
+            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
             label(
                 &mut col,
                 LabelSpecBuilder::new()
@@ -175,16 +175,15 @@ pub fn draw_label_page(
                     }),
                     Placement2D::auto(),
                 );
+                col.spacer(12.0);
             }
             col.finish();
         }
+        row.spacer(40.0);
 
         // Mono Column
         {
-            let mut col = row.child_with_layout(
-                Placement2D::fixed(350.0, 260.0),
-                ColumnLayout { spacing: 12.0 },
-            );
+            let mut col = row.child_with_layout(Placement2D::fixed(350.0, 260.0), ColumnLayout);
             label(
                 &mut col,
                 LabelSpecBuilder::new()
@@ -227,12 +226,14 @@ pub fn draw_label_page(
                     }),
                     Placement2D::auto(),
                 );
+                col.spacer(12.0);
             }
             col.finish();
         }
 
         row.finish();
     }
+    ctx.spacer(28.0);
 
     // Section 2: Colors and Underline Rules
     {
@@ -260,13 +261,12 @@ pub fn draw_label_page(
                 width: Placement::fill(),
                 height: Placement::auto(),
             },
-            RowLayout { spacing: 30.0 },
+            RowLayout,
         );
 
         // Color Showcase Column
         {
-            let mut col =
-                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 10.0 });
+            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
             let colors = [
                 ("Default Ink Color", theme.ink),
                 ("Accent Rust Color", theme.rust),
@@ -296,14 +296,15 @@ pub fn draw_label_page(
                     }),
                     Placement2D::auto(),
                 );
+                col.spacer(10.0);
             }
             col.finish();
         }
+        row.spacer(30.0);
 
         // Rule Showcase Column
         {
-            let mut col =
-                row.child_with_layout(Placement2D::auto(), ColumnLayout { spacing: 18.0 });
+            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
 
             let rule_styles = [
                 ("Underlined Heading", theme.ink, theme.line),
@@ -332,12 +333,15 @@ pub fn draw_label_page(
                     }),
                     Placement2D::auto(),
                 );
+                col.spacer(18.0);
             }
             col.finish();
         }
 
         row.finish();
     }
+    ctx.spacer(28.0);
+
     // Section 4: Overflow (non-wrapping)
     {
         let section_header = LabelStyle {
@@ -378,7 +382,7 @@ pub fn draw_label_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                RowLayout { spacing: 20.0 },
+                RowLayout,
             );
 
             // Card 1: X: Drop, Y: Drop
@@ -388,7 +392,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -405,12 +409,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(25.0, 28.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -439,6 +444,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 2: X: Keep, Y: Keep
             // Keep this card in sync with test_overflow_x_keep_y_keep in sample/src/text/tests.rs
@@ -447,7 +453,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -464,12 +470,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(25.0, 28.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -498,6 +505,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 3: X: Keep, Y: Ellipsis
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis in sample/src/text/tests.rs
@@ -506,7 +514,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -523,12 +531,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(25.0, 28.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -559,6 +568,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 4: X: Keep, Y: Ellipsis (Fallback: Drop)
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_drop in sample/src/text/tests.rs
@@ -567,7 +577,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -584,12 +594,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(8.0, 28.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -631,7 +642,7 @@ pub fn draw_label_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                RowLayout { spacing: 20.0 },
+                RowLayout,
             );
 
             // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep)
@@ -641,7 +652,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -658,12 +669,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(8.0, 28.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -694,6 +706,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 6: X: Ellipsis, Y: Keep
             // Keep this card in sync with test_overflow_x_ellipsis_y_keep in sample/src/text/tests.rs
@@ -702,7 +715,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -719,12 +732,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(23.0, 48.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -755,6 +769,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 7: X: Ellipsis (Fallback: Drop), Y: Keep
             // Keep this card in sync with test_overflow_x_ellipsis_fallback_drop_y_keep in sample/src/text/tests.rs
@@ -763,7 +778,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -780,12 +795,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(8.0, 48.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -816,6 +832,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 8: X: Ellipsis (Fallback: Keep), Y: Keep
             // Keep this card in sync with test_overflow_x_ellipsis_fallback_keep_y_keep in sample/src/text/tests.rs
@@ -824,7 +841,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -841,12 +858,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(8.0, 48.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -881,6 +899,7 @@ pub fn draw_label_page(
             row.finish();
         }
     }
+    ctx.spacer(28.0);
 
     // Section 4.1: Overflow (wrapping)
     {
@@ -923,7 +942,7 @@ pub fn draw_label_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                RowLayout { spacing: 20.0 },
+                RowLayout,
             );
 
             // Card 1: X: WrapGlyph, Y: Keep
@@ -933,7 +952,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -950,12 +969,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(23.0, 63.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -986,6 +1006,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 2: X: WrapGlyph (F: Drop), Y: Keep
             // Keep this card in sync with test_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
@@ -994,7 +1015,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1011,12 +1032,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(6.0, 68.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1047,6 +1069,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 3: X: WrapGlyph (F: Keep), Y: Keep
             // Keep this card in sync with test_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
@@ -1055,7 +1078,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 220.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1072,12 +1095,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(4.0, 162.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1125,7 +1149,7 @@ pub fn draw_label_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                RowLayout { spacing: 20.0 },
+                RowLayout,
             );
 
             // Card 4: X: WrapWord, Y: Keep
@@ -1135,7 +1159,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1152,12 +1176,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(48.0, 68.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1188,6 +1213,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 5: X: WrapWord (F: WrapGlyph), Y: Keep
             // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_y_keep in sample/src/text/tests.rs
@@ -1196,7 +1222,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 200.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1213,12 +1239,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(23.0, 138.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1251,6 +1278,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 6: X: WrapWord (F: WrapGlyph F: Drop), Y: Keep
             // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
@@ -1259,7 +1287,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 200.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1276,12 +1304,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(6.0, 138.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1325,7 +1354,7 @@ pub fn draw_label_page(
                     width: Placement::fill(),
                     height: Placement::auto(),
                 },
-                RowLayout { spacing: 20.0 },
+                RowLayout,
             );
 
             // Card 7: X: WrapWord (F: WrapGlyph F: Keep), Y: Keep
@@ -1335,7 +1364,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 380.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1352,12 +1381,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(4.0, 318.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1390,6 +1420,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 8: X: WrapWord (F: Drop), Y: Keep
             // Keep this card in sync with test_wrap_word_fallback_drop_y_keep in sample/src/text/tests.rs
@@ -1398,7 +1429,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1415,12 +1446,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(25.0, 68.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1451,6 +1483,7 @@ pub fn draw_label_page(
                 }
                 container.ctx.finish();
             }
+            row.spacer(20.0);
 
             // Card 9: X: WrapWord (F: Keep), Y: Keep
             // Keep this card in sync with test_wrap_word_fallback_keep_y_keep in sample/src/text/tests.rs
@@ -1459,7 +1492,7 @@ pub fn draw_label_page(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
                     Placement2D::fixed(230.0, 140.0),
-                    ColumnLayout { spacing: 8.0 },
+                    ColumnLayout,
                 );
                 label(
                     &mut container.ctx,
@@ -1476,12 +1509,13 @@ pub fn draw_label_page(
                         }),
                     Placement2D::auto(),
                 );
+                container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
                         Placement2D::fixed(25.0, 68.0),
-                        ColumnLayout { spacing: 0.0 },
+                        ColumnLayout,
                     );
                     label(
                         &mut clip_box.ctx,
@@ -1516,6 +1550,7 @@ pub fn draw_label_page(
             row.finish();
         }
     }
+    ctx.spacer(28.0);
 
     // Section 5: Internal Text Alignment
     {
@@ -1543,7 +1578,7 @@ pub fn draw_label_page(
                 width: Placement::fill(),
                 height: Placement::auto(),
             },
-            RowLayout { spacing: 20.0 },
+            RowLayout,
         );
 
         let alignments = [
@@ -1557,7 +1592,7 @@ pub fn draw_label_page(
                 &mut row,
                 FrameSpecBuilder::new().style(box_style),
                 Placement2D::fixed(230.0, 80.0),
-                ColumnLayout { spacing: 6.0 },
+                ColumnLayout,
             );
 
             label(
@@ -1581,6 +1616,7 @@ pub fn draw_label_page(
                     }),
                 Placement2D::auto(),
             );
+            container.ctx.spacer(6.0);
 
             label(
                 &mut container.ctx,

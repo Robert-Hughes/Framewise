@@ -167,7 +167,7 @@ pub fn draw_scroll_demo(
     {
         let mut main_row = {
             let layout_params = Rect::new(10.0, 10.0, win_w - 20.0, win_h - 20.0);
-            let layout = framewise::layouts::RowLayout { spacing: 10.0 };
+            let layout = framewise::layouts::RowLayout;
             ctx.child_with_layout(layout_params, layout)
         };
 
@@ -175,7 +175,7 @@ pub fn draw_scroll_demo(
         {
             let mut sidebar_col = {
                 let layout_params = Placement2D::fixed(200.0, win_h - 20.0);
-                let layout = framewise::layouts::ColumnLayout { spacing: 10.0 };
+                let layout = framewise::layouts::ColumnLayout;
                 main_row.child_with_layout(layout_params, layout)
             };
             let mut button_style =
@@ -197,7 +197,7 @@ pub fn draw_scroll_demo(
                     }),
                 Placement2D::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
-                framewise::layouts::ColumnLayout { spacing: 8.0 },
+                framewise::layouts::ColumnLayout,
             )
             .ctx;
 
@@ -216,11 +216,14 @@ pub fn draw_scroll_demo(
                 if clicked {
                     state.sidebar_btns[i].clicks += 1;
                 }
+                sidebar_scroll.spacer(8.0);
             }
             sidebar_scroll.finish();
 
             sidebar_col.finish()
         };
+
+        main_row.spacer(10.0);
 
         // -- MAIN CONTENT (Right Column) --
         {
@@ -234,7 +237,7 @@ pub fn draw_scroll_demo(
                 ),
                 Placement2D::fixed(win_w - 240.0, win_h - 20.0),
                 &mut state.right_panel_scroll,
-                framewise::layouts::ColumnLayout { spacing: 15.0 },
+                framewise::layouts::ColumnLayout,
             )
             .ctx;
             let inner_w = win_w - 240.0 - 15.0;
@@ -243,7 +246,7 @@ pub fn draw_scroll_demo(
             {
                 let mut header_row = {
                     let layout_params = Placement2D::fixed(inner_w, 40.0);
-                    let layout = framewise::layouts::RowLayout { spacing: 10.0 };
+                    let layout = framewise::layouts::RowLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style =
@@ -262,6 +265,8 @@ pub fn draw_scroll_demo(
                     button(&mut header_row, spec_builder, layout_params, btn_state)
                 };
 
+                header_row.spacer(10.0);
+
                 let _btn2 = {
                     let btn_state = &mut state.top_btn2.state;
                     let layout_params = Placement2D::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
@@ -273,11 +278,13 @@ pub fn draw_scroll_demo(
                 header_row.finish()
             };
 
+            content_col.spacer(15.0);
+
             // Nested Grid Area (4 Rows of 4 Buttons)
             {
                 let mut grid_col = {
                     let layout_params = Placement2D::fixed(inner_w, 200.0);
-                    let layout = framewise::layouts::ColumnLayout { spacing: 10.0 };
+                    let layout = framewise::layouts::ColumnLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
                 let mut button_style =
@@ -290,7 +297,7 @@ pub fn draw_scroll_demo(
                     {
                         let mut grid_row = {
                             let layout_params = Placement2D::fixed(inner_w, 32.0);
-                            let layout = framewise::layouts::RowLayout { spacing: 10.0 };
+                            let layout = framewise::layouts::RowLayout;
                             grid_col.child_with_layout(layout_params, layout)
                         };
                         for col in 0..4 {
@@ -306,18 +313,22 @@ pub fn draw_scroll_demo(
                                     ButtonSpecBuilder::new().text(&text).style(button_style);
                                 button(&mut grid_row, spec_builder, layout_params, btn_state)
                             };
+                            grid_row.spacer(10.0);
                         }
                         grid_row.finish()
                     };
+                    grid_col.spacer(10.0);
                 }
                 grid_col.finish()
             };
+
+            content_col.spacer(15.0);
 
             // Standalone Slider Demo
             {
                 let mut slider_row = {
                     let layout_params = Placement2D::fixed(inner_w, 100.0);
-                    let layout = framewise::layouts::RowLayout { spacing: 20.0 };
+                    let layout = framewise::layouts::RowLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
 
@@ -346,7 +357,7 @@ pub fn draw_scroll_demo(
                 ),
                 Placement2D::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
-                framewise::layouts::ColumnLayout { spacing: 10.0 },
+                framewise::layouts::ColumnLayout,
             )
             .ctx;
             let mut button_style =
@@ -370,8 +381,11 @@ pub fn draw_scroll_demo(
                 if clicked {
                     state.main_btns[i].clicks += 1;
                 }
+                main_scroll.spacer(10.0);
             }
             main_scroll.finish();
+
+            content_col.spacer(15.0);
 
             // Nested Scroll Area Demo
             let row_h = 160.0;
@@ -388,7 +402,7 @@ pub fn draw_scroll_demo(
                     }),
                 Placement2D::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
-                framewise::layouts::ColumnLayout { spacing: 10.0 },
+                framewise::layouts::ColumnLayout,
             )
             .ctx;
 
@@ -397,7 +411,7 @@ pub fn draw_scroll_demo(
 
                 let mut row_builder = {
                     let layout_params = Placement2D::fixed(800.0, row_h);
-                    let layout = framewise::layouts::RowLayout { spacing: 10.0 };
+                    let layout = framewise::layouts::RowLayout;
                     outer_scroll.child_with_layout(layout_params, layout)
                 };
                 let (base_r, base_g, base_b) = match i {
@@ -428,6 +442,8 @@ pub fn draw_scroll_demo(
                     row_state.btn1.clicks += 1;
                 }
 
+                row_builder.spacer(10.0);
+
                 // 1. Vertical Inner scroll area
                 let mut inner_scroll = begin_scroll_area(
                     &mut row_builder,
@@ -439,7 +455,7 @@ pub fn draw_scroll_demo(
                     ),
                     Placement2D::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
-                    framewise::layouts::ColumnLayout { spacing: 8.0 },
+                    framewise::layouts::ColumnLayout,
                 )
                 .ctx;
 
@@ -458,8 +474,11 @@ pub fn draw_scroll_demo(
                     if clicked {
                         row_state.inner_btns[j].clicks += 1;
                     }
+                    inner_scroll.spacer(8.0);
                 }
                 inner_scroll.finish();
+
+                row_builder.spacer(10.0);
 
                 // 2. Horizontal Inner scroll area
                 let mut horiz_scroll = begin_scroll_area(
@@ -475,7 +494,7 @@ pub fn draw_scroll_demo(
                         }),
                     Placement2D::fixed(180.0, row_h),
                     &mut row_state.horiz_scroll,
-                    framewise::layouts::RowLayout { spacing: 8.0 },
+                    framewise::layouts::RowLayout,
                 )
                 .ctx;
 
@@ -498,8 +517,11 @@ pub fn draw_scroll_demo(
                     if clicked {
                         row_state.horiz_btns[j].clicks += 1;
                     }
+                    horiz_scroll.spacer(8.0);
                 }
                 horiz_scroll.finish();
+
+                row_builder.spacer(10.0);
 
                 // 3. Both directions Inner scroll area
                 let mut both_scroll = begin_scroll_area(
@@ -544,6 +566,8 @@ pub fn draw_scroll_demo(
                 }
                 both_scroll.finish();
 
+                row_builder.spacer(10.0);
+
                 // Standalone vertical slider
                 {
                     let slider_state: &mut SliderState = &mut row_state.slider_state;
@@ -556,6 +580,8 @@ pub fn draw_scroll_demo(
                     slider(&mut row_builder, spec_builder, layout_params, slider_state);
                 };
 
+                row_builder.spacer(10.0);
+
                 // Standalone horizontal slider
                 {
                     let slider_state: &mut SliderState = &mut row_state.horiz_slider_state;
@@ -566,6 +592,7 @@ pub fn draw_scroll_demo(
                 };
 
                 row_builder.finish();
+                outer_scroll.spacer(10.0);
             }
             outer_scroll.finish();
 
@@ -583,7 +610,7 @@ pub fn draw_scroll_demo(
                     }),
                 Placement2D::fixed(inner_w, 150.0),
                 &mut state.double_horiz_outer_scroll,
-                framewise::layouts::RowLayout { spacing: 20.0 },
+                framewise::layouts::RowLayout,
             )
             .ctx;
 
@@ -593,6 +620,8 @@ pub fn draw_scroll_demo(
                 Placement2D::fixed(100.0, 100.0),
                 &mut framewise::widgets::button::ButtonState::default(),
             );
+
+            d_outer_scroll.spacer(20.0);
 
             let mut d_inner_scroll = begin_scroll_area(
                 &mut d_outer_scroll,
@@ -607,7 +636,7 @@ pub fn draw_scroll_demo(
                     }),
                 Placement2D::fixed(600.0, 120.0),
                 &mut state.double_horiz_inner_scroll,
-                framewise::layouts::RowLayout { spacing: 8.0 },
+                framewise::layouts::RowLayout,
             )
             .ctx;
 
@@ -619,8 +648,11 @@ pub fn draw_scroll_demo(
                     let spec_builder = ButtonSpecBuilder::new().text(&text);
                     button(&mut d_inner_scroll, spec_builder, layout_params, btn_state)
                 };
+                d_inner_scroll.spacer(8.0);
             }
             d_inner_scroll.finish();
+
+            d_outer_scroll.spacer(20.0);
 
             button(
                 &mut d_outer_scroll,
@@ -630,6 +662,8 @@ pub fn draw_scroll_demo(
             );
 
             d_outer_scroll.finish();
+
+            content_col.spacer(15.0);
 
             // AtMost extent demo (Phase 5): vertical AtMost(Viewport) + Auto vis.
             // The content shrink-wraps and is capped at the viewport; because it
@@ -651,7 +685,7 @@ pub fn draw_scroll_demo(
                     ),
                     Placement2D::fixed(inner_w.min(440.0), 160.0),
                     &mut state.atmost_scroll,
-                    framewise::layouts::ColumnLayout { spacing: 6.0 },
+                    framewise::layouts::ColumnLayout,
                 )
                 .ctx;
                 for j in 0..3 {
@@ -663,6 +697,7 @@ pub fn draw_scroll_demo(
                         Placement2D::fixed(260.0, 30.0),
                         btn_state,
                     );
+                    atmost.spacer(6.0);
                 }
                 atmost.finish();
             }
@@ -767,7 +802,7 @@ pub fn draw_scroll_demo(
                     ),
                     Placement2D::fixed(inner_w, 220.0),
                     &mut state.triple_outer_scroll,
-                    framewise::layouts::ColumnLayout { spacing: 10.0 },
+                    framewise::layouts::ColumnLayout,
                 )
                 .ctx;
 
@@ -784,7 +819,7 @@ pub fn draw_scroll_demo(
                         }),
                     Placement2D::fixed(inner_w - 15.0, 160.0),
                     &mut state.triple_middle_scroll,
-                    framewise::layouts::RowLayout { spacing: 10.0 },
+                    framewise::layouts::RowLayout,
                 )
                 .ctx;
 
@@ -798,7 +833,7 @@ pub fn draw_scroll_demo(
                     ),
                     Placement2D::fixed(200.0, 130.0),
                     &mut state.triple_inner_scroll,
-                    framewise::layouts::ColumnLayout { spacing: 6.0 },
+                    framewise::layouts::ColumnLayout,
                 )
                 .ctx;
 
@@ -823,6 +858,7 @@ pub fn draw_scroll_demo(
                     if clicked {
                         state.triple_inner_btns[j].clicks += 1;
                     }
+                    inner_scroll.spacer(6.0);
                 }
 
                 let mut innermost_scroll = begin_scroll_area(
@@ -838,7 +874,7 @@ pub fn draw_scroll_demo(
                         }),
                     Placement2D::fixed(165.0, 50.0),
                     &mut state.triple_innermost_scroll,
-                    framewise::layouts::RowLayout { spacing: 6.0 },
+                    framewise::layouts::RowLayout,
                 )
                 .ctx;
                 for k in 0..5 {
@@ -866,10 +902,13 @@ pub fn draw_scroll_demo(
                     if clicked {
                         state.triple_innermost_btns[k].clicks += 1;
                     }
+                    innermost_scroll.spacer(6.0);
                 }
                 innermost_scroll.finish();
 
                 inner_scroll.finish();
+
+                middle_scroll.spacer(10.0);
 
                 {
                     let slider_state: &mut SliderState = &mut state.triple_inner_slider_state;

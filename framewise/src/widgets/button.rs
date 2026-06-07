@@ -1506,10 +1506,7 @@ mod tests {
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        let mut col = ctx.child_with_layout(
-            Rect::new(10.0, 10.0, 300.0, 400.0),
-            ColumnLayout { spacing: 0.0 },
-        );
+        let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 300.0, 400.0), ColumnLayout);
         let mut st = ButtonState::default();
         // Auto on both axes → the button sizes to its label intrinsic.
         // "Save" = 4*8 = 32 wide; width = 32 + 28 = 60; height = 28.

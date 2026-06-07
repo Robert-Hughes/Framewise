@@ -3,7 +3,10 @@ use framewise::{
     focus::FocusSystem,
     input::Input,
     layout::{Align, Placement, Placement2D},
-    layouts::{ColumnLayout, RowLayout, WrapLayout},
+    layouts::{
+        linear::{ColumnLayout, RowLayout},
+        WrapLayout,
+    },
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
@@ -66,7 +69,7 @@ pub fn draw_button_page(
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        ColumnLayout { spacing: 24.0 },
+        ColumnLayout,
     );
 
     let theme = outer.theme;
@@ -78,10 +81,7 @@ pub fn draw_button_page(
     // ── Section 1: Toolbar row — one button per style ─────────────────────────
     // Nesting: root col > row
     {
-        let mut row = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-            RowLayout { spacing: 10.0 },
-        );
+        let mut row = outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout);
 
         let styles = [primary, secondary, accent, ghost];
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
@@ -95,24 +95,21 @@ pub fn draw_button_page(
             if r.input.clicked {
                 state.toolbar_clicks[i] += 1;
             }
+            row.spacer(10.0);
         }
         row.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 2: Style showcase — two side-by-side columns ──────────────────
     // Nesting: root col > row > [col, col]
     // Left col: primary + secondary; right col: accent + ghost; each with disabled variant
     {
-        let mut row = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 200.0).into(),
-            RowLayout { spacing: 30.0 },
-        );
+        let mut row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 200.0).into(), RowLayout);
 
         {
-            let mut col = row.child_with_layout(
-                Vec2::new(260.0, 200.0).into(),
-                ColumnLayout { spacing: 8.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout);
 
             let entries = [
                 ("Primary", primary, false),
@@ -130,15 +127,14 @@ pub fn draw_button_page(
                     Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[i],
                 );
+                col.spacer(8.0);
             }
             col.finish();
         }
+        row.spacer(30.0);
 
         {
-            let mut col = row.child_with_layout(
-                Vec2::new(260.0, 200.0).into(),
-                ColumnLayout { spacing: 8.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(260.0, 200.0).into(), ColumnLayout);
 
             let entries = [
                 ("Accent", accent, false),
@@ -156,38 +152,35 @@ pub fn draw_button_page(
                     Vec2::new(240.0, 44.0).into(),
                     &mut state.style_btns[4 + i],
                 );
+                col.spacer(8.0);
             }
             col.finish();
         }
 
         row.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 3: Counter — 4-level nesting ──────────────────────────────────
     // root col > outer_row > col > inner_row
     // Outer row: [label btn | control column]
     // Control column: [dec/display/inc row | reset btn]
     {
-        let mut outer_row = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            RowLayout { spacing: 10.0 },
-        );
+        let mut outer_row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), RowLayout);
 
         label(
             &mut outer_row,
             LabelSpecBuilder::new().text("Counter"),
             Vec2::new(100.0, 96.0).into(),
         );
+        outer_row.spacer(10.0);
 
         {
-            let mut col = outer_row.child_with_layout(
-                Vec2::new(420.0, 96.0).into(),
-                ColumnLayout { spacing: 12.0 },
-            );
+            let mut col = outer_row.child_with_layout(Vec2::new(420.0, 96.0).into(), ColumnLayout);
 
             {
-                let mut inner_row = col
-                    .child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout { spacing: 12.0 });
+                let mut inner_row = col.child_with_layout(Vec2::new(420.0, 48.0).into(), RowLayout);
 
                 let r = button(
                     &mut inner_row,
@@ -198,6 +191,7 @@ pub fn draw_button_page(
                 if r.input.clicked {
                     state.counter -= 1;
                 }
+                inner_row.spacer(12.0);
 
                 let count_text = state.counter.to_string();
                 label(
@@ -205,6 +199,7 @@ pub fn draw_button_page(
                     LabelSpecBuilder::new().text(&count_text),
                     Vec2::new(120.0, 48.0).into(),
                 );
+                inner_row.spacer(12.0);
 
                 let r = button(
                     &mut inner_row,
@@ -218,6 +213,7 @@ pub fn draw_button_page(
 
                 inner_row.finish();
             }
+            col.spacer(12.0);
 
             let r = button(
                 &mut col,
@@ -234,14 +230,13 @@ pub fn draw_button_page(
 
         outer_row.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 4: Action grid — row containing three styled columns ──────────
     // Nesting: root col > row > [col, col, col]
     {
-        let mut row = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 124.0).into(),
-            RowLayout { spacing: 20.0 },
-        );
+        let mut row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 124.0).into(), RowLayout);
 
         let group_labels = [
             ["Save", "Save As", "Export"],
@@ -252,10 +247,7 @@ pub fn draw_button_page(
 
         #[allow(clippy::needless_range_loop)]
         for g in 0..3 {
-            let mut col = row.child_with_layout(
-                Vec2::new(180.0, 124.0).into(),
-                ColumnLayout { spacing: 8.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(180.0, 124.0).into(), ColumnLayout);
 
             for j in 0..3 {
                 let idx = g * 3 + j;
@@ -270,28 +262,27 @@ pub fn draw_button_page(
                 if r.input.clicked {
                     state.grid_clicks[idx] += 1;
                 }
+                col.spacer(8.0);
             }
             col.finish();
+            row.spacer(20.0);
         }
 
         row.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 5: Intrinsic sizing ───────────────────────────────────────────
     // Auto-width buttons (each hugs its own label) in a row, then a fill-width
     // button in a column — sized by the layout from the button's intrinsic size,
     // no explicit widths.
     {
-        let mut col = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 96.0).into(),
-            ColumnLayout { spacing: 12.0 },
-        );
+        let mut col =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 96.0).into(), ColumnLayout);
 
         {
-            let mut row = col.child_with_layout(
-                Vec2::new(win_w - 2.0 * pad, 40.0).into(),
-                RowLayout { spacing: 10.0 },
-            );
+            let mut row =
+                col.child_with_layout(Vec2::new(win_w - 2.0 * pad, 40.0).into(), RowLayout);
 
             // Each button's width comes from its label; height is fixed.
             let auto = Placement2D {
@@ -306,9 +297,11 @@ pub fn draw_button_page(
                     auto,
                     &mut state.intrinsic_btns[i],
                 );
+                row.spacer(10.0);
             }
             row.finish();
         }
+        col.spacer(12.0);
 
         // A button that fills the column's full width, intrinsic height.
         let fill = Placement2D {
@@ -326,6 +319,7 @@ pub fn draw_button_page(
 
         col.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 6: Wrapping flow ──────────────────────────────────────────────
     // Auto-width buttons flowed left-to-right, wrapping onto the next line when
@@ -363,22 +357,18 @@ pub fn draw_button_page(
         }
         wrap.finish();
     }
+    outer.spacer(24.0);
 
     // ── Section 7: Alignment Showcase ──────────────────────────────────────────
     // Stacks centered and end-aligned columns and rows side-by-side to verify
     // cross-axis alignment math under Exact bounds.
     {
-        let mut row = outer.child_with_layout(
-            Vec2::new(win_w - 2.0 * pad, 180.0).into(),
-            RowLayout { spacing: 20.0 },
-        );
+        let mut row =
+            outer.child_with_layout(Vec2::new(win_w - 2.0 * pad, 180.0).into(), RowLayout);
 
         // Sub-column 1: Centered column (Exact width 200, contains 3 different width buttons)
         {
-            let mut col = row.child_with_layout(
-                Vec2::new(200.0, 180.0).into(),
-                ColumnLayout { spacing: 8.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(200.0, 180.0).into(), ColumnLayout);
 
             button(
                 &mut col,
@@ -386,12 +376,14 @@ pub fn draw_button_page(
                 Placement2D::fixed(80.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[0],
             );
+            col.spacer(8.0);
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Center Med").style(secondary),
                 Placement2D::fixed(140.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[1],
             );
+            col.spacer(8.0);
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("Center Lrg").style(primary),
@@ -401,13 +393,11 @@ pub fn draw_button_page(
 
             col.finish();
         }
+        row.spacer(20.0);
 
         // Sub-column 2: End-aligned column (Exact width 200, contains 3 different width buttons)
         {
-            let mut col = row.child_with_layout(
-                Vec2::new(200.0, 180.0).into(),
-                ColumnLayout { spacing: 8.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(200.0, 180.0).into(), ColumnLayout);
 
             button(
                 &mut col,
@@ -415,12 +405,14 @@ pub fn draw_button_page(
                 Placement2D::fixed(80.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[3],
             );
+            col.spacer(8.0);
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("End Med").style(secondary),
                 Placement2D::fixed(140.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[4],
             );
+            col.spacer(8.0);
             button(
                 &mut col,
                 ButtonSpecBuilder::new().text("End Lrg").style(primary),
@@ -430,25 +422,23 @@ pub fn draw_button_page(
 
             col.finish();
         }
+        row.spacer(20.0);
 
         // Sub-column 3: Row alignment demonstration (Vertical alignment)
         // Stacks centered and end-aligned rows nested in a Start-aligned column.
         {
-            let mut col = row.child_with_layout(
-                Vec2::new(300.0, 180.0).into(),
-                ColumnLayout { spacing: 12.0 },
-            );
+            let mut col = row.child_with_layout(Vec2::new(300.0, 180.0).into(), ColumnLayout);
 
             // Centered Row (Exact height 60)
             {
-                let mut inner_row = col
-                    .child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout { spacing: 8.0 });
+                let mut inner_row = col.child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout);
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row C1").style(primary),
                     Placement2D::fixed(80.0, 30.0).align_y(Align::Center),
                     &mut state.align_btns[6],
                 );
+                inner_row.spacer(8.0);
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row C2").style(secondary),
@@ -457,17 +447,18 @@ pub fn draw_button_page(
                 );
                 inner_row.finish();
             }
+            col.spacer(12.0);
 
             // End-Aligned Row (Exact height 60)
             {
-                let mut inner_row = col
-                    .child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout { spacing: 8.0 });
+                let mut inner_row = col.child_with_layout(Vec2::new(300.0, 60.0).into(), RowLayout);
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row E1").style(primary),
                     Placement2D::fixed(80.0, 30.0).align_y(Align::End),
                     &mut state.align_btns[8],
                 );
+                inner_row.spacer(8.0);
                 button(
                     &mut inner_row,
                     ButtonSpecBuilder::new().text("Row E2").style(secondary),

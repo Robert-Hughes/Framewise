@@ -1073,7 +1073,7 @@ fn sec_y<CF>(
     title: &str,
     detail_text: &str,
 ) {
-    b.layout(Placement2D::fixed(0.0, 80.0), IntrinsicSize::UNKNOWN); // Spacer
+    b.spacer(112.0); // 16.0 + 80.0 + 16.0
     {
         let mut b = b.child_with_layout(
             Placement2D {
@@ -1083,7 +1083,7 @@ fn sec_y<CF>(
                     align: Align::Start,
                 },
             },
-            RowLayout { spacing: 16.0 },
+            RowLayout,
         );
         {
             let color = t.muted;
@@ -1099,6 +1099,7 @@ fn sec_y<CF>(
             });
             label(&mut b, spec_builder, Placement2D::auto())
         };
+        b.spacer(16.0);
         {
             let color = t.ink;
             let font = t.sans_font;
@@ -1114,6 +1115,7 @@ fn sec_y<CF>(
             });
             label(&mut b, spec_builder, Placement2D::auto())
         };
+        b.spacer(16.0);
         {
             let mut b = b.child_with_layout(
                 Placement2D {
@@ -1123,7 +1125,7 @@ fn sec_y<CF>(
                         align: Align::Start,
                     },
                 },
-                ColumnLayout { spacing: 0.0 },
+                ColumnLayout,
             );
             let size = t.text_mono;
             let color = t.muted;
@@ -1160,6 +1162,7 @@ fn sec_y<CF>(
         };
         b.finish();
     }
+    b.spacer(16.0);
     {
         let spec_builder = DividerSpecBuilder::new();
         divider(b, spec_builder, Placement2D::fixed(w, 36.0))
@@ -1168,6 +1171,7 @@ fn sec_y<CF>(
 
 #[allow(dead_code)]
 fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &Theme, text: &str) {
+    b.spacer(16.0);
     {
         let text: &str = &text.to_uppercase();
         let color = t.muted;
@@ -1178,6 +1182,7 @@ fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &The
         });
         label(b, spec_builder, Placement2D::fixed(400.0, 16.0))
     };
+    b.spacer(16.0);
 }
 
 // ── Main function ─────────────────────────────────────────────────────────────
@@ -1234,13 +1239,10 @@ pub fn draw_spec_page(
             }),
             win_rect,
             &mut state.page_scroll,
-            RowLayout { spacing: 0.0 },
+            RowLayout,
         )
         .ctx;
-        page.layout(
-            Placement2D::fixed(content_w / 4.0, 0.0),
-            IntrinsicSize::UNKNOWN,
-        ); // Spacer
+        page.spacer(content_w / 4.0);
         let mut content_column = page.child_with_layout(
             Placement2D {
                 width: Placement::Sized {
@@ -1252,7 +1254,7 @@ pub fn draw_spec_page(
                     align: Align::Start,
                 },
             },
-            ColumnLayout { spacing: 16.0 },
+            ColumnLayout,
         );
         {
             let b = &mut content_column;
@@ -1402,10 +1404,7 @@ fn header_section<CF>(
     };
     // Color Meta Row
     {
-        let mut b = b.child_with_layout(
-            Rect::new(tx, MARGIN + 258.0, content_w, 100.0),
-            RowLayout { spacing: 16.0 },
-        );
+        let mut b = b.child_with_layout(Rect::new(tx, MARGIN + 258.0, content_w, 100.0), RowLayout);
         let meta_items: &[(&str, &str)] = &[
             ("INK", "#15130F"), //TODO: actually show these as colour swatches!
             ("PAPER", "#F4F1EA"),
@@ -1424,6 +1423,7 @@ fn header_section<CF>(
                 });
                 label(&mut b, spec_builder, Placement2D::auto())
             };
+            b.spacer(16.0);
             {
                 let size = t.text_sm;
                 let color = t.muted;
@@ -1434,7 +1434,7 @@ fn header_section<CF>(
                 });
                 label(&mut b, spec_builder, Placement2D::auto())
             };
-            b.layout(Placement2D::fixed(8.0, 0.0), IntrinsicSize::UNKNOWN); // Spacer
+            b.spacer(40.0);
         }
     }
     {
@@ -1659,10 +1659,7 @@ fn section_01_buttons<CF>(
     // sizes & groups
     group_y(b, &t, "sizes  ·  groups");
     {
-        let mut b = b.child_with_layout(
-            Placement2D::fixed(content_w, t.h_lg),
-            RowLayout { spacing: 0.0 },
-        );
+        let mut b = b.child_with_layout(Placement2D::fixed(content_w, t.h_lg), RowLayout);
 
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
             ("22 px", t.h_sm, ButtonStyle::secondary_from_theme(&t)),
@@ -1680,10 +1677,10 @@ fn section_01_buttons<CF>(
                 button(&mut b, spec_builder, layout_params, state)
             };
             if i + 1 < size_defs.len() {
-                b.layout(Placement2D::fixed(COL_GAP, 0.0), IntrinsicSize::UNKNOWN);
+                b.spacer(COL_GAP);
             }
         }
-        b.layout(Placement2D::fixed(24.0, 0.0), IntrinsicSize::UNKNOWN);
+        b.spacer(24.0);
 
         // button group 1: ← | Frame N | →
         let frame_label = format!("Frame {}", state.btn_frame);
@@ -1711,7 +1708,7 @@ fn section_01_buttons<CF>(
                 }
             }
         }
-        b.layout(Placement2D::fixed(COL_GAP, 0.0), IntrinsicSize::UNKNOWN);
+        b.spacer(COL_GAP);
 
         // button group 2: Build | Run | Ship
         let grp2: &[(&str, ButtonStyle)] = &[
@@ -4403,22 +4400,16 @@ fn footer_section<CF>(
             width: Placement::fixed(content_w),
             height: Placement::auto(),
         },
-        ColumnLayout { spacing: 0.0 },
+        ColumnLayout,
     );
 
-    footer.layout(
-        Placement2D::fixed(0.0, FOOTER_MARGIN_TOP),
-        IntrinsicSize::UNKNOWN,
-    );
+    footer.spacer(FOOTER_MARGIN_TOP);
     divider(
         &mut footer,
         DividerSpecBuilder::new(),
         Placement2D::fixed(content_w, 1.0),
     );
-    footer.layout(
-        Placement2D::fixed(0.0, FOOTER_TOP_PAD),
-        IntrinsicSize::UNKNOWN,
-    );
+    footer.spacer(FOOTER_TOP_PAD);
 
     let foot_items: &[(&str, &str)] = &[
         ("SPEC", "V0.1 · 12 SECTIONS"),
@@ -4428,51 +4419,39 @@ fn footer_section<CF>(
         ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
     ];
     {
-        let mut meta_row = footer.child_with_layout(
-            Placement2D::auto(),
-            RowLayout {
-                spacing: FOOTER_ITEM_GAP,
-            },
-        );
+        let mut meta_row = footer.child_with_layout(Placement2D::auto(), RowLayout);
         for (key, val) in foot_items {
-            let mut pair = meta_row.child_with_layout(
-                Placement2D::auto(),
-                RowLayout {
-                    spacing: FOOTER_PAIR_GAP,
-                },
-            );
+            let mut pair = meta_row.child_with_layout(Placement2D::auto(), RowLayout);
             label(
                 &mut pair,
                 LabelSpecBuilder::new().text(key).style(key_style),
                 Placement2D::auto(),
             );
+            pair.spacer(FOOTER_PAIR_GAP);
             label(
                 &mut pair,
                 LabelSpecBuilder::new().text(val).style(value_style),
                 Placement2D::auto(),
             );
             pair.finish();
+            meta_row.spacer(FOOTER_ITEM_GAP);
         }
         meta_row.finish();
     }
 
-    footer.layout(
-        Placement2D::fixed(0.0, FOOTER_ROW_GAP),
-        IntrinsicSize::UNKNOWN,
-    );
+    footer.spacer(FOOTER_ROW_GAP);
 
     {
         let mut title_row = footer.child_with_layout(
             Placement2D::fixed(title_w, title_h).align_x(Align::End),
-            RowLayout {
-                spacing: FOOTER_PAIR_GAP,
-            },
+            RowLayout,
         );
         label(
             &mut title_row,
             LabelSpecBuilder::new().text(title_key).style(key_style),
             Placement2D::auto(),
         );
+        title_row.spacer(FOOTER_PAIR_GAP);
         label(
             &mut title_row,
             LabelSpecBuilder::new().text(title_value).style(value_style),

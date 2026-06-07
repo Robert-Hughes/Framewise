@@ -402,7 +402,7 @@ mod tests {
             &mut ts,
             &mut focus,
             &input,
-            ColumnLayout { spacing: 10.0 },
+            ColumnLayout,
             Rect::new(0.0, 0.0, 400.0, 600.0),
             &mut cmds,
         );
@@ -421,7 +421,7 @@ mod tests {
                 width: Placement::fill(),
                 height: Placement::auto(),
             },
-            ColumnLayout { spacing: 5.0 },
+            ColumnLayout,
         );
 
         // 2. Place some children inside the frame context
@@ -434,6 +434,8 @@ mod tests {
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
+
+        f_ctx.spacer(5.0);
 
         let r2 = f_ctx.layout(
             Placement2D {
@@ -452,6 +454,7 @@ mod tests {
         // Child content extent is: width 380, height (35 + 30 - 10) = 55.
         // Total outer size is: height = 55 + inset * 2 = 75.
         // Next sibling y should be: height(75) + spacing(10) = 85.
+        ctx.spacer(10.0);
         let sibling = ctx.layout(
             Placement2D::fixed(50.0, 30.0),
             crate::layout::IntrinsicSize::UNKNOWN,
