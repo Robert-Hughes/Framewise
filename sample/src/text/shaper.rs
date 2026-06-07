@@ -1,7 +1,7 @@
 use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec};
 use crate::text::SampleTextSystem;
 use framewise::{
-    EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, Rect, TextFlow,
+    EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextFlow, TextLineAlign,
     TextMetrics, TextStyle, Vec2, WrapGlyphFallback, WrapWordFallback,
 };
 
@@ -267,9 +267,9 @@ impl SampleTextSystem {
             };
             let line_w = line_r - line_l;
 
-            let base_shift = match flow.horizontal_align {
-                HorizontalAlign::Start => global_l,
-                HorizontalAlign::Center | HorizontalAlign::End => line_l,
+            let base_shift = match flow.line_align {
+                TextLineAlign::Start => global_l,
+                TextLineAlign::Center | TextLineAlign::End => line_l,
             };
             if base_shift != 0.0 {
                 for g in &mut seg {
@@ -457,10 +457,10 @@ impl SampleTextSystem {
                             .fold(f32::NEG_INFINITY, f32::max);
                         r - l
                     };
-                    match flow.horizontal_align {
-                        HorizontalAlign::Start => 0.0,
-                        HorizontalAlign::Center => ((w - line_w) * 0.5).max(0.0),
-                        HorizontalAlign::End => (w - line_w).max(0.0),
+                    match flow.line_align {
+                        TextLineAlign::Start => 0.0,
+                        TextLineAlign::Center => ((w - line_w) * 0.5).max(0.0),
+                        TextLineAlign::End => (w - line_w).max(0.0),
                     }
                 }
                 None => 0.0,

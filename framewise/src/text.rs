@@ -144,7 +144,7 @@ pub struct TextFlow {
     /// overflow policies. It does not change measurement, wrapping decisions, or
     /// truncation decisions. If an over-wide line has no room to align, the text
     /// system should clamp alignment so the line starts at the leading edge.
-    pub horizontal_align: HorizontalAlign,
+    pub line_align: TextLineAlign,
 }
 
 impl TextFlow {
@@ -157,7 +157,7 @@ impl TextFlow {
         Self {
             overflow_x: OverflowX::Drop,
             overflow_y: OverflowY::Drop,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         }
     }
 
@@ -176,7 +176,7 @@ impl TextFlow {
             overflow_y: OverflowY::Ellipsis {
                 fallback: EllipsisFallback::Drop,
             },
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         }
     }
 
@@ -193,7 +193,7 @@ impl TextFlow {
                 },
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         }
     }
 }
@@ -358,7 +358,7 @@ pub enum EllipsisFallback {
 /// `Start` is left and `End` is right. Alignment only affects glyph X positions —
 /// it never changes the measured block size or which glyphs are truncated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum HorizontalAlign {
+pub enum TextLineAlign {
     Start,
     Center,
     End,
@@ -534,8 +534,10 @@ pub trait TextSystem {
     /// visible bounds of the emitted glyphs, which may protrude outside the
     /// logical size due to font metrics and glyph placement.
     ///
-    /// `flow.horizontal_align` has no effect on the result: alignment moves glyphs
-    /// within a line but changes neither the block size nor what is truncated.
+    /// `flow.line_align` has no effect on logical sizing, wrapping, or
+    /// truncation: those decisions are made in logical line space. It may affect
+    /// `ink_bounds`, because alignment shifts the admitted glyphs within the
+    /// available line width.
     ///
     /// Must be free of observable side effects on the run table — calling
     /// `measure` does not allocate a [`TextHandle`].

@@ -5,7 +5,7 @@ use framewise::{
     layout::{Placement, Placement2D},
     layouts::{ColumnLayout, RowLayout},
     text::{
-        EllipsisFallback, HorizontalAlign, OverflowX, OverflowY, TextFlow, WrapGlyphFallback,
+        EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapGlyphFallback,
         WrapWordFallback,
     },
     theme::Theme,
@@ -420,7 +420,7 @@ pub fn draw_label_page(
                                     flow: TextFlow {
                                         overflow_x: OverflowX::Drop,
                                         overflow_y: OverflowY::Drop,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -478,7 +478,7 @@ pub fn draw_label_page(
                                     flow: TextFlow {
                                         overflow_x: OverflowX::Keep,
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -538,7 +538,7 @@ pub fn draw_label_page(
                                         overflow_y: OverflowY::Ellipsis {
                                             fallback: EllipsisFallback::Drop,
                                         },
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -598,7 +598,7 @@ pub fn draw_label_page(
                                         overflow_y: OverflowY::Ellipsis {
                                             fallback: EllipsisFallback::Drop,
                                         },
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -671,7 +671,7 @@ pub fn draw_label_page(
                                         overflow_y: OverflowY::Ellipsis {
                                             fallback: EllipsisFallback::Keep,
                                         },
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -731,7 +731,7 @@ pub fn draw_label_page(
                                             fallback: EllipsisFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -791,7 +791,7 @@ pub fn draw_label_page(
                                             fallback: EllipsisFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -851,7 +851,7 @@ pub fn draw_label_page(
                                             fallback: EllipsisFallback::Keep,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -960,7 +960,7 @@ pub fn draw_label_page(
                                             fallback: WrapGlyphFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1021,7 +1021,7 @@ pub fn draw_label_page(
                                             fallback: WrapGlyphFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1082,7 +1082,7 @@ pub fn draw_label_page(
                                             fallback: WrapGlyphFallback::Keep,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1162,7 +1162,7 @@ pub fn draw_label_page(
                                             fallback: WrapWordFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1225,7 +1225,7 @@ pub fn draw_label_page(
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1288,7 +1288,7 @@ pub fn draw_label_page(
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1364,7 +1364,7 @@ pub fn draw_label_page(
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1425,7 +1425,7 @@ pub fn draw_label_page(
                                             fallback: WrapWordFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1486,7 +1486,7 @@ pub fn draw_label_page(
                                             fallback: WrapWordFallback::Keep,
                                         },
                                         overflow_y: OverflowY::Keep,
-                                        horizontal_align: HorizontalAlign::Start,
+                                        line_align: TextLineAlign::Start,
                                     },
                                     font: theme.sans_font,
                                     size: 14.0,
@@ -1539,9 +1539,9 @@ pub fn draw_label_page(
         );
 
         let alignments = [
-            ("Start Aligned Text", HorizontalAlign::Start),
-            ("Center Aligned Text", HorizontalAlign::Center),
-            ("End Aligned Text", HorizontalAlign::End),
+            ("Start Aligned Text", TextLineAlign::Start),
+            ("Center Aligned Text", TextLineAlign::Center),
+            ("End Aligned Text", TextLineAlign::End),
         ];
 
         for (text, text_align) in alignments {
@@ -1556,9 +1556,9 @@ pub fn draw_label_page(
                 &mut container.ctx,
                 LabelSpecBuilder::new()
                     .text(match text_align {
-                        HorizontalAlign::Start => "TextFlow::horizontal_align(Start)",
-                        HorizontalAlign::Center => "TextFlow::horizontal_align(Center)",
-                        HorizontalAlign::End => "TextFlow::horizontal_align(End)",
+                        TextLineAlign::Start => "TextFlow::line_align(Start)",
+                        TextLineAlign::Center => "TextFlow::line_align(Center)",
+                        TextLineAlign::End => "TextFlow::line_align(End)",
                     })
                     .style(LabelStyle {
                         text_style: framewise::TextStyle::new(
@@ -1584,7 +1584,7 @@ pub fn draw_label_page(
                         TextFlow {
                             overflow_x: OverflowX::Drop,
                             overflow_y: OverflowY::Drop,
-                            horizontal_align: text_align,
+                            line_align: text_align,
                         },
                     ),
                     text_color: theme.ink,

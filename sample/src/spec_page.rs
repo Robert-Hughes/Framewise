@@ -18,8 +18,8 @@ use framewise::{
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
-    Align, ColumnLayout, ColumnState, HorizontalAlign, LayoutViolationPolicy, ManualState,
-    Placement2D, RowLayout, Size,
+    Align, ColumnLayout, ColumnState, LayoutViolationPolicy, ManualState, Placement2D, RowLayout,
+    Size, TextLineAlign,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -1134,7 +1134,7 @@ fn sec_y<CF>(
                     size,
                     flow: {
                         let mut tf = TextFlow::wrapped();
-                        tf.horizontal_align = HorizontalAlign::End;
+                        tf.line_align = TextLineAlign::End;
                         tf
                     },
                     ..(LabelStyle::from_theme(t)).text_style

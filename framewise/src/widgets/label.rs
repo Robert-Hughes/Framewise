@@ -79,11 +79,11 @@ pub mod raw {
 pub struct LabelStyle {
     /// How text lines flow, align, and clip internally inside the label box.
     ///
-    /// Note that text alignment (`text_flow.horizontal_align`) aligns the visible ink
+    /// Note that line alignment (`text_flow.line_align`) positions each shaped line
     /// internally within the resolved bounding box (`rect`), while layout alignment
     /// (`Placement2D::align_x`) moves the entire bounding box inside its parent cell.
     /// When using `Placement2D::auto()`, the box shrink-wraps the text tightly, meaning
-    /// changing `horizontal_align` has no visual effect since there is no extra space.
+    /// changing `line_align` has no visual effect since there is no extra space.
     /// Internal alignment is only visible when the label's box is wider (e.g. `fixed` width or `fill`).
     pub text_style: crate::text::TextStyle,
     pub text_color: Color,
@@ -516,7 +516,7 @@ mod tests {
             overflow_y: crate::text::OverflowY::Ellipsis {
                 fallback: crate::text::EllipsisFallback::Drop,
             },
-            horizontal_align: crate::text::HorizontalAlign::Center,
+            line_align: crate::text::TextLineAlign::Center,
         };
 
         let mut style = LabelStyle::from_theme(&crate::theme::Theme::framewise());

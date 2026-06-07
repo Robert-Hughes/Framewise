@@ -2,8 +2,8 @@
 mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::{
-        EllipsisFallback, FontId, HorizontalAlign, LineHeight, OverflowX, OverflowY, Rect,
-        TextBounds, TextFlow, TextHandle, TextStyle, TextSystem, Vec2, WrapGlyphFallback,
+        EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextBounds, TextFlow,
+        TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapGlyphFallback,
         WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
@@ -644,7 +644,7 @@ mod tests {
                         fallback: EllipsisFallback::Drop,
                     },
                     overflow_y: OverflowY::Drop,
-                    horizontal_align: HorizontalAlign::Start,
+                    line_align: TextLineAlign::Start,
                 },
             ),
             Rect::new(0.0, 0.0, 40.0, 30.0),
@@ -668,7 +668,7 @@ mod tests {
                     fallback: EllipsisFallback::Drop,
                 },
                 overflow_y: OverflowY::Drop,
-                horizontal_align: HorizontalAlign::Start,
+                line_align: TextLineAlign::Start,
             },
         );
 
@@ -727,7 +727,7 @@ mod tests {
                 TextFlow {
                     overflow_x: OverflowX::Drop,
                     overflow_y: OverflowY::Drop,
-                    horizontal_align: HorizontalAlign::Center,
+                    line_align: TextLineAlign::Center,
                 },
             ),
             Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -770,7 +770,7 @@ mod tests {
                         },
                     },
                     overflow_y: OverflowY::Drop,
-                    horizontal_align: HorizontalAlign::Start,
+                    line_align: TextLineAlign::Start,
                 },
             ),
             Rect::new(0.0, 0.0, 40.0, 200.0),
@@ -790,7 +790,7 @@ mod tests {
                 fallback: EllipsisFallback::Drop,
             },
             overflow_y: OverflowY::Drop,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let rect = Rect::new(0.0, 0.0, 50.0, 30.0);
         let layout = sys.prepare(
@@ -821,7 +821,7 @@ mod tests {
                         fallback: EllipsisFallback::Drop,
                     },
                     overflow_y: OverflowY::Drop,
-                    horizontal_align: HorizontalAlign::Center,
+                    line_align: TextLineAlign::Center,
                 },
             ),
             rect,
@@ -907,7 +907,7 @@ mod tests {
         let flow = TextFlow {
             overflow_x: OverflowX::Drop,
             overflow_y: OverflowY::Drop,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -929,7 +929,7 @@ mod tests {
         let flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -967,7 +967,7 @@ mod tests {
             overflow_y: OverflowY::Ellipsis {
                 fallback: EllipsisFallback::Drop,
             },
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -991,7 +991,7 @@ mod tests {
             overflow_y: OverflowY::Ellipsis {
                 fallback: EllipsisFallback::Drop,
             },
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1011,7 +1011,7 @@ mod tests {
             overflow_y: OverflowY::Ellipsis {
                 fallback: EllipsisFallback::Keep,
             },
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1034,7 +1034,7 @@ mod tests {
                 fallback: EllipsisFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1061,7 +1061,7 @@ mod tests {
                 fallback: EllipsisFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1081,7 +1081,7 @@ mod tests {
                 fallback: EllipsisFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1108,7 +1108,7 @@ mod tests {
                 fallback: WrapGlyphFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1129,7 +1129,7 @@ mod tests {
                 fallback: WrapGlyphFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1150,7 +1150,7 @@ mod tests {
                 fallback: WrapGlyphFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello\nhello",
@@ -1182,7 +1182,7 @@ mod tests {
                 fallback: WrapWordFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",
@@ -1206,7 +1206,7 @@ mod tests {
                 },
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",
@@ -1240,7 +1240,7 @@ mod tests {
                 },
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",
@@ -1263,7 +1263,7 @@ mod tests {
                 },
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",
@@ -1294,7 +1294,7 @@ mod tests {
                 fallback: WrapWordFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",
@@ -1321,7 +1321,7 @@ mod tests {
                 fallback: WrapWordFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
-            horizontal_align: HorizontalAlign::Start,
+            line_align: TextLineAlign::Start,
         };
         let layout = sys.prepare(
             "hello there\nhello there",

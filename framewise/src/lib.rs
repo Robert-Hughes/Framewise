@@ -44,8 +44,8 @@ pub use layouts::{
     RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
 pub use text::{
-    CaretGeom, EllipsisFallback, FontId, FontRole, HorizontalAlign, LineHeight, OverflowX,
-    OverflowY, TextBounds, TextFlow, TextHandle, TextLayout, TextMetrics, TextStyle, TextSystem,
+    CaretGeom, EllipsisFallback, FontId, FontRole, LineHeight, OverflowX, OverflowY, TextBounds,
+    TextFlow, TextHandle, TextLayout, TextLineAlign, TextMetrics, TextStyle, TextSystem,
     WrapGlyphFallback, WrapWordFallback,
 };
 pub use theme::Theme;
