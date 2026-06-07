@@ -11,11 +11,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 * Ink alignment for buttons/labels?
-  - Unit tests for the sample text system that the ink bounds and logical bounds are returned properly. Use examples of weird glyphs with overhangs etc.
   - Consider renaming TextFlow::horizontal_align: HorizontalAlign to be more line "horizontal line alignment", to avoid confusion with new text alignment settings within a button/label
   - Add to ButtonStyle and LabelStyle a text alignment - all 9 positions, plus a choice of ink/optical or logical. Share these definitions and logic code. Tests!
 
 * I may have been using the term "glyph" incorrectly in docs and code - check this
+
+* WrapLayout still panics - these should be layout violation errors!
 
 * Focus ring review: current Rust geometry likely does not exactly match CSS because StrokeRect draws its stroke inside the supplied rect. The button code uses rect.inset(-(border_width + focus_offset)); with a 2px inside stroke, that gives only about a 1px visible gap on bordered buttons and effectively no gap on ghost buttons. To match CSS outline: 2px; outline-offset: 2px, the focus rect would probably need to account for focus_width, not border_width, for example inset by focus_offset + focus_width.
 

@@ -4358,68 +4358,128 @@ fn footer_section<CF>(
     t: Theme,
     content_w: f32,
 ) {
-    {
-        let spec_builder = DividerSpecBuilder::new();
-        divider(b, spec_builder, Placement2D::fixed(content_w, 1.0))
-    };
-    {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+    const FOOTER_MARGIN_TOP: f32 = 40.0;
+    const FOOTER_TOP_PAD: f32 = 28.0;
+    const FOOTER_ITEM_GAP: f32 = 32.0;
+    const FOOTER_PAIR_GAP: f32 = 8.0;
+    const FOOTER_ROW_GAP: f32 = 32.0;
+    const FOOTER_MEASURE_PAD: f32 = 4.0;
 
-        let foot_items: &[(&str, &str)] = &[
-            ("SPEC", "V0.1 · 12 SECTIONS"),
-            ("RADIUS", "0 PX"),
-            ("BORDERS", "1 PX INK"),
-            ("FOCUS", "2 PX RUST OUTSET"),
-            ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
-        ];
-        let mut fx = 0.0;
-        for (key, val) in foot_items {
-            {
-                let layout_params = Rect::new(fx, 10.0, 32.0, 14.0);
-                let size = t.text_sm;
-                let color = t.ink;
-                let spec_builder = LabelSpecBuilder::new().text(key).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&t)).text_style
-                    },
-                    text_color: color,
-                    ..LabelStyle::from_theme(&t)
-                });
-                label(&mut b, spec_builder, layout_params)
-            };
-            let kw = key.len() as f32 * 7.0 + 8.0;
-            {
-                let layout_params = Rect::new(fx + kw, 10.0, 220.0, 14.0);
-                let size = t.text_sm;
-                let color = t.muted;
-                let spec_builder = LabelSpecBuilder::new().text(val).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&t)).text_style
-                    },
-                    text_color: color,
-                    ..LabelStyle::from_theme(&t)
-                });
-                label(&mut b, spec_builder, layout_params)
-            };
-            fx += kw + val.len() as f32 * 6.5 + 24.0;
-        }
-        b.finish();
-    }
-    {
-        let size = t.text_sm;
-        let color = t.ink;
-        let spec_builder = LabelSpecBuilder::new()
-            .text("FRAMEWISE · WIDGET SPECIFICATION")
-            .style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-        label(b, spec_builder, Placement2D::auto())
+    let footer_text = t.overline_text_style(t.text_sm).with_letter_spacing(0.10);
+    let key_style = LabelStyle {
+        text_style: footer_text,
+        text_color: t.ink,
+        ..LabelStyle::from_theme(&t)
     };
+    let value_style = LabelStyle {
+        text_style: footer_text,
+        text_color: t.muted,
+        ..LabelStyle::from_theme(&t)
+    };
+
+    let title_key = "FRAMEWISE";
+    let title_value = "· WIDGET SPECIFICATION";
+    let title_key_metrics = b.text_system.measure(
+        title_key,
+        footer_text,
+        framewise::text::TextBounds::UNBOUNDED,
+    );
+    let title_value_metrics = b.text_system.measure(
+        title_value,
+        footer_text,
+        framewise::text::TextBounds::UNBOUNDED,
+    );
+    let title_w = title_key_metrics.logical_size.x
+        + FOOTER_PAIR_GAP
+        + title_value_metrics.logical_size.x
+        + FOOTER_MEASURE_PAD;
+    let title_h = title_key_metrics
+        .logical_size
+        .y
+        .max(title_value_metrics.logical_size.y);
+
+    let mut footer = b.child_with_layout(
+        Placement2D {
+            width: Placement::fixed(content_w),
+            height: Placement::auto(),
+        },
+        ColumnLayout { spacing: 0.0 },
+    );
+
+    footer.layout(
+        Placement2D::fixed(0.0, FOOTER_MARGIN_TOP),
+        IntrinsicSize::UNKNOWN,
+    );
+    divider(
+        &mut footer,
+        DividerSpecBuilder::new(),
+        Placement2D::fixed(content_w, 1.0),
+    );
+    footer.layout(
+        Placement2D::fixed(0.0, FOOTER_TOP_PAD),
+        IntrinsicSize::UNKNOWN,
+    );
+
+    let foot_items: &[(&str, &str)] = &[
+        ("SPEC", "V0.1 · 12 SECTIONS"),
+        ("RADIUS", "0 PX"),
+        ("BORDERS", "1 PX INK"),
+        ("FOCUS", "2 PX RUST OUTSET"),
+        ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
+    ];
+    {
+        let mut meta_row = footer.child_with_layout(
+            Placement2D::auto(),
+            RowLayout {
+                spacing: FOOTER_ITEM_GAP,
+            },
+        );
+        for (key, val) in foot_items {
+            let mut pair = meta_row.child_with_layout(
+                Placement2D::auto(),
+                RowLayout {
+                    spacing: FOOTER_PAIR_GAP,
+                },
+            );
+            label(
+                &mut pair,
+                LabelSpecBuilder::new().text(key).style(key_style),
+                Placement2D::auto(),
+            );
+            label(
+                &mut pair,
+                LabelSpecBuilder::new().text(val).style(value_style),
+                Placement2D::auto(),
+            );
+            pair.finish();
+        }
+        meta_row.finish();
+    }
+
+    footer.layout(
+        Placement2D::fixed(0.0, FOOTER_ROW_GAP),
+        IntrinsicSize::UNKNOWN,
+    );
+
+    {
+        let mut title_row = footer.child_with_layout(
+            Placement2D::fixed(title_w, title_h).align_x(Align::End),
+            RowLayout {
+                spacing: FOOTER_PAIR_GAP,
+            },
+        );
+        label(
+            &mut title_row,
+            LabelSpecBuilder::new().text(title_key).style(key_style),
+            Placement2D::auto(),
+        );
+        label(
+            &mut title_row,
+            LabelSpecBuilder::new().text(title_value).style(value_style),
+            Placement2D::auto(),
+        );
+        title_row.finish();
+    }
+
+    footer.finish();
 }
