@@ -408,6 +408,8 @@ pub struct SpecWidgets {
     #[cfg(feature = "button")]
     pub btn_grp1: Vec<ButtonState>, // [←, Frame 248, →]
     #[cfg(feature = "button")]
+    pub btn_frame: i32,
+    #[cfg(feature = "button")]
     pub btn_grp2: Vec<ButtonState>, // [Build, Run, Ship]
 
     // 02 Text Inputs
@@ -677,6 +679,8 @@ impl Default for SpecWidgets {
             btn_sizes: (0..3).map(|_| ButtonState::default()).collect(),
             #[cfg(feature = "button")]
             btn_grp1: (0..3).map(|_| ButtonState::default()).collect(),
+            #[cfg(feature = "button")]
+            btn_frame: 248,
             #[cfg(feature = "button")]
             btn_grp2: (0..3).map(|_| ButtonState::default()).collect(),
             #[cfg(feature = "text_edit")]
@@ -1166,13 +1170,9 @@ fn sec_y<CF>(
 fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &Theme, text: &str) {
     {
         let text: &str = &text.to_uppercase();
-        let size = t.text_sm;
         let color = t.muted;
         let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
-            text_style: framewise::TextStyle {
-                size,
-                ..(LabelStyle::from_theme(t)).text_style
-            },
+            text_style: t.overline_text_style(t.text_sm),
             text_color: color,
             ..LabelStyle::from_theme(t)
         });
@@ -1525,12 +1525,15 @@ fn section_01_buttons<CF>(
     {
         let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
 
+        let mut circle_icon_style = ButtonStyle::secondary_from_theme(&t);
+        circle_icon_style.text_style.font = t.mono_font;
+
         let styles: &[(&str, ButtonStyle, Option<f32>)] = &[
             ("Apply changes", ButtonStyle::primary_from_theme(&t), None),
             ("Cancel", ButtonStyle::secondary_from_theme(&t), None),
             ("Reset", ButtonStyle::ghost_from_theme(&t), None),
             ("Publish v0.2", ButtonStyle::accent_from_theme(&t), None),
-            ("⊙", ButtonStyle::secondary_from_theme(&t), Some(t.h_md)),
+            ("◎", circle_icon_style, Some(t.h_md)),
             ("×", ButtonStyle::secondary_from_theme(&t), Some(t.h_md)),
         ];
         let mut bx = 0.0;
@@ -1581,13 +1584,9 @@ fn section_01_buttons<CF>(
             }
             {
                 let layout_params = Rect::new(col_x, y, cell_w, 16.0);
-                let size = t.text_sm;
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&t)).text_style
-                    },
+                    text_style: t.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
@@ -1599,14 +1598,9 @@ fn section_01_buttons<CF>(
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
                 let layout_params = Rect::new(0.0, y, label_w, t.h_md);
-                let size = t.text_sm;
-                let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&t)).text_style
-                    },
-                    text_color: color,
+                    text_style: t.overline_text_style(12.0).with_letter_spacing(0.04),
+                    text_color: t.ink,
                     ..LabelStyle::from_theme(&t)
                 });
                 label(&mut b, spec_builder, layout_params)
@@ -1665,48 +1659,59 @@ fn section_01_buttons<CF>(
     // sizes & groups
     group_y(b, &t, "sizes  ·  groups");
     {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut b = b.child_with_layout(
+            Placement2D::fixed(content_w, t.h_lg),
+            RowLayout { spacing: 0.0 },
+        );
 
         let size_defs: &[(&str, f32, ButtonStyle)] = &[
             ("22 px", t.h_sm, ButtonStyle::secondary_from_theme(&t)),
             ("28 px", t.h_md, ButtonStyle::secondary_from_theme(&t)),
             ("36 px", t.h_lg, ButtonStyle::secondary_from_theme(&t)),
         ];
-        let mut bx = 0.0;
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
             let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_sizes[i];
-                let layout_params = Rect::new(bx, 40.0, w, *h);
+                let layout_params = Placement2D::fixed(w, *h).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                 button(&mut b, spec_builder, layout_params, state)
             };
-            bx += w + COL_GAP;
+            if i + 1 < size_defs.len() {
+                b.layout(Placement2D::fixed(COL_GAP, 0.0), IntrinsicSize::UNKNOWN);
+            }
         }
-        bx += 24.0;
+        b.layout(Placement2D::fixed(24.0, 0.0), IntrinsicSize::UNKNOWN);
 
-        // button group 1: ← | Frame 248 | →
+        // button group 1: ← | Frame N | →
+        let frame_label = format!("Frame {}", state.btn_frame);
         let grp1: &[(&str, ButtonStyle)] = &[
             ("←", ButtonStyle::secondary_from_theme(&t)),
-            ("Frame 248", ButtonStyle::secondary_from_theme(&t)),
+            (&frame_label, ButtonStyle::secondary_from_theme(&t)),
             ("→", ButtonStyle::secondary_from_theme(&t)),
         ];
         // draw group border
         for (i, (label, style)) in grp1.iter().enumerate() {
             let w = button_intrinsic_width(label, *style, b.text_system);
-            let _btn = {
+            let btn = {
                 let state = &mut state.btn_grp1[i];
-                let layout_params = Rect::new(bx, 40.0, w, t.h_md);
+                let layout_params = Placement2D::fixed(w, t.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                 button(&mut b, spec_builder, layout_params, state)
             };
-            bx += w;
+            if btn.input.clicked {
+                match i {
+                    0 => state.btn_frame -= 1,
+                    2 => state.btn_frame += 1,
+                    _ => {}
+                }
+            }
         }
-        bx += COL_GAP;
+        b.layout(Placement2D::fixed(COL_GAP, 0.0), IntrinsicSize::UNKNOWN);
 
         // button group 2: Build | Run | Ship
         let grp2: &[(&str, ButtonStyle)] = &[
@@ -1718,15 +1723,13 @@ fn section_01_buttons<CF>(
             let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_grp2[i];
-                let layout_params = Rect::new(bx, 40.0, w, t.h_md);
+                let layout_params = Placement2D::fixed(w, t.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
                 button(&mut b, spec_builder, layout_params, state)
             };
-            bx += w;
         }
-        let _ = bx;
 
         b.finish();
     }

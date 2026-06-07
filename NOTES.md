@@ -55,7 +55,8 @@ Segmented/tabs/select also compute a different size, but high-level just passes 
 
 Result: tooltip/menu are "honest" — LayoutInfo.bounds reflects actual draw area. Segmented/tabs/select are "dishonest" — LayoutInfo.bounds is the input rect, not the actual drawn footprint.
 
-
+Button group seams
+HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.
 
 
 
