@@ -504,14 +504,15 @@ impl SampleTextSystem {
             });
         }
 
-        // Round final metrics block size
+        // Keep reported bounds conservative so a measured width can safely be
+        // reused as a hard prepare-time constraint.
         let ink_bounds = if ink_l.is_finite() {
             Rect::new(ink_l, ink_t, ink_r - ink_l, ink_b - ink_t)
         } else {
             Rect::new(0.0, 0.0, 0.0, 0.0)
         };
         let metrics = framewise::TextMetrics {
-            logical_size: Vec2::new(block_width.round(), line_count as f32 * line_height_snapped),
+            logical_size: Vec2::new(block_width.ceil(), line_count as f32 * line_height_snapped),
             ink_bounds,
             line_count: line_count as u32,
             truncated_horizontal,

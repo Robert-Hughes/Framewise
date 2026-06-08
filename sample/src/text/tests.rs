@@ -287,6 +287,33 @@ mod tests {
     }
 
     #[test]
+    fn prepare_with_measured_logical_bounds_preserves_metrics() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(2), 24.0, 600, TextFlow::wrapped())
+            .with_letter_spacing(-0.035)
+            .with_line_height(LineHeight::Relative(0.95));
+        let text = "Button Demo";
+
+        let measured = sys.measure(text, style, TextBounds::UNBOUNDED);
+        let prepared = sys.prepare(
+            text,
+            style,
+            Rect::new(0.0, 0.0, measured.logical_size.x, measured.logical_size.y),
+        );
+
+        assert_eq!(prepared.metrics.logical_size, measured.logical_size);
+        assert_eq!(prepared.metrics.line_count, measured.line_count);
+        assert_eq!(
+            prepared.metrics.truncated_horizontal,
+            measured.truncated_horizontal
+        );
+        assert_eq!(
+            prepared.metrics.truncated_vertical,
+            measured.truncated_vertical
+        );
+    }
+
+    #[test]
     fn vertical_overflow_truncates_lines() {
         let mut sys = sys();
         let lh = sys.line_height(16.0, FontId(1), LineHeight::Normal);
