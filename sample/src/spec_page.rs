@@ -8,6 +8,8 @@
 use crate::text::SampleTextSystem;
 #[allow(unused_imports)]
 use framewise::text::TextSystem;
+#[cfg(feature = "radio")]
+use framewise::RowState;
 use framewise::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
@@ -154,12 +156,12 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
 
 #[cfg(feature = "radio")]
 fn draw_radio_fake_state<T: TextSystem, CF>(
-    b: &mut WidgetContext<T, ManualState, CF>,
-    rect: Rect,
+    b: &mut WidgetContext<T, RowState, CF>,
+    size: Vec2,
     checked: bool,
     is_focused: bool,
     is_disabled: bool,
-) {
+) -> framewise::widgets::radio::raw::RadioResult {
     let mut state = RadioState {
         checked,
         ..Default::default()
@@ -172,23 +174,26 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
 
     let dummy_input = Input::default();
     let spec = RadioSpec {
-        rect: b.layout(rect, IntrinsicSize::UNKNOWN),
+        rect: b.layout(
+            RowLayoutParams::fixed(size.x, size.y),
+            IntrinsicSize::UNKNOWN,
+        ),
         disabled: is_disabled,
         style: RadioStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    raw_radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds);
+    raw_radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds)
 }
 
 #[cfg(feature = "switch")]
 fn draw_switch_fake_state<T: TextSystem, CF>(
-    b: &mut WidgetContext<T, ManualState, CF>,
-    rect: Rect,
+    b: &mut WidgetContext<T, RowState, CF>,
+    layout_params: RowLayoutParams,
     checked: bool,
     is_focused: bool,
     is_disabled: bool,
-) {
+) -> framewise::widgets::switch::raw::SwitchResult {
     let mut state = SwitchState {
         checked,
         ..Default::default()
@@ -201,13 +206,13 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
 
     let dummy_input = Input::default();
     let spec = SwitchSpec {
-        rect: b.layout(rect, IntrinsicSize::UNKNOWN),
+        rect: b.layout(layout_params, IntrinsicSize::UNKNOWN),
         disabled: is_disabled,
         style: SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    raw_switch(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds);
+    raw_switch(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds)
 }
 
 #[cfg(feature = "select")]
@@ -1036,26 +1041,22 @@ const SEC_GAP: f32 = 72.0;
 
 // Used only by sections that show fake/static states; may be unused in minimal builds.
 #[allow(dead_code)]
-fn static_badge<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ManualState, CF>,
+fn static_badge<CF, LS: LayoutState>(
+    b: &mut WidgetContext<SampleTextSystem, LS, CF>,
     t: &Theme,
-    x: f32,
-    y: f32,
+    rect: Rect,
 ) {
-    {
-        let layout_params = Rect::new(x, y, 44.0, 12.0);
-        let size = 9.0;
-        let color = t.muted;
-        let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
-            text_style: framewise::TextStyle {
-                size,
-                ..(LabelStyle::from_theme(t)).text_style
-            },
-            text_color: color,
-            ..LabelStyle::from_theme(t)
-        });
-        label(b, spec_builder, layout_params)
-    };
+    let size = 9.0;
+    let color = t.muted;
+    let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
+        text_style: framewise::TextStyle {
+            size,
+            ..(LabelStyle::from_theme(t)).text_style
+        },
+        text_color: color,
+        ..LabelStyle::from_theme(t)
+    }).rect(rect);
+    framewise::widgets::label::raw::label(spec_builder.build(), b.text_system, &mut b.cmds);
 }
 
 fn sec_y<CF>(
@@ -1137,7 +1138,7 @@ fn sec_y<CF>(
 
 #[allow(dead_code)]
 fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &Theme, text: &str) {
-    b.spacer(16.0);
+    b.spacer(32.0);
     {
         let text: &str = &text.to_uppercase();
         let color = t.muted;
@@ -1525,7 +1526,7 @@ fn section_01_buttons<CF>(
     group_y(b, &t, "states · default button");
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
-        let mut y = 20.0;
+        let mut y = 0.0;
 
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
         let row_labels = ["secondary", "primary", "accent", "ghost"];
@@ -1545,7 +1546,8 @@ fn section_01_buttons<CF>(
             let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
             // Add STATIC badge for fake state columns
             if (1..=3).contains(&ci) {
-                static_badge(&mut b, &t, col_x, y - 14.0);
+                let r = b.layout(Rect::new(col_x, y - 14.0, 44.0, 12.0), IntrinsicSize::UNKNOWN);
+                static_badge(&mut b, &t, r);
             }
             {
                 let layout_params = Rect::new(col_x, y, cell_w, 16.0);
@@ -1939,7 +1941,12 @@ fn section_03_toggles<CF>(
         for (ci, col) in col_labels.iter().enumerate() {
             // Add STATIC badge for fake state columns
             if (3..=4).contains(&ci) {
-                static_badge(&mut b, &t, label_w + ci as f32 * cell_w, y - 14.0);
+                let r = b.layout(Rect::new(label_w + ci as f32 * cell_w, y - 14.0, 44.0, 12.0), IntrinsicSize::UNKNOWN);
+                static_badge(
+                    &mut b,
+                    &t,
+                    r,
+                );
             }
             {
                 let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
@@ -2050,98 +2057,116 @@ fn section_03_toggles<CF>(
 
     group_y(b, &t, "radio  .  switch");
     {
-        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
-        let mut y = 0.0_f32;
-        let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
-        for (i, radio_label) in radio_labels.iter().enumerate() {
-            let ry = y + i as f32 * 22.0;
-            if i < 3 {
-                let info = {
-                    let state = &mut state.radio_states[i];
-                    let layout_params = Rect::new(0.0, ry, 14.0, 14.0);
-                    let spec_builder = RadioSpecBuilder::new();
-                    radio(&mut b, spec_builder, layout_params, state)
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
+        {
+            let mut b = b.child_with_layout(RowLayoutParams::auto().fixed_x(200.0), ColumnLayout {});
+            let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
+            for (i, radio_label) in radio_labels.iter().enumerate() {
+                b.spacer(16.0);
+                let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
+                if i < 3 {
+                    let info = {
+                        let state = &mut state.radio_states[i];
+                        let layout_params = RowLayoutParams::fixed(14.0, 14.0);
+                        let spec_builder = RadioSpecBuilder::new();
+                        radio(&mut b, spec_builder, layout_params, state)
+                    };
+                    if info.input.clicked {
+                        for j in 0..3 {
+                            state.radio_states[j].checked = j == i;
+                        }
+                    }
+                } else {
+                    let r = draw_radio_fake_state(&mut b, Vec2::new(14.0, 14.0), false, true, false).content_bounds;
+                    static_badge(&mut b, &t, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
+                }
+                b.spacer(16.0);
+                {
+                    let size = t.text_md;
+                    let color = t.ink;
+                    let spec_builder =
+                        LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                size,
+                                ..(LabelStyle::from_theme(&t)).text_style
+                            },
+                            text_color: color,
+                            ..LabelStyle::from_theme(&t)
+                        });
+                    label(&mut b, spec_builder, RowLayoutParams::auto())
                 };
-                if info.input.clicked {
-                    for j in 0..3 {
-                        state.radio_states[j].checked = j == i;
+                b.finish();
+            }
+            b.finish();
+        }
+        {
+            let mut b = b.child_with_layout(RowLayoutParams::auto(), ColumnLayout {});
+            let switch_labels = [
+                "debug overlay",
+                "show layout grid",
+                "vsync",
+                "multisampling",
+            ];
+            for (i, switch_label) in switch_labels.iter().enumerate() {
+                b.spacer(16.0);
+                let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
+                let label_color = if i == 3 { t.muted } else { t.ink };
+                match i {
+                    2 => {
+                        let r = draw_switch_fake_state(
+                            &mut b,
+                            RowLayoutParams::fixed(30.0, 16.0),
+                            true,
+                            true,
+                            false,
+                        ).content_bounds;
+                        static_badge(&mut b, &t, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
+                    }
+                    3 => {
+                        let _info = {
+                            let state = &mut state.switch_states[2];
+                            let spec_builder = SwitchSpecBuilder::new().disabled(true);
+                            switch(
+                                &mut b,
+                                spec_builder,
+                                RowLayoutParams::fixed(30.0, 16.0),
+                                state,
+                            )
+                        };
+                    }
+                    _ => {
+                        let _info = {
+                            let state = &mut state.switch_states[i];
+                            let spec_builder = SwitchSpecBuilder::new();
+                            switch(
+                                &mut b,
+                                spec_builder,
+                                RowLayoutParams::fixed(30.0, 16.0),
+                                state,
+                            )
+                        };
                     }
                 }
-            } else {
-                static_badge(&mut b, &t, -48.0, ry);
-                draw_radio_fake_state(&mut b, Rect::new(0.0, ry, 14.0, 14.0), false, true, false);
+                b.spacer(16.0);
+                {
+                    let size = t.text_md;
+                    let spec_builder =
+                        LabelSpecBuilder::new()
+                            .text(switch_label)
+                            .style(LabelStyle {
+                                text_style: framewise::TextStyle {
+                                    size,
+                                    ..(LabelStyle::from_theme(&t)).text_style
+                                },
+                                text_color: label_color,
+                                ..LabelStyle::from_theme(&t)
+                            });
+                    label(&mut b, spec_builder, RowLayoutParams::fixed(140.0, 16.0))
+                };
+                b.finish();
             }
-            {
-                let layout_params = Rect::new(18.0, ry, 140.0, 14.0);
-                let size = t.text_md;
-                let color = t.ink;
-                let spec_builder = LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&t)).text_style
-                    },
-                    text_color: color,
-                    ..LabelStyle::from_theme(&t)
-                });
-                label(&mut b, spec_builder, layout_params)
-            };
+            b.finish();
         }
-        let sw_x = 220.0;
-        let switch_labels = [
-            "debug overlay",
-            "show layout grid",
-            "vsync",
-            "multisampling",
-        ];
-        for (i, switch_label) in switch_labels.iter().enumerate() {
-            let ry = y + i as f32 * 22.0;
-            let label_color = if i == 3 { t.muted } else { t.ink };
-            match i {
-                2 => {
-                    static_badge(&mut b, &t, sw_x - 48.0, ry);
-                    draw_switch_fake_state(
-                        &mut b,
-                        Rect::new(sw_x, ry, 30.0, 16.0),
-                        true,
-                        true,
-                        false,
-                    );
-                }
-                3 => {
-                    let _info = {
-                        let state = &mut state.switch_states[2];
-                        let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
-                        let spec_builder = SwitchSpecBuilder::new().disabled(true);
-                        switch(&mut b, spec_builder, layout_params, state)
-                    };
-                }
-                _ => {
-                    let _info = {
-                        let state = &mut state.switch_states[i];
-                        let layout_params = Rect::new(sw_x, ry, 30.0, 16.0);
-                        let spec_builder = SwitchSpecBuilder::new();
-                        switch(&mut b, spec_builder, layout_params, state)
-                    };
-                }
-            }
-            {
-                let layout_params = Rect::new(sw_x + 36.0, ry, 140.0, 16.0);
-                let size = t.text_md;
-                let spec_builder = LabelSpecBuilder::new()
-                    .text(switch_label)
-                    .style(LabelStyle {
-                        text_style: framewise::TextStyle {
-                            size,
-                            ..(LabelStyle::from_theme(&t)).text_style
-                        },
-                        text_color: label_color,
-                        ..LabelStyle::from_theme(&t)
-                    });
-                label(&mut b, spec_builder, layout_params)
-            };
-        }
-        y += 4.0 * 22.0;
-        let _ = y;
         b.finish();
     }
 }

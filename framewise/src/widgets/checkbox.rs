@@ -183,7 +183,7 @@ impl CheckboxStyle {
             border: theme.ink,
             mark: theme.paper,
             focus: theme.rust,
-            border_width: 1.5,
+            border_width: 1.0,
             mark_width: 1.5,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,

@@ -4,6 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?)
+
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Add demo pages for each widget type (or possibly in groups?)
 
@@ -97,6 +99,8 @@ For SplitRow, do we want an equivlanet SplitCol
 For SplitRow, do we want an option to have alignment within each 'cell', like if a widget has a smaller natural size than the cell?
 
 - Each child within a layout has a lot of options (size, align, spacing etc.). Do we want to have any 'defaults' that you can set at the layout level, so you don't need to repeat for every child. e.g. if you want a column of right-aligned widgets.
+
+- Also if you want just a column of widgets with nice spacing between them, rather than the default of them all being tightly packed!
 
 - How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback?
 

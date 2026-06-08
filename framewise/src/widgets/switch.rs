@@ -165,7 +165,7 @@ impl SwitchStyle {
             off_thumb: theme.ink,
             on_thumb: theme.paper,
             focus: theme.rust,
-            border_width: 1.5,
+            border_width: 1.0,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
             disabled_alpha: 0.35,
@@ -324,7 +324,7 @@ mod tests {
                     width: s.border_width,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                 },
             ])
@@ -365,7 +365,7 @@ mod tests {
                     width: s.border_width,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(28.5, 13.0, 10.0, 10.0),
+                    rect: Rect::new(29.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
                 },
             ])
@@ -413,7 +413,7 @@ mod tests {
                     width: s.border_width,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                 },
             ])
@@ -456,7 +456,7 @@ mod tests {
                     width: s.border_width,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.5, 13.0, 10.0, 10.0),
+                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: tint(s.off_thumb),
                 },
             ])
