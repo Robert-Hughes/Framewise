@@ -448,9 +448,9 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{Align, AxisBound, IntrinsicSize, Placement};
+    use crate::layout::{Align, AxisBound, IntrinsicSize};
     use crate::layouts::{
-        ColumnLayout, ColumnLayoutParams, MainAxisAlign, ManualLayout, RowLayout, RowLayoutParams,
+        ColumnLayout, ColumnLayoutParams, ManualLayout, RowLayout, RowLayoutParams,
     };
     use crate::test_utils::DummyTextSys;
     use crate::types::Color;

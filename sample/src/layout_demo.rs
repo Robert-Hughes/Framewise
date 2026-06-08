@@ -19,6 +19,7 @@
 //!   J. Toolbar (emit-reorder)        — search fills leftover, buttons stay intrinsic.
 //!   K. `AtMost` ceiling              — nested Auto container clamps to the remainder.
 //!   L. RowLayout cross-align         — differing heights aligned in a tall row.
+//!   M. RowLayout main-axis End       — trailing action anchored to row end.
 
 use crate::text::SampleTextSystem;
 use framewise::{
@@ -26,7 +27,10 @@ use framewise::{
     input::Input,
     layout::{Align, Placement, Placement2D},
     layouts::{
-        linear::{ColumnLayout, ColumnLayoutParams, ColumnState, RowLayout, RowLayoutParams},
+        linear::{
+            ColumnLayout, ColumnLayoutParams, ColumnState, MainAxisAlign, RowLayout,
+            RowLayoutParams,
+        },
         ManualLayout, SplitRow, WrapLayout,
     },
     theme::Theme,
@@ -58,6 +62,7 @@ pub struct LayoutDemoState {
     pub j_btns: [ButtonState; 2], // J: intrinsic right-aligned buttons
     pub k_btns: [ButtonState; 3], // K: AtMost shrink-wrap (fixed block + short hugs + long clamps)
     pub l_btns: [ButtonState; 9], // L: RowLayout cross-align (3 rows × 3)
+    pub m_btns: [ButtonState; 3], // M: RowLayout main-axis End trailing action
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -285,6 +290,39 @@ pub fn draw_layout_page(
                     left.spacer(18.0);
                 }
             }
+        }
+        left.spacer(18.0);
+
+        // M. Main-axis End: append normal children, then close the row with a
+        // trailing action anchored to the committed right edge.
+        subheading(&mut left, "M. RowLayout main-axis End — trailing action");
+        left.spacer(18.0);
+        {
+            let mut row = left
+                .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(36.0), RowLayout);
+            button(
+                &mut row,
+                ButtonSpecBuilder::new().text("Back").style(secondary),
+                RowLayoutParams::auto().fill_y(),
+                &mut state.m_btns[0],
+            );
+            row.spacer(8.0);
+            button(
+                &mut row,
+                ButtonSpecBuilder::new().text("Edit").style(secondary),
+                RowLayoutParams::auto().fill_y(),
+                &mut state.m_btns[1],
+            );
+            button(
+                &mut row,
+                ButtonSpecBuilder::new().text("Save").style(primary),
+                RowLayoutParams::auto()
+                    .fixed_x(96.0)
+                    .fill_y()
+                    .align_x(MainAxisAlign::End),
+                &mut state.m_btns[2],
+            );
+            row.finish();
         }
 
         left.finish();
@@ -574,7 +612,6 @@ pub fn draw_layout_page(
 
             row.finish();
         }
-
         right.finish();
     }
 
