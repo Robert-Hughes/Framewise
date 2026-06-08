@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -19,17 +18,35 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct KeycapResult {
-        pub draw: DrawCommands,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a keycap's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** - this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_keycap_intrinsic_size<T: TextSystem>(
+        spec: &KeycapSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let metrics = text_system.measure(
+            spec.text,
+            spec.style.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        crate::layout::IntrinsicSize::preferred(metrics.logical_size)
     }
 
     /// Low-level keycap widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<'a, T: TextSystem>(spec: KeycapSpec<'a>, text_system: &mut T) -> KeycapResult {
-        let mut cmds = DrawCommands::new();
-
+    pub fn keycap<T: TextSystem>(
+        spec: KeycapSpec<'_>,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) -> KeycapResult {
         // Background + border
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
@@ -54,18 +71,27 @@ pub mod raw {
 
         // text, centered
         if !spec.text.is_empty() {
-            let layout = text_system.prepare(spec.text, spec.style.text_size, spec.style.font);
-            let tx = spec.rect.x + (spec.rect.w - layout.size.x) / 2.0;
-            let ty = spec.rect.y + (spec.rect.h - layout.size.y) / 2.0;
+            let metrics = text_system.measure(
+                spec.text,
+                spec.style.text_style,
+                crate::text::TextBounds {
+                    max_width: Some(spec.rect.w),
+                    max_height: Some(spec.rect.h),
+                },
+            );
+            let text_rect = spec
+                .style
+                .content_placement
+                .resolve_rect(spec.rect, metrics);
+            let layout = text_system.prepare(spec.text, spec.style.text_style, text_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(tx, ty, layout.size.x, layout.size.y),
+                rect: text_rect,
                 color: spec.style.text_color,
                 handle: layout.handle,
             });
         }
 
         KeycapResult {
-            draw: cmds,
             content_bounds: spec.rect.inset(spec.style.border_width),
         }
     }
@@ -83,8 +109,8 @@ pub struct KeycapStyle {
     pub border: Color,
     pub border_width: f32,
     pub text_color: Color,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
+    pub content_placement: crate::text::TextContentPlacement,
 }
 
 impl KeycapStyle {
@@ -97,8 +123,13 @@ impl KeycapStyle {
             border: theme.line,
             border_width: theme.border,
             text_color: theme.ink,
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: crate::text::TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
         }
     }
 }
@@ -170,11 +201,14 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> KeycapResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::keycap(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_keycap_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::keycap(spec, ctx.text_system, ctx.cmds);
     KeycapResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -184,7 +218,7 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::KeycapSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::{focus::FocusSystem, test_utils::DummyTextSys, text::FontId};
 
     #[test]
     fn test_keycap_visual() {
@@ -204,15 +238,25 @@ mod tests {
                 shadow_offset: 1.0,
                 shadow_height: 2.0,
                 text_color: custom_text,
-                text_size: 14.0,
-                font: FontId(0),
+                text_style: crate::text::TextStyle::new(
+                    FontId(0),
+                    14.0,
+                    400,
+                    crate::text::TextFlow::single_line(),
+                ),
+                content_placement: crate::text::TextContentPlacement::CENTER,
             },
         };
-        let res = raw::keycap(spec, &mut text_system);
+        let mut cmds = DrawCommands::new();
+        let res = raw::keycap(spec, &mut text_system, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            res.content_bounds,
+            Rect::new(0.0, 0.0, 30.0, 30.0).inset(1.0)
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                     color: custom_bg,
@@ -241,7 +285,7 @@ mod tests {
         let builder = KeycapSpecBuilder::new();
         assert!(builder.style.is_none());
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().font, theme.mono_font);
+        assert_eq!(builder.style.unwrap().text_style.font, theme.mono_font);
     }
 
     #[test]
@@ -255,8 +299,13 @@ mod tests {
             border: Color::WHITE,
             border_width: 1.0,
             text_color: Color::WHITE,
-            text_size: 14.0,
-            font: FontId(99),
+            text_style: crate::text::TextStyle::new(
+                FontId(99),
+                14.0,
+                400,
+                crate::text::TextFlow::single_line(),
+            ),
+            content_placement: crate::text::TextContentPlacement::CENTER,
         };
         let builder = KeycapSpecBuilder::new().style(explicit_style);
         let builder = builder.defaults_from_theme(&theme);
@@ -264,47 +313,30 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        let result = super::keycap(
-            &mut ctx,
-            KeycapSpecBuilder::new()
-                .text("X")
-                .style(KeycapStyle {
-                    background: Color::WHITE,
-                    shadow: Color::BLACK,
-                    shadow_offset: 1.0,
-                    shadow_height: 2.0,
-                    border: Color::WHITE,
-                    border_width: 1.0,
-                    text_color: Color::WHITE,
-                    text_size: 14.0,
-                    font: FontId(0),
-                })
-                .rect(custom_rect),
-            layout_rect,
-        );
-        assert_eq!(result.layout.bounds, custom_rect);
+        let result = super::keycap(&mut ctx, KeycapSpecBuilder::new().text("X"), placement);
+        assert_eq!(result.layout.bounds, placement);
     }
 
     #[test]
     fn test_keycap_bounds_and_content_bounds() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -316,7 +348,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let custom_border_width = 3.5;
@@ -330,8 +363,13 @@ mod tests {
                 border: Color::WHITE,
                 border_width: custom_border_width,
                 text_color: Color::WHITE,
-                text_size: 14.0,
-                font: FontId(0),
+                text_style: crate::text::TextStyle::new(
+                    FontId(0),
+                    14.0,
+                    400,
+                    crate::text::TextFlow::single_line(),
+                ),
+                content_placement: crate::text::TextContentPlacement::CENTER,
             }),
             layout_rect,
         );

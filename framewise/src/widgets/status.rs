@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -19,16 +18,38 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct StatusResult {
-        pub draw: DrawCommands,
+    pub struct StatusResult {}
+
+    /// Measure a status widget's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** - this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_status_intrinsic_size<T: TextSystem>(
+        spec: &StatusSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let metrics = text_system.measure(
+            spec.text,
+            spec.style.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let size = crate::types::Vec2::new(
+            spec.style.dot_size + spec.style.gap + metrics.logical_size.x,
+            spec.style.dot_size.max(metrics.logical_size.y),
+        );
+        crate::layout::IntrinsicSize::preferred(size)
     }
 
     /// Low-level status widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<'a, T: TextSystem>(spec: StatusSpec<'a>, text_system: &mut T) -> StatusResult {
-        let mut cmds = DrawCommands::new();
+    pub fn status<T: TextSystem>(
+        spec: StatusSpec<'_>,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) {
         let s = spec.style;
 
         let dot_size = s.dot_size;
@@ -47,20 +68,27 @@ pub mod raw {
             color: dot_color,
         });
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
-        let ty = spec.rect.y + (dot_size - layout.size.y) * 0.5;
+        let metrics = text_system.measure(
+            spec.text,
+            s.text_style,
+            crate::text::TextBounds {
+                max_width: Some((spec.rect.w - dot_size - gap).max(0.0)),
+                max_height: Some(spec.rect.h),
+            },
+        );
+        let ty = spec.rect.y + (dot_size - metrics.logical_size.y) * 0.5;
+        let text_rect = Rect::new(
+            spec.rect.x + dot_size + gap,
+            ty,
+            metrics.logical_size.x,
+            metrics.logical_size.y,
+        );
+        let layout = text_system.prepare(spec.text, s.text_style, text_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(
-                spec.rect.x + dot_size + gap,
-                ty,
-                layout.size.x,
-                layout.size.y,
-            ),
+            rect: text_rect,
             color: s.text,
             handle: layout.handle,
         });
-
-        StatusResult { draw: cmds }
     }
 }
 
@@ -79,8 +107,7 @@ pub enum StatusVariant {
 pub struct StatusStyle {
     pub dot_size: f32,
     pub gap: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub neutral: Color,
     pub ok: Color,
     pub warn: Color,
@@ -94,8 +121,12 @@ impl StatusStyle {
         Self {
             dot_size: 6.0,
             gap: 8.0,
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: crate::text::TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             neutral: theme.muted,
             ok: theme.ok,
             warn: theme.rust,
@@ -179,11 +210,14 @@ pub fn status<'a, T: TextSystem, S: LayoutState, CF>(
     builder: StatusSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> StatusResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::status(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_status_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    raw::status(spec, ctx.text_system, ctx.cmds);
     StatusResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -193,7 +227,7 @@ pub fn status<'a, T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::StatusSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::{focus::FocusSystem, test_utils::DummyTextSys};
 
     #[test]
     fn test_status_visual_ok() {
@@ -205,11 +239,12 @@ mod tests {
             style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let res = raw::status(spec, &mut text_system);
+        let mut cmds = DrawCommands::new();
+        raw::status(spec, &mut text_system, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.ok,
@@ -233,11 +268,12 @@ mod tests {
             style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let res = raw::status(spec, &mut text_system);
+        let mut cmds = DrawCommands::new();
+        raw::status(spec, &mut text_system, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.warn,
@@ -264,44 +300,36 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = StatusStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = StatusSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        super::status(
+        let result = super::status(
             &mut ctx,
             StatusSpecBuilder::new()
                 .text("ok")
-                .variant(StatusVariant::Ok)
-                .rect(custom_rect),
-            layout_rect,
+                .variant(StatusVariant::Ok),
+            placement,
         );
-        // First draw command is FillRect for the dot at (custom_rect.x, custom_rect.y)
-        match &cmds[0] {
-            crate::draw::DrawCmd::FillRect { rect, .. } => {
-                assert_eq!(rect.x, custom_rect.x);
-                assert_eq!(rect.y, custom_rect.y);
-            }
-            other => panic!("Expected FillRect, got {:?}", other),
-        }
+        assert_eq!(result.layout.bounds, placement);
     }
 }

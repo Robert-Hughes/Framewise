@@ -1029,6 +1029,8 @@ const MARGIN: f32 = 64.0;
 const GROUP_GAP: f32 = 28.0;
 #[allow(dead_code)]
 const COL_GAP: f32 = 16.0;
+#[allow(dead_code)]
+const SEC_GAP: f32 = 72.0;
 
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
@@ -1265,7 +1267,7 @@ pub fn draw_spec_page(
             }
             #[cfg(all(feature = "tooltip", feature = "keycap"))]
             {
-                section_10_tooltips(b, &t, content_w, y);
+                section_10_tooltips(b, &t, content_w);
             }
             #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
             {
@@ -3415,49 +3417,55 @@ fn section_10_tooltips<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
 ) {
     let t = *t;
     // ── 10 · TOOLTIPS · KEYCAPS ──────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "10", "Tooltips & keycaps",
-        "tooltips invert the palette — ink on paper becomes paper on ink. keycaps borrow the input border.");
-    y += 46.0;
+    sec_y(
+        b,
+        &t,
+        content_w,
+        "10",
+        "Tooltips & keycaps",
+        "tooltips invert the palette — ink on paper becomes paper on ink. keycaps borrow the input border.",
+    );
 
-    group_y(b, &t, y, "tooltips");
-    y += 20.0;
+    group_y(b, &t, "tooltips");
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 112.0), ManualLayout);
+        let mut y = 0.0;
         tooltip(
-            b,
+            &mut b,
             TooltipSpecBuilder::new()
                 .text("Drag to scrub — hold ⌥ for fine.")
                 .variant(TooltipVariant::Dark),
-            Rect::new(lx, y, 0.0, 0.0),
+            Rect::new(0.0, y, 0.0, 0.0),
         );
         y += 28.0 + 8.0;
 
         tooltip(
-            b,
+            &mut b,
             TooltipSpecBuilder::new()
                 .text("Re-described every frame from current application state. No retained nodes.")
                 .variant(TooltipVariant::Dark),
-            Rect::new(lx, y, 0.0, 0.0),
+            Rect::new(0.0, y, 0.0, 0.0),
         );
         y += 28.0 + 8.0;
 
         tooltip(
-            b,
+            &mut b,
             TooltipSpecBuilder::new()
                 .text("⚠ shader recompiled b frame (12 ms)")
                 .variant(TooltipVariant::Rust),
-            Rect::new(lx, y, 0.0, 0.0),
+            Rect::new(0.0, y, 0.0, 0.0),
         );
-        y += 28.0;
+        b.finish();
     }
-    y += GROUP_GAP;
+    b.spacer(GROUP_GAP);
 
-    group_y(b, &t, y, "keycaps");
-    y += 20.0;
+    group_y(b, &t, "keycaps");
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 112.0), ManualLayout);
+        let mut y = 0.0;
         let key_rows: &[(&[&str], &str)] = &[
             (&["⌘", "⇧", "P"], "command palette"),
             (&["G"], "toggle layout grid"),
@@ -3465,11 +3473,11 @@ fn section_10_tooltips<CF>(
             (&["⌥", "drag"], "fine scrub"),
         ];
         for (keys, desc) in key_rows {
-            let mut kx = lx;
+            let mut kx = 0.0;
             for key in *keys {
                 let kw = (key.len() as f32 * 7.0 + 12.0).max(24.0);
                 keycap(
-                    b,
+                    &mut b,
                     KeycapSpecBuilder::new().text(key),
                     Rect::new(kx, y, kw, 22.0),
                 );
@@ -3481,19 +3489,19 @@ fn section_10_tooltips<CF>(
                 let color = t.muted;
                 let spec_builder = LabelSpecBuilder::new().text(desc).style(LabelStyle {
                     text_style: framewise::TextStyle {
-                        size: size,
+                        size,
                         ..(LabelStyle::from_theme(&t)).text_style
                     },
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
             y += 28.0;
         }
+        b.finish();
     }
-    y += SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]

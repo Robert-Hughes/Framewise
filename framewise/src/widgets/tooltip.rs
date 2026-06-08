@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -20,17 +19,39 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TooltipResult {
-        pub draw: DrawCommands,
         pub bounds: Rect,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a tooltip's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** - this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_tooltip_intrinsic_size<T: TextSystem>(
+        spec: &TooltipSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let metrics = text_system.measure(
+            spec.text,
+            s.text_style,
+            crate::text::TextBounds::width((s.max_width - s.pad_x * 2.0).max(0.0)),
+        );
+        let box_w = (metrics.logical_size.x + s.pad_x * 2.0).min(s.max_width);
+        let box_h = metrics.logical_size.y + s.pad_y_top + s.pad_y_bot;
+        crate::layout::IntrinsicSize::preferred(Vec2::new(box_w, box_h))
     }
 
     /// Low-level tooltip widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<'a, T: TextSystem>(spec: TooltipSpec<'a>, text_system: &mut T) -> TooltipResult {
-        let mut cmds = DrawCommands::new();
+    pub fn tooltip<T: TextSystem>(
+        spec: TooltipSpec<'_>,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) -> TooltipResult {
         let s = spec.style;
 
         let pad_x = s.pad_x;
@@ -44,15 +65,26 @@ pub mod raw {
             TooltipVariant::Rust => (s.rust_bg, s.rust_text),
         };
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
-        let box_w = (layout.size.x + pad_x * 2.0).min(s.max_width);
-        let box_h = layout.size.y + pad_y_top + pad_y_bot;
+        let metrics = text_system.measure(
+            spec.text,
+            s.text_style,
+            crate::text::TextBounds::width((s.max_width - pad_x * 2.0).max(0.0)),
+        );
+        let box_w = (metrics.logical_size.x + pad_x * 2.0).min(s.max_width);
+        let box_h = metrics.logical_size.y + pad_y_top + pad_y_bot;
 
         let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
         cmds.push(DrawCmd::FillRect { rect: r, color: bg });
 
+        let text_rect = Rect::new(
+            r.x + pad_x,
+            r.y + pad_y_top,
+            metrics.logical_size.x,
+            metrics.logical_size.y,
+        );
+        let layout = text_system.prepare(spec.text, s.text_style, text_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(r.x + pad_x, r.y + pad_y_top, layout.size.x, layout.size.y),
+            rect: text_rect,
             color: text_color,
             handle: layout.handle,
         });
@@ -81,7 +113,6 @@ pub mod raw {
         );
 
         TooltipResult {
-            draw: cmds,
             bounds: r,
             content_bounds,
         }
@@ -98,8 +129,7 @@ pub enum TooltipVariant {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TooltipStyle {
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub pad_x: f32,
     pub pad_y_top: f32,
     pub pad_y_bot: f32,
@@ -117,8 +147,12 @@ pub struct TooltipStyle {
 impl TooltipStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: crate::text::TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             pad_x: 8.0,
             pad_y_top: 5.0,
             pad_y_bot: 6.0,
@@ -208,11 +242,14 @@ pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
     builder: TooltipSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> TooltipResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::tooltip(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_tooltip_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::tooltip(spec, ctx.text_system, ctx.cmds);
     TooltipResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -222,7 +259,7 @@ pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::TooltipSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::{focus::FocusSystem, test_utils::DummyTextSys};
 
     #[test]
     fn test_tooltip_visual_dark() {
@@ -234,11 +271,13 @@ mod tests {
             style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let res = raw::tooltip(spec, &mut text_system);
+        let mut cmds = DrawCommands::new();
+        let res = raw::tooltip(spec, &mut text_system, &mut cmds);
 
+        assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.dark_bg,
@@ -274,11 +313,13 @@ mod tests {
             style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let res = raw::tooltip(spec, &mut text_system);
+        let mut cmds = DrawCommands::new();
+        let res = raw::tooltip(spec, &mut text_system, &mut cmds);
 
+        assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.rust_bg,
@@ -305,43 +346,36 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        super::tooltip(
+        let result = super::tooltip(
             &mut ctx,
             TooltipSpecBuilder::new()
                 .text("hi")
-                .variant(TooltipVariant::Dark)
-                .rect(custom_rect),
-            layout_rect,
+                .variant(TooltipVariant::Dark),
+            placement,
         );
-        // First draw command is FillRect for the box at (custom_rect.x, custom_rect.y)
-        match &cmds[0] {
-            crate::draw::DrawCmd::FillRect { rect, .. } => {
-                assert_eq!(rect.x, custom_rect.x);
-                assert_eq!(rect.y, custom_rect.y);
-            }
-            other => panic!("Expected FillRect, got {:?}", other),
-        }
+        assert_eq!(result.layout.bounds.x, placement.x);
+        assert_eq!(result.layout.bounds.y, placement.y);
     }
 
     #[test]
     fn test_tooltip_bounds_and_content_bounds() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -353,7 +387,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let res = super::tooltip(
