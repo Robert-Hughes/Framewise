@@ -374,7 +374,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "documents known gap: wrapping currently operates on individual glyphs, not whole shaping clusters"]
     fn wrap_cluster_keep_does_not_split_combining_mark_cluster() {
         let mut sys = sys();
         let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
@@ -414,7 +413,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "documents known gap: word wrapping currently only treats ASCII space/newline as word separators"]
     fn word_wrap_breaks_after_tab_whitespace() {
         let mut sys = sys();
         let text = "hello\tthere";
@@ -441,7 +439,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "documents known gap: hit testing is glyph-based after wrapping can split one shaping cluster"]
     fn hit_test_cannot_target_a_line_made_from_half_a_cluster() {
         let mut sys = sys();
         let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
@@ -467,6 +464,100 @@ mod tests {
             run.lines.len(),
             1,
             "hit testing should never see a visual line containing only part of one indivisible cluster"
+        );
+    }
+
+    #[test]
+    fn shaped_combining_mark_records_one_cluster_with_multiple_glyphs() {
+        let mut sys = sys();
+        let text = "x\u{301}y";
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(1), 32.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 300.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let cluster = run
+            .clusters
+            .iter()
+            .find(|cluster| cluster.byte_start == 0)
+            .expect("first source cluster should be recorded");
+
+        assert_eq!(cluster.byte_end, 3);
+        assert!(
+            cluster.glyph_end - cluster.glyph_start >= 2,
+            "combining-mark cluster should keep its base and mark glyphs together"
+        );
+        assert_eq!(run.clusters.len(), 2);
+    }
+
+    #[test]
+    fn line_records_include_cluster_ranges() {
+        let mut sys = sys();
+        let layout = sys.prepare(
+            "ab\ncd",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 80.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        assert_eq!(run.lines.len(), 2);
+        for line in &run.lines {
+            assert!(line.cluster_start <= line.cluster_end);
+            assert!(line.cluster_end <= run.clusters.len());
+            assert!(line.glyph_start <= line.glyph_end);
+            assert!(line.glyph_end <= run.glyphs.len());
+        }
+        assert_eq!(
+            run.lines[0].cluster_end - run.lines[0].cluster_start,
+            3,
+            "first line should include a, b, and the hard-break cluster"
+        );
+        assert_eq!(run.lines[1].cluster_end - run.lines[1].cluster_start, 2);
+    }
+
+    #[test]
+    fn caret_inside_combining_mark_cluster_clamps_to_cluster_start() {
+        let mut sys = sys();
+        let text = "x\u{301}y";
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(1), 32.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 300.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let first_cluster_x = run.clusters[0].x;
+
+        assert_eq!(sys.caret_geom(layout.handle, 1).x, first_cluster_x);
+        assert_eq!(sys.caret_geom(layout.handle, 2).x, first_cluster_x);
+    }
+
+    #[test]
+    fn hit_test_combining_mark_cluster_returns_cluster_boundaries() {
+        let mut sys = sys();
+        let text = "x\u{301}y";
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(1), 32.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 300.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let cluster = &run.clusters[0];
+        let y = run.lines[0].y_top + 1.0;
+
+        assert_eq!(
+            sys.hit_test(
+                layout.handle,
+                Vec2::new(cluster.x + cluster.advance * 0.25, y)
+            ),
+            0
+        );
+        assert_eq!(
+            sys.hit_test(
+                layout.handle,
+                Vec2::new(cluster.x + cluster.advance * 0.75, y)
+            ),
+            cluster.byte_end
         );
     }
 

@@ -32,7 +32,7 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
-use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec};
+use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec, TextCluster};
 use framewise::{
     CaretGeom, FontId, LineHeight, Rect, TextBounds, TextFlow, TextLayout, TextMetrics, TextSystem,
     Vec2,
@@ -52,6 +52,13 @@ pub struct LayoutKey {
     pub letter_spacing_bits: i32,
     pub line_height_val: Option<u32>,
 }
+
+type LayoutCacheValue = (
+    Vec<GlyphPosition>,
+    Vec<TextCluster>,
+    Vec<LineRec>,
+    TextMetrics,
+);
 use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
 use swash::FontRef;
@@ -65,7 +72,7 @@ pub struct SampleTextSystem {
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
     pub runs: Vec<CachedLayout>,
-    pub layout_cache: HashMap<LayoutKey, (Vec<GlyphPosition>, Vec<LineRec>, TextMetrics)>,
+    pub layout_cache: HashMap<LayoutKey, LayoutCacheValue>,
 
     // Atlas data
     pub glyph_cache: HashMap<GlyphKey, GlyphInfo>,
@@ -206,7 +213,7 @@ impl TextSystem for SampleTextSystem {
             },
         };
 
-        if let Some((_, _, metrics)) = self.layout_cache.get(&key) {
+        if let Some((_, _, _, metrics)) = self.layout_cache.get(&key) {
             return *metrics;
         }
 
@@ -218,7 +225,7 @@ impl TextSystem for SampleTextSystem {
             .unwrap_or(400);
         self.set_font_weight(style.font, style.weight);
 
-        let (glyphs, lines, metrics) =
+        let (glyphs, clusters, lines, metrics) =
             self.shape_internal(text, style, bounds.max_width, bounds.max_height, None);
 
         // Restore old weight
@@ -228,7 +235,8 @@ impl TextSystem for SampleTextSystem {
         if self.layout_cache.len() >= 2000 {
             self.layout_cache.clear();
         }
-        self.layout_cache.insert(key, (glyphs, lines, metrics));
+        self.layout_cache
+            .insert(key, (glyphs, clusters, lines, metrics));
 
         metrics
     }
@@ -253,9 +261,11 @@ impl TextSystem for SampleTextSystem {
         let cached = self
             .layout_cache
             .get(&key)
-            .map(|(glyphs, lines, metrics)| (glyphs.clone(), lines.clone(), *metrics));
+            .map(|(glyphs, clusters, lines, metrics)| {
+                (glyphs.clone(), clusters.clone(), lines.clone(), *metrics)
+            });
 
-        if let Some((glyphs, lines, metrics)) = cached {
+        if let Some((glyphs, clusters, lines, metrics)) = cached {
             // Populate atlas for any cached glyphs that are needed
             let opsz = self.opsz_for_size(style.size, style.font);
             for g in &glyphs {
@@ -274,6 +284,7 @@ impl TextSystem for SampleTextSystem {
             self.runs.push(CachedLayout {
                 font_id: style.font,
                 glyphs,
+                clusters,
                 lines,
             });
 
@@ -292,7 +303,7 @@ impl TextSystem for SampleTextSystem {
         self.set_font_weight(style.font, style.weight);
 
         // Pass the absolute X coordinate (rect.x) to internal shaper to compute correct subpixel offsets
-        let (glyphs, lines, metrics) =
+        let (glyphs, clusters, lines, metrics) =
             self.shape_internal(text, style, Some(rect.w), Some(rect.h), Some(rect.x));
 
         let opsz = self.opsz_for_size(style.size, style.font);
@@ -313,6 +324,7 @@ impl TextSystem for SampleTextSystem {
         self.runs.push(CachedLayout {
             font_id: style.font,
             glyphs: glyphs.clone(),
+            clusters: clusters.clone(),
             lines: lines.clone(),
         });
 
@@ -323,7 +335,8 @@ impl TextSystem for SampleTextSystem {
         if self.layout_cache.len() >= 2000 {
             self.layout_cache.clear();
         }
-        self.layout_cache.insert(key, (glyphs, lines, metrics));
+        self.layout_cache
+            .insert(key, (glyphs, clusters, lines, metrics));
 
         TextLayout {
             handle: framewise::TextHandle(handle_id),
@@ -345,18 +358,18 @@ impl TextSystem for SampleTextSystem {
 
         // X within the line: leading edge of the cluster at/after byte_index,
         // else the trailing edge of the last cluster on the line.
-        let glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
+        let clusters = &run.clusters[line.cluster_start..line.cluster_end];
         let x = if byte_index >= line.byte_end {
-            glyphs
+            clusters
                 .last()
-                .map(|g| g.x + g.advance)
-                .unwrap_or_else(|| line_start_x(glyphs))
+                .map(|cluster| cluster.x + cluster.advance)
+                .unwrap_or_else(|| line_start_x(clusters))
         } else {
-            glyphs
+            clusters
                 .iter()
-                .find(|g| g.byte_offset >= byte_index)
-                .map(|g| g.x)
-                .unwrap_or_else(|| line_start_x(glyphs))
+                .find(|cluster| byte_index <= cluster.byte_start || byte_index < cluster.byte_end)
+                .map(|cluster| cluster.x)
+                .unwrap_or_else(|| line_start_x(clusters))
         };
 
         CaretGeom {
@@ -376,20 +389,20 @@ impl TextSystem for SampleTextSystem {
             .find(|l| pos.y < l.y_top + l.height)
             .unwrap_or_else(|| run.lines.last().expect("at least one line"));
 
-        let glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
-        if glyphs.is_empty() {
+        let clusters = &run.clusters[line.cluster_start..line.cluster_end];
+        if clusters.is_empty() {
             return line.byte_start;
         }
-        for g in glyphs {
-            let mid = g.x + g.advance * 0.5;
+        for cluster in clusters {
+            let mid = cluster.x + cluster.advance * 0.5;
             if pos.x < mid {
-                return g.byte_offset;
+                return cluster.byte_start;
             }
         }
         line.byte_end
     }
 }
 
-fn line_start_x(glyphs: &[crate::text::types::GlyphPosition]) -> f32 {
-    glyphs.first().map(|g| g.x).unwrap_or(0.0)
+fn line_start_x(clusters: &[crate::text::types::TextCluster]) -> f32 {
+    clusters.first().map(|cluster| cluster.x).unwrap_or(0.0)
 }

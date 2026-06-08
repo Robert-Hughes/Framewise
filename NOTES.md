@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-  - Issues with the shaper and wrapping between cluster boundaries. Ignored tests added - fix.
-
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
 * WrapLayout still panics - these should be layout violation errors!

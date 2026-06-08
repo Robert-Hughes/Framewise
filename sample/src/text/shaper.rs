@@ -1,4 +1,4 @@
-use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec};
+use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec, TextCluster};
 use crate::text::SampleTextSystem;
 use framewise::{
     EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextFlow, TextLineAlign,
@@ -6,11 +6,34 @@ use framewise::{
 };
 
 struct Line {
-    glyph_start: usize,
-    glyph_end: usize,
+    clusters: Vec<OwnedCluster>,
     byte_start: usize,
     byte_end: usize,
     baseline_y: f32,
+}
+
+#[derive(Debug, Clone)]
+struct OwnedCluster {
+    byte_start: usize,
+    byte_end: usize,
+    x: f32,
+    advance: f32,
+    is_hard_break: bool,
+    is_whitespace: bool,
+    glyphs: Vec<GlyphPosition>,
+}
+
+impl OwnedCluster {
+    fn end_x(&self) -> f32 {
+        self.x + self.advance
+    }
+
+    fn shift_x(&mut self, dx: f32) {
+        self.x += dx;
+        for g in &mut self.glyphs {
+            g.x += dx;
+        }
+    }
 }
 
 impl SampleTextSystem {
@@ -57,7 +80,8 @@ impl SampleTextSystem {
     pub fn ellipsis(&mut self, size: f32, font_id: FontId) -> (Vec<GlyphPosition>, f32, f32) {
         let flow = TextFlow::single_line();
         let style = TextStyle::new(font_id, size, self.weight_for_font(font_id), flow);
-        let (glyphs, _lines, _metrics) = self.shape_internal("…", style, None, None, Some(0.0));
+        let (glyphs, _clusters, _lines, _metrics) =
+            self.shape_internal("…", style, None, None, Some(0.0));
 
         let logical_w = Self::logical_line_width(&glyphs);
 
@@ -75,7 +99,12 @@ impl SampleTextSystem {
         max_w: Option<f32>,
         max_h: Option<f32>,
         absolute_x: Option<f32>,
-    ) -> (Vec<GlyphPosition>, Vec<LineRec>, TextMetrics) {
+    ) -> (
+        Vec<GlyphPosition>,
+        Vec<TextCluster>,
+        Vec<LineRec>,
+        TextMetrics,
+    ) {
         let size = style.size;
         let font_id = style.font;
         let flow = style.flow;
@@ -109,16 +138,15 @@ impl SampleTextSystem {
             lines_raw.push(("", false, 0, 0));
         }
 
-        let mut glyphs0 = Vec::new();
         let mut lines = Vec::new();
 
         for (i, &(segment, has_newline, segment_start, segment_end)) in lines_raw.iter().enumerate()
         {
-            let line_start_index = glyphs0.len();
             let mut pen_x = 0.0_f32;
+            let mut clusters = Vec::new();
+            let baseline_y = i as f32 * line_height_snapped + baseline_offset;
 
             if !segment.is_empty() {
-                let mut temp_glyphs = Vec::new();
                 let mut shaper = self.shape_context.builder(font).size(size);
 
                 // Apply variation settings if font supports them
@@ -137,70 +165,98 @@ impl SampleTextSystem {
                 shaper.add_str(segment);
 
                 shaper.shape_with(|cluster| {
-                    let byte_offset = segment_start + cluster.source.start as usize;
-                    let parent_char = segment[cluster.source.to_range()]
-                        .chars()
-                        .next()
-                        .unwrap_or(' ');
+                    let source = cluster.source.to_range();
+                    let source_text = &segment[source.clone()];
+                    let byte_start = segment_start + cluster.source.start as usize;
+                    let byte_end = segment_start + cluster.source.end as usize;
+                    let parent_char = source_text.chars().next().unwrap_or(' ');
+                    let is_whitespace = source_text.chars().all(char::is_whitespace);
+                    let cluster_x = pen_x;
+                    let mut cluster_advance = 0.0;
+                    let mut glyphs = Vec::new();
 
                     for glyph in cluster.glyphs {
-                        temp_glyphs.push((
-                            parent_char,
-                            glyph.id,
-                            pen_x + glyph.x,
-                            glyph.y,
-                            byte_offset,
-                            glyph.advance + letter_spacing_px,
-                        ));
-                        pen_x += glyph.advance + letter_spacing_px;
+                        let advance = glyph.advance + letter_spacing_px;
+                        let gx = pen_x + glyph.x;
+
+                        glyphs.push(GlyphPosition {
+                            parent: parent_char,
+                            key: GlyphRasterConfig {
+                                glyph_index: glyph.id,
+                                px: size,
+                            },
+                            x: gx,
+                            y: baseline_y + glyph.y,
+                            raster_w: 0,
+                            raster_h: 0,
+                            byte_offset: byte_start,
+                            subpixel_x: 0,
+                            advance,
+                            weight,
+                            opsz: opsz as u16,
+                        });
+
+                        pen_x += advance;
+                        cluster_advance += advance;
                     }
+
+                    if glyphs.is_empty() {
+                        glyphs.push(GlyphPosition {
+                            parent: parent_char,
+                            key: GlyphRasterConfig {
+                                glyph_index: 0,
+                                px: size,
+                            },
+                            x: cluster_x,
+                            y: baseline_y,
+                            raster_w: 0,
+                            raster_h: 0,
+                            byte_offset: byte_start,
+                            subpixel_x: 0,
+                            advance: 0.0,
+                            weight,
+                            opsz: opsz as u16,
+                        });
+                    }
+
+                    clusters.push(OwnedCluster {
+                        byte_start,
+                        byte_end,
+                        x: cluster_x,
+                        advance: cluster_advance,
+                        is_hard_break: false,
+                        is_whitespace,
+                        glyphs,
+                    });
                 });
 
-                for (parent_char, glyph_index, gx, gy, byte_offset, advance) in temp_glyphs {
-                    // Calculate absolute X coordinate to resolve subpixel binning
-                    let abs_x = absolute_x.unwrap_or(0.0) + gx;
-                    let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
-
-                    let (w, h) = self.get_glyph_metrics(
-                        font_id.0,
-                        glyph_index,
-                        size,
-                        subpixel_x,
-                        weight,
-                        opsz as u16,
-                    );
-
-                    // Calculate the baseline position for this line
-                    let baseline_y = i as f32 * line_height_snapped + baseline_offset;
-
-                    glyphs0.push(GlyphPosition {
-                        parent: parent_char,
-                        key: GlyphRasterConfig {
-                            glyph_index,
-                            px: size,
-                        },
-                        x: gx,
-                        y: baseline_y + gy,   // Store as local baseline position
-                        raster_w: w as usize, // bitmap width for now
-                        raster_h: h as usize,
-                        byte_offset,
-                        subpixel_x,
-                        advance, // shaped advance for text flow
-                        weight,
-                        opsz: opsz as u16,
-                    });
+                for cluster in &mut clusters {
+                    for glyph in &mut cluster.glyphs {
+                        let abs_x = absolute_x.unwrap_or(0.0) + glyph.x;
+                        glyph.subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
+                        let (w, h) = self.get_glyph_metrics(
+                            font_id.0,
+                            glyph.key.glyph_index,
+                            size,
+                            glyph.subpixel_x,
+                            weight,
+                            opsz as u16,
+                        );
+                        glyph.raster_w = w as usize;
+                        glyph.raster_h = h as usize;
+                    }
                 }
             }
 
             if has_newline {
-                glyphs0.push(GlyphPosition {
+                let newline_glyph = GlyphPosition {
                     parent: '\n',
                     key: GlyphRasterConfig {
                         glyph_index: 0,
                         px: size,
                     },
                     x: pen_x,
-                    y: i as f32 * line_height_snapped + baseline_offset,
+                    y: baseline_y,
                     raster_w: 0,
                     raster_h: 0,
                     byte_offset: segment_end,
@@ -208,6 +264,15 @@ impl SampleTextSystem {
                     advance: 0.0,
                     weight,
                     opsz: opsz as u16,
+                };
+                clusters.push(OwnedCluster {
+                    byte_start: segment_end,
+                    byte_end: segment_end + 1,
+                    x: pen_x,
+                    advance: 0.0,
+                    is_hard_break: true,
+                    is_whitespace: true,
+                    glyphs: vec![newline_glyph],
                 });
             }
 
@@ -218,23 +283,25 @@ impl SampleTextSystem {
             };
 
             lines.push(Line {
-                glyph_start: line_start_index,
-                glyph_end: glyphs0.len(),
+                clusters,
                 byte_start: segment_start,
                 byte_end,
-                baseline_y: i as f32 * line_height_snapped + baseline_offset,
+                baseline_y,
             });
         }
 
         // ── Per-line: align, clip / ellipsis, rebuild glyph vec ─────────────
-        let global_line_start = if glyphs0.is_empty() {
+        let global_line_start = if lines.iter().all(|line| line.clusters.is_empty()) {
             0.0
         } else {
-            glyphs0.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
+            lines
+                .iter()
+                .flat_map(|line| line.clusters.iter().map(|cluster| cluster.x))
+                .fold(f32::INFINITY, f32::min)
         };
 
         struct ProcessedLine {
-            glyphs: Vec<GlyphPosition>,
+            clusters: Vec<OwnedCluster>,
             byte_start: usize,
             byte_end: usize,
             baseline_y: f32,
@@ -244,18 +311,18 @@ impl SampleTextSystem {
         let mut processed_lines: Vec<ProcessedLine> = Vec::new();
 
         for line in lines {
-            let mut seg = glyphs0[line.glyph_start..line.glyph_end].to_vec();
+            let mut seg = line.clusters;
 
-            let line_start = Self::logical_line_start(&seg);
-            let logical_line_w = Self::logical_line_width(&seg);
+            let line_start = Self::logical_cluster_line_start(&seg);
+            let logical_line_w = Self::logical_cluster_line_width(&seg);
 
             let base_shift = match flow.line_align {
                 TextLineAlign::Start => global_line_start,
                 TextLineAlign::Center | TextLineAlign::End => line_start,
             };
             if base_shift != 0.0 {
-                for g in &mut seg {
-                    g.x -= base_shift;
+                for cluster in &mut seg {
+                    cluster.shift_x(-base_shift);
                 }
             }
 
@@ -289,9 +356,9 @@ impl SampleTextSystem {
                                 }
                                 OverflowX::Keep => {
                                     let mut out = Vec::new();
-                                    for g in seg {
-                                        let end_x = Self::logical_glyph_end(&g);
-                                        out.push(g);
+                                    for cluster in seg {
+                                        let end_x = cluster.end_x();
+                                        out.push(cluster);
                                         if end_x > w {
                                             break;
                                         }
@@ -300,9 +367,9 @@ impl SampleTextSystem {
                                 }
                                 OverflowX::Drop => {
                                     let mut out = Vec::new();
-                                    for g in seg {
-                                        if Self::logical_glyph_end(&g) <= w {
-                                            out.push(g);
+                                    for cluster in seg {
+                                        if cluster.end_x() <= w {
+                                            out.push(cluster);
                                         } else {
                                             break;
                                         }
@@ -327,7 +394,7 @@ impl SampleTextSystem {
                 } else {
                     sub_seg
                         .first()
-                        .map(|g| g.byte_offset)
+                        .map(|cluster| cluster.byte_start)
                         .unwrap_or(line.byte_start)
                 };
                 sub_infos.push(b_start);
@@ -336,7 +403,7 @@ impl SampleTextSystem {
 
             for (j, sub_seg) in final_sublines.into_iter().enumerate() {
                 processed_lines.push(ProcessedLine {
-                    glyphs: sub_seg,
+                    clusters: sub_seg,
                     byte_start: sub_infos[j],
                     byte_end: sub_infos[j + 1],
                     baseline_y: line.baseline_y,
@@ -361,11 +428,11 @@ impl SampleTextSystem {
                 OverflowY::Ellipsis { fallback } => {
                     if max_lines > 0 {
                         let last_idx = max_lines - 1;
-                        let last_line_glyphs =
-                            std::mem::take(&mut processed_lines[last_idx].glyphs);
+                        let last_line_clusters =
+                            std::mem::take(&mut processed_lines[last_idx].clusters);
                         let w = max_w.unwrap_or(f32::INFINITY);
                         let ellipsised = self.apply_ellipsis_x(
-                            last_line_glyphs,
+                            last_line_clusters,
                             w,
                             size,
                             font_id,
@@ -373,7 +440,7 @@ impl SampleTextSystem {
                             processed_lines[last_idx].baseline_y,
                         );
                         processed_lines.truncate(max_lines);
-                        processed_lines[last_idx].glyphs = ellipsised;
+                        processed_lines[last_idx].clusters = ellipsised;
                     } else {
                         match fallback {
                             EllipsisFallback::Keep => {
@@ -390,7 +457,7 @@ impl SampleTextSystem {
 
         if processed_lines.is_empty() {
             processed_lines.push(ProcessedLine {
-                glyphs: Vec::new(),
+                clusters: Vec::new(),
                 byte_start: 0,
                 byte_end: text.len(),
                 baseline_y: line_height_snapped,
@@ -398,6 +465,7 @@ impl SampleTextSystem {
         }
 
         let mut out: Vec<GlyphPosition> = Vec::new();
+        let mut out_clusters: Vec<TextCluster> = Vec::new();
         let mut rec: Vec<LineRec> = Vec::new();
         let mut block_width = 0.0_f32;
         let mut ink_l = f32::INFINITY;
@@ -412,19 +480,21 @@ impl SampleTextSystem {
 
             // Glyphs already have baseline-relative y from original shaping
             // We need to adjust them to the new baseline position
-            for g in &mut line.glyphs {
-                // Extract the original baseline-relative offset (gy from swash)
-                // Since g.y was set to (old_baseline_y + gy), we need to:
-                // 1. Extract gy = g.y - old_baseline_y
-                // 2. Calculate new absolute y = new_baseline_y + gy
-                // 3. Round for snapping
-                let baseline_relative_y = g.y - line.baseline_y;
-                g.y = (new_baseline_y + baseline_relative_y).round();
+            for cluster in &mut line.clusters {
+                for g in &mut cluster.glyphs {
+                    // Extract the original baseline-relative offset (gy from swash)
+                    // Since g.y was set to (old_baseline_y + gy), we need to:
+                    // 1. Extract gy = g.y - old_baseline_y
+                    // 2. Calculate new absolute y = new_baseline_y + gy
+                    // 3. Round for snapping
+                    let baseline_relative_y = g.y - line.baseline_y;
+                    g.y = (new_baseline_y + baseline_relative_y).round();
+                }
             }
 
             let align_off = match max_w {
                 Some(w) => {
-                    let logical_line_w = Self::logical_line_width(&line.glyphs);
+                    let logical_line_w = Self::logical_cluster_line_width(&line.clusters);
                     match flow.line_align {
                         TextLineAlign::Start => 0.0,
                         TextLineAlign::Center => ((w - logical_line_w) * 0.5).max(0.0),
@@ -434,71 +504,91 @@ impl SampleTextSystem {
                 None => 0.0,
             };
             if align_off != 0.0 {
-                for g in &mut line.glyphs {
-                    g.x += align_off;
+                for cluster in &mut line.clusters {
+                    cluster.shift_x(align_off);
                 }
             }
 
-            for g in &mut line.glyphs {
-                if g.raster_w == 0 && g.raster_h == 0 {
-                    continue;
-                }
-
-                let abs_x = absolute_x.unwrap_or(0.0) + g.x;
-                let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
-                if g.subpixel_x != subpixel_x {
-                    g.subpixel_x = subpixel_x;
-                    let (w, h) = self.get_glyph_metrics(
-                        font_id.0,
-                        g.key.glyph_index,
-                        size,
-                        subpixel_x,
-                        g.weight,
-                        g.opsz,
-                    );
-                    g.raster_w = w as usize;
-                    g.raster_h = h as usize;
-                }
-            }
-
-            for g in &line.glyphs {
-                if g.raster_w == 0 && g.raster_h == 0 {
-                    continue;
-                }
-
-                let key = crate::text::GlyphKey {
-                    font_id: font_id.0,
-                    glyph_index: g.key.glyph_index,
-                    size: (g.key.px * 10.0) as u32,
-                    subpixel_x: g.subpixel_x,
-                    weight: g.weight,
-                    opsz: g.opsz,
-                };
-                if let Some(info) = self.glyph_cache.get(&key) {
-                    if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
+            for cluster in &mut line.clusters {
+                for g in &mut cluster.glyphs {
+                    if g.raster_w == 0 && g.raster_h == 0 {
                         continue;
                     }
-                    let l = g.x + info.left as f32;
-                    let t = g.y - info.top as f32;
-                    let r = l + info.atlas_rect.w as f32;
-                    let b = t + info.atlas_rect.h as f32;
-                    ink_l = ink_l.min(l);
-                    ink_t = ink_t.min(t);
-                    ink_r = ink_r.max(r);
-                    ink_b = ink_b.max(b);
+
+                    let abs_x = absolute_x.unwrap_or(0.0) + g.x;
+                    let subpixel_x = (abs_x.fract() * 4.0).round() as u8 % 4;
+                    if g.subpixel_x != subpixel_x {
+                        g.subpixel_x = subpixel_x;
+                        let (w, h) = self.get_glyph_metrics(
+                            font_id.0,
+                            g.key.glyph_index,
+                            size,
+                            subpixel_x,
+                            g.weight,
+                            g.opsz,
+                        );
+                        g.raster_w = w as usize;
+                        g.raster_h = h as usize;
+                    }
                 }
             }
 
-            let logical_line_w = Self::logical_line_width(&line.glyphs);
+            for cluster in &line.clusters {
+                for g in &cluster.glyphs {
+                    if g.raster_w == 0 && g.raster_h == 0 {
+                        continue;
+                    }
+
+                    let key = crate::text::GlyphKey {
+                        font_id: font_id.0,
+                        glyph_index: g.key.glyph_index,
+                        size: (g.key.px * 10.0) as u32,
+                        subpixel_x: g.subpixel_x,
+                        weight: g.weight,
+                        opsz: g.opsz,
+                    };
+                    if let Some(info) = self.glyph_cache.get(&key) {
+                        if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
+                            continue;
+                        }
+                        let l = g.x + info.left as f32;
+                        let t = g.y - info.top as f32;
+                        let r = l + info.atlas_rect.w as f32;
+                        let b = t + info.atlas_rect.h as f32;
+                        ink_l = ink_l.min(l);
+                        ink_t = ink_t.min(t);
+                        ink_r = ink_r.max(r);
+                        ink_b = ink_b.max(b);
+                    }
+                }
+            }
+
+            let logical_line_w = Self::logical_cluster_line_width(&line.clusters);
             block_width = block_width.max(logical_line_w);
 
             let glyph_start = out.len();
-            out.extend(line.glyphs);
+            let cluster_start = out_clusters.len();
+            for cluster in line.clusters {
+                let cluster_glyph_start = out.len();
+                out.extend(cluster.glyphs);
+                out_clusters.push(TextCluster {
+                    byte_start: cluster.byte_start,
+                    byte_end: cluster.byte_end,
+                    glyph_start: cluster_glyph_start,
+                    glyph_end: out.len(),
+                    x: cluster.x,
+                    advance: cluster.advance,
+                    is_hard_break: cluster.is_hard_break,
+                    is_whitespace: cluster.is_whitespace,
+                });
+            }
             rec.push(LineRec {
                 y_top: new_y_top,
                 height: line_height_snapped,
                 glyph_start,
                 glyph_end: out.len(),
+                cluster_start,
+                cluster_end: out_clusters.len(),
                 byte_start: line.byte_start,
                 byte_end: line.byte_end,
             });
@@ -518,7 +608,7 @@ impl SampleTextSystem {
             truncated_horizontal,
             truncated_vertical,
         };
-        (out, rec, metrics)
+        (out, out_clusters, rec, metrics)
     }
 
     fn logical_line_width(glyphs: &[GlyphPosition]) -> f32 {
@@ -538,58 +628,70 @@ impl SampleTextSystem {
         g.x + g.advance
     }
 
+    fn logical_cluster_line_width(clusters: &[OwnedCluster]) -> f32 {
+        let start = Self::logical_cluster_line_start(clusters);
+        clusters
+            .iter()
+            .map(OwnedCluster::end_x)
+            .fold(start, f32::max)
+            - start
+    }
+
+    fn logical_cluster_line_start(clusters: &[OwnedCluster]) -> f32 {
+        clusters.iter().map(|cluster| cluster.x).fold(0.0, f32::min)
+    }
+
     fn wrap_clusters(
-        glyphs: Vec<GlyphPosition>,
+        clusters: Vec<OwnedCluster>,
         w: f32,
         fallback: WrapClusterFallback,
-    ) -> Vec<Vec<GlyphPosition>> {
+    ) -> Vec<Vec<OwnedCluster>> {
         let mut lines = Vec::new();
-        if glyphs.is_empty() {
+        if clusters.is_empty() {
             return lines;
         }
         let mut current_line = Vec::new();
-        let mut current_line_start_x = glyphs[0].x;
+        let mut current_line_start_x = clusters[0].x;
 
-        for g in glyphs {
-            if g.parent == '\n' {
-                let mut g_moved = g;
+        for cluster in clusters {
+            if cluster.is_hard_break {
+                let mut moved = cluster;
                 let mut appended = false;
                 if current_line.is_empty() {
                     if let Some(last_line) = lines.last_mut() {
-                        if last_line.last().map(|gl| gl.parent) != Some('\n') {
-                            g_moved.x = 0.0;
-                            last_line.push(g_moved);
+                        if last_line.last().map(|c: &OwnedCluster| c.is_hard_break) != Some(true) {
+                            moved.shift_x(-moved.x);
+                            last_line.push(moved.clone());
                             appended = true;
                         }
                     }
                 }
                 if !appended {
-                    g_moved.x = g.x - current_line_start_x;
-                    current_line.push(g_moved);
+                    moved.shift_x(-current_line_start_x);
+                    current_line.push(moved);
                     lines.push(current_line);
                     current_line = Vec::new();
-                    current_line_start_x = g.x;
                 }
                 continue;
             }
 
-            let rel_start_x = g.x - current_line_start_x;
-            let rel_end_x = rel_start_x + g.advance;
+            let rel_start_x = cluster.x - current_line_start_x;
+            let rel_end_x = rel_start_x + cluster.advance;
 
             if rel_end_x <= w {
-                let mut g_moved = g;
-                g_moved.x = rel_start_x;
-                current_line.push(g_moved);
+                let mut moved = cluster;
+                moved.shift_x(rel_start_x - moved.x);
+                current_line.push(moved);
             } else {
                 if current_line.is_empty() {
                     match fallback {
                         WrapClusterFallback::Keep => {
-                            let mut g_moved = g;
-                            g_moved.x = rel_start_x;
-                            current_line.push(g_moved);
+                            let mut moved = cluster;
+                            moved.shift_x(rel_start_x - moved.x);
+                            current_line.push(moved);
                             lines.push(current_line);
                             current_line = Vec::new();
-                            current_line_start_x = Self::logical_glyph_end(&g);
+                            current_line_start_x += rel_end_x;
                         }
                         WrapClusterFallback::Drop => {
                             break;
@@ -598,23 +700,23 @@ impl SampleTextSystem {
                 } else {
                     lines.push(current_line);
                     current_line = Vec::new();
-                    current_line_start_x = g.x;
+                    current_line_start_x = cluster.x;
 
                     let new_rel_start_x = 0.0;
-                    let new_rel_end_x = g.advance;
+                    let new_rel_end_x = cluster.advance;
                     if new_rel_end_x <= w {
-                        let mut g_moved = g;
-                        g_moved.x = new_rel_start_x;
-                        current_line.push(g_moved);
+                        let mut moved = cluster;
+                        moved.shift_x(new_rel_start_x - moved.x);
+                        current_line.push(moved);
                     } else {
                         match fallback {
                             WrapClusterFallback::Keep => {
-                                let mut g_moved = g;
-                                g_moved.x = new_rel_start_x;
-                                current_line.push(g_moved);
+                                let mut moved = cluster;
+                                moved.shift_x(new_rel_start_x - moved.x);
+                                current_line.push(moved);
                                 lines.push(current_line);
                                 current_line = Vec::new();
-                                current_line_start_x = Self::logical_glyph_end(&g);
+                                current_line_start_x += new_rel_end_x;
                             }
                             WrapClusterFallback::Drop => {
                                 break;
@@ -631,61 +733,64 @@ impl SampleTextSystem {
     }
 
     fn wrap_clusters_at_words(
-        glyphs: Vec<GlyphPosition>,
+        clusters: Vec<OwnedCluster>,
         w: f32,
         fallback: WrapWordFallback,
-    ) -> Vec<Vec<GlyphPosition>> {
-        if glyphs.is_empty() {
+    ) -> Vec<Vec<OwnedCluster>> {
+        if clusters.is_empty() {
             return Vec::new();
         }
 
         struct Seg {
             is_space: bool,
-            glyphs: Vec<GlyphPosition>,
+            clusters: Vec<OwnedCluster>,
             logical_w: f32,
         }
 
         let mut segments: Vec<Seg> = Vec::new();
-        for g in glyphs {
-            let is_space = g.parent == ' ' || g.parent == '\n';
+        for cluster in clusters {
+            let is_space = cluster.is_whitespace || cluster.is_hard_break;
             if let Some(last) = segments.last_mut() {
                 if last.is_space == is_space {
-                    last.glyphs.push(g);
+                    last.clusters.push(cluster);
                     continue;
                 }
             }
             segments.push(Seg {
                 is_space,
-                glyphs: vec![g],
+                clusters: vec![cluster],
                 logical_w: 0.0,
             });
         }
 
         let mut seg_starts = Vec::with_capacity(segments.len());
         for seg in &segments {
-            let seg_l = if seg.glyphs.is_empty() {
+            let seg_l = if seg.clusters.is_empty() {
                 0.0
             } else {
-                seg.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min)
+                seg.clusters
+                    .iter()
+                    .map(|cluster| cluster.x)
+                    .fold(f32::INFINITY, f32::min)
             };
             seg_starts.push(seg_l);
         }
 
         let seg_len = segments.len();
         for i in 0..seg_len {
-            if segments[i].glyphs.is_empty() {
+            if segments[i].clusters.is_empty() {
                 continue;
             }
             let seg_l = seg_starts[i];
 
-            for g in &mut segments[i].glyphs {
-                g.x -= seg_l;
+            for cluster in &mut segments[i].clusters {
+                cluster.shift_x(-seg_l);
             }
 
             if i + 1 < seg_len {
                 segments[i].logical_w = seg_starts[i + 1] - seg_l;
             } else {
-                segments[i].logical_w = Self::logical_line_width(&segments[i].glyphs);
+                segments[i].logical_w = Self::logical_cluster_line_width(&segments[i].clusters);
             }
         }
 
@@ -696,20 +801,18 @@ impl SampleTextSystem {
         for seg in segments {
             if seg.is_space {
                 if !current_line.is_empty() {
-                    for g in seg.glyphs {
-                        let mut g_moved = g;
-                        g_moved.x += current_logical_w;
-                        current_line.push(g_moved);
+                    for mut cluster in seg.clusters {
+                        cluster.shift_x(current_logical_w);
+                        current_line.push(cluster);
                     }
                     current_logical_w += seg.logical_w;
                 }
             } else {
                 let word_logical_w = seg.logical_w;
                 if current_logical_w + word_logical_w <= w {
-                    for g in seg.glyphs {
-                        let mut g_moved = g;
-                        g_moved.x += current_logical_w;
-                        current_line.push(g_moved);
+                    for mut cluster in seg.clusters {
+                        cluster.shift_x(current_logical_w);
+                        current_line.push(cluster);
                     }
                     current_logical_w += word_logical_w;
                 } else {
@@ -720,24 +823,23 @@ impl SampleTextSystem {
                     }
 
                     if word_logical_w <= w {
-                        for g in seg.glyphs {
-                            let mut g_moved = g;
-                            g_moved.x += current_logical_w;
-                            current_line.push(g_moved);
+                        for mut cluster in seg.clusters {
+                            cluster.shift_x(current_logical_w);
+                            current_line.push(cluster);
                         }
                         current_logical_w += word_logical_w;
                     } else {
                         match &fallback {
                             WrapWordFallback::WrapCluster { fallback: gf } => {
-                                let seg_len = seg.glyphs.len();
-                                let wrapped = Self::wrap_clusters(seg.glyphs, w, *gf);
+                                let seg_len = seg.clusters.len();
+                                let wrapped = Self::wrap_clusters(seg.clusters, w, *gf);
                                 let mut wrapped_count = 0;
                                 if !wrapped.is_empty() {
                                     lines.extend(wrapped[..wrapped.len() - 1].to_vec());
                                     current_line = wrapped.last().unwrap().clone();
                                     current_logical_w = current_line
                                         .iter()
-                                        .map(Self::logical_glyph_end)
+                                        .map(OwnedCluster::end_x)
                                         .fold(0.0, f32::max);
                                     wrapped_count = wrapped.iter().map(|line| line.len()).sum();
                                 }
@@ -746,9 +848,9 @@ impl SampleTextSystem {
                                 }
                             }
                             WrapWordFallback::Drop => {
-                                for g in seg.glyphs {
-                                    if Self::logical_glyph_end(&g) <= w {
-                                        current_line.push(g);
+                                for cluster in seg.clusters {
+                                    if cluster.end_x() <= w {
+                                        current_line.push(cluster);
                                     } else {
                                         break;
                                     }
@@ -758,9 +860,9 @@ impl SampleTextSystem {
                                 break;
                             }
                             WrapWordFallback::Keep => {
-                                for g in seg.glyphs {
-                                    let end_x = Self::logical_glyph_end(&g);
-                                    current_line.push(g);
+                                for cluster in seg.clusters {
+                                    let end_x = cluster.end_x();
+                                    current_line.push(cluster);
                                     if end_x > w {
                                         break;
                                     }
@@ -782,57 +884,53 @@ impl SampleTextSystem {
 
     fn apply_ellipsis_x(
         &mut self,
-        glyphs: Vec<GlyphPosition>,
+        clusters: Vec<OwnedCluster>,
         w: f32,
         size: f32,
         font_id: FontId,
         fallback: EllipsisFallback,
         line_baseline_y: f32,
-    ) -> Vec<GlyphPosition> {
+    ) -> Vec<OwnedCluster> {
         let (ell_glyphs, ell_w, ell_baseline) = self.ellipsis(size, font_id);
+        let insert_byte = clusters.last().map(|cluster| cluster.byte_end).unwrap_or(0);
+        let mut ell_cluster = OwnedCluster {
+            byte_start: insert_byte,
+            byte_end: insert_byte,
+            x: 0.0,
+            advance: ell_w,
+            is_hard_break: false,
+            is_whitespace: false,
+            glyphs: ell_glyphs,
+        };
+
         if ell_w > w {
             match fallback {
                 EllipsisFallback::Keep => {
-                    let mut out = Vec::new();
                     let dy = line_baseline_y - ell_baseline;
-                    for mut g in ell_glyphs {
-                        let rel_start_x = g.x;
-                        let rel_end_x = Self::logical_glyph_end(&g);
-                        if rel_start_x < w {
-                            g.y += dy;
-                            out.push(g);
-                            if rel_end_x > w {
-                                break;
-                            }
-                        } else {
-                            if out.is_empty() {
-                                g.y += dy;
-                                out.push(g);
-                            }
-                            break;
-                        }
+                    for g in &mut ell_cluster.glyphs {
+                        g.y += dy;
                     }
-                    out
+                    vec![ell_cluster]
                 }
                 EllipsisFallback::Drop => Vec::new(),
             }
         } else {
             let limit = w - ell_w;
             let mut trimmed = Vec::new();
-            for g in glyphs {
-                if Self::logical_glyph_end(&g) <= limit {
-                    trimmed.push(g);
+            for cluster in clusters {
+                if cluster.end_x() <= limit {
+                    trimmed.push(cluster);
                 } else {
                     break;
                 }
             }
-            let pen_x = trimmed.last().map(Self::logical_glyph_end).unwrap_or(0.0);
+            let pen_x = trimmed.last().map(OwnedCluster::end_x).unwrap_or(0.0);
             let dy = line_baseline_y - ell_baseline;
-            for mut eg in ell_glyphs {
-                eg.x += pen_x;
+            ell_cluster.shift_x(pen_x);
+            for eg in &mut ell_cluster.glyphs {
                 eg.y += dy;
-                trimmed.push(eg);
             }
+            trimmed.push(ell_cluster);
             trimmed
         }
     }

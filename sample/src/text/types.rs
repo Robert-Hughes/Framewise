@@ -44,6 +44,25 @@ pub struct GlyphInfo {
     pub top: i32,
 }
 
+/// One indivisible shaped text unit used for layout and input mapping.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextCluster {
+    /// Byte range of the original string represented by this cluster.
+    pub byte_start: usize,
+    pub byte_end: usize,
+    /// Range into the run's `glyphs` vec: `[glyph_start, glyph_end)`.
+    pub glyph_start: usize,
+    pub glyph_end: usize,
+    /// Logical leading edge in block-local coordinates.
+    pub x: f32,
+    /// Logical advance used by wrapping, caret placement, and hit-testing.
+    pub advance: f32,
+    /// True for explicit hard line break clusters.
+    pub is_hard_break: bool,
+    /// True for Unicode whitespace clusters.
+    pub is_whitespace: bool,
+}
+
 /// One laid-out line within a prepared run, in block-local coordinates.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LineRec {
@@ -54,6 +73,9 @@ pub struct LineRec {
     /// Range into the run's `glyphs` vec: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
+    /// Range into the run's `clusters` vec: `[cluster_start, cluster_end)`.
+    pub cluster_start: usize,
+    pub cluster_end: usize,
     /// Byte range of the original string mapped to this line: `[byte_start, byte_end)`.
     pub byte_start: usize,
     pub byte_end: usize,
@@ -63,5 +85,6 @@ pub struct LineRec {
 pub struct CachedLayout {
     pub font_id: FontId,
     pub glyphs: Vec<GlyphPosition>,
+    pub clusters: Vec<TextCluster>,
     pub lines: Vec<LineRec>,
 }
