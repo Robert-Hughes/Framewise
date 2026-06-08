@@ -374,6 +374,103 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "documents known gap: wrapping currently operates on individual glyphs, not whole shaping clusters"]
+    fn wrap_cluster_keep_does_not_split_combining_mark_cluster() {
+        let mut sys = sys();
+        let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapGlyph {
+                fallback: WrapGlyphFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(1), 32.0, 400, flow),
+            Rect::new(0.0, 0.0, 1.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        assert!(
+            run.glyphs.len() >= 2,
+            "test sample must shape to a multi-glyph cluster to exercise cluster wrapping"
+        );
+        assert!(
+            run.glyphs.iter().all(|g| g.byte_offset == 0),
+            "all glyphs in the combining-mark sample should map to the same shaping cluster"
+        );
+
+        assert_eq!(
+            run.lines.len(),
+            1,
+            "fallback Keep should keep the whole overflowing cluster on one line"
+        );
+        assert_eq!(
+            run.lines[0].glyph_end - run.lines[0].glyph_start,
+            run.glyphs.len(),
+            "a wrapping unit must not split base glyphs from combining marks"
+        );
+    }
+
+    #[test]
+    #[ignore = "documents known gap: word wrapping currently only treats ASCII space/newline as word separators"]
+    fn word_wrap_breaks_after_tab_whitespace() {
+        let mut sys = sys();
+        let text = "hello\tthere";
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(0), 16.0, 400, flow),
+            Rect::new(0.0, 0.0, 52.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        assert_eq!(
+            run.lines.len(),
+            2,
+            "Unicode whitespace such as tab should create a word wrapping opportunity"
+        );
+        assert_eq!(visible(&sys, layout.handle), text);
+    }
+
+    #[test]
+    #[ignore = "documents known gap: hit testing is glyph-based after wrapping can split one shaping cluster"]
+    fn hit_test_cannot_target_a_line_made_from_half_a_cluster() {
+        let mut sys = sys();
+        let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapGlyph {
+                fallback: WrapGlyphFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let layout = sys.prepare(
+            text,
+            TextStyle::new(FontId(1), 32.0, 400, flow),
+            Rect::new(0.0, 0.0, 1.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        assert!(
+            run.glyphs.len() >= 2 && run.glyphs.iter().all(|g| g.byte_offset == 0),
+            "test sample must shape to a multi-glyph cluster to exercise cluster hit testing"
+        );
+        assert_eq!(
+            run.lines.len(),
+            1,
+            "hit testing should never see a visual line containing only part of one indivisible cluster"
+        );
+    }
+
+    #[test]
     fn vertical_snapping_verification() {
         let mut sys = sys();
         let rect = Rect::new(10.2, 20.7, 500.0, 200.0);
