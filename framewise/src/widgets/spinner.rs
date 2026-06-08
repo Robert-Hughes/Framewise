@@ -1,7 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -19,19 +18,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SpinnerResult {
-        pub draw: DrawCommands,
+    pub struct SpinnerResult {}
+
+    /// Compute intrinsic size for Spinner. Currently returns UNKNOWN.
+    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerSpec) -> IntrinsicSize {
+        IntrinsicSize::UNKNOWN
     }
 
     /// Low-level spinner widget function.
     ///
-    /// This is the raw implementation that takes all parameters explicitly.
-    /// High-level wrappers should use this internally.
+    /// Appends draw commands to `cmds`.
     /// Square reticle spinner — four corner brackets with a single animated segment.
     /// Since we can't animate, we draw it at a fixed phase (segment at top).
-    pub fn spinner(spec: SpinnerSpec) -> SpinnerResult {
-        let mut cmds = DrawCommands::new();
-
+    pub fn spinner(spec: SpinnerSpec, cmds: &mut DrawCommands) {
         let size = if spec.large {
             spec.style.large_size
         } else {
@@ -110,8 +109,6 @@ pub mod raw {
             color: spec.style.highlight,
             width: w,
         });
-
-        SpinnerResult { draw: cmds }
     }
 }
 
@@ -212,11 +209,15 @@ pub fn spinner<T: TextSystem, S: LayoutState, CF>(
     builder: SpinnerSpecBuilder,
     layout_params: S::Params,
 ) -> SpinnerResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::spinner(spec);
-    ctx.append_cmds(result.draw);
+    // Compute layout using intrinsic size (currently UNKNOWN).
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_spinner_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    raw::spinner(spec, ctx.cmds);
     SpinnerResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -226,20 +227,22 @@ pub fn spinner<T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::SpinnerSpec;
     use super::*;
+    use crate::focus::FocusSystem;
 
     #[test]
     fn test_spinner_visual_normal() {
+        let style = SpinnerStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             large: false,
-            style: SpinnerStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
         };
-        let style = spec.style;
-        let res = raw::spinner(spec);
+        let mut cmds = DrawCommands::new();
+        raw::spinner(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 // Top-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 5.0),
@@ -305,67 +308,68 @@ mod tests {
 
     #[test]
     fn test_spinner_visual_large() {
+        let style = SpinnerStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = SpinnerSpec {
             rect: Rect::new(0.0, 0.0, 24.0, 24.0),
             large: true,
-            style: SpinnerStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
         };
-        let style = spec.style;
-        let res = raw::spinner(spec.clone());
+        let mut cmds = DrawCommands::new();
+        raw::spinner(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 // Top-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 7.0),
                     p1: Vec2::new(0.0, 0.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(7.0, 0.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(17.0, 0.0),
                     p1: Vec2::new(24.0, 0.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 0.0),
                     p1: Vec2::new(24.0, 7.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 17.0),
                     p1: Vec2::new(24.0, 24.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 24.0),
                     p1: Vec2::new(17.0, 24.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(7.0, 24.0),
                     p1: Vec2::new(0.0, 24.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 24.0),
                     p1: Vec2::new(0.0, 17.0),
-                    color: spec.style.color,
+                    color: style.color,
                     width: style.width
                 },
                 // Highlight
@@ -399,36 +403,24 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        super::spinner(
-            &mut ctx,
-            SpinnerSpecBuilder::new().rect(custom_rect),
-            layout_rect,
-        );
-        // First draw command is StrokeLine with p0 at (x, y+arm) and p1 at (x, y)
-        // where x = custom_rect.x, y = custom_rect.y
-        match &cmds[0] {
-            crate::draw::DrawCmd::StrokeLine { p1, .. } => {
-                assert_eq!(p1.x, custom_rect.x);
-                assert_eq!(p1.y, custom_rect.y);
-            }
-            other => panic!("Expected StrokeLine, got {:?}", other),
-        }
+        let result = super::spinner(&mut ctx, SpinnerSpecBuilder::new(), placement);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

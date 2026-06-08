@@ -1,6 +1,5 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
     text::TextSystem,
     types::{Color, Rect},
@@ -20,16 +19,28 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
-        pub draw: DrawCommands,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a color swatch's intrinsic size from its spec.
+    ///
+    /// A color swatch has no inherent preferred size. This returns
+    /// [`IntrinsicSize::UNKNOWN`].
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
+    pub fn calc_color_swatch_intrinsic_size(
+        spec: &ColorSwatchSpec,
+    ) -> crate::layout::IntrinsicSize {
+        let _ = spec;
+        crate::layout::IntrinsicSize::UNKNOWN
     }
 
     /// Low-level color swatch widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn color_swatch(spec: ColorSwatchSpec) -> ColorSwatchResult {
-        let mut cmds = DrawCommands::new();
+    pub fn color_swatch(spec: ColorSwatchSpec, cmds: &mut DrawCommands) -> ColorSwatchResult {
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.color,
@@ -40,7 +51,6 @@ pub mod raw {
             width: 1.0,
         });
         ColorSwatchResult {
-            draw: cmds,
             content_bounds: spec.rect.inset(1.0),
         }
     }
@@ -117,11 +127,14 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
     builder: ColorSwatchSpecBuilder,
     layout_params: S::Params,
 ) -> ColorSwatchResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::color_swatch(spec);
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_color_swatch_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::color_swatch(spec, ctx.cmds);
     ColorSwatchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -131,6 +144,7 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::ColorSwatchSpec;
     use super::*;
+    use crate::focus::FocusSystem;
     use crate::test_utils::DummyTextSys;
 
     #[test]
@@ -140,13 +154,18 @@ mod tests {
             .color(Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0))
             .border(Color::linear_rgba(0.0, 0.0, 0.0, 0.20))
             .build();
-        let res = raw::color_swatch(spec);
+        let mut cmds = DrawCommands::new();
+        let res = raw::color_swatch(spec, &mut cmds);
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
         let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            res.content_bounds,
+            Rect::new(0.0, 0.0, 16.0, 16.0).inset(1.0)
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                     color: default_color,
@@ -169,11 +188,16 @@ mod tests {
             color: custom_color,
             border: custom_border,
         };
-        let res = raw::color_swatch(spec);
+        let mut cmds = DrawCommands::new();
+        let res = raw::color_swatch(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            res.content_bounds,
+            Rect::new(0.0, 0.0, 20.0, 20.0).inset(1.0)
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                     color: custom_color,
@@ -188,35 +212,33 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::color_swatch(
             &mut ctx,
-            ColorSwatchSpecBuilder::new()
-                .rect(custom_rect)
-                .color(Color::from_srgb_u8(0, 0, 0, 0)),
-            layout_rect,
+            ColorSwatchSpecBuilder::new().color(Color::from_srgb_u8(0, 0, 0, 0)),
+            placement,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 
     #[test]
     fn test_color_swatch_bounds_and_content_bounds() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -227,7 +249,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::color_swatch(

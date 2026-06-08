@@ -1,11 +1,12 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
     types::{Color, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
+
+// ── Raw Implementation ───────────────────────────────────────────────────────
 
 pub mod raw {
     use super::*;
@@ -23,17 +24,18 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ProgressBarResult {
-        pub draw: DrawCommands,
+    pub struct ProgressBarResult {}
+
+    /// Compute intrinsic size for ProgressBar.
+    /// Currently returns UNKNOWN as per user preference.
+    pub fn calc_progress_bar_intrinsic_size(_spec: &ProgressBarSpec) -> IntrinsicSize {
+        IntrinsicSize::UNKNOWN
     }
 
-    /// Low-level progress bar widget function.
+    /// Low‑level progress bar draw function.
     ///
-    /// This is the raw implementation that takes all parameters explicitly.
-    /// High-level wrappers should use this internally.
-    pub fn progress_bar(spec: ProgressBarSpec) -> ProgressBarResult {
-        let mut cmds = DrawCommands::new();
-
+    /// Appends draw commands to `cmds`.
+    pub fn progress_bar(spec: ProgressBarSpec, cmds: &mut DrawCommands) {
         // Track: 3px high, centered vertically in the given rect.
         let track_h = spec.style.track_height;
         let track = Rect::new(
@@ -74,8 +76,6 @@ pub mod raw {
                 });
             }
         }
-
-        ProgressBarResult { draw: cmds }
     }
 }
 
@@ -124,6 +124,7 @@ impl ProgressBarSpecBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn value(mut self, value: f32) -> Self {
         self.value = Some(value);
         self
@@ -144,15 +145,13 @@ impl ProgressBarSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
+    /// Sets the bounding rectangle. Only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(ProgressBarStyle::from_theme(theme));
@@ -173,25 +172,24 @@ impl ProgressBarSpecBuilder {
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// ── High‑level widget function ───────────────────────────────────────────────────
 
-/// High-level progress bar widget function using WidgetContext.
-///
-/// This function accepts a ProgressBarSpecBuilder and calls the low-level raw::progress_bar function.
+/// High‑level progress bar widget function using `WidgetContext`.
 pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,
 ) -> ProgressBarResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder
-        .rect(rect)
-        .phase(ctx.time as f32)
+    // Build a provisional spec with a placeholder rect to compute intrinsic size.
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .build();
-    let result = raw::progress_bar(spec);
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_progress_bar_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    spec.phase = ctx.time as f32;
+    raw::progress_bar(spec, ctx.cmds);
     ProgressBarResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -201,22 +199,25 @@ pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::ProgressBarSpec;
     use super::*;
+    use crate::focus::FocusSystem;
+    use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_progress_bar_visual_normal() {
+        let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 10.0), // h=10
             value: 0.5,
             phase: 0.0,
             active: false,
-            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
         };
-        let style = spec.style;
-        let res = raw::progress_bar(spec);
+        let mut cmds = DrawCommands::new();
+        raw::progress_bar(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
@@ -231,19 +232,20 @@ mod tests {
 
     #[test]
     fn test_progress_bar_visual_active() {
+        let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 10.0),
             value: 0.5,
             phase: 0.0,
             active: true,
-            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
         };
-        let style = spec.style;
-        let res = raw::progress_bar(spec);
+        let mut cmds = DrawCommands::new();
+        raw::progress_bar(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
@@ -258,19 +260,20 @@ mod tests {
 
     #[test]
     fn test_progress_bar_visual_indeterminate() {
+        let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
             rect: Rect::new(10.0, 10.0, 100.0, 10.0),
             value: f32::NAN,
             phase: 0.5,
             active: false,
-            style: ProgressBarStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
         };
-        let style = spec.style;
-        let res = raw::progress_bar(spec);
+        let mut cmds = DrawCommands::new();
+        raw::progress_bar(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
@@ -303,28 +306,27 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
-        use crate::test_utils::DummyTextSys;
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::progress_bar(
             &mut ctx,
-            ProgressBarSpecBuilder::new().value(0.5).rect(custom_rect),
-            layout_rect,
+            ProgressBarSpecBuilder::new().value(0.5),
+            placement,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

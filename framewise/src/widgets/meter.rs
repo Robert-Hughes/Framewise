@@ -1,11 +1,12 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
+
+// ── Raw Implementation ───────────────────────────────────────────────────────
 
 pub mod raw {
     use super::*;
@@ -23,17 +24,23 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MeterResult {
-        pub draw: DrawCommands,
+    pub struct MeterResult {}
+
+    /// Compute the intrinsic size of a meter widget.
+    ///
+    /// Width = total bar width + gaps, Height = bar height.
+    /// Does not read `spec.rect`.
+    pub fn calc_meter_intrinsic_size(spec: &MeterSpec) -> IntrinsicSize {
+        let w = spec.bars as f32 * spec.style.bar_w
+            + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;
+        let h = spec.style.bar_h;
+        IntrinsicSize::preferred(Vec2::new(w, h))
     }
 
-    /// Low-level meter widget function.
+    /// Low‑level meter draw function.
     ///
-    /// This is the raw implementation that takes all parameters explicitly.
-    /// High-level wrappers should use this internally.
-    pub fn meter(spec: MeterSpec) -> MeterResult {
-        let mut cmds = DrawCommands::new();
-
+    /// Appends draw commands to `cmds`.
+    pub fn meter(spec: MeterSpec, cmds: &mut DrawCommands) {
         let n = spec.bars.max(1);
         let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;
         let peak_idx = spec
@@ -48,7 +55,6 @@ pub mod raw {
                 spec.style.bar_w,
                 spec.style.bar_h,
             );
-
             let color = if peak_idx == Some(i) {
                 spec.style.rust
             } else if i < lit {
@@ -56,14 +62,11 @@ pub mod raw {
             } else {
                 spec.style.unlit
             };
-
             cmds.push(DrawCmd::FillRect {
                 rect: bar_rect,
                 color,
             });
         }
-
-        MeterResult { draw: cmds }
     }
 }
 
@@ -107,7 +110,7 @@ pub struct MeterSpecBuilder {
     pub rect: Option<Rect>,
     pub value: Option<f32>,
     pub style: Option<MeterStyle>,
-    pub peak: Option<Option<f32>>,
+    pub peak: Option<Option<f32>>, // matches original API
     pub bars: Option<usize>,
 }
 
@@ -136,15 +139,13 @@ impl MeterSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
+    /// Sets the bounding rectangle. Only needed when using the raw API directly.
     pub fn rect(mut self, rect: Rect) -> Self {
         self.rect = Some(rect);
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Only needed when using the raw API directly.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(MeterStyle::from_theme(theme));
@@ -158,28 +159,30 @@ impl MeterSpecBuilder {
             value: self.value.expect("value not set — call .value()"),
             style: self
                 .style
-                .expect("style not set — call .style() or .defaults_from_theme()"),
+                .expect("style not set — call .style() or defaults_from_theme()"),
             peak: self.peak.unwrap_or(None),
             bars: self.bars.unwrap_or(10),
         }
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// ── High‑level widget function ───────────────────────────────────────────────────
 
-/// High-level meter widget function using WidgetContext.
-///
-/// This function accepts a MeterSpecBuilder and calls the low-level raw::meter function.
+/// High‑level meter widget function using `WidgetContext`.
 pub fn meter<T: TextSystem, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MeterSpecBuilder,
     layout_params: S::Params,
 ) -> MeterResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::meter(spec);
-    ctx.append_cmds(result.draw);
+    // Create a provisional spec with a placeholder rect to compute intrinsic size.
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_meter_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    raw::meter(spec, ctx.cmds);
     MeterResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -189,92 +192,86 @@ pub fn meter<T: TextSystem, S: LayoutState, CF>(
 mod tests {
     use super::raw::MeterSpec;
     use super::*;
+    use crate::focus::FocusSystem;
     use crate::test_utils::DummyTextSys;
 
     #[test]
     fn test_meter_visual_normal() {
+        let style = MeterStyle::from_theme(&crate::theme::Theme::default());
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
-            style: MeterStyle::from_theme(&crate::theme::Theme::default()),
+            style,
             peak: None,
             bars: 10,
         };
-        let ink = spec.style.ink;
-        let unlit = spec.style.unlit;
-        let res = raw::meter(spec);
+        let mut cmds = DrawCommands::new();
+        raw::meter(spec, &mut cmds);
 
         let mut expected = Vec::new();
         for i in 0..10 {
-            let color = if i < 5 { ink } else { unlit };
+            let color = if i < 5 { style.ink } else { style.unlit };
             expected.push(DrawCmd::FillRect {
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
             });
         }
-
-        assert_eq!(res.draw, DrawCommands(expected));
+        assert_eq!(cmds, DrawCommands::from_vec(expected));
     }
 
     #[test]
     fn test_meter_visual_peak() {
+        let style = MeterStyle::from_theme(&crate::theme::Theme::default());
         let spec = MeterSpec {
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
-            style: MeterStyle::from_theme(&crate::theme::Theme::default()),
-            peak: Some(0.8), // 0.8 * 9 = 7.2 -> 7
+            style,
+            peak: Some(0.8), // 0.8 * 9 ≈ 7.2 → 7
             bars: 10,
         };
-        let ink = spec.style.ink;
-        let rust = spec.style.rust;
-        let unlit = spec.style.unlit;
-        let res = raw::meter(spec);
+        let mut cmds = DrawCommands::new();
+        raw::meter(spec, &mut cmds);
 
         let mut expected = Vec::new();
         for i in 0..10 {
             let color = if i == 7 {
-                rust
+                style.rust
             } else if i < 5 {
-                ink
+                style.ink
             } else {
-                unlit
+                style.unlit
             };
             expected.push(DrawCmd::FillRect {
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
             });
         }
-
-        assert_eq!(res.draw, DrawCommands(expected));
+        assert_eq!(cmds, DrawCommands::from_vec(expected));
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let result = super::meter(
             &mut ctx,
-            MeterSpecBuilder::new()
-                .rect(custom_rect)
-                .value(0.0)
-                .peak(None)
-                .bars(10),
-            layout_rect,
+            MeterSpecBuilder::new().value(0.0).bars(10),
+            placement,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 
     #[test]

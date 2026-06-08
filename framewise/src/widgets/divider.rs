@@ -19,16 +19,25 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DividerResult {
-        pub draw: DrawCommands,
+    pub struct DividerResult {}
+
+    /// Measure a divider's intrinsic size from its spec.
+    ///
+    /// A divider has no inherent preferred size. This returns
+    /// [`IntrinsicSize::UNKNOWN`].
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
+    pub fn calc_divider_intrinsic_size(spec: &DividerSpec) -> crate::layout::IntrinsicSize {
+        let _ = spec;
+        crate::layout::IntrinsicSize::UNKNOWN
     }
 
     /// Low-level divider widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn divider(spec: DividerSpec) -> DividerResult {
-        let mut cmds = DrawCommands::new();
+    pub fn divider(spec: DividerSpec, cmds: &mut DrawCommands) -> DividerResult {
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(spec.rect.x, mid_y),
@@ -36,7 +45,7 @@ pub mod raw {
             color: spec.color,
             width: spec.width,
         });
-        DividerResult { draw: cmds }
+        DividerResult {}
     }
 }
 
@@ -104,12 +113,14 @@ pub fn divider<T: TextSystem, S: LayoutState, CF>(
     builder: DividerSpecBuilder,
     layout_params: S::Params,
 ) -> DividerResult {
-    let layout_rect = ctx.layout(layout_params, crate::layout::IntrinsicSize::UNKNOWN);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::divider(spec);
-
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_divider_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let _result = raw::divider(spec, ctx.cmds);
 
     DividerResult {
         layout: LayoutInfo::tight(rect),
@@ -129,10 +140,11 @@ mod tests {
             color: Color::WHITE,
             width: 1.0,
         };
-        let res = raw::divider(spec);
+        let mut cmds = DrawCommands::new();
+        let _res = raw::divider(spec, &mut cmds);
 
         assert_eq!(
-            res.draw,
+            cmds,
             DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
                 p0: Vec2::new(0.0, 5.0),
                 p1: Vec2::new(100.0, 5.0),
@@ -161,14 +173,13 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
+    fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
@@ -178,11 +189,7 @@ mod tests {
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        let result = super::divider(
-            &mut ctx,
-            DividerSpecBuilder::new().rect(custom_rect),
-            layout_rect,
-        );
-        assert_eq!(result.layout.bounds, custom_rect);
+        let result = super::divider(&mut ctx, DividerSpecBuilder::new(), placement);
+        assert_eq!(result.layout.bounds, placement);
     }
 }
