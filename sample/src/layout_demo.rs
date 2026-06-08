@@ -39,13 +39,14 @@ use framewise::{
     widgets::button::{
         button, raw::calc_button_intrinsic_size, ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
-    widgets::label::{label, LabelSpecBuilder, LabelStyle},
+    widgets::label::{label, LabelSpecBuilder},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
 #[derive(Default)]
 pub struct LayoutDemoState {
+    pub page: crate::demo_page::DemoPageState,
     pub a_btns: [ButtonState; 3], // A: auto-height column
     pub a_clicks: [u32; 3],
     pub b_btns: [ButtonState; 3],       // B: auto-width row
@@ -86,55 +87,31 @@ pub fn draw_layout_page(
         text_system,
         focus_system,
         input,
-        framewise::layouts::ManualLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        ColumnLayout,
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
-    ctx.debug_layout = debug_layout; // F12 toggles the magenta layout-bounds overlay.
-                                     // Highlight unsatisfiable layout requests in red rather than panicking — the default
-                                     // Panic policy is kept for tests. An interactive app would just crash under Panic.
-    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
-    let theme = ctx.theme;
+    let crate::demo_page::DemoPageResult { ctx: mut outer } = crate::demo_page::begin_demo_page(
+        &mut ctx,
+        "Layout Demo",
+        &mut state.page,
+        debug_layout,
+        ColumnLayout,
+    );
+
+    let theme = outer.theme;
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);
 
-    // Root Column
-    let mut outer = ctx.child_with_layout(
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
-        ColumnLayout,
-    );
-
-    // Page Title
-    let title_style = LabelStyle {
-        text_style: theme.heading_text_style(24.0),
-        text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
-        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-    };
-    label(
-        &mut outer,
-        LabelSpecBuilder::new()
-            .text("Layout Demo")
-            .style(title_style),
-        ColumnLayoutParams::auto().fill_x(),
-    );
-    outer.spacer(24.0);
-
     // Root row: two columns side by side.
-    let mut root_row = outer.child_with_layout(
-        ColumnLayoutParams::fixed(win_w - 2.0 * pad, win_h - 2.0 * pad - 64.0),
-        RowLayout,
-    );
+    let mut root_row = outer.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
     // ── Left column: A, B, C, D ───────────────────────────────────────────────
     {
-        let mut left = root_row.child_with_layout(
-            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad - 64.0),
-            ColumnLayout,
-        );
+        let mut left =
+            root_row.child_with_layout(RowLayoutParams::auto().fixed_x(col_w), ColumnLayout);
 
         heading(&mut left, "Chrome-less nested layout auto-sizing");
         left.spacer(18.0);
@@ -355,10 +332,8 @@ pub fn draw_layout_page(
 
     // ── Right column: E, F, G ──────────────────────────────────────────────────
     {
-        let mut right = root_row.child_with_layout(
-            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad - 64.0),
-            ColumnLayout,
-        );
+        let mut right =
+            root_row.child_with_layout(RowLayoutParams::auto().fixed_x(col_w), ColumnLayout);
 
         heading(&mut right, "Alignment, equivalence & flow");
         right.spacer(18.0);
@@ -640,6 +615,7 @@ pub fn draw_layout_page(
 
     root_row.finish();
     outer.finish();
+    ctx.finish();
 
     cmds
 }

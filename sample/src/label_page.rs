@@ -17,8 +17,7 @@ use framewise::{
 
 #[derive(Default)]
 pub struct LabelPageState {
-    #[cfg(feature = "scroll_area")]
-    pub scroll: framewise::widgets::scroll_area::ScrollState,
+    pub page: crate::demo_page::DemoPageState,
 }
 
 pub fn draw_label_page(
@@ -31,45 +30,26 @@ pub fn draw_label_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
-    let _pad = 20.0;
+    let pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
-    #[allow(unused_mut)]
     let mut root_ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
-        #[cfg(feature = "scroll_area")]
-        framewise::layouts::ManualLayout,
-        #[cfg(not(feature = "scroll_area"))]
         ColumnLayout,
-        #[cfg(feature = "scroll_area")]
-        Rect::new(0.0, 0.0, win_w, win_h),
-        #[cfg(not(feature = "scroll_area"))]
-        Rect::new(_pad, _pad, win_w - 2.0 * _pad, win_h - 2.0 * _pad),
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
 
-    #[cfg(feature = "scroll_area")]
-    let framewise::widgets::scroll_area::ScrollAreaResult { layout: _, mut ctx } =
-        framewise::widgets::scroll_area::begin_scroll_area(
-            &mut root_ctx,
-            framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new().vertical(
-                framewise::widgets::scroll_area::ScrollAxis {
-                    extent: framewise::widgets::scroll_area::ScrollExtent::Unbounded,
-                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                },
-            ),
-            Rect::new(0.0, 0.0, win_w, win_h),
-            &mut _state.scroll,
-            ColumnLayout,
-        );
-    #[cfg(not(feature = "scroll_area"))]
-    let mut ctx = root_ctx;
-
-    ctx.debug_layout = debug_layout;
-    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
+    let crate::demo_page::DemoPageResult { mut ctx } = crate::demo_page::begin_demo_page(
+        &mut root_ctx,
+        "Label Demo",
+        &mut _state.page,
+        debug_layout,
+        ColumnLayout,
+    );
 
     let theme = ctx.theme;
 
@@ -79,23 +59,6 @@ pub fn draw_label_page(
         border_width: 1.0,
         padding: 8.0,
     };
-
-    // Page Title
-    let title_style = LabelStyle {
-        text_style: theme.heading_text_style(24.0),
-        text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
-        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-    };
-    label(
-        &mut ctx,
-        LabelSpecBuilder::new()
-            .text("Label Demo")
-            .style(title_style),
-        ColumnLayoutParams::auto().fill_x(),
-    );
-    ctx.spacer(24.0);
 
     // Section 1: Font Families and Sizes
     {
@@ -1720,14 +1683,7 @@ pub fn draw_label_page(
         ColumnLayoutParams::auto(),
     );
 
-    #[cfg(feature = "scroll_area")]
-    {
-        ctx.finish();
-        root_ctx.finish();
-    }
-    #[cfg(not(feature = "scroll_area"))]
-    {
-        ctx.finish();
-    }
+    ctx.finish();
+    root_ctx.finish();
     cmds
 }

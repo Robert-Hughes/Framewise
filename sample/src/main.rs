@@ -1,5 +1,6 @@
 #[cfg(feature = "page_button_demo")]
 mod button_page;
+mod demo_page;
 #[cfg(feature = "page_frame_demo")]
 mod frame_demo;
 #[cfg(test)]

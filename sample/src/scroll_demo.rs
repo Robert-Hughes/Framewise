@@ -8,7 +8,6 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::button,
-        label::{label, LabelSpecBuilder, LabelStyle},
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder},
         slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
         ButtonSpecBuilder,
@@ -61,6 +60,8 @@ impl Default for NestedRowState {
 // ── Page state ────────────────────────────────────────────────────────────────
 
 pub struct ScrollDemoState {
+    #[allow(dead_code)]
+    pub page: crate::demo_page::DemoPageState,
     pub sidebar_scroll: framewise::widgets::scroll_area::ScrollState,
     pub main_scroll: framewise::widgets::scroll_area::ScrollState,
     pub nested_outer_scroll: framewise::widgets::scroll_area::ScrollState,
@@ -93,6 +94,7 @@ pub struct ScrollDemoState {
 impl Default for ScrollDemoState {
     fn default() -> Self {
         Self {
+            page: Default::default(),
             sidebar_scroll: Default::default(),
             main_scroll: Default::default(),
             nested_outer_scroll: Default::default(),
@@ -148,6 +150,7 @@ pub fn draw_scroll_demo(
     let _ = clipboard;
     let win_w = win_size.0;
     let win_h = win_size.1;
+    let pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
     let mut ctx = WidgetContext::root(
@@ -155,28 +158,26 @@ pub fn draw_scroll_demo(
         text_system,
         focus_system,
         input,
-        framewise::layouts::ManualLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        framewise::layouts::ColumnLayout,
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
     ctx.time = time;
-    ctx.debug_layout = debug_layout;
-    // Highlight unsatisfiable layout requests in red rather than panicking (Panic is the
-    // default, kept for tests).
-    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
+
+    let crate::demo_page::DemoPageNoScrollResult { ctx: mut main_row } =
+        crate::demo_page::begin_demo_page_no_scroll(
+            &mut ctx,
+            "Scroll Demo",
+            debug_layout,
+            framewise::layouts::RowLayout,
+        );
 
     // Main container splitting into Sidebar (Left) and Content (Right)
     {
-        let mut main_row = {
-            let layout_params = Rect::new(10.0, 10.0, win_w - 20.0, win_h - 20.0);
-            let layout = framewise::layouts::RowLayout;
-            ctx.child_with_layout(layout_params, layout)
-        };
-
         // -- SIDEBAR (Left Column) --
         {
             let mut sidebar_col = {
-                let layout_params = RowLayoutParams::fixed(200.0, win_h - 20.0);
+                let layout_params = RowLayoutParams::auto().fixed_x(200.0).fill_y();
                 let layout = framewise::layouts::ColumnLayout;
                 main_row.child_with_layout(layout_params, layout)
             };
@@ -197,7 +198,7 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                ColumnLayoutParams::fixed(200.0, win_h - 60.0),
+                ColumnLayoutParams::auto().fill_x().fill_y(),
                 &mut state.sidebar_scroll,
                 framewise::layouts::ColumnLayout,
             )
@@ -230,7 +231,7 @@ pub fn draw_scroll_demo(
 
         // -- MAIN CONTENT (Right Column) --
         {
-            let mut content_col = begin_scroll_area(
+            let content_scroll_res = begin_scroll_area(
                 &mut main_row,
                 ScrollAreaSpecBuilder::new().vertical(
                     framewise::widgets::scroll_area::ScrollAxis {
@@ -238,29 +239,12 @@ pub fn draw_scroll_demo(
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     },
                 ),
-                RowLayoutParams::fixed(win_w - 240.0, win_h - 20.0),
+                RowLayoutParams::auto().fill_x().fill_y(),
                 &mut state.right_panel_scroll,
                 framewise::layouts::ColumnLayout,
-            )
-            .ctx;
-            let inner_w = win_w - 240.0 - 15.0;
-
-            let theme = content_col.theme;
-            let title_style = LabelStyle {
-                text_style: theme.heading_text_style(24.0),
-                text_color: theme.ink,
-                rule: true,
-                rule_color: theme.line,
-                content_placement: framewise::TextContentPlacement::TOP_LEFT,
-            };
-            label(
-                &mut content_col,
-                LabelSpecBuilder::new()
-                    .text("Scroll Demo")
-                    .style(title_style),
-                ColumnLayoutParams::auto().fill_x(),
             );
-            content_col.spacer(15.0);
+            let mut content_col = content_scroll_res.ctx;
+            let inner_w = content_scroll_res.layout.content_bounds.w;
 
             // Top Header Row - Centered vertically (cross axis)
             {

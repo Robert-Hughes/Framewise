@@ -9,12 +9,13 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
-    widgets::label::{label, LabelSpecBuilder, LabelStyle},
+    widgets::label::{label, LabelSpecBuilder},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
 pub struct FrameDemoState {
+    pub page: crate::demo_page::DemoPageState,
     // Dynamic List Controls & State
     pub add_btn: ButtonState,
     pub remove_btn: ButtonState,
@@ -48,6 +49,7 @@ pub struct FrameDemoState {
 impl Default for FrameDemoState {
     fn default() -> Self {
         Self {
+            page: Default::default(),
             add_btn: ButtonState::default(),
             remove_btn: ButtonState::default(),
             dynamic_clicks: [0; 5],
@@ -102,45 +104,23 @@ pub fn draw_frame_page(
         text_system,
         focus_system,
         input,
-        framewise::layouts::ManualLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        ColumnLayout,
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
-    ctx.debug_layout = debug_layout;
-    // Highlight unsatisfiable layout requests in red rather than panicking (Panic is the
-    // default, kept for tests).
-    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
-    let theme = ctx.theme;
-
-    // Root Column
-    let mut outer = ctx.child_with_layout(
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+    let crate::demo_page::DemoPageResult { ctx: mut outer } = crate::demo_page::begin_demo_page(
+        &mut ctx,
+        "Frame Demo",
+        &mut state.page,
+        debug_layout,
         ColumnLayout,
     );
 
-    // Page Title
-    let title_style = LabelStyle {
-        text_style: theme.heading_text_style(24.0),
-        text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
-        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-    };
-    label(
-        &mut outer,
-        LabelSpecBuilder::new()
-            .text("Frame Demo")
-            .style(title_style),
-        ColumnLayoutParams::auto().fill_x(),
-    );
-    outer.spacer(24.0);
+    let theme = outer.theme;
 
     // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
-    let mut root_row = outer.child_with_layout(
-        ColumnLayoutParams::fixed(win_w - 2.0 * pad, win_h - 2.0 * pad - 64.0),
-        RowLayout,
-    );
+    let mut root_row = outer.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
@@ -151,7 +131,7 @@ pub fn draw_frame_page(
     // ── Left Column: Dynamic List & Sizing Dimensions ─────────────────────────
     {
         let mut left_col = root_row.child_with_layout(
-            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad - 64.0),
+            RowLayoutParams::auto().fixed_x((win_w - 2.0 * pad - 30.0) * 0.5),
             ColumnLayout,
         );
 
@@ -405,7 +385,7 @@ pub fn draw_frame_page(
     // ── Right Column: Nesting & Alignments ────────────────────────────────────
     {
         let mut right_col = root_row.child_with_layout(
-            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad - 64.0),
+            RowLayoutParams::auto().fixed_x((win_w - 2.0 * pad - 30.0) * 0.5),
             ColumnLayout,
         );
 
@@ -550,6 +530,7 @@ pub fn draw_frame_page(
 
     root_row.finish();
     outer.finish();
+    ctx.finish();
 
     cmds
 }

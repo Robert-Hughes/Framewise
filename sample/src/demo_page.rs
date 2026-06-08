@@ -1,0 +1,221 @@
+use framewise::{
+    draw::DrawCommands,
+    focus::FocusSystem,
+    layout::{Layout, LayoutState},
+    layouts::linear::ColumnState,
+    widgets::label::{LabelSpecBuilder, LabelStyle},
+    ColumnLayoutParams, LayoutViolationPolicy, Rect, TextSystem, WidgetContext,
+};
+
+#[derive(Default)]
+pub struct DemoPageState {
+    #[cfg(feature = "scroll_area")]
+    pub scroll: framewise::widgets::scroll_area::ScrollState,
+}
+
+pub struct DemoPageResult<'b, T: TextSystem, LS: LayoutState, CF> {
+    pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
+pub struct DemoPageNoScrollResult<'b, T: TextSystem, LS: LayoutState, CF> {
+    pub ctx: WidgetContext<'b, T, LS, CF>,
+}
+
+#[cfg(feature = "scroll_area")]
+#[allow(clippy::type_complexity)]
+pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
+    parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
+    title: &str,
+    state: &'b mut DemoPageState,
+    debug_layout: bool,
+    inner_layout: L,
+) -> DemoPageResult<
+    'b,
+    T,
+    framewise::layouts::OffsetState<L::State>,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+> {
+    use framewise::types::Vec2;
+
+    let clip = parent_ctx.clip_rect;
+    let mut spec = framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new()
+        .vertical(framewise::widgets::scroll_area::ScrollAxis {
+            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+        })
+        .clip_rect(clip)
+        .time(parent_ctx.time)
+        .defaults_from_theme(&parent_ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+
+    let intrinsic = framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&spec);
+    let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), intrinsic);
+    spec.rect = bounds;
+    let input = parent_ctx.input;
+
+    let framewise::widgets::scroll_area::raw::ScrollAreaResult {
+        token,
+        content_bounds,
+        offset,
+        inner_space,
+    } = framewise::widgets::scroll_area::raw::begin_scroll_area(
+        spec,
+        &mut state.scroll,
+        parent_ctx.input,
+        parent_ctx.focus_system,
+        parent_ctx.cmds,
+    );
+
+    let label_width = content_bounds.w;
+    let theme = parent_ctx.theme;
+    let title_style = LabelStyle {
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
+        rule: true,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
+    };
+
+    let label_spec = LabelSpecBuilder::new()
+        .text(title)
+        .style(title_style)
+        .rect(Rect::PLACEHOLDER);
+    let label_intrinsic = framewise::widgets::label::raw::calc_label_intrinsic_size(
+        &label_spec.build(),
+        parent_ctx.text_system,
+    );
+    let title_h = label_intrinsic.preferred.map_or(24.0, |p| p.y);
+
+    // Draw the title using the offset coordinates of the scroll area
+    let title_rect = Rect::new(
+        content_bounds.x - offset.x,
+        content_bounds.y - offset.y,
+        label_width,
+        title_h,
+    );
+    let spec = LabelSpecBuilder::new()
+        .text(title)
+        .style(title_style)
+        .rect(title_rect)
+        .build();
+    framewise::widgets::label::raw::label(spec, parent_ctx.text_system, parent_ctx.cmds);
+
+    let offset_y = title_h + 24.0;
+    let mut adjusted_space = inner_space;
+    adjusted_space.y += offset_y;
+    adjusted_space.height = match adjusted_space.height {
+        framewise::layout::AxisBound::Exact(h) => {
+            framewise::layout::AxisBound::Exact((h - offset_y).max(0.0))
+        }
+        framewise::layout::AxisBound::AtMost(h) => {
+            framewise::layout::AxisBound::AtMost((h - offset_y).max(0.0))
+        }
+        framewise::layout::AxisBound::Unbounded => framewise::layout::AxisBound::Unbounded,
+    };
+
+    let offset_layout = framewise::layouts::OffsetLayout {
+        offset,
+        inner: inner_layout,
+    };
+
+    let new_clip = Some(clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
+
+    let on_finish = move |focus_system: &mut FocusSystem,
+                          _text_system: &mut T,
+                          cmds: &mut DrawCommands,
+                          resolved_space: Rect| {
+        let full_resolved_space = Rect::new(
+            resolved_space.x,
+            resolved_space.y - offset_y,
+            resolved_space.w,
+            resolved_space.h + offset_y + 20.0, // bottom padding of 20px
+        );
+        let content_extent = Vec2::new(full_resolved_space.w, full_resolved_space.h);
+        framewise::widgets::scroll_area::raw::end_scroll_area(
+            token,
+            content_extent,
+            &mut state.scroll,
+            input,
+            focus_system,
+            cmds,
+        );
+    };
+
+    let mut child_ctx = parent_ctx.child_with_layout_and_on_finish_and_clip_rect(
+        offset_layout.begin(adjusted_space),
+        on_finish,
+        new_clip,
+    );
+    child_ctx.debug_layout = debug_layout;
+    child_ctx.layout_policy = LayoutViolationPolicy::Highlight;
+
+    DemoPageResult { ctx: child_ctx }
+}
+
+#[cfg(not(feature = "scroll_area"))]
+#[allow(clippy::type_complexity)]
+pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
+    parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
+    title: &str,
+    _state: &'b mut DemoPageState,
+    debug_layout: bool,
+    inner_layout: L,
+) -> DemoPageResult<
+    'b,
+    T,
+    framewise::layouts::OffsetState<L::State>,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+> {
+    let DemoPageNoScrollResult { ctx } =
+        begin_demo_page_no_scroll(parent_ctx, title, debug_layout, inner_layout);
+    DemoPageResult { ctx }
+}
+
+#[allow(clippy::type_complexity)]
+pub fn begin_demo_page_no_scroll<'a, 'b, T: TextSystem, L: Layout, CF>(
+    parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
+    title: &str,
+    debug_layout: bool,
+    inner_layout: L,
+) -> DemoPageNoScrollResult<
+    'b,
+    T,
+    framewise::layouts::OffsetState<L::State>,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+> {
+    use framewise::layouts::OffsetLayout;
+    use framewise::types::Vec2;
+
+    let theme = parent_ctx.theme;
+    let title_style = LabelStyle {
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
+        rule: true,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
+    };
+
+    // 1. Draw the title inside the parent column
+    framewise::widgets::label::label(
+        parent_ctx,
+        LabelSpecBuilder::new().text(title).style(title_style),
+        ColumnLayoutParams::auto().fill_x(),
+    );
+
+    // 2. Add spacer
+    parent_ctx.spacer(24.0);
+
+    // 3. Create the body child context (using OffsetLayout with zero offset)
+    let offset_layout = OffsetLayout {
+        offset: Vec2::ZERO,
+        inner: inner_layout,
+    };
+
+    let mut body_ctx =
+        parent_ctx.child_with_layout(ColumnLayoutParams::auto().fill_x().fill_y(), offset_layout);
+    body_ctx.debug_layout = debug_layout;
+    body_ctx.layout_policy = LayoutViolationPolicy::Highlight;
+
+    DemoPageNoScrollResult { ctx: body_ctx }
+}

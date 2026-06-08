@@ -18,6 +18,7 @@ use framewise::{
 
 #[derive(Default)]
 pub struct ButtonPageState {
+    pub page: crate::demo_page::DemoPageState,
     // Section 1: one button per style
     pub toolbar_btns: [ButtonState; 4],
     pub toolbar_clicks: [u32; 4],
@@ -59,39 +60,20 @@ pub fn draw_button_page(
         text_system,
         focus_system,
         input,
-        framewise::layouts::ManualLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        ColumnLayout,
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         &mut cmds,
     );
-    ctx.debug_layout = debug_layout;
-    // Highlight unsatisfiable layout requests in red rather than panicking (Panic is the
-    // default, kept for tests).
-    ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
-    let theme = ctx.theme;
-
-    // Root column — all sections stack vertically with 24px gaps
-    let mut outer = ctx.child_with_layout(
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+    let crate::demo_page::DemoPageResult { ctx: mut outer } = crate::demo_page::begin_demo_page(
+        &mut ctx,
+        "Button Demo",
+        &mut state.page,
+        debug_layout,
         ColumnLayout,
     );
 
-    // Page Title
-    let title_style = LabelStyle {
-        text_style: theme.heading_text_style(24.0),
-        text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
-        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-    };
-    label(
-        &mut outer,
-        LabelSpecBuilder::new()
-            .text("Button Demo")
-            .style(title_style),
-        ColumnLayoutParams::auto().fill_x(),
-    );
-    outer.spacer(24.0);
+    let theme = outer.theme;
 
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
@@ -101,10 +83,8 @@ pub fn draw_button_page(
     // ── Section 1: Toolbar row — one button per style ─────────────────────────
     // Nesting: root col > row
     {
-        let mut row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 40.0),
-            RowLayout,
-        );
+        let mut row =
+            outer.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(40.0), RowLayout);
 
         let styles = [primary, secondary, accent, ghost];
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
@@ -129,7 +109,7 @@ pub fn draw_button_page(
     // Left col: primary + secondary; right col: accent + ghost; each with disabled variant
     {
         let mut row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 200.0),
+            ColumnLayoutParams::auto().fill_x().fixed_y(200.0),
             RowLayout,
         );
 
@@ -191,10 +171,8 @@ pub fn draw_button_page(
     // Outer row: [label btn | control column]
     // Control column: [dec/display/inc row | reset btn]
     {
-        let mut outer_row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 96.0),
-            RowLayout,
-        );
+        let mut outer_row =
+            outer.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(96.0), RowLayout);
 
         label(
             &mut outer_row,
@@ -265,7 +243,7 @@ pub fn draw_button_page(
     // Nesting: root col > row > [col, col, col]
     {
         let mut row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 124.0),
+            ColumnLayoutParams::auto().fill_x().fixed_y(124.0),
             RowLayout,
         );
 
@@ -309,15 +287,13 @@ pub fn draw_button_page(
     // no explicit widths.
     {
         let mut col = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 96.0),
+            ColumnLayoutParams::auto().fill_x().fixed_y(96.0),
             ColumnLayout,
         );
 
         {
-            let mut row = col.child_with_layout(
-                ColumnLayoutParams::fixed(win_w - 2.0 * pad, 40.0),
-                RowLayout,
-            );
+            let mut row =
+                col.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(40.0), RowLayout);
 
             // Each button's width comes from its label; height is fixed.
             let auto = RowLayoutParams::auto().fixed_y(40.0);
@@ -355,7 +331,7 @@ pub fn draw_button_page(
     // the row fills.
     {
         let mut wrap = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 96.0),
+            ColumnLayoutParams::auto().fill_x().fixed_y(96.0),
             WrapLayout {
                 spacing: 8.0,
                 line_spacing: 8.0,
@@ -393,7 +369,7 @@ pub fn draw_button_page(
     // cross-axis alignment math under Exact bounds.
     {
         let mut row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 180.0),
+            ColumnLayoutParams::auto().fill_x().fixed_y(180.0),
             RowLayout,
         );
 
@@ -524,10 +500,8 @@ pub fn draw_button_page(
         ];
 
         for (row_index, row_positions) in positions.chunks(3).enumerate() {
-            let mut row = outer.child_with_layout(
-                ColumnLayoutParams::fixed(win_w - 2.0 * pad, 54.0),
-                RowLayout,
-            );
+            let mut row = outer
+                .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(54.0), RowLayout);
 
             for (col_index, (text, x, y)) in row_positions.iter().enumerate() {
                 let index = row_index * 3 + col_index;
@@ -547,10 +521,8 @@ pub fn draw_button_page(
             row.finish();
         }
 
-        let mut row = outer.child_with_layout(
-            ColumnLayoutParams::fixed(win_w - 2.0 * pad, 29.0),
-            RowLayout,
-        );
+        let mut row =
+            outer.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(29.0), RowLayout);
         let glyph_flow = framewise::text::TextFlow {
             overflow_x: framewise::text::OverflowX::Keep,
             overflow_y: framewise::text::OverflowY::Keep,
@@ -609,6 +581,7 @@ pub fn draw_button_page(
     }
 
     outer.finish();
+    ctx.finish();
 
     cmds
 }
