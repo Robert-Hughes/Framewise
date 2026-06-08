@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
@@ -13,7 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct CheckboxSpec {
-        /// Top-left of the 14×14 box.
+        /// Top-left of the 14x14 box.
         pub rect: Rect,
         pub disabled: bool,
         pub style: super::CheckboxStyle,
@@ -22,10 +22,14 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct CheckboxResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Compute intrinsic size for Checkbox. Currently returns UNKNOWN.
+    pub fn calc_checkbox_intrinsic_size(_spec: &CheckboxSpec) -> IntrinsicSize {
+        IntrinsicSize::UNKNOWN
     }
 
     /// Low-level checkbox widget function.
@@ -37,6 +41,7 @@ pub mod raw {
         state: &mut CheckboxState,
         input: &Input,
         focus_system: &mut FocusSystem,
+        cmds: &mut DrawCommands,
     ) -> CheckboxResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -76,7 +81,6 @@ pub mod raw {
             };
         }
 
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -112,7 +116,7 @@ pub mod raw {
         // Inner mark.
         match state.checked {
             CheckedState::Checked => {
-                // Checkmark: two lines forming a tick (√).
+                // Checkmark: two lines forming a tick (v).
                 let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
                 let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
                 let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
@@ -141,7 +145,6 @@ pub mod raw {
         }
 
         CheckboxResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -286,17 +289,19 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut CheckboxState,
 ) -> CheckboxResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
+    // Build a provisional spec with a placeholder rect to compute intrinsic size.
+    // Any `rect` set on the builder is ignored by the high-level path — placement
+    // is the layout's job (use `ManualLayout`, or the raw fn, for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
+        .rect(Rect::PLACEHOLDER)
         .build();
-    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     CheckboxResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -310,18 +315,6 @@ mod tests {
     use super::raw::CheckboxSpec;
     use super::*;
 
-    fn checkbox_dummy(spec: CheckboxSpec, state: CheckedState) -> raw::CheckboxResult {
-        raw::checkbox(
-            spec,
-            &mut CheckboxState {
-                checked: state,
-                ..Default::default()
-            },
-            &Input::default(),
-            &mut FocusSystem::new(),
-        )
-    }
-
     #[test]
     fn test_checkbox_visual_off() {
         let spec = CheckboxSpec {
@@ -331,10 +324,17 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckedState::Unchecked);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState::default(),
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 14.0, 14.0),
                     color: s.background,
@@ -357,14 +357,24 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckedState::Checked);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
         let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
         let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState {
+                checked: CheckedState::Checked,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.selected_fill,
@@ -399,11 +409,21 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckedState::Indeterminate);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState {
+                checked: CheckedState::Indeterminate,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.selected_fill,
@@ -436,11 +456,18 @@ mod tests {
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let mut state = state;
-        let res = raw::checkbox(spec, &mut state, &Input::default(), &mut focus_system);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
@@ -468,13 +495,20 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = checkbox_dummy(spec, CheckedState::Unchecked);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState::default(),
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: tint(s.background),
@@ -504,8 +538,9 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_system);
+        raw::checkbox(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -531,8 +566,9 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_system);
+        raw::checkbox(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -558,14 +594,15 @@ mod tests {
         // Frame 1: Explicitly focus the checkbox
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_system.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 3: Release Space key
@@ -573,7 +610,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_system.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system);
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -603,30 +640,30 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut cb_state = CheckboxState::default();
         let result = super::checkbox(
             &mut ctx,
-            CheckboxSpecBuilder::new().rect(custom_rect),
-            layout_rect,
+            CheckboxSpecBuilder::new(),
+            placement,
             &mut cb_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -13,7 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SwitchSpec {
-        /// Top-left of the 30×16 bounding area.
+        /// Top-left of the 30x16 bounding area.
         pub rect: Rect,
         pub disabled: bool,
         pub style: super::SwitchStyle,
@@ -22,10 +22,14 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SwitchResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Compute intrinsic size for Switch. Currently returns UNKNOWN.
+    pub fn calc_switch_intrinsic_size(_spec: &SwitchSpec) -> IntrinsicSize {
+        IntrinsicSize::UNKNOWN
     }
 
     /// Low-level switch widget function.
@@ -37,6 +41,7 @@ pub mod raw {
         state: &mut SwitchState,
         input: &Input,
         focus_system: &mut FocusSystem,
+        cmds: &mut DrawCommands,
     ) -> SwitchResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -72,7 +77,6 @@ pub mod raw {
             state.checked = !state.checked;
         }
 
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -102,7 +106,7 @@ pub mod raw {
             width: s.border_width,
         });
 
-        // Thumb dot (10×10, vertically centered, left/right positioned).
+        // Thumb dot (10x10, vertically centered, left/right positioned).
         let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
         let dot_x = if state.checked {
             r.x + r.w - s.thumb_size - s.border_width
@@ -120,7 +124,6 @@ pub mod raw {
         });
 
         SwitchResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -260,17 +263,19 @@ pub fn switch<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SwitchState,
 ) -> SwitchResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
+    // Build a provisional spec with a placeholder rect to compute intrinsic size.
+    // Any `rect` set on the builder is ignored by the high-level path — placement
+    // is the layout's job (use `ManualLayout`, or the raw fn, for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
+        .rect(Rect::PLACEHOLDER)
         .build();
-    let result = raw::switch(spec, state, ctx.input, ctx.focus_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_switch_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::switch(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     SwitchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -285,18 +290,6 @@ mod tests {
     use super::*;
     use crate::types::Vec2;
 
-    fn test_switch(spec: SwitchSpec, checked: bool) -> raw::SwitchResult {
-        raw::switch(
-            spec,
-            &mut SwitchState {
-                checked,
-                ..Default::default()
-            },
-            &Input::default(),
-            &mut FocusSystem::new(),
-        )
-    }
-
     #[test]
     fn test_switch_visual_off() {
         let spec = SwitchSpec {
@@ -306,11 +299,21 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_switch(spec, false);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState {
+                checked: false,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.off_fill,
@@ -337,11 +340,21 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_switch(spec, true);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState {
+                checked: true,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.on_fill,
@@ -372,12 +385,19 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = raw::switch(spec, &mut state, &Input::default(), &mut focus_system);
-        focus_system.end_frame();
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
@@ -409,13 +429,23 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_switch(spec, false);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState {
+                checked: false,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: r,
                     color: tint(s.off_fill),
@@ -448,8 +478,9 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_system);
+        raw::switch(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -474,8 +505,9 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
         };
 
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_system);
+        raw::switch(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -501,14 +533,15 @@ mod tests {
         // Frame 1: Focus switch
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        let mut cmds = DrawCommands::new();
+        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 2: Press Space
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_system.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 3: Release Space
@@ -516,7 +549,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_system.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_system);
+        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert!(state.checked, "Spacebar release must toggle switch state");
@@ -542,30 +575,25 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut sw_state = SwitchState::default();
-        let result = super::switch(
-            &mut ctx,
-            SwitchSpecBuilder::new().rect(custom_rect),
-            layout_rect,
-            &mut sw_state,
-        );
-        assert_eq!(result.layout.bounds, custom_rect);
+        let result = super::switch(&mut ctx, SwitchSpecBuilder::new(), placement, &mut sw_state);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

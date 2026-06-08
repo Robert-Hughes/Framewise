@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -13,7 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct RadioSpec {
-        /// Top-left of the 14×14 bounding area.
+        /// Top-left of the 14x14 bounding area.
         pub rect: Rect,
         pub disabled: bool,
         pub style: super::RadioStyle,
@@ -22,10 +22,14 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct RadioResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Compute intrinsic size for Radio. Currently returns UNKNOWN.
+    pub fn calc_radio_intrinsic_size(_spec: &RadioSpec) -> IntrinsicSize {
+        IntrinsicSize::UNKNOWN
     }
 
     /// Low-level radio widget function.
@@ -37,6 +41,7 @@ pub mod raw {
         state: &mut RadioState,
         input: &Input,
         focus_system: &mut FocusSystem,
+        cmds: &mut DrawCommands,
     ) -> RadioResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -72,7 +77,6 @@ pub mod raw {
             state.checked = true;
         }
 
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -116,7 +120,6 @@ pub mod raw {
         }
 
         RadioResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -252,17 +255,19 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut RadioState,
 ) -> RadioResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
+    // Build a provisional spec with a placeholder rect to compute intrinsic size.
+    // Any `rect` set on the builder is ignored by the high-level path — placement
+    // is the layout's job (use `ManualLayout`, or the raw fn, for explicit rects).
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
+        .rect(Rect::PLACEHOLDER)
         .build();
-    let result = raw::radio(spec, state, ctx.input, ctx.focus_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_radio_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::radio(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -276,18 +281,6 @@ mod tests {
     use super::raw::RadioSpec;
     use super::*;
 
-    fn test_radio(spec: RadioSpec, checked: bool) -> raw::RadioResult {
-        raw::radio(
-            spec,
-            &mut RadioState {
-                checked,
-                ..Default::default()
-            },
-            &Input::default(),
-            &mut FocusSystem::new(),
-        )
-    }
-
     #[test]
     fn test_radio_visual_unselected() {
         let spec = RadioSpec {
@@ -297,11 +290,21 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_radio(spec, false);
         let center = Vec2::new(17.0, 17.0);
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            spec,
+            &mut RadioState {
+                checked: false,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
                     center,
                     radius: s.radius,
@@ -326,11 +329,21 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_radio(spec, true);
         let center = Vec2::new(17.0, 17.0);
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            spec,
+            &mut RadioState {
+                checked: true,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
                     center,
                     radius: s.radius,
@@ -365,12 +378,19 @@ mod tests {
         };
         let s = spec.style;
         let mut state = state;
-        let res = raw::radio(spec, &mut state, &Input::default(), &mut focus_system);
-        focus_system.end_frame();
         let center = Vec2::new(17.0, 17.0);
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeCircle {
                     center,
                     radius: s.radius + s.focus_offset,
@@ -401,13 +421,23 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = test_radio(spec, false);
         let alpha = s.disabled_alpha;
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let center = Vec2::new(17.0, 17.0);
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            spec,
+            &mut RadioState {
+                checked: false,
+                ..Default::default()
+            },
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
                     center,
                     radius: s.radius,
@@ -439,8 +469,9 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::radio(spec, &mut state, &input, &mut focus_system);
+        raw::radio(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -466,8 +497,9 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::radio(spec, &mut state, &input, &mut focus_system);
+        raw::radio(spec, &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -493,14 +525,15 @@ mod tests {
         // Frame 1: Explicitly focus the radio
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
-        raw::radio(spec(), &mut state, &input, &mut focus_system);
+        let mut cmds = DrawCommands::new();
+        raw::radio(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 2: Press Space key while focused
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_system.begin_frame();
-        raw::radio(spec(), &mut state, &input, &mut focus_system);
+        raw::radio(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         // Frame 3: Release Space key
@@ -508,7 +541,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_system.begin_frame();
-        raw::radio(spec(), &mut state, &input, &mut focus_system);
+        raw::radio(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
         assert_eq!(
@@ -537,30 +570,30 @@ mod tests {
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut radio_state = RadioState::default();
         let result = super::radio(
             &mut ctx,
-            RadioSpecBuilder::new().rect(custom_rect),
-            layout_rect,
+            RadioSpecBuilder::new(),
+            placement,
             &mut radio_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }
