@@ -39,7 +39,7 @@ use framewise::{
     widgets::button::{
         button, raw::calc_button_intrinsic_size, ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
-    widgets::label::{label, LabelSpecBuilder},
+    widgets::label::{label, LabelSpecBuilder, LabelStyle},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -100,16 +100,39 @@ pub fn draw_layout_page(
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);
 
-    // Root row: two columns side by side.
-    let mut root_row = ctx.child_with_layout(
+    // Root Column
+    let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        ColumnLayout,
+    );
+
+    // Page Title
+    let title_style = LabelStyle {
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
+        rule: true,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
+    };
+    label(
+        &mut outer,
+        LabelSpecBuilder::new()
+            .text("Layout Demo")
+            .style(title_style),
+        ColumnLayoutParams::auto().fill_x(),
+    );
+    outer.spacer(24.0);
+
+    // Root row: two columns side by side.
+    let mut root_row = outer.child_with_layout(
+        ColumnLayoutParams::fixed(win_w - 2.0 * pad, win_h - 2.0 * pad - 64.0),
         RowLayout,
     );
 
     // ── Left column: A, B, C, D ───────────────────────────────────────────────
     {
         let mut left = root_row.child_with_layout(
-            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad),
+            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad - 64.0),
             ColumnLayout,
         );
 
@@ -333,7 +356,7 @@ pub fn draw_layout_page(
     // ── Right column: E, F, G ──────────────────────────────────────────────────
     {
         let mut right = root_row.child_with_layout(
-            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad),
+            RowLayoutParams::fixed(col_w, win_h - 2.0 * pad - 64.0),
             ColumnLayout,
         );
 
@@ -616,6 +639,7 @@ pub fn draw_layout_page(
     }
 
     root_row.finish();
+    outer.finish();
 
     cmds
 }

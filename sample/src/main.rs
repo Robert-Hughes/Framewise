@@ -35,15 +35,15 @@ use winit::{
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppPage {
-    ButtonDemo,
-    ScrollDemo,
     WidgetSpec,
+    #[cfg(feature = "page_label_demo")]
+    LabelDemo,
+    ButtonDemo,
     #[cfg(feature = "page_frame_demo")]
     FrameDemo,
     #[cfg(feature = "page_layout_demo")]
     LayoutDemo,
-    #[cfg(feature = "page_label_demo")]
-    LabelDemo,
+    ScrollDemo,
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ impl App {
             modifiers: winit::keyboard::ModifiersState::default(),
             input: Input::new(),
             clipboard: arboard::Clipboard::new().ok(),
-            active_page: AppPage::ButtonDemo,
+            active_page: AppPage::WidgetSpec,
             debug_layout: false,
             vsync: true,
             last_frame_instant: now,
@@ -445,14 +445,15 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F1 = ScrollDemo, F2 = WidgetSpec, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
+                // F1 = WidgetSpec, F2 = LabelDemo, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F6 = ScrollDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
                 if event.state == ElementState::Pressed {
                     match event.physical_key {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
-                            self.active_page = AppPage::ScrollDemo;
-                        }
-                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) => {
                             self.active_page = AppPage::WidgetSpec;
+                        }
+                        #[cfg(feature = "page_label_demo")]
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F2) => {
+                            self.active_page = AppPage::LabelDemo;
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F3) => {
                             self.active_page = AppPage::ButtonDemo;
@@ -465,9 +466,8 @@ impl ApplicationHandler for App {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F5) => {
                             self.active_page = AppPage::LayoutDemo;
                         }
-                        #[cfg(feature = "page_label_demo")]
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F6) => {
-                            self.active_page = AppPage::LabelDemo;
+                            self.active_page = AppPage::ScrollDemo;
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F11) => {
                             self.vsync = !self.vsync;

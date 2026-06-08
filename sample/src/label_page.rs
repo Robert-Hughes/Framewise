@@ -82,25 +82,20 @@ pub fn draw_label_page(
 
     // Page Title
     let title_style = LabelStyle {
-        text_style: framewise::TextStyle::new(
-            theme.sans_font,
-            32.0,
-            theme.sans_weight_bold,
-            framewise::text::TextFlow::single_line(),
-        ),
-        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-        text_color: theme.rust,
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
         rule: true,
-        rule_color: theme.rust,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
     };
     label(
         &mut ctx,
         LabelSpecBuilder::new()
-            .text("Label Widget Showcase")
+            .text("Label Demo")
             .style(title_style),
-        ColumnLayoutParams::auto(),
+        ColumnLayoutParams::auto().fill_x(),
     );
-    ctx.spacer(28.0);
+    ctx.spacer(24.0);
 
     // Section 1: Font Families and Sizes
     {

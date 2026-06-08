@@ -9,7 +9,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
-    widgets::label::{label, LabelSpecBuilder},
+    widgets::label::{label, LabelSpecBuilder, LabelStyle},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -111,13 +111,37 @@ pub fn draw_frame_page(
     // default, kept for tests).
     ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
-    // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
-    let mut root_row = ctx.child_with_layout(
+    let theme = ctx.theme;
+
+    // Root Column
+    let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        ColumnLayout,
+    );
+
+    // Page Title
+    let title_style = LabelStyle {
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
+        rule: true,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
+    };
+    label(
+        &mut outer,
+        LabelSpecBuilder::new()
+            .text("Frame Demo")
+            .style(title_style),
+        ColumnLayoutParams::auto().fill_x(),
+    );
+    outer.spacer(24.0);
+
+    // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
+    let mut root_row = outer.child_with_layout(
+        ColumnLayoutParams::fixed(win_w - 2.0 * pad, win_h - 2.0 * pad - 64.0),
         RowLayout,
     );
 
-    let theme = root_row.theme;
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);
@@ -127,7 +151,7 @@ pub fn draw_frame_page(
     // ── Left Column: Dynamic List & Sizing Dimensions ─────────────────────────
     {
         let mut left_col = root_row.child_with_layout(
-            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad),
+            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad - 64.0),
             ColumnLayout,
         );
 
@@ -381,7 +405,7 @@ pub fn draw_frame_page(
     // ── Right Column: Nesting & Alignments ────────────────────────────────────
     {
         let mut right_col = root_row.child_with_layout(
-            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad),
+            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad - 64.0),
             ColumnLayout,
         );
 
@@ -525,6 +549,7 @@ pub fn draw_frame_page(
     }
 
     root_row.finish();
+    outer.finish();
 
     cmds
 }

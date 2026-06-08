@@ -68,13 +68,31 @@ pub fn draw_button_page(
     // default, kept for tests).
     ctx.layout_policy = framewise::LayoutViolationPolicy::Highlight;
 
+    let theme = ctx.theme;
+
     // Root column — all sections stack vertically with 24px gaps
     let mut outer = ctx.child_with_layout(
         Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
         ColumnLayout,
     );
 
-    let theme = outer.theme;
+    // Page Title
+    let title_style = LabelStyle {
+        text_style: theme.heading_text_style(24.0),
+        text_color: theme.ink,
+        rule: true,
+        rule_color: theme.line,
+        content_placement: framewise::TextContentPlacement::TOP_LEFT,
+    };
+    label(
+        &mut outer,
+        LabelSpecBuilder::new()
+            .text("Button Demo")
+            .style(title_style),
+        ColumnLayoutParams::auto().fill_x(),
+    );
+    outer.spacer(24.0);
+
     let primary = ButtonStyle::primary_from_theme(&theme);
     let secondary = ButtonStyle::secondary_from_theme(&theme);
     let accent = ButtonStyle::accent_from_theme(&theme);

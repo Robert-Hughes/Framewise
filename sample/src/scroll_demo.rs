@@ -8,6 +8,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::{
         button::button,
+        label::{label, LabelSpecBuilder, LabelStyle},
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder},
         slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
         ButtonSpecBuilder,
@@ -243,6 +244,23 @@ pub fn draw_scroll_demo(
             )
             .ctx;
             let inner_w = win_w - 240.0 - 15.0;
+
+            let theme = content_col.theme;
+            let title_style = LabelStyle {
+                text_style: theme.heading_text_style(24.0),
+                text_color: theme.ink,
+                rule: true,
+                rule_color: theme.line,
+                content_placement: framewise::TextContentPlacement::TOP_LEFT,
+            };
+            label(
+                &mut content_col,
+                LabelSpecBuilder::new()
+                    .text("Scroll Demo")
+                    .style(title_style),
+                ColumnLayoutParams::auto().fill_x(),
+            );
+            content_col.spacer(15.0);
 
             // Top Header Row - Centered vertically (cross axis)
             {
