@@ -221,11 +221,32 @@ pub enum LayoutViolationKind {
     UnsatisfiableFill { bound: AxisBound },
     /// `Auto` sizing but the widget reported no intrinsic measurement.
     MissingIntrinsic,
+    /// Placing children in a closed linear layout (i.e. after a MainAxisAlign::End child).
+    LayoutClosed,
+    /// MainAxisAlign::End with no committed frame (AtMost/Unbounded) to anchor against on the main axis.
+    UnsatisfiableMainAxisEnd { bound: AxisBound },
 }
 
 impl std::fmt::Display for LayoutViolation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
+            LayoutViolationKind::LayoutClosed => {
+                write!(
+                    f,
+                    "Layout panic: layout is closed, no more children can be placed after a MainAxisAlign::End child"
+                )
+            }
+            LayoutViolationKind::UnsatisfiableMainAxisEnd { bound } => {
+                let bound_str = match bound {
+                    AxisBound::Exact(_) => "Exact",
+                    AxisBound::AtMost(_) => "AtMost",
+                    AxisBound::Unbounded => "Unbounded",
+                };
+                write!(
+                    f,
+                    "Layout panic: MainAxisAlign::End requires AxisBound::Exact available space on the main axis, but is {bound_str}"
+                )
+            }
             LayoutViolationKind::MissingIntrinsic => {
                 write!(
                     f,

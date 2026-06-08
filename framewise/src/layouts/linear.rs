@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::layout::{
     Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
-    Placement, Placement2D, Size, SpacerLayoutState,
+    LayoutViolation, LayoutViolationKind, Size, SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -21,8 +21,357 @@ impl<A> LinearLayout<A> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum MainAxisAlign {
+    #[default]
+    Append,
+    End,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LinearMain {
+    Fill,
+    Sized { size: Size, align: MainAxisAlign },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LinearCross {
+    Fill,
+    Sized { size: Size, align: Align },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RowLayoutParams {
+    pub x: LinearMain,
+    pub y: LinearCross,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ColumnLayoutParams {
+    pub x: LinearCross,
+    pub y: LinearMain,
+}
+
+impl LinearMain {
+    pub fn fixed(px: f32) -> Self {
+        Self::Sized {
+            size: Size::Fixed(px),
+            align: MainAxisAlign::Append,
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self::Sized {
+            size: Size::Auto,
+            align: MainAxisAlign::Append,
+        }
+    }
+
+    pub fn fill() -> Self {
+        Self::Fill
+    }
+
+    pub fn align(self, align: MainAxisAlign) -> Self {
+        match self {
+            Self::Fill => {
+                panic!("Layout panic: cannot set alignment on LinearMain::Fill as align + fill is unrepresentable");
+            }
+            Self::Sized { size, .. } => Self::Sized { size, align },
+        }
+    }
+
+    #[track_caller]
+    pub(crate) fn resolve_size(
+        self,
+        intrinsic: Option<f32>,
+        avail: AxisBound,
+    ) -> LayoutResult<f32> {
+        match self {
+            LinearMain::Sized {
+                size: Size::Fixed(px),
+                ..
+            } => LayoutResult::Ok(px),
+            LinearMain::Sized {
+                size: Size::Auto, ..
+            } => match intrinsic {
+                Some(preferred) => match avail {
+                    AxisBound::Exact(_) => LayoutResult::Ok(preferred),
+                    AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
+                    AxisBound::Unbounded => LayoutResult::Ok(preferred),
+                },
+                None => LayoutResult::Fallback {
+                    value: 0.0,
+                    violation: LayoutViolation {
+                        kind: LayoutViolationKind::MissingIntrinsic,
+                        location: core::panic::Location::caller(),
+                    },
+                },
+            },
+            LinearMain::Fill => match avail {
+                AxisBound::Exact(w) => LayoutResult::Ok(w),
+                bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                    let val = match bound {
+                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::Exact(_) => unreachable!(),
+                    };
+                    LayoutResult::Fallback {
+                        value: val,
+                        violation: LayoutViolation {
+                            kind: LayoutViolationKind::UnsatisfiableFill { bound },
+                            location: core::panic::Location::caller(),
+                        },
+                    }
+                }
+            },
+        }
+    }
+}
+
+impl LinearCross {
+    pub fn fixed(px: f32) -> Self {
+        Self::Sized {
+            size: Size::Fixed(px),
+            align: Align::Start,
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self::Sized {
+            size: Size::Auto,
+            align: Align::Start,
+        }
+    }
+
+    pub fn fill() -> Self {
+        Self::Fill
+    }
+
+    pub fn align(self, align: Align) -> Self {
+        match self {
+            Self::Fill => {
+                panic!("Layout panic: cannot set alignment on LinearCross::Fill as align + fill is unrepresentable");
+            }
+            Self::Sized { size, .. } => Self::Sized { size, align },
+        }
+    }
+
+    #[track_caller]
+    pub(crate) fn resolve_size(
+        self,
+        intrinsic: Option<f32>,
+        avail: AxisBound,
+    ) -> LayoutResult<f32> {
+        match self {
+            LinearCross::Sized {
+                size: Size::Fixed(px),
+                ..
+            } => LayoutResult::Ok(px),
+            LinearCross::Sized {
+                size: Size::Auto, ..
+            } => match intrinsic {
+                Some(preferred) => match avail {
+                    AxisBound::Exact(_) => LayoutResult::Ok(preferred),
+                    AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
+                    AxisBound::Unbounded => LayoutResult::Ok(preferred),
+                },
+                None => LayoutResult::Fallback {
+                    value: 0.0,
+                    violation: LayoutViolation {
+                        kind: LayoutViolationKind::MissingIntrinsic,
+                        location: core::panic::Location::caller(),
+                    },
+                },
+            },
+            LinearCross::Fill => match avail {
+                AxisBound::Exact(w) => LayoutResult::Ok(w),
+                bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                    let val = match bound {
+                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::Exact(_) => unreachable!(),
+                    };
+                    LayoutResult::Fallback {
+                        value: val,
+                        violation: LayoutViolation {
+                            kind: LayoutViolationKind::UnsatisfiableFill { bound },
+                            location: core::panic::Location::caller(),
+                        },
+                    }
+                }
+            },
+        }
+    }
+
+    #[track_caller]
+    pub(crate) fn align_offset(self, resolved: f32, avail: AxisBound) -> LayoutResult<f32> {
+        match self {
+            LinearCross::Fill => LayoutResult::Ok(0.0),
+            LinearCross::Sized { align, .. } => match align {
+                Align::Start => LayoutResult::Ok(0.0),
+                Align::Center => match avail {
+                    AxisBound::Exact(w) => LayoutResult::Ok((w - resolved) * 0.5),
+                    bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                        LayoutResult::Fallback {
+                            value: 0.0,
+                            violation: LayoutViolation {
+                                kind: LayoutViolationKind::UnsatisfiableAlignment { align, bound },
+                                location: core::panic::Location::caller(),
+                            },
+                        }
+                    }
+                },
+                Align::End => match avail {
+                    AxisBound::Exact(w) => LayoutResult::Ok(w - resolved),
+                    bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
+                        LayoutResult::Fallback {
+                            value: 0.0,
+                            violation: LayoutViolation {
+                                kind: LayoutViolationKind::UnsatisfiableAlignment { align, bound },
+                                location: core::panic::Location::caller(),
+                            },
+                        }
+                    }
+                },
+            },
+        }
+    }
+}
+
+impl RowLayoutParams {
+    pub fn fixed(w: f32, h: f32) -> Self {
+        Self {
+            x: LinearMain::fixed(w),
+            y: LinearCross::fixed(h),
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            x: LinearMain::auto(),
+            y: LinearCross::auto(),
+        }
+    }
+
+    pub fn x(mut self, x: LinearMain) -> Self {
+        self.x = x;
+        self
+    }
+
+    pub fn y(mut self, y: LinearCross) -> Self {
+        self.y = y;
+        self
+    }
+
+    pub fn fixed_x(self, px: f32) -> Self {
+        self.x(LinearMain::fixed(px))
+    }
+
+    pub fn fixed_y(self, px: f32) -> Self {
+        self.y(LinearCross::fixed(px))
+    }
+
+    pub fn auto_x(self) -> Self {
+        self.x(LinearMain::auto())
+    }
+
+    pub fn auto_y(self) -> Self {
+        self.y(LinearCross::auto())
+    }
+
+    pub fn fill_x(self) -> Self {
+        self.x(LinearMain::fill())
+    }
+
+    pub fn fill_y(self) -> Self {
+        self.y(LinearCross::fill())
+    }
+
+    pub fn align_x(mut self, align: MainAxisAlign) -> Self {
+        self.x = self.x.align(align);
+        self
+    }
+
+    pub fn align_y(mut self, align: Align) -> Self {
+        self.y = self.y.align(align);
+        self
+    }
+}
+
+impl ColumnLayoutParams {
+    pub fn fixed(w: f32, h: f32) -> Self {
+        Self {
+            x: LinearCross::fixed(w),
+            y: LinearMain::fixed(h),
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            x: LinearCross::auto(),
+            y: LinearMain::auto(),
+        }
+    }
+
+    pub fn x(mut self, x: LinearCross) -> Self {
+        self.x = x;
+        self
+    }
+
+    pub fn y(mut self, y: LinearMain) -> Self {
+        self.y = y;
+        self
+    }
+
+    pub fn fixed_x(self, px: f32) -> Self {
+        self.x(LinearCross::fixed(px))
+    }
+
+    pub fn fixed_y(self, px: f32) -> Self {
+        self.y(LinearMain::fixed(px))
+    }
+
+    pub fn auto_x(self) -> Self {
+        self.x(LinearCross::auto())
+    }
+
+    pub fn auto_y(self) -> Self {
+        self.y(LinearMain::auto())
+    }
+
+    pub fn fill_x(self) -> Self {
+        self.x(LinearCross::fill())
+    }
+
+    pub fn fill_y(self) -> Self {
+        self.y(LinearMain::fill())
+    }
+
+    pub fn align_x(mut self, align: Align) -> Self {
+        self.x = self.x.align(align);
+        self
+    }
+
+    pub fn align_y(mut self, align: MainAxisAlign) -> Self {
+        self.y = self.y.align(align);
+        self
+    }
+}
+
+impl From<Vec2> for RowLayoutParams {
+    fn from(v: Vec2) -> Self {
+        Self::fixed(v.x, v.y)
+    }
+}
+
+impl From<Vec2> for ColumnLayoutParams {
+    fn from(v: Vec2) -> Self {
+        Self::fixed(v.x, v.y)
+    }
+}
+
 impl<A: LinearAxis> Layout for LinearLayout<A> {
-    type Params = Placement2D;
+    type Params = A::Params;
     type State = LinearState<A>;
 
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
@@ -33,6 +382,7 @@ impl<A: LinearAxis> Layout for LinearLayout<A> {
             content_main: 0.0,
             content_cross: 0.0,
             pending_spacing: 0.0,
+            is_closed: false,
             _axis: PhantomData,
         }
     }
@@ -48,7 +398,7 @@ impl RowLayout {
 }
 
 impl Layout for RowLayout {
-    type Params = Placement2D;
+    type Params = RowLayoutParams;
     type State = RowState;
 
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
@@ -66,7 +416,7 @@ impl ColumnLayout {
 }
 
 impl Layout for ColumnLayout {
-    type Params = Placement2D;
+    type Params = ColumnLayoutParams;
     type State = ColumnState;
 
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State {
@@ -85,6 +435,7 @@ pub struct LinearState<A> {
     /// Largest child extent reached on the cross axis.
     content_cross: f32,
     pending_spacing: f32,
+    is_closed: bool,
     _axis: PhantomData<fn() -> A>,
 }
 
@@ -92,16 +443,19 @@ impl<A: LinearAxis> SpacerLayoutState for LinearState<A> {
     type SpacerParams = f32;
 
     fn spacer(&mut self, size: Self::SpacerParams) {
+        if self.is_closed {
+            panic!("Layout panic: layout is closed, no more children can be placed after a MainAxisAlign::End child");
+        }
         self.pending_spacing += size;
     }
 }
 
 impl<A: LinearAxis> LayoutState for LinearState<A> {
-    type Params = Placement2D;
+    type Params = A::Params;
 
     fn layout(
         &mut self,
-        layout_params: Placement2D,
+        layout_params: Self::Params,
         intrinsic: IntrinsicSize,
     ) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
@@ -111,43 +465,112 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
 
     fn begin_layout<'a>(
         &'a mut self,
-        layout_params: Placement2D,
+        layout_params: Self::Params,
         _intrinsic: IntrinsicSize,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
-        let params = A::orient_params(layout_params);
+        let params = A::orient_params(layout_params.clone());
+
+        if self.is_closed {
+            let main = match params.main {
+                LinearMain::Fill => self.remaining_main_bound(),
+                LinearMain::Sized {
+                    size: Size::Fixed(size),
+                    ..
+                } => AxisBound::Exact(size),
+                LinearMain::Sized {
+                    size: Size::Auto, ..
+                } => at_most_if_bounded(self.remaining_main_bound()),
+            };
+            let cross = match params.cross {
+                LinearCross::Sized {
+                    size: Size::Fixed(size),
+                    ..
+                } => AxisBound::Exact(size),
+                LinearCross::Fill => self.space.cross,
+                LinearCross::Sized {
+                    size: Size::Auto, ..
+                } => at_most_if_bounded(self.space.cross),
+            };
+            let space = OrientedSpace {
+                origin_main: self.cursor_main + self.pending_spacing,
+                origin_cross: self.space.origin_cross,
+                main,
+                cross,
+            };
+            let token = LayoutToken {
+                state: self,
+                params: layout_params,
+            };
+            return (
+                LayoutResult::Fallback {
+                    value: A::physical_space(space),
+                    violation: LayoutViolation {
+                        kind: LayoutViolationKind::LayoutClosed,
+                        location: core::panic::Location::caller(),
+                    },
+                },
+                token,
+            );
+        }
+
+        let mut end_violation = None;
+        let mut main_origin = self.cursor_main + self.pending_spacing;
 
         let main = match params.main {
-            Placement::Sized {
-                size: Size::Fixed(size),
-                ..
-            } => AxisBound::Exact(size),
-            Placement::Fill => self.remaining_main_bound(),
-            Placement::Sized {
-                size: Size::Auto, ..
-            } => at_most_if_bounded(self.remaining_main_bound()),
+            LinearMain::Fill => self.remaining_main_bound(),
+            LinearMain::Sized { size, align } => match align {
+                MainAxisAlign::Append => match size {
+                    Size::Fixed(s) => AxisBound::Exact(s),
+                    Size::Auto => at_most_if_bounded(self.remaining_main_bound()),
+                },
+                MainAxisAlign::End => match size {
+                    Size::Auto => {
+                        panic!(
+                            "Layout panic: MainAxisAlign::End cannot be applied to an Auto-sized \
+                             deferred child — its size is only known once the layout closes, and \
+                             its already-emitted output cannot be shifted retroactively. Use a \
+                             Fixed size."
+                        );
+                    }
+                    Size::Fixed(s) => match self.space.main {
+                        AxisBound::Exact(parent_size) => {
+                            main_origin = self.space.origin_main + parent_size - s;
+                            AxisBound::Exact(s)
+                        }
+                        bound => {
+                            end_violation = Some(LayoutViolation {
+                                kind: LayoutViolationKind::UnsatisfiableMainAxisEnd { bound },
+                                location: core::panic::Location::caller(),
+                            });
+                            main_origin = self.cursor_main + self.pending_spacing;
+                            AxisBound::Exact(s)
+                        }
+                    },
+                },
+            },
         };
 
         let cross = match params.cross {
-            Placement::Sized {
+            LinearCross::Sized {
                 size: Size::Fixed(size),
                 ..
             } => AxisBound::Exact(size),
-            Placement::Fill => self.space.cross,
-            Placement::Sized {
+            LinearCross::Fill => self.space.cross,
+            LinearCross::Sized {
                 size: Size::Auto, ..
             } => at_most_if_bounded(self.space.cross),
         };
 
         let resolved_cross = match params.cross {
-            Placement::Sized {
+            LinearCross::Sized {
                 size: Size::Fixed(size),
                 ..
             } => Some(size),
-            Placement::Fill => match self.space.cross {
+            LinearCross::Fill => match self.space.cross {
                 AxisBound::Exact(size) => Some(size),
                 AxisBound::AtMost(_) | AxisBound::Unbounded => None,
             },
-            Placement::Sized {
+            LinearCross::Sized {
                 size: Size::Auto,
                 align,
             } => {
@@ -163,13 +586,13 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
             }
         };
 
-        let (cross_offset, violation) = params
+        let (cross_offset, cross_align_violation) = params
             .cross
             .align_offset(resolved_cross.unwrap_or(0.0), self.space.cross)
             .into_parts();
 
         let space = OrientedSpace {
-            origin_main: self.cursor_main + self.pending_spacing,
+            origin_main: main_origin,
             origin_cross: self.space.origin_cross + cross_offset,
             main,
             cross,
@@ -179,12 +602,15 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
             params: layout_params,
         };
         (
-            LayoutResult::from_parts(A::physical_space(space), violation),
+            LayoutResult::from_parts(
+                A::physical_space(space),
+                cross_align_violation.or(end_violation),
+            ),
             token,
         )
     }
 
-    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> LayoutResult<Rect> {
+    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
         let pref = Some(A::orient_size(extent));
         self.place(params, pref)
@@ -205,6 +631,36 @@ impl<A: LinearAxis> LinearState<A> {
         params: OrientedPlacement,
         preferred: Option<OrientedSize>,
     ) -> LayoutResult<Rect> {
+        if self.is_closed {
+            let (main_size, _) = params
+                .main
+                .resolve_size(preferred.map(|p| p.main), self.remaining_main_bound())
+                .into_parts();
+            let (cross_size, _) = params
+                .cross
+                .resolve_size(preferred.map(|p| p.cross), self.space.cross)
+                .into_parts();
+            let (cross_offset, _) = params
+                .cross
+                .align_offset(cross_size, self.space.cross)
+                .into_parts();
+            let main_pos = self.cursor_main + self.pending_spacing;
+            let cross_pos = self.space.origin_cross + cross_offset;
+            let rect = A::physical_rect(OrientedRect {
+                main: main_pos,
+                cross: cross_pos,
+                main_size,
+                cross_size,
+            });
+            return LayoutResult::Fallback {
+                value: rect,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::LayoutClosed,
+                    location: core::panic::Location::caller(),
+                },
+            };
+        }
+
         let (main_size, main_violation) = params
             .main
             .resolve_size(preferred.map(|p| p.main), self.remaining_main_bound())
@@ -220,7 +676,30 @@ impl<A: LinearAxis> LinearState<A> {
             .into_parts();
         let cross_pos = self.space.origin_cross + cross_offset;
 
-        let main_pos = self.cursor_main + self.pending_spacing;
+        let mut end_violation = None;
+        let is_end = matches!(
+            params.main,
+            LinearMain::Sized {
+                align: MainAxisAlign::End,
+                ..
+            }
+        );
+
+        let main_pos = if is_end {
+            self.is_closed = true;
+            match self.space.main {
+                AxisBound::Exact(parent_size) => self.space.origin_main + parent_size - main_size,
+                bound => {
+                    end_violation = Some(LayoutViolation {
+                        kind: LayoutViolationKind::UnsatisfiableMainAxisEnd { bound },
+                        location: core::panic::Location::caller(),
+                    });
+                    self.cursor_main + self.pending_spacing
+                }
+            }
+        } else {
+            self.cursor_main + self.pending_spacing
+        };
 
         let rect = A::physical_rect(OrientedRect {
             main: main_pos,
@@ -238,7 +717,9 @@ impl<A: LinearAxis> LinearState<A> {
 
         LayoutResult::from_parts(
             rect,
-            A::first_violation(main_violation, cross_violation).or(align_violation),
+            A::first_violation(main_violation, cross_violation)
+                .or(align_violation)
+                .or(end_violation),
         )
     }
 
@@ -280,8 +761,8 @@ impl OrientedSpace {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OrientedPlacement {
-    main: Placement,
-    cross: Placement,
+    main: LinearMain,
+    cross: LinearCross,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -299,9 +780,10 @@ pub struct OrientedRect {
 }
 
 pub trait LinearAxis {
+    type Params: Clone;
     fn orient_space(space: LayoutSpace) -> OrientedSpace;
     fn physical_space(space: OrientedSpace) -> LayoutSpace;
-    fn orient_params(params: Placement2D) -> OrientedPlacement;
+    fn orient_params(params: Self::Params) -> OrientedPlacement;
     fn orient_intrinsic(size: Option<Vec2>) -> Option<OrientedSize>;
     fn orient_size(size: Vec2) -> OrientedSize;
     fn physical_rect(rect: OrientedRect) -> Rect;
@@ -312,6 +794,8 @@ pub trait LinearAxis {
 }
 
 impl LinearAxis for Horizontal {
+    type Params = RowLayoutParams;
+
     fn orient_space(space: LayoutSpace) -> OrientedSpace {
         OrientedSpace {
             origin_main: space.x,
@@ -330,10 +814,10 @@ impl LinearAxis for Horizontal {
         )
     }
 
-    fn orient_params(params: Placement2D) -> OrientedPlacement {
+    fn orient_params(params: RowLayoutParams) -> OrientedPlacement {
         OrientedPlacement {
-            main: params.width,
-            cross: params.height,
+            main: params.x,
+            cross: params.y,
         }
     }
 
@@ -361,6 +845,8 @@ impl LinearAxis for Horizontal {
 }
 
 impl LinearAxis for Vertical {
+    type Params = ColumnLayoutParams;
+
     fn orient_space(space: LayoutSpace) -> OrientedSpace {
         OrientedSpace {
             origin_main: space.y,
@@ -379,10 +865,10 @@ impl LinearAxis for Vertical {
         )
     }
 
-    fn orient_params(params: Placement2D) -> OrientedPlacement {
+    fn orient_params(params: ColumnLayoutParams) -> OrientedPlacement {
         OrientedPlacement {
-            main: params.height,
-            cross: params.width,
+            main: params.y,
+            cross: params.x,
         }
     }
 
@@ -422,6 +908,32 @@ mod tests {
     }
 
     #[test]
+    fn test_linear_param_fluent_helpers() {
+        assert_eq!(
+            RowLayoutParams::auto()
+                .fixed_x(120.0)
+                .fill_y()
+                .align_x(MainAxisAlign::End),
+            RowLayoutParams {
+                x: LinearMain::fixed(120.0).align(MainAxisAlign::End),
+                y: LinearCross::fill(),
+            }
+        );
+
+        assert_eq!(
+            ColumnLayoutParams::auto()
+                .fixed_x(80.0)
+                .fixed_y(32.0)
+                .align_x(Align::Center)
+                .align_y(MainAxisAlign::End),
+            ColumnLayoutParams {
+                x: LinearCross::fixed(80.0).align(Align::Center),
+                y: LinearMain::fixed(32.0).align(MainAxisAlign::End),
+            }
+        );
+    }
+
+    #[test]
     fn test_row_layout() {
         let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
         let r1 = state
@@ -442,16 +954,16 @@ mod tests {
     fn test_row_auto_without_intrinsic_panics() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
-            .layout(Placement2D::auto(), IntrinsicSize::UNKNOWN)
+            .layout(RowLayoutParams::auto(), IntrinsicSize::UNKNOWN)
             .unwrap();
     }
 
     #[test]
     fn test_row_auto_width_advances_cursor() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 50.0));
-        let req = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fixed(40.0),
+        let req = RowLayoutParams {
+            x: LinearMain::auto(),
+            y: LinearCross::fixed(40.0),
         };
         let r1 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)))
@@ -471,13 +983,13 @@ mod tests {
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
-                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
             let r = state
                 .layout(
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(200.0),
+                    RowLayoutParams {
+                        x: LinearMain::fill(),
+                        y: LinearCross::fixed(200.0),
                     },
                     IntrinsicSize::UNKNOWN,
                 )
@@ -490,12 +1002,12 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
             let mut state = row().begin(space);
             let _ = state
-                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
             let res = state.layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fixed(200.0),
+                RowLayoutParams {
+                    x: LinearMain::fill(),
+                    y: LinearCross::fixed(200.0),
                 },
                 IntrinsicSize::preferred(Vec2::new(90.0, 200.0)),
             );
@@ -510,11 +1022,11 @@ mod tests {
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
-                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
-            let req = Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(200.0),
+            let req = RowLayoutParams {
+                x: LinearMain::fill(),
+                y: LinearCross::fixed(200.0),
             };
             let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let space = space_res.unwrap();
@@ -529,11 +1041,11 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
             let mut state = row().begin(space);
             let _ = state
-                .layout(Placement2D::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
                 .unwrap();
-            let req = Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(200.0),
+            let req = RowLayoutParams {
+                x: LinearMain::fill(),
+                y: LinearCross::fixed(200.0),
             };
             let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let space = space_res.unwrap();
@@ -550,9 +1062,9 @@ mod tests {
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_row_fill_on_unbounded_axis_panics() {
         let mut state = row().begin(LayoutSpace::unbounded_width(0.0, 0.0, 40.0));
-        let req = Placement2D {
-            width: Placement::fill(),
-            height: Placement::fixed(40.0),
+        let req = RowLayoutParams {
+            x: LinearMain::fill(),
+            y: LinearCross::fixed(40.0),
         };
         let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
     }
@@ -577,7 +1089,10 @@ mod tests {
         let mut center_state = row().begin(space);
         let r1 = center_state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
+                RowLayoutParams {
+                    x: LinearMain::fixed(40.0),
+                    y: LinearCross::fixed(20.0).align(Align::Center),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -586,7 +1101,10 @@ mod tests {
         let mut end_state = row().begin(space);
         let r2 = end_state
             .layout(
-                Placement2D::fixed(40.0, 30.0).align_y(Align::End),
+                RowLayoutParams {
+                    x: LinearMain::fixed(40.0),
+                    y: LinearCross::fixed(30.0).align(Align::End),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -600,7 +1118,10 @@ mod tests {
         let mut state = row().begin(space);
         let _ = state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_y(Align::Center),
+                RowLayoutParams {
+                    x: LinearMain::fixed(40.0),
+                    y: LinearCross::fixed(20.0).align(Align::Center),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -613,7 +1134,10 @@ mod tests {
         let mut state = row().begin(space);
         let _ = state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_y(Align::End),
+                RowLayoutParams {
+                    x: LinearMain::fixed(40.0),
+                    y: LinearCross::fixed(20.0).align(Align::End),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -628,9 +1152,9 @@ mod tests {
             AxisBound::Exact(100.0),
         ));
 
-        let req = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fill(),
+        let req = RowLayoutParams {
+            x: LinearMain::auto(),
+            y: LinearCross::fill(),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();
@@ -647,7 +1171,10 @@ mod tests {
 
         let next_rect = state
             .layout(
-                Placement2D::fixed(30.0, 20.0).align_y(Align::Center),
+                RowLayoutParams {
+                    x: LinearMain::fixed(30.0),
+                    y: LinearCross::fixed(20.0).align(Align::Center),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -661,9 +1188,9 @@ mod tests {
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(400.0), AxisBound::Exact(150.0));
         let mut state = row().begin(parent_space);
 
-        let req_fixed = Placement2D {
-            width: Placement::fixed(80.0),
-            height: Placement::fill(),
+        let req_fixed = RowLayoutParams {
+            x: LinearMain::fixed(80.0),
+            y: LinearCross::fill(),
         };
         let (space_f_res, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
         let space_f = space_f_res.unwrap();
@@ -671,14 +1198,14 @@ mod tests {
         assert_eq!(space_f.height, AxisBound::Exact(150.0));
 
         let _ = state
-            .layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
+            .layout(RowLayoutParams::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
             .unwrap();
 
         state.spacer(5.0);
 
-        let req_auto = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fill(),
+        let req_auto = RowLayoutParams {
+            x: LinearMain::auto(),
+            y: LinearCross::fill(),
         };
         let (space_auto_res, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
         let space_auto = space_auto_res.unwrap();
@@ -693,9 +1220,9 @@ mod tests {
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = row().begin(parent_space);
 
-        let req = Placement2D {
-            width: Placement::fixed(80.0),
-            height: Placement::auto().align(Align::Center),
+        let req = RowLayoutParams {
+            x: LinearMain::fixed(80.0),
+            y: LinearCross::auto().align(Align::Center),
         };
         let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
     }
@@ -707,21 +1234,30 @@ mod tests {
 
         {
             let mut state = row().begin(parent_space);
-            let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
+            let req = RowLayoutParams {
+                x: LinearMain::fixed(80.0),
+                y: LinearCross::fixed(100.0).align(Align::Center),
+            };
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
             let mut state = row().begin(parent_space);
-            let req = Placement2D::fixed(80.0, 100.0).align_y(Align::End);
+            let req = RowLayoutParams {
+                x: LinearMain::fixed(80.0),
+                y: LinearCross::fixed(100.0).align(Align::End),
+            };
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
             let mut state = row().begin(parent_space);
-            let req = Placement2D::fixed(80.0, 100.0).align_y(Align::Center);
+            let req = RowLayoutParams {
+                x: LinearMain::fixed(80.0),
+                y: LinearCross::fixed(100.0).align(Align::Center),
+            };
             let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(80.0, 100.0)).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
@@ -739,7 +1275,7 @@ mod tests {
         let parent_space_unbounded =
             LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Unbounded);
 
-        let req = Placement2D::fixed(80.0, 100.0);
+        let req = RowLayoutParams::fixed(80.0, 100.0);
 
         {
             let mut state = row().begin(parent_space_exact);
@@ -784,9 +1320,9 @@ mod tests {
     #[test]
     fn test_column_auto_uses_intrinsic_preferred() {
         let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 500.0));
-        let req = Placement2D {
-            width: Placement::fixed(120.0),
-            height: Placement::auto(),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fixed(120.0),
+            y: LinearMain::auto(),
         };
         let intrinsic = IntrinsicSize::preferred(Vec2::new(80.0, 24.0));
         let r = state.layout(req, intrinsic).unwrap();
@@ -796,9 +1332,9 @@ mod tests {
     #[test]
     fn test_column_fill_cross_axis_uses_bounds_width() {
         let mut state = column().begin(Rect::new(5.0, 0.0, 200.0, 500.0));
-        let req = Placement2D {
-            width: Placement::fill(),
-            height: Placement::fixed(30.0),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::fixed(30.0),
         };
         let r = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
         assert_eq!(r, Rect::new(5.0, 0.0, 200.0, 30.0));
@@ -807,9 +1343,9 @@ mod tests {
     #[test]
     fn test_column_fill_height_against_exact() {
         let mut state = column().begin(Rect::new(0.0, 10.0, 200.0, 500.0));
-        let req = Placement2D {
-            width: Placement::fixed(120.0),
-            height: Placement::fill(),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fixed(120.0),
+            y: LinearMain::fill(),
         };
         let r = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
         assert_eq!(r, Rect::new(0.0, 10.0, 120.0, 500.0));
@@ -820,13 +1356,16 @@ mod tests {
         {
             let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
-                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .layout(
+                    ColumnLayoutParams::fixed(200.0, 30.0),
+                    IntrinsicSize::UNKNOWN,
+                )
                 .unwrap();
             let r = state
                 .layout(
-                    Placement2D {
-                        width: Placement::fixed(200.0),
-                        height: Placement::fill(),
+                    ColumnLayoutParams {
+                        x: LinearCross::fixed(200.0),
+                        y: LinearMain::fill(),
                     },
                     IntrinsicSize::UNKNOWN,
                 )
@@ -839,12 +1378,15 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
             let mut state = column().begin(space);
             let _ = state
-                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .layout(
+                    ColumnLayoutParams::fixed(200.0, 30.0),
+                    IntrinsicSize::UNKNOWN,
+                )
                 .unwrap();
             let res = state.layout(
-                Placement2D {
-                    width: Placement::fixed(200.0),
-                    height: Placement::fill(),
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(200.0),
+                    y: LinearMain::fill(),
                 },
                 IntrinsicSize::preferred(Vec2::new(200.0, 90.0)),
             );
@@ -859,11 +1401,14 @@ mod tests {
         {
             let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
-                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .layout(
+                    ColumnLayoutParams::fixed(200.0, 30.0),
+                    IntrinsicSize::UNKNOWN,
+                )
                 .unwrap();
-            let req = Placement2D {
-                width: Placement::fixed(200.0),
-                height: Placement::fill(),
+            let req = ColumnLayoutParams {
+                x: LinearCross::fixed(200.0),
+                y: LinearMain::fill(),
             };
             let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let space = space_res.unwrap();
@@ -878,11 +1423,14 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
             let mut state = column().begin(space);
             let _ = state
-                .layout(Placement2D::fixed(200.0, 30.0), IntrinsicSize::UNKNOWN)
+                .layout(
+                    ColumnLayoutParams::fixed(200.0, 30.0),
+                    IntrinsicSize::UNKNOWN,
+                )
                 .unwrap();
-            let req = Placement2D {
-                width: Placement::fixed(200.0),
-                height: Placement::fill(),
+            let req = ColumnLayoutParams {
+                x: LinearCross::fixed(200.0),
+                y: LinearMain::fill(),
             };
             let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let space = space_res.unwrap();
@@ -898,9 +1446,9 @@ mod tests {
     #[test]
     fn test_column_unbounded_height_resolves_concrete() {
         let mut state = column().begin(LayoutSpace::unbounded_height(0.0, 0.0, 200.0));
-        let req = Placement2D {
-            width: Placement::fill(),
-            height: Placement::auto(),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::auto(),
         };
         let r1 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 24.0)))
@@ -920,9 +1468,9 @@ mod tests {
     #[should_panic(expected = "Fill on an Unbounded axis is unsatisfiable")]
     fn test_column_fill_on_unbounded_axis_panics() {
         let mut state = column().begin(LayoutSpace::unbounded_height(0.0, 0.0, 100.0));
-        let req = Placement2D {
-            width: Placement::fixed(50.0),
-            height: Placement::fill(),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fixed(50.0),
+            y: LinearMain::fill(),
         };
         let _ = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 18.0)))
@@ -950,7 +1498,10 @@ mod tests {
         let mut center_state = column().begin(space);
         let r1 = center_state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_x(Align::Center),
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(40.0).align(Align::Center),
+                    y: LinearMain::fixed(20.0),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -959,7 +1510,10 @@ mod tests {
         let mut end_state = column().begin(space);
         let r2 = end_state
             .layout(
-                Placement2D::fixed(30.0, 20.0).align_x(Align::End),
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(30.0).align(Align::End),
+                    y: LinearMain::fixed(20.0),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -973,7 +1527,10 @@ mod tests {
         let mut state = column().begin(space);
         let _ = state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_x(Align::Center),
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(40.0).align(Align::Center),
+                    y: LinearMain::fixed(20.0),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -986,7 +1543,10 @@ mod tests {
         let mut state = column().begin(space);
         let _ = state
             .layout(
-                Placement2D::fixed(40.0, 20.0).align_x(Align::End),
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(40.0).align(Align::End),
+                    y: LinearMain::fixed(20.0),
+                },
                 IntrinsicSize::UNKNOWN,
             )
             .unwrap();
@@ -1001,9 +1561,9 @@ mod tests {
             AxisBound::Unbounded,
         ));
 
-        let req = Placement2D {
-            width: Placement::fill(),
-            height: Placement::auto(),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::auto(),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();
@@ -1019,7 +1579,10 @@ mod tests {
         state.spacer(8.0);
 
         let next_rect = state
-            .layout(Placement2D::fixed(40.0, 20.0), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(40.0, 20.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
         assert_eq!(next_rect.y, 58.0);
     }
@@ -1030,9 +1593,9 @@ mod tests {
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
 
-        let req_fixed = Placement2D {
-            width: Placement::fill(),
-            height: Placement::fixed(50.0),
+        let req_fixed = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::fixed(50.0),
         };
         let (space_f_res, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
         let space_f = space_f_res.unwrap();
@@ -1040,23 +1603,26 @@ mod tests {
         assert_eq!(space_f.height, AxisBound::Exact(50.0));
 
         let _ = state
-            .layout(Placement2D::fixed(200.0, 50.0), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(200.0, 50.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
 
         state.spacer(10.0);
 
-        let req_fill = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fill(),
+        let req_fill = ColumnLayoutParams {
+            x: LinearCross::auto(),
+            y: LinearMain::fill(),
         };
         let (space_fill_res, _token) = state.begin_layout(req_fill, IntrinsicSize::UNKNOWN);
         let space_fill = space_fill_res.unwrap();
         assert_eq!(space_fill.width, AxisBound::AtMost(200.0));
         assert_eq!(space_fill.height, AxisBound::Exact(240.0));
 
-        let req_auto = Placement2D {
-            width: Placement::auto(),
-            height: Placement::auto(),
+        let req_auto = ColumnLayoutParams {
+            x: LinearCross::auto(),
+            y: LinearMain::auto(),
         };
         let (space_auto_res, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
         let space_auto = space_auto_res.unwrap();
@@ -1070,9 +1636,9 @@ mod tests {
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(150.0), AxisBound::AtMost(250.0));
         let mut state = column().begin(parent_space);
 
-        let req1 = Placement2D {
-            width: Placement::fill(),
-            height: Placement::auto(),
+        let req1 = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::auto(),
         };
         let (space1_res, _token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
         let space1 = space1_res.unwrap();
@@ -1080,14 +1646,17 @@ mod tests {
         assert_eq!(space1.height, AxisBound::AtMost(250.0));
 
         let _ = state
-            .layout(Placement2D::fixed(100.0, 40.0), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(100.0, 40.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
 
         state.spacer(5.0);
 
-        let req2 = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fill(),
+        let req2 = ColumnLayoutParams {
+            x: LinearCross::auto(),
+            y: LinearMain::fill(),
         };
         let (space2_res, _token) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
         let space2 = space2_res.unwrap();
@@ -1101,9 +1670,9 @@ mod tests {
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
 
-        let req = Placement2D {
-            width: Placement::fixed(80.0).align(Align::Center),
-            height: Placement::fixed(40.0),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fixed(80.0).align(Align::Center),
+            y: LinearMain::fixed(40.0),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();
@@ -1120,9 +1689,9 @@ mod tests {
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
 
-        let req = Placement2D {
-            width: Placement::fill(),
-            height: Placement::fixed(40.0),
+        let req = ColumnLayoutParams {
+            x: LinearCross::fill(),
+            y: LinearMain::fixed(40.0),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();
@@ -1139,9 +1708,9 @@ mod tests {
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
 
-        let req = Placement2D {
-            width: Placement::auto(),
-            height: Placement::fixed(40.0),
+        let req = ColumnLayoutParams {
+            x: LinearCross::auto(),
+            y: LinearMain::fixed(40.0),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();
@@ -1159,9 +1728,9 @@ mod tests {
             LayoutSpace::new(10.0, 10.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
 
-        let req = Placement2D {
-            width: Placement::auto().align(Align::Center),
-            height: Placement::fixed(40.0),
+        let req = ColumnLayoutParams {
+            x: LinearCross::auto().align(Align::Center),
+            y: LinearMain::fixed(40.0),
         };
         let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
     }
@@ -1173,21 +1742,30 @@ mod tests {
 
         {
             let mut state = column().begin(parent_space);
-            let req = Placement2D::fixed(180.0, 32.0).align_x(Align::Center);
+            let req = ColumnLayoutParams {
+                x: LinearCross::fixed(180.0).align(Align::Center),
+                y: LinearMain::fixed(32.0),
+            };
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
             let mut state = column().begin(parent_space);
-            let req = Placement2D::fixed(180.0, 32.0).align_x(Align::End);
+            let req = ColumnLayoutParams {
+                x: LinearCross::fixed(180.0).align(Align::End),
+                y: LinearMain::fixed(32.0),
+            };
             let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
             let mut state = column().begin(parent_space);
-            let req = Placement2D::fixed(180.0, 32.0).align_x(Align::Center);
+            let req = ColumnLayoutParams {
+                x: LinearCross::fixed(180.0).align(Align::Center),
+                y: LinearMain::fixed(32.0),
+            };
             let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
             let _ = token.end_layout(Vec2::new(180.0, 32.0)).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
@@ -1205,7 +1783,7 @@ mod tests {
         let parent_space_unbounded =
             LayoutSpace::new(10.0, 20.0, AxisBound::Unbounded, AxisBound::Unbounded);
 
-        let req = Placement2D::fixed(180.0, 32.0);
+        let req = ColumnLayoutParams::fixed(180.0, 32.0);
 
         {
             let mut state = column().begin(parent_space_exact);
@@ -1256,5 +1834,282 @@ mod tests {
             .unwrap();
         state.spacer(10.0);
         assert_eq!(state.resolve_space().w, 10.0); // Not 20!
+    }
+
+    #[test]
+    fn test_row_end_placement() {
+        let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let r1 = state
+            .layout(
+                RowLayoutParams {
+                    x: LinearMain::fixed(30.0),
+                    y: LinearCross::fixed(20.0),
+                },
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
+        assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
+
+        let r2 = state
+            .layout(
+                RowLayoutParams {
+                    x: LinearMain::fixed(25.0).align(MainAxisAlign::End),
+                    y: LinearCross::fixed(20.0),
+                },
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
+        // Flush to the right edge: 10 + 100 - 25 = 85
+        assert_eq!(r2, Rect::new(85.0, 20.0, 25.0, 20.0));
+    }
+
+    #[test]
+    fn test_column_end_placement() {
+        let mut state = column().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let r1 = state
+            .layout(
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(20.0),
+                    y: LinearMain::fixed(30.0),
+                },
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
+        assert_eq!(r1, Rect::new(10.0, 20.0, 20.0, 30.0));
+
+        let r2 = state
+            .layout(
+                ColumnLayoutParams {
+                    x: LinearCross::fixed(20.0),
+                    y: LinearMain::fixed(25.0).align(MainAxisAlign::End),
+                },
+                IntrinsicSize::UNKNOWN,
+            )
+            .unwrap();
+        // Flush to the bottom edge: 20 + 100 - 25 = 95
+        assert_eq!(r2, Rect::new(10.0, 95.0, 20.0, 25.0));
+    }
+
+    #[test]
+    fn test_row_end_deferred() {
+        let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let req = RowLayoutParams {
+            x: LinearMain::fixed(25.0).align(MainAxisAlign::End),
+            y: LinearCross::fixed(20.0),
+        };
+        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
+        // Provisional space starts at: 10 + 100 - 25 = 85
+        assert_eq!(space.x, 85.0);
+        assert_eq!(space.width, AxisBound::Exact(25.0));
+
+        let r = token.end_layout(Vec2::new(25.0, 20.0)).unwrap();
+        assert_eq!(r, Rect::new(85.0, 20.0, 25.0, 20.0));
+    }
+
+    #[test]
+    fn test_column_end_deferred() {
+        let mut state = column().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
+        let req = ColumnLayoutParams {
+            x: LinearCross::fixed(20.0),
+            y: LinearMain::fixed(25.0).align(MainAxisAlign::End),
+        };
+        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let space = space_res.unwrap();
+        // Provisional space starts at: 20 + 100 - 25 = 95
+        assert_eq!(space.y, 95.0);
+        assert_eq!(space.height, AxisBound::Exact(25.0));
+
+        let r = token.end_layout(Vec2::new(20.0, 25.0)).unwrap();
+        assert_eq!(r, Rect::new(10.0, 95.0, 20.0, 25.0));
+    }
+
+    #[test]
+    fn test_spacer_ignored_before_end() {
+        // Immediate path
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            state.spacer(15.0);
+            let r = state
+                .layout(
+                    RowLayoutParams {
+                        x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                        y: LinearCross::fixed(20.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+            // Lands exactly at 80.0, ignoring spacer
+            assert_eq!(r.x, 80.0);
+        }
+
+        // Deferred path
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            state.spacer(15.0);
+            let req = RowLayoutParams {
+                x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                y: LinearCross::fixed(20.0),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let space = space_res.unwrap();
+            assert_eq!(space.x, 80.0);
+            let r = token.end_layout(Vec2::new(20.0, 20.0)).unwrap();
+            assert_eq!(r.x, 80.0);
+        }
+    }
+
+    #[test]
+    fn test_closed_linear_layout_errors() {
+        // Immediate path: child after End reports LayoutClosed
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            let _ = state
+                .layout(
+                    RowLayoutParams {
+                        x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                        y: LinearCross::fixed(20.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+
+            let res = state.layout(RowLayoutParams::fixed(10.0, 10.0), IntrinsicSize::UNKNOWN);
+            assert!(res.violation().is_some());
+            assert_eq!(
+                res.violation().unwrap().kind,
+                LayoutViolationKind::LayoutClosed
+            );
+        }
+
+        // Deferred path: child after End reports LayoutClosed
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            let _ = state
+                .layout(
+                    RowLayoutParams {
+                        x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                        y: LinearCross::fixed(20.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+
+            let (space_res, _token) =
+                state.begin_layout(RowLayoutParams::fixed(10.0, 10.0), IntrinsicSize::UNKNOWN);
+            assert!(space_res.violation().is_some());
+            assert_eq!(
+                space_res.violation().unwrap().kind,
+                LayoutViolationKind::LayoutClosed
+            );
+        }
+
+        // spacer called after closed panics
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            let _ = state
+                .layout(
+                    RowLayoutParams {
+                        x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                        y: LinearCross::fixed(20.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+
+            let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                state.spacer(10.0);
+            }));
+            assert!(res.is_err());
+        }
+
+        // second End reports LayoutClosed
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            let _ = state
+                .layout(
+                    RowLayoutParams {
+                        x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                        y: LinearCross::fixed(20.0),
+                    },
+                    IntrinsicSize::UNKNOWN,
+                )
+                .unwrap();
+
+            let res = state.layout(
+                RowLayoutParams {
+                    x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                    y: LinearCross::fixed(20.0),
+                },
+                IntrinsicSize::UNKNOWN,
+            );
+            assert!(res.violation().is_some());
+            assert_eq!(
+                res.violation().unwrap().kind,
+                LayoutViolationKind::LayoutClosed
+            );
+        }
+    }
+
+    #[test]
+    fn test_unsatisfiable_end_fallbacks() {
+        // End under AtMost (Immediate)
+        {
+            let space =
+                LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(100.0));
+            let mut state = row().begin(space);
+            let res = state.layout(
+                RowLayoutParams {
+                    x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                    y: LinearCross::fixed(20.0),
+                },
+                IntrinsicSize::UNKNOWN,
+            );
+            let (r, violation) = res.into_parts();
+            // Falls back to append: placed at x = 0.0
+            assert_eq!(r.x, 0.0);
+            assert!(violation.is_some());
+            assert!(matches!(
+                violation.unwrap().kind,
+                LayoutViolationKind::UnsatisfiableMainAxisEnd {
+                    bound: AxisBound::AtMost(100.0)
+                }
+            ));
+        }
+
+        // End under Unbounded (Deferred)
+        {
+            let space = LayoutSpace::new(0.0, 0.0, AxisBound::Unbounded, AxisBound::Exact(100.0));
+            let mut state = row().begin(space);
+            let req = RowLayoutParams {
+                x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
+                y: LinearCross::fixed(20.0),
+            };
+            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (prov_space, violation) = space_res.into_parts();
+            // Falls back to append: origin_main starts at cursor (0.0)
+            assert_eq!(prov_space.x, 0.0);
+            assert!(violation.is_some());
+            assert!(matches!(
+                violation.unwrap().kind,
+                LayoutViolationKind::UnsatisfiableMainAxisEnd {
+                    bound: AxisBound::Unbounded
+                }
+            ));
+
+            let r = token.end_layout(Vec2::new(20.0, 20.0)).value();
+            assert_eq!(r.x, 0.0);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "MainAxisAlign::End cannot be applied to an Auto-sized")]
+    fn test_deferred_end_auto_panic() {
+        let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+        let req = RowLayoutParams {
+            x: LinearMain::auto().align(MainAxisAlign::End),
+            y: LinearCross::fixed(20.0),
+        };
+        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
     }
 }

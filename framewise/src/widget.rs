@@ -448,8 +448,10 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{Align, AxisBound, IntrinsicSize, Placement, Placement2D};
-    use crate::layouts::{ColumnLayout, ManualLayout, RowLayout};
+    use crate::layout::{Align, AxisBound, IntrinsicSize, Placement};
+    use crate::layouts::{
+        ColumnLayout, ColumnLayoutParams, MainAxisAlign, ManualLayout, RowLayout, RowLayoutParams,
+    };
     use crate::test_utils::DummyTextSys;
     use crate::types::Color;
 
@@ -475,14 +477,14 @@ mod tests {
         // Place a column at (10,10) sized 200x400 inside the root manual layout,
         // then a row nested at the column's first slot.
         let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 200.0, 400.0), ColumnLayout);
-        let mut row = col.child_with_layout(Vec2::new(200.0, 30.0).into(), RowLayout);
+        let mut row = col.child_with_layout(ColumnLayoutParams::fixed(200.0, 30.0), RowLayout);
 
         // The row sits at the column's origin (10,10); its first child lands there.
-        let first = row.layout(Vec2::new(50.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        let first = row.layout(RowLayoutParams::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
         row.spacer(4.0);
         // Second row child advances by width + spacing.
-        let second = row.layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN);
+        let second = row.layout(RowLayoutParams::fixed(40.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 
@@ -508,22 +510,26 @@ mod tests {
 
         // Place a nested column that fills width but auto-sizes its height.
         {
-            let mut inner = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                ColumnLayout,
-            );
+            let mut inner =
+                ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), ColumnLayout);
             // Two stacked rows of height 30 → inner content height = 60.
-            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
-            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.layout(
+                ColumnLayoutParams::fixed(50.0, 30.0),
+                IntrinsicSize::UNKNOWN,
+            );
+            inner.layout(
+                ColumnLayoutParams::fixed(50.0, 30.0),
+                IntrinsicSize::UNKNOWN,
+            );
             inner.finish();
         }
 
         // The next sibling in the parent column should land directly below the inner
         // content (y = 60), not below a 96px fallback box.
-        let sibling = ctx.layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(
+            ColumnLayoutParams::fixed(50.0, 20.0),
+            IntrinsicSize::UNKNOWN,
+        );
         assert_eq!(sibling.y, 60.0);
     }
 
@@ -549,20 +555,18 @@ mod tests {
 
         // A nested column that auto-sizes its width but takes a fixed height.
         {
-            let mut inner = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::auto(),
-                    height: Placement::fixed(30.0),
-                },
-                ColumnLayout,
-            );
+            let mut inner =
+                ctx.child_with_layout(RowLayoutParams::auto().fixed_y(30.0), ColumnLayout);
             // A single 50-wide row → inner content width = 50.
-            inner.layout(Placement2D::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+            inner.layout(
+                ColumnLayoutParams::fixed(50.0, 30.0),
+                IntrinsicSize::UNKNOWN,
+            );
             inner.finish();
         }
 
         // Next sibling in the row advances by the measured width (50), not 96.
-        let sibling = ctx.layout(Placement2D::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(RowLayoutParams::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
         assert_eq!(sibling.x, 50.0);
     }
 
@@ -588,15 +592,25 @@ mod tests {
         );
 
         {
-            let mut inner = ctx.child_with_layout(Placement2D::fixed(80.0, 50.0), ColumnLayout);
+            let mut inner =
+                ctx.child_with_layout(ColumnLayoutParams::fixed(80.0, 50.0), ColumnLayout);
             // Overflowing content: two 100px rows = 200px, far taller than the 50px slot.
-            inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
-            inner.layout(Placement2D::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN);
+            inner.layout(
+                ColumnLayoutParams::fixed(80.0, 100.0),
+                IntrinsicSize::UNKNOWN,
+            );
+            inner.layout(
+                ColumnLayoutParams::fixed(80.0, 100.0),
+                IntrinsicSize::UNKNOWN,
+            );
             inner.finish();
         }
 
         // The fixed slot wins: cursor advanced by 50, not by the 200px of content.
-        let sibling = ctx.layout(Placement2D::fixed(50.0, 20.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(
+            ColumnLayoutParams::fixed(50.0, 20.0),
+            IntrinsicSize::UNKNOWN,
+        );
         assert_eq!(sibling.y, 50.0);
     }
 
@@ -621,10 +635,7 @@ mod tests {
 
         // Placement::fill() on AtMost(100.0) width triggers UnsatisfiableFill violation
         let rect = ctx.layout(
-            Placement2D {
-                width: crate::layout::Placement::fill(),
-                height: crate::layout::Placement::fill(),
-            },
+            ColumnLayoutParams::auto().fill_x().fill_y(),
             IntrinsicSize::UNKNOWN,
         );
 
@@ -676,10 +687,7 @@ mod tests {
 
         // Two deferred children, each violating alignment at begin_layout.
         for _ in 0..2 {
-            let placement = Placement2D {
-                width: Placement::fixed(40.0).align(Align::Center),
-                height: Placement::fixed(20.0),
-            };
+            let placement = ColumnLayoutParams::fixed(40.0, 20.0).align_x(Align::Center);
             let child = ctx.child_with_layout(placement, ColumnLayout);
             child.finish();
         }

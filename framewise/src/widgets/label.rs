@@ -560,8 +560,7 @@ mod tests {
 
     #[test]
     fn test_label_auto_layout_uses_intrinsic_size() {
-        use crate::layout::Placement2D;
-        use crate::layouts::{ColumnLayout, ManualLayout};
+        use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = Input::default();
@@ -579,7 +578,7 @@ mod tests {
         let r = super::label(
             &mut col,
             LabelSpecBuilder::new().text("Hello"),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
         assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 40.0, 16.0));
     }

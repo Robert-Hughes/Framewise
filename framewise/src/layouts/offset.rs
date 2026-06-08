@@ -88,7 +88,7 @@ impl<InnerS: SpacerLayoutState> SpacerLayoutState for OffsetState<InnerS> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layouts::linear::ColumnLayout;
+    use crate::layouts::linear::{ColumnLayout, ColumnLayoutParams};
 
     #[test]
     fn test_offset_content_extent_ignores_offset() {
@@ -98,10 +98,16 @@ mod tests {
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let _ = state
-            .layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(40.0, 20.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
         let _ = state
-            .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(40.0, 30.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
         // resolved_space shifted by offset (origin: -13.0, -27.0)
         assert_eq!(state.resolve_space(), Rect::new(-13.0, -27.0, 100.0, 100.0));
@@ -117,7 +123,10 @@ mod tests {
         let mut state = offset.begin(bounds);
 
         let r1 = state
-            .layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(50.0, 20.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
@@ -126,7 +135,10 @@ mod tests {
         state.spacer(10.0);
 
         let r2 = state
-            .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(
+                ColumnLayoutParams::fixed(40.0, 30.0),
+                IntrinsicSize::UNKNOWN,
+            )
             .unwrap();
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
         assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
@@ -140,9 +152,9 @@ mod tests {
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
 
-        let req = crate::layout::Placement2D {
-            width: crate::layout::Placement::fixed(50.0),
-            height: crate::layout::Placement::auto(),
+        let req = crate::layouts::linear::ColumnLayoutParams {
+            x: crate::layouts::linear::LinearCross::fixed(50.0),
+            y: crate::layouts::linear::LinearMain::auto(),
         };
         let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
         let space = space_res.unwrap();

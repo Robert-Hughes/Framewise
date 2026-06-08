@@ -12,14 +12,14 @@ use framewise::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    layout::{IntrinsicSize, LayoutState, Placement},
+    layout::{IntrinsicSize, LayoutState},
     layouts::ManualLayout,
     text::{TextFlow, TextStyle},
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
-    Align, ColumnLayout, ColumnState, LayoutViolationPolicy, ManualState, Placement2D, RowLayout,
-    Size, TextLineAlign,
+    Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, ManualState,
+    RowLayout, RowLayoutParams, TextLineAlign,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -1081,16 +1081,7 @@ fn sec_y<CF>(
 ) {
     b.spacer(112.0); // 16.0 + 80.0 + 16.0
     {
-        let mut b = b.child_with_layout(
-            Placement2D {
-                width: Placement::Fill,
-                height: Placement::Sized {
-                    size: Size::Auto,
-                    align: Align::Start,
-                },
-            },
-            RowLayout,
-        );
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
         {
             let color = t.muted;
             let spec_builder = LabelSpecBuilder::new().text(num).style(LabelStyle {
@@ -1103,7 +1094,7 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(t)
             });
-            label(&mut b, spec_builder, Placement2D::auto())
+            label(&mut b, spec_builder, RowLayoutParams::auto())
         };
         b.spacer(16.0);
         {
@@ -1119,20 +1110,11 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(t)
             });
-            label(&mut b, spec_builder, Placement2D::auto())
+            label(&mut b, spec_builder, RowLayoutParams::auto())
         };
         b.spacer(16.0);
         {
-            let mut b = b.child_with_layout(
-                Placement2D {
-                    width: Placement::Fill,
-                    height: Placement::Sized {
-                        size: Size::Auto,
-                        align: Align::Start,
-                    },
-                },
-                ColumnLayout,
-            );
+            let mut b = b.child_with_layout(RowLayoutParams::auto().fill_x(), ColumnLayout);
             let size = t.text_mono;
             let color = t.muted;
             let font = t.mono_font;
@@ -1153,16 +1135,7 @@ fn sec_y<CF>(
             label(
                 &mut b,
                 spec_builder,
-                Placement2D {
-                    width: Placement::Sized {
-                        size: Size::Fixed(330.0),
-                        align: Align::End,
-                    },
-                    height: Placement::Sized {
-                        size: Size::Fixed(48.0),
-                        align: Align::Start,
-                    },
-                },
+                ColumnLayoutParams::fixed(330.0, 48.0).align_x(Align::End),
             );
             b.finish();
         };
@@ -1171,7 +1144,7 @@ fn sec_y<CF>(
     b.spacer(16.0);
     {
         let spec_builder = DividerSpecBuilder::new();
-        divider(b, spec_builder, Placement2D::fixed(w, 36.0))
+        divider(b, spec_builder, ColumnLayoutParams::fixed(w, 36.0))
     };
 }
 
@@ -1186,7 +1159,7 @@ fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, t: &The
             text_color: color,
             ..LabelStyle::from_theme(t)
         });
-        label(b, spec_builder, Placement2D::fixed(400.0, 16.0))
+        label(b, spec_builder, ColumnLayoutParams::fixed(400.0, 16.0))
     };
     b.spacer(16.0);
 }
@@ -1249,19 +1222,8 @@ pub fn draw_spec_page(
         )
         .ctx;
         page.spacer(content_w / 4.0);
-        let mut content_column = page.child_with_layout(
-            Placement2D {
-                width: Placement::Sized {
-                    size: Size::Fixed(content_w),
-                    align: Align::Center,
-                },
-                height: Placement::Sized {
-                    size: Size::Auto,
-                    align: Align::Start,
-                },
-            },
-            ColumnLayout,
-        );
+        let mut content_column =
+            page.child_with_layout(RowLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         {
             let b = &mut content_column;
 
@@ -1362,7 +1324,10 @@ fn header_section<CF>(
     t: Theme,
     content_w: f32,
 ) {
-    let mut b = b.child_with_layout(Placement2D::fixed(content_w, MARGIN + 320.0), ManualLayout);
+    let mut b = b.child_with_layout(
+        ColumnLayoutParams::fixed(content_w, MARGIN + 320.0),
+        ManualLayout,
+    );
     let logo_rect = b.layout(Rect::new(0.0, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&t, logo_rect.x, logo_rect.y));
     let tx = 124.0;
@@ -1427,7 +1392,7 @@ fn header_section<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(&mut b, spec_builder, Placement2D::auto())
+                label(&mut b, spec_builder, RowLayoutParams::auto())
             };
             b.spacer(16.0);
             {
@@ -1438,7 +1403,7 @@ fn header_section<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(&mut b, spec_builder, Placement2D::auto())
+                label(&mut b, spec_builder, RowLayoutParams::auto())
             };
             b.spacer(40.0);
         }
@@ -1529,7 +1494,7 @@ fn section_01_buttons<CF>(
     // variants row
     group_y(b, &t, "variants");
     {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
 
         let mut circle_icon_style = ButtonStyle::secondary_from_theme(&t);
         circle_icon_style.text_style.font = t.mono_font;
@@ -1572,7 +1537,7 @@ fn section_01_buttons<CF>(
     // state matrix
     group_y(b, &t, "states · default button");
     {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
         let mut y = 20.0;
 
         let col_labels = ["DEFAULT", "HOVER", "PRESSED", "FOCUSED", "DISABLED"];
@@ -1672,7 +1637,7 @@ fn section_01_buttons<CF>(
     // sizes & groups
     group_y(b, &t, "sizes  ·  groups");
     {
-        let mut b = b.child_with_layout(Placement2D::fixed(content_w, t.h_lg), RowLayout);
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, t.h_lg), RowLayout);
 
         let mut compact_height_style = ButtonStyle::secondary_from_theme(&t);
         compact_height_style.pad_y = 2.0;
@@ -1685,7 +1650,7 @@ fn section_01_buttons<CF>(
             let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_sizes[i];
-                let layout_params = Placement2D::fixed(w, *h).align_y(Align::Center);
+                let layout_params = RowLayoutParams::fixed(w, *h).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
@@ -1709,7 +1674,7 @@ fn section_01_buttons<CF>(
             let w = button_intrinsic_width(label, *style, b.text_system);
             let btn = {
                 let state = &mut state.btn_grp1[i];
-                let layout_params = Placement2D::fixed(w, t.h_md).align_y(Align::Center);
+                let layout_params = RowLayoutParams::fixed(w, t.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
@@ -1735,7 +1700,7 @@ fn section_01_buttons<CF>(
             let w = button_intrinsic_width(label, *style, b.text_system);
             let _btn = {
                 let state = &mut state.btn_grp2[i];
-                let layout_params = Placement2D::fixed(w, t.h_md).align_y(Align::Center);
+                let layout_params = RowLayoutParams::fixed(w, t.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
                 let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
@@ -2818,7 +2783,7 @@ fn section_06_scrollbars<CF>(
     sec_y(b, &t, content_w, "06", "Scrollbars",
         "always visible. thumb length encodes how much of the content fits in view; thumb position encodes scroll offset. dragging shifts the thumb to rust.");
     {
-        let mut b = b.child_with_layout(Placement2D::auto(), ManualLayout {});
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
 
         let box_gap = 24.0_f32;
         let cap_h = 20.0_f32;
@@ -4410,19 +4375,14 @@ fn footer_section<CF>(
         .y
         .max(title_value_metrics.logical_size.y);
 
-    let mut footer = b.child_with_layout(
-        Placement2D {
-            width: Placement::fixed(content_w),
-            height: Placement::auto(),
-        },
-        ColumnLayout,
-    );
+    let mut footer =
+        b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
 
     footer.spacer(FOOTER_MARGIN_TOP);
     divider(
         &mut footer,
         DividerSpecBuilder::new(),
-        Placement2D::fixed(content_w, 1.0),
+        ColumnLayoutParams::fixed(content_w, 1.0),
     );
     footer.spacer(FOOTER_TOP_PAD);
 
@@ -4434,19 +4394,19 @@ fn footer_section<CF>(
         ("DENSITY", "28 PX ROW · 14 PX LABEL · 12 PX MONO"),
     ];
     {
-        let mut meta_row = footer.child_with_layout(Placement2D::auto(), RowLayout);
+        let mut meta_row = footer.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
         for (key, val) in foot_items {
-            let mut pair = meta_row.child_with_layout(Placement2D::auto(), RowLayout);
+            let mut pair = meta_row.child_with_layout(RowLayoutParams::auto(), RowLayout);
             label(
                 &mut pair,
                 LabelSpecBuilder::new().text(key).style(key_style),
-                Placement2D::auto(),
+                RowLayoutParams::auto(),
             );
             pair.spacer(FOOTER_PAIR_GAP);
             label(
                 &mut pair,
                 LabelSpecBuilder::new().text(val).style(value_style),
-                Placement2D::auto(),
+                RowLayoutParams::auto(),
             );
             pair.finish();
             meta_row.spacer(FOOTER_ITEM_GAP);
@@ -4458,19 +4418,19 @@ fn footer_section<CF>(
 
     {
         let mut title_row = footer.child_with_layout(
-            Placement2D::fixed(title_w, title_h).align_x(Align::End),
+            ColumnLayoutParams::fixed(title_w, title_h).align_x(Align::End),
             RowLayout,
         );
         label(
             &mut title_row,
             LabelSpecBuilder::new().text(title_key).style(key_style),
-            Placement2D::auto(),
+            RowLayoutParams::auto(),
         );
         title_row.spacer(FOOTER_PAIR_GAP);
         label(
             &mut title_row,
             LabelSpecBuilder::new().text(title_value).style(value_style),
-            Placement2D::auto(),
+            RowLayoutParams::auto(),
         );
         title_row.finish();
     }

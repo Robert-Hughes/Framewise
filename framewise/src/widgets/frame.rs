@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_high_level_container_fit_to_children() {
-        use crate::layout::{Placement, Placement2D};
+        use crate::layouts::ColumnLayoutParams;
         let mut ts = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
@@ -417,20 +417,14 @@ mod tests {
         let FrameResult { ctx: mut f_ctx } = begin_frame(
             &mut ctx,
             FrameSpecBuilder::new().style(style),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
+            ColumnLayoutParams::auto().fill_x(),
             ColumnLayout,
         );
 
         // 2. Place some children inside the frame context
         // Inner layout starts at (10, 10) due to insets. Fill width spans outer space (400 - 20) = 380.
         let r1 = f_ctx.layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(20.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
@@ -438,10 +432,7 @@ mod tests {
         f_ctx.spacer(5.0);
 
         let r2 = f_ctx.layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(30.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         // stack height: 20 + spacing(5) = 25
@@ -456,7 +447,7 @@ mod tests {
         // Next sibling y should be: height(75) + spacing(10) = 85.
         ctx.spacer(10.0);
         let sibling = ctx.layout(
-            Placement2D::fixed(50.0, 30.0),
+            ColumnLayoutParams::fixed(50.0, 30.0),
             crate::layout::IntrinsicSize::UNKNOWN,
         );
         assert_eq!(sibling.y, 85.0);

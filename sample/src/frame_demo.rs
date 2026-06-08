@@ -2,10 +2,10 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Align, Placement, Placement2D},
-    layouts::linear::{ColumnLayout, RowLayout},
+    layout::Align,
+    layouts::linear::{ColumnLayout, ColumnLayoutParams, RowLayout, RowLayoutParams},
     theme::Theme,
-    types::{Rect, Vec2},
+    types::Rect,
     widget::WidgetContext,
     widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
@@ -127,7 +127,7 @@ pub fn draw_frame_page(
     // ── Left Column: Dynamic List & Sizing Dimensions ─────────────────────────
     {
         let mut left_col = root_row.child_with_layout(
-            Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
+            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad),
             ColumnLayout,
         );
 
@@ -135,29 +135,21 @@ pub fn draw_frame_page(
         label(
             &mut left_col,
             LabelSpecBuilder::new().text("1. Dynamic & Axis Sizing Showcase"),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(30.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
         );
         left_col.spacer(20.0);
 
         // Sub-row: Add / Remove Controls
         {
-            let mut control_row = left_col.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fixed(40.0),
-                },
-                RowLayout,
-            );
+            let mut control_row = left_col
+                .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(40.0), RowLayout);
 
             let add_r = button(
                 &mut control_row,
                 ButtonSpecBuilder::new()
                     .text("Add Dynamic Button")
                     .style(primary),
-                Vec2::new(200.0, 40.0).into(),
+                RowLayoutParams::fixed(200.0, 40.0),
                 &mut state.add_btn,
             );
             if add_r.input.clicked && state.item_count < 5 {
@@ -170,7 +162,7 @@ pub fn draw_frame_page(
                 ButtonSpecBuilder::new()
                     .text("Remove Dynamic Button")
                     .style(accent),
-                Vec2::new(200.0, 40.0).into(),
+                RowLayoutParams::fixed(200.0, 40.0),
                 &mut state.remove_btn,
             );
             if rem_r.input.clicked && state.item_count > 0 {
@@ -186,10 +178,7 @@ pub fn draw_frame_page(
         label(
             &mut left_col,
             LabelSpecBuilder::new().text(&label_style),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(24.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
         );
         left_col.spacer(20.0);
 
@@ -201,10 +190,7 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut left_col,
                 FrameSpecBuilder::new().style(frame_style),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
+                ColumnLayoutParams::auto().fill_x(),
                 ColumnLayout,
             );
 
@@ -212,10 +198,7 @@ pub fn draw_frame_page(
                 label(
                     &mut dynamic_frame,
                     LabelSpecBuilder::new().text("Frame is empty! Use buttons above to add items."),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(32.0),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fixed_y(32.0),
                 );
             } else {
                 for i in 0..state.item_count {
@@ -227,10 +210,7 @@ pub fn draw_frame_page(
                     let r = button(
                         &mut dynamic_frame,
                         ButtonSpecBuilder::new().text(&text).style(secondary),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fixed(36.0),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                         &mut state.dynamic_btns[i],
                     );
                     if r.input.clicked {
@@ -248,20 +228,14 @@ pub fn draw_frame_page(
         label(
             &mut left_col,
             LabelSpecBuilder::new().text("Comparison of Sizing Dimensions"),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(24.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
         );
         left_col.spacer(20.0);
 
         // Row of 4 different Frame Dimension constraints
         {
             let mut dimensions_row = left_col.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fixed(180.0),
-                },
+                ColumnLayoutParams::auto().fill_x().fixed_y(180.0),
                 RowLayout,
             );
 
@@ -270,17 +244,14 @@ pub fn draw_frame_page(
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    Placement2D::fixed(120.0, 120.0),
+                    RowLayoutParams::fixed(120.0, 120.0),
                     ColumnLayout,
                 );
 
                 label(
                     &mut sub_frame,
                     LabelSpecBuilder::new().text("Fixed frame"),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(20.0),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
                 );
                 sub_frame.spacer(4.0);
 
@@ -288,10 +259,7 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(primary),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(36.0),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                     &mut state.fixed_btn,
                 );
                 if r.input.clicked {
@@ -307,20 +275,14 @@ pub fn draw_frame_page(
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    Placement2D {
-                        width: Placement::auto(),
-                        height: Placement::fixed(120.0),
-                    },
+                    RowLayoutParams::auto().fixed_y(120.0),
                     ColumnLayout,
                 );
 
                 label(
                     &mut sub_frame,
                     LabelSpecBuilder::new().text("Auto Width"),
-                    Placement2D {
-                        width: Placement::auto(),
-                        height: Placement::fixed(20.0),
-                    },
+                    ColumnLayoutParams::auto().fixed_y(20.0),
                 );
                 sub_frame.spacer(4.0);
 
@@ -328,10 +290,7 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
-                    Placement2D {
-                        width: Placement::auto(),
-                        height: Placement::fixed(36.0),
-                    },
+                    ColumnLayoutParams::auto().fixed_y(36.0),
                     &mut state.width_auto_btn,
                 );
                 if r.input.clicked {
@@ -347,20 +306,14 @@ pub fn draw_frame_page(
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    Placement2D {
-                        width: Placement::fixed(130.0),
-                        height: Placement::auto(),
-                    },
+                    RowLayoutParams::auto().fixed_x(130.0),
                     ColumnLayout,
                 );
 
                 label(
                     &mut sub_frame,
                     LabelSpecBuilder::new().text("Auto Height"),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(20.0),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
                 );
                 sub_frame.spacer(4.0);
 
@@ -368,10 +321,7 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(accent),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fixed(36.0),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                     &mut state.height_auto_btn,
                 );
                 if r.input.clicked {
@@ -382,10 +332,7 @@ pub fn draw_frame_page(
                 button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text("Height").style(accent),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::auto(),
-                    },
+                    ColumnLayoutParams::auto().fill_x(),
                     &mut state.height_auto_btn2,
                 );
 
@@ -398,17 +345,14 @@ pub fn draw_frame_page(
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
                     FrameSpecBuilder::new().style(frame_style),
-                    Placement2D::auto(),
+                    RowLayoutParams::auto(),
                     ColumnLayout,
                 );
 
                 label(
                     &mut sub_frame,
                     LabelSpecBuilder::new().text("Fully Auto"),
-                    Placement2D {
-                        width: Placement::auto(),
-                        height: Placement::fixed(20.0),
-                    },
+                    ColumnLayoutParams::auto().fixed_y(20.0),
                 );
                 sub_frame.spacer(4.0);
 
@@ -416,10 +360,7 @@ pub fn draw_frame_page(
                 let r = button(
                     &mut sub_frame,
                     ButtonSpecBuilder::new().text(&text).style(secondary),
-                    Placement2D {
-                        width: Placement::auto(),
-                        height: Placement::auto(),
-                    },
+                    ColumnLayoutParams::auto(),
                     &mut state.fully_auto_btn,
                 );
                 if r.input.clicked {
@@ -440,7 +381,7 @@ pub fn draw_frame_page(
     // ── Right Column: Nesting & Alignments ────────────────────────────────────
     {
         let mut right_col = root_row.child_with_layout(
-            Vec2::new((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad).into(),
+            RowLayoutParams::fixed((win_w - 2.0 * pad - 30.0) * 0.5, win_h - 2.0 * pad),
             ColumnLayout,
         );
 
@@ -448,10 +389,7 @@ pub fn draw_frame_page(
         label(
             &mut right_col,
             LabelSpecBuilder::new().text("2. Complex Nesting & Cross-Alignments"),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(30.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
         );
         right_col.spacer(20.0);
 
@@ -459,10 +397,7 @@ pub fn draw_frame_page(
         label(
             &mut right_col,
             LabelSpecBuilder::new().text("Nesting Showcase (Fixed Panel centered in Fixed Outer)"),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(24.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
         );
         right_col.spacer(20.0);
 
@@ -473,7 +408,7 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut right_col,
                 FrameSpecBuilder::new().style(frame_style),
-                Placement2D::fixed(450.0, 180.0),
+                ColumnLayoutParams::fixed(450.0, 180.0),
                 ColumnLayout,
             );
 
@@ -481,10 +416,7 @@ pub fn draw_frame_page(
             let r = button(
                 &mut outer_fixed,
                 ButtonSpecBuilder::new().text(&text).style(secondary),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fixed(36.0),
-                },
+                ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                 &mut state.outer_btn,
             );
             if r.input.clicked {
@@ -502,10 +434,9 @@ pub fn draw_frame_page(
                         background: theme.paper, // distinct dark background
                         ..frame_style
                     }),
-                    Placement2D {
-                        width: Placement::fixed(350.0).align(Align::Center),
-                        height: Placement::auto(),
-                    },
+                    ColumnLayoutParams::auto()
+                        .fixed_x(350.0)
+                        .align_x(Align::Center),
                     RowLayout,
                 );
 
@@ -513,7 +444,7 @@ pub fn draw_frame_page(
                 let r1 = button(
                     &mut inner_auto,
                     ButtonSpecBuilder::new().text(&text_c).style(accent),
-                    Placement2D::auto(),
+                    RowLayoutParams::auto(),
                     &mut state.inner_center_btn,
                 );
                 if r1.input.clicked {
@@ -525,7 +456,7 @@ pub fn draw_frame_page(
                 let r2 = button(
                     &mut inner_auto,
                     ButtonSpecBuilder::new().text(&text_e).style(primary),
-                    Placement2D::auto(),
+                    RowLayoutParams::auto(),
                     &mut state.inner_end_btn,
                 );
                 if r2.input.clicked {
@@ -544,10 +475,7 @@ pub fn draw_frame_page(
             &mut right_col,
             LabelSpecBuilder::new()
                 .text("Cross-Axis Alignment within Fit Frame (Auto height, Centered)"),
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::fixed(24.0),
-            },
+            ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
         );
         right_col.spacer(20.0);
 
@@ -558,10 +486,7 @@ pub fn draw_frame_page(
             } = begin_frame(
                 &mut right_col,
                 FrameSpecBuilder::new().style(frame_style),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
+                ColumnLayoutParams::auto().fill_x(),
                 ColumnLayout,
             );
 
@@ -569,7 +494,7 @@ pub fn draw_frame_page(
             button(
                 &mut fit_centered,
                 ButtonSpecBuilder::new().text("Small Width").style(primary),
-                Placement2D::fixed(120.0, 36.0).align_x(Align::Center),
+                ColumnLayoutParams::fixed(120.0, 36.0).align_x(Align::Center),
                 &mut state.align_small_btn,
             );
             fit_centered.spacer(10.0);
@@ -579,7 +504,7 @@ pub fn draw_frame_page(
                 ButtonSpecBuilder::new()
                     .text("Medium Width Button")
                     .style(secondary),
-                Placement2D::fixed(240.0, 36.0).align_x(Align::Center),
+                ColumnLayoutParams::fixed(240.0, 36.0).align_x(Align::Center),
                 &mut state.align_med_btn,
             );
             fit_centered.spacer(10.0);
@@ -589,7 +514,7 @@ pub fn draw_frame_page(
                 ButtonSpecBuilder::new()
                     .text("Large Width Content Button")
                     .style(accent),
-                Placement2D::fixed(360.0, 36.0).align_x(Align::Center),
+                ColumnLayoutParams::fixed(360.0, 36.0).align_x(Align::Center),
                 &mut state.align_large_btn,
             );
 

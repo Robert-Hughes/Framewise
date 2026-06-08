@@ -2,7 +2,7 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Align, Placement2D},
+    layout::Align,
     theme::Theme,
     types::{Color, Rect},
     widget::WidgetContext,
@@ -12,6 +12,7 @@ use framewise::{
         slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
         ButtonSpecBuilder,
     },
+    ColumnLayoutParams, RowLayoutParams,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,7 +175,7 @@ pub fn draw_scroll_demo(
         // -- SIDEBAR (Left Column) --
         {
             let mut sidebar_col = {
-                let layout_params = Placement2D::fixed(200.0, win_h - 20.0);
+                let layout_params = RowLayoutParams::fixed(200.0, win_h - 20.0);
                 let layout = framewise::layouts::ColumnLayout;
                 main_row.child_with_layout(layout_params, layout)
             };
@@ -195,7 +196,7 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                Placement2D::fixed(200.0, win_h - 60.0),
+                ColumnLayoutParams::fixed(200.0, win_h - 60.0),
                 &mut state.sidebar_scroll,
                 framewise::layouts::ColumnLayout,
             )
@@ -207,7 +208,8 @@ pub fn draw_scroll_demo(
                     Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
                 let btn = {
                     let state = &mut state.sidebar_btns[i].state;
-                    let layout_params = Placement2D::fixed(180.0, 32.0).align_x(Align::Center);
+                    let layout_params =
+                        ColumnLayoutParams::fixed(180.0, 32.0).align_x(Align::Center);
                     let text = format!("Menu Item {}", i + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                     button(&mut sidebar_scroll, spec_builder, layout_params, state)
@@ -235,7 +237,7 @@ pub fn draw_scroll_demo(
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     },
                 ),
-                Placement2D::fixed(win_w - 240.0, win_h - 20.0),
+                RowLayoutParams::fixed(win_w - 240.0, win_h - 20.0),
                 &mut state.right_panel_scroll,
                 framewise::layouts::ColumnLayout,
             )
@@ -245,7 +247,7 @@ pub fn draw_scroll_demo(
             // Top Header Row - Centered vertically (cross axis)
             {
                 let mut header_row = {
-                    let layout_params = Placement2D::fixed(inner_w, 40.0);
+                    let layout_params = ColumnLayoutParams::fixed(inner_w, 40.0);
                     let layout = framewise::layouts::RowLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
@@ -259,7 +261,7 @@ pub fn draw_scroll_demo(
 
                 let _btn1 = {
                     let btn_state = &mut state.top_btn1.state;
-                    let layout_params = Placement2D::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
+                    let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
                     let text = "Profile";
                     let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                     button(&mut header_row, spec_builder, layout_params, btn_state)
@@ -269,7 +271,7 @@ pub fn draw_scroll_demo(
 
                 let _btn2 = {
                     let btn_state = &mut state.top_btn2.state;
-                    let layout_params = Placement2D::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
+                    let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
                     let text = "Settings";
                     let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
                     button(&mut header_row, spec_builder, layout_params, btn_state)
@@ -283,7 +285,7 @@ pub fn draw_scroll_demo(
             // Nested Grid Area (4 Rows of 4 Buttons)
             {
                 let mut grid_col = {
-                    let layout_params = Placement2D::fixed(inner_w, 200.0);
+                    let layout_params = ColumnLayoutParams::fixed(inner_w, 200.0);
                     let layout = framewise::layouts::ColumnLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
@@ -296,7 +298,7 @@ pub fn draw_scroll_demo(
                 for row in 0..4 {
                     {
                         let mut grid_row = {
-                            let layout_params = Placement2D::fixed(inner_w, 32.0);
+                            let layout_params = ColumnLayoutParams::fixed(inner_w, 32.0);
                             let layout = framewise::layouts::RowLayout;
                             grid_col.child_with_layout(layout_params, layout)
                         };
@@ -307,7 +309,7 @@ pub fn draw_scroll_demo(
                                 Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
                             let _btn = {
                                 let btn_state = &mut state.grid_btns[idx].state;
-                                let layout_params = Placement2D::fixed(120.0, 32.0);
+                                let layout_params = RowLayoutParams::fixed(120.0, 32.0);
                                 let text = format!("Grid [{},{}]", row, col);
                                 let spec_builder =
                                     ButtonSpecBuilder::new().text(&text).style(button_style);
@@ -327,7 +329,7 @@ pub fn draw_scroll_demo(
             // Standalone Slider Demo
             {
                 let mut slider_row = {
-                    let layout_params = Placement2D::fixed(inner_w, 100.0);
+                    let layout_params = ColumnLayoutParams::fixed(inner_w, 100.0);
                     let layout = framewise::layouts::RowLayout;
                     content_col.child_with_layout(layout_params, layout)
                 };
@@ -335,7 +337,7 @@ pub fn draw_scroll_demo(
                 {
                     let slider_state: &mut SliderState = &mut state.standalone_slider_state;
                     let step = 20.0;
-                    let layout_params = Placement2D::fixed(30.0, 100.0).align_y(Align::Center);
+                    let layout_params = RowLayoutParams::fixed(30.0, 100.0).align_y(Align::Center);
                     let spec_builder = SliderSpecBuilder::new()
                         .orientation(SliderOrientation::Vertical)
                         .page_step(step)
@@ -355,7 +357,7 @@ pub fn draw_scroll_demo(
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     },
                 ),
-                Placement2D::fixed(inner_w, 250.0),
+                ColumnLayoutParams::fixed(inner_w, 250.0),
                 &mut state.main_scroll,
                 framewise::layouts::ColumnLayout,
             )
@@ -372,7 +374,8 @@ pub fn draw_scroll_demo(
                     Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
                 let btn = {
                     let btn_state = &mut state.main_btns[i].state;
-                    let layout_params = Placement2D::fixed(350.0, 50.0).align_x(Align::Center); // Narrower width centered in scroll area
+                    let layout_params =
+                        ColumnLayoutParams::fixed(350.0, 50.0).align_x(Align::Center); // Narrower width centered in scroll area
                     let text = format!("Feed Item #{} - Very Important Notification", i + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                     button(&mut main_scroll, spec_builder, layout_params, btn_state)
@@ -400,7 +403,7 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                Placement2D::fixed(inner_w, 300.0),
+                ColumnLayoutParams::fixed(inner_w, 300.0),
                 &mut state.nested_outer_scroll,
                 framewise::layouts::ColumnLayout,
             )
@@ -410,7 +413,7 @@ pub fn draw_scroll_demo(
                 let row_state = &mut state.nested_rows[i];
 
                 let mut row_builder = {
-                    let layout_params = Placement2D::fixed(800.0, row_h);
+                    let layout_params = ColumnLayoutParams::fixed(800.0, row_h);
                     let layout = framewise::layouts::RowLayout;
                     outer_scroll.child_with_layout(layout_params, layout)
                 };
@@ -432,7 +435,7 @@ pub fn draw_scroll_demo(
                 // Left button
                 let btn1 = {
                     let btn_state = &mut row_state.btn1.state;
-                    let layout_params = Placement2D::fixed(80.0, row_h);
+                    let layout_params = RowLayoutParams::fixed(80.0, row_h);
                     let text = format!("R{} A", i + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                     button(&mut row_builder, spec_builder, layout_params, btn_state)
@@ -453,7 +456,7 @@ pub fn draw_scroll_demo(
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                         },
                     ),
-                    Placement2D::fixed(120.0, row_h),
+                    RowLayoutParams::fixed(120.0, row_h),
                     &mut row_state.inner_scroll,
                     framewise::layouts::ColumnLayout,
                 )
@@ -465,7 +468,7 @@ pub fn draw_scroll_demo(
                         Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                     let btn = {
                         let btn_state = &mut row_state.inner_btns[j].state;
-                        let layout_params = Placement2D::fixed(100.0, 45.0);
+                        let layout_params = ColumnLayoutParams::fixed(100.0, 45.0);
                         let text = format!("V {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut inner_scroll, spec_builder, layout_params, btn_state)
@@ -492,7 +495,7 @@ pub fn draw_scroll_demo(
                             extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         }),
-                    Placement2D::fixed(180.0, row_h),
+                    RowLayoutParams::fixed(180.0, row_h),
                     &mut row_state.horiz_scroll,
                     framewise::layouts::RowLayout,
                 )
@@ -508,7 +511,7 @@ pub fn draw_scroll_demo(
                         Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                     let btn = {
                         let btn_state = &mut row_state.horiz_btns[j].state;
-                        let layout_params = Placement2D::fixed(80.0, row_h - 25.0);
+                        let layout_params = RowLayoutParams::fixed(80.0, row_h - 25.0);
                         let text = format!("H {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut horiz_scroll, spec_builder, layout_params, btn_state)
@@ -535,7 +538,7 @@ pub fn draw_scroll_demo(
                             extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                         }),
-                    Placement2D::fixed(200.0, row_h),
+                    RowLayoutParams::fixed(200.0, row_h),
                     &mut row_state.both_scroll,
                     framewise::layouts::ManualLayout,
                 )
@@ -572,7 +575,7 @@ pub fn draw_scroll_demo(
                 {
                     let slider_state: &mut SliderState = &mut row_state.slider_state;
                     let step = 20.0;
-                    let layout_params = Placement2D::fixed(30.0, row_h);
+                    let layout_params = RowLayoutParams::fixed(30.0, row_h);
                     let spec_builder = SliderSpecBuilder::new()
                         .orientation(SliderOrientation::Vertical)
                         .page_step(step)
@@ -586,7 +589,7 @@ pub fn draw_scroll_demo(
                 {
                     let slider_state: &mut SliderState = &mut row_state.horiz_slider_state;
                     let step = 20.0;
-                    let layout_params = Placement2D::fixed(100.0, 30.0);
+                    let layout_params = RowLayoutParams::fixed(100.0, 30.0);
                     let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
                     slider(&mut row_builder, spec_builder, layout_params, slider_state);
                 };
@@ -608,7 +611,7 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                     }),
-                Placement2D::fixed(inner_w, 150.0),
+                ColumnLayoutParams::fixed(inner_w, 150.0),
                 &mut state.double_horiz_outer_scroll,
                 framewise::layouts::RowLayout,
             )
@@ -617,7 +620,7 @@ pub fn draw_scroll_demo(
             button(
                 &mut d_outer_scroll,
                 ButtonSpecBuilder::new().text("Outer L"),
-                Placement2D::fixed(100.0, 100.0),
+                RowLayoutParams::fixed(100.0, 100.0),
                 &mut framewise::widgets::button::ButtonState::default(),
             );
 
@@ -634,7 +637,7 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                     }),
-                Placement2D::fixed(600.0, 120.0),
+                RowLayoutParams::fixed(600.0, 120.0),
                 &mut state.double_horiz_inner_scroll,
                 framewise::layouts::RowLayout,
             )
@@ -643,7 +646,7 @@ pub fn draw_scroll_demo(
             for j in 0..20 {
                 let _btn = {
                     let btn_state = &mut state.double_horiz_btns[j].state;
-                    let layout_params = Placement2D::fixed(60.0, 80.0);
+                    let layout_params = RowLayoutParams::fixed(60.0, 80.0);
                     let text = format!("H {}", j + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text);
                     button(&mut d_inner_scroll, spec_builder, layout_params, btn_state)
@@ -657,7 +660,7 @@ pub fn draw_scroll_demo(
             button(
                 &mut d_outer_scroll,
                 ButtonSpecBuilder::new().text("Outer R"),
-                Placement2D::fixed(300.0, 100.0),
+                RowLayoutParams::fixed(300.0, 100.0),
                 &mut framewise::widgets::button::ButtonState::default(),
             );
 
@@ -683,7 +686,7 @@ pub fn draw_scroll_demo(
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         },
                     ),
-                    Placement2D::fixed(inner_w.min(440.0), 160.0),
+                    ColumnLayoutParams::fixed(inner_w.min(440.0), 160.0),
                     &mut state.atmost_scroll,
                     framewise::layouts::ColumnLayout,
                 )
@@ -694,7 +697,7 @@ pub fn draw_scroll_demo(
                     button(
                         &mut atmost,
                         ButtonSpecBuilder::new().text(&text),
-                        Placement2D::fixed(260.0, 30.0),
+                        ColumnLayoutParams::fixed(260.0, 30.0),
                         btn_state,
                     );
                     atmost.spacer(6.0);
@@ -715,7 +718,7 @@ pub fn draw_scroll_demo(
                             extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                         }),
-                    Placement2D::fixed(inner_w.min(440.0), 200.0),
+                    ColumnLayoutParams::fixed(inner_w.min(440.0), 200.0),
                     &mut state.nested_2d_outer_scroll,
                     framewise::layouts::ManualLayout,
                 )
@@ -800,7 +803,7 @@ pub fn draw_scroll_demo(
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                         },
                     ),
-                    Placement2D::fixed(inner_w, 220.0),
+                    ColumnLayoutParams::fixed(inner_w, 220.0),
                     &mut state.triple_outer_scroll,
                     framewise::layouts::ColumnLayout,
                 )
@@ -817,7 +820,7 @@ pub fn draw_scroll_demo(
                             extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         }),
-                    Placement2D::fixed(inner_w - 15.0, 160.0),
+                    ColumnLayoutParams::fixed(inner_w - 15.0, 160.0),
                     &mut state.triple_middle_scroll,
                     framewise::layouts::RowLayout,
                 )
@@ -831,7 +834,7 @@ pub fn draw_scroll_demo(
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                         },
                     ),
-                    Placement2D::fixed(200.0, 130.0),
+                    RowLayoutParams::fixed(200.0, 130.0),
                     &mut state.triple_inner_scroll,
                     framewise::layouts::ColumnLayout,
                 )
@@ -849,7 +852,7 @@ pub fn draw_scroll_demo(
                         Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
                     let btn = {
                         let btn_state = &mut state.triple_inner_btns[j].state;
-                        let layout_params = Placement2D::fixed(165.0, 35.0);
+                        let layout_params = ColumnLayoutParams::fixed(165.0, 35.0);
                         let text = format!("Inner V {}", j + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(&mut inner_scroll, spec_builder, layout_params, btn_state)
@@ -872,7 +875,7 @@ pub fn draw_scroll_demo(
                             extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
                             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
                         }),
-                    Placement2D::fixed(165.0, 50.0),
+                    ColumnLayoutParams::fixed(165.0, 50.0),
                     &mut state.triple_innermost_scroll,
                     framewise::layouts::RowLayout,
                 )
@@ -888,7 +891,7 @@ pub fn draw_scroll_demo(
                         Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
                     let btn = {
                         let btn_state = &mut state.triple_innermost_btns[k].state;
-                        let layout_params = Placement2D::fixed(80.0, 26.0);
+                        let layout_params = RowLayoutParams::fixed(80.0, 26.0);
                         let text = format!("IH {}", k + 1);
                         let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
                         button(
@@ -913,7 +916,7 @@ pub fn draw_scroll_demo(
                 {
                     let slider_state: &mut SliderState = &mut state.triple_inner_slider_state;
                     let step = 20.0;
-                    let layout_params = Placement2D::fixed(30.0, 130.0);
+                    let layout_params = RowLayoutParams::fixed(30.0, 130.0);
                     let spec_builder = SliderSpecBuilder::new()
                         .orientation(SliderOrientation::Vertical)
                         .page_step(step)

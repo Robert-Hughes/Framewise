@@ -2,8 +2,8 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layout::{Align, Placement, Placement2D},
-    layouts::linear::{ColumnLayout, RowLayout},
+    layout::Align,
+    layouts::linear::{ColumnLayout, ColumnLayoutParams, RowLayout, RowLayoutParams},
     text::{
         EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapGlyphFallback,
         WrapWordFallback,
@@ -98,7 +98,7 @@ pub fn draw_label_page(
         LabelSpecBuilder::new()
             .text("Label Widget Showcase")
             .style(title_style),
-        Placement2D::auto(),
+        ColumnLayoutParams::auto(),
     );
     ctx.spacer(28.0);
 
@@ -121,20 +121,14 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("1. Font Families & Sizes")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout,
-        );
+        let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
         // Sans Column
         {
-            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
+            let mut col = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
             label(
                 &mut col,
                 LabelSpecBuilder::new()
@@ -151,7 +145,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                Placement2D::auto(),
+                ColumnLayoutParams::auto(),
             );
 
             let sizes = [12.0, 16.0, 24.0, 36.0, 48.0];
@@ -177,7 +171,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 col.spacer(12.0);
             }
@@ -187,7 +181,7 @@ pub fn draw_label_page(
 
         // Mono Column
         {
-            let mut col = row.child_with_layout(Placement2D::fixed(350.0, 260.0), ColumnLayout);
+            let mut col = row.child_with_layout(RowLayoutParams::fixed(350.0, 260.0), ColumnLayout);
             label(
                 &mut col,
                 LabelSpecBuilder::new()
@@ -204,7 +198,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                Placement2D::auto(),
+                ColumnLayoutParams::auto(),
             );
 
             let sizes = [12.0, 16.0, 24.0, 36.0, 48.0];
@@ -230,7 +224,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 col.spacer(12.0);
             }
@@ -260,20 +254,14 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("2. Color and Horizontal Rules")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout,
-        );
+        let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
         // Color Showcase Column
         {
-            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
+            let mut col = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
             let colors = [
                 ("Default Ink Color", theme.ink),
                 ("Accent Rust Color", theme.rust),
@@ -302,7 +290,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 col.spacer(10.0);
             }
@@ -312,7 +300,7 @@ pub fn draw_label_page(
 
         // Rule Showcase Column
         {
-            let mut col = row.child_with_layout(Placement2D::auto(), ColumnLayout);
+            let mut col = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
 
             let rule_styles = [
                 ("Underlined Heading", theme.ink, theme.line),
@@ -340,7 +328,7 @@ pub fn draw_label_page(
                         rule: true,
                         rule_color: rule_col,
                     }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 col.spacer(18.0);
             }
@@ -370,12 +358,12 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("4. Overflow (non-wrapping)")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
         label(
             &mut ctx,
             LabelSpecBuilder::new().text(r#"All text is the same "hello\nhello" string"#),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
         let clip_test_box_style = FrameStyle {
@@ -387,13 +375,7 @@ pub fn draw_label_page(
 
         // Row 1: Cards 1 - 4
         {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             // Card 1: X: Drop, Y: Drop
             // Keep this card in sync with test_overflow_x_drop_y_drop in sample/src/text/tests.rs
@@ -401,7 +383,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -417,14 +399,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 28.0),
+                        ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
                     );
                     label(
@@ -445,10 +427,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -462,7 +441,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -478,14 +457,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 28.0),
+                        ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
                     );
                     label(
@@ -506,10 +485,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -523,7 +499,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -539,14 +515,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 28.0),
+                        ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
                     );
                     label(
@@ -569,10 +545,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -586,7 +559,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -602,14 +575,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(8.0, 28.0),
+                        ColumnLayoutParams::fixed(8.0, 28.0),
                         ColumnLayout,
                     );
                     label(
@@ -632,10 +605,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -647,13 +617,7 @@ pub fn draw_label_page(
 
         // Row 2: Cards 5 - 8
         {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             // Card 5: X: Keep, Y: Ellipsis (Fallback: Keep)
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_keep in sample/src/text/tests.rs
@@ -661,7 +625,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -677,14 +641,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(8.0, 28.0),
+                        ColumnLayoutParams::fixed(8.0, 28.0),
                         ColumnLayout,
                     );
                     label(
@@ -707,10 +671,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -724,7 +685,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -740,14 +701,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(23.0, 48.0),
+                        ColumnLayoutParams::fixed(23.0, 48.0),
                         ColumnLayout,
                     );
                     label(
@@ -770,10 +731,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -787,7 +745,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -803,14 +761,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(8.0, 48.0),
+                        ColumnLayoutParams::fixed(8.0, 48.0),
                         ColumnLayout,
                     );
                     label(
@@ -833,10 +791,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -850,7 +805,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -866,14 +821,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(8.0, 48.0),
+                        ColumnLayoutParams::fixed(8.0, 48.0),
                         ColumnLayout,
                     );
                     label(
@@ -896,10 +851,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -930,13 +882,13 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("4.1 Overflow (wrapping)")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
         label(
             &mut ctx,
             LabelSpecBuilder::new()
                 .text(r#"First row: all text is the same "hello\nhello" string"#),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
         let clip_test_box_style = FrameStyle {
@@ -948,13 +900,7 @@ pub fn draw_label_page(
 
         // Row 1: Cards 1 - 3
         {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             // Card 1: X: WrapGlyph, Y: Keep
             // Keep this card in sync with test_wrap_glyph_y_keep in sample/src/text/tests.rs
@@ -962,7 +908,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -978,14 +924,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(23.0, 63.0),
+                        ColumnLayoutParams::fixed(23.0, 63.0),
                         ColumnLayout,
                     );
                     label(
@@ -1008,10 +954,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1025,7 +968,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -1041,14 +984,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(6.0, 68.0),
+                        ColumnLayoutParams::fixed(6.0, 68.0),
                         ColumnLayout,
                     );
                     label(
@@ -1071,10 +1014,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1088,7 +1028,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 220.0),
+                    RowLayoutParams::fixed(230.0, 220.0),
                     ColumnLayout,
                 );
                 label(
@@ -1104,14 +1044,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(4.0, 162.0),
+                        ColumnLayoutParams::fixed(4.0, 162.0),
                         ColumnLayout,
                     );
                     label(
@@ -1134,10 +1074,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1152,16 +1089,10 @@ pub fn draw_label_page(
             &mut ctx,
             LabelSpecBuilder::new()
                 .text(r#"Remaining rows: all text is the same "hello there\nhello there" string"#),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
         {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             // Card 4: X: WrapWord, Y: Keep
             // Keep this card in sync with test_wrap_word_y_keep in sample/src/text/tests.rs
@@ -1169,7 +1100,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -1185,14 +1116,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(48.0, 68.0),
+                        ColumnLayoutParams::fixed(48.0, 68.0),
                         ColumnLayout,
                     );
                     label(
@@ -1215,10 +1146,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1232,7 +1160,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 200.0),
+                    RowLayoutParams::fixed(230.0, 200.0),
                     ColumnLayout,
                 );
                 label(
@@ -1248,14 +1176,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(23.0, 138.0),
+                        ColumnLayoutParams::fixed(23.0, 138.0),
                         ColumnLayout,
                     );
                     label(
@@ -1280,10 +1208,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1297,7 +1222,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 200.0),
+                    RowLayoutParams::fixed(230.0, 200.0),
                     ColumnLayout,
                 );
                 label(
@@ -1313,14 +1238,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(6.0, 138.0),
+                        ColumnLayoutParams::fixed(6.0, 138.0),
                         ColumnLayout,
                     );
                     label(
@@ -1345,10 +1270,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1360,13 +1282,7 @@ pub fn draw_label_page(
 
         // Row 3: Cards 7 - 9
         {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             // Card 7: X: WrapWord (F: WrapGlyph F: Keep), Y: Keep
             // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
@@ -1374,7 +1290,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 380.0),
+                    RowLayoutParams::fixed(230.0, 380.0),
                     ColumnLayout,
                 );
                 label(
@@ -1390,14 +1306,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(4.0, 318.0),
+                        ColumnLayoutParams::fixed(4.0, 318.0),
                         ColumnLayout,
                     );
                     label(
@@ -1422,10 +1338,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1439,7 +1352,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -1455,14 +1368,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 68.0),
+                        ColumnLayoutParams::fixed(25.0, 68.0),
                         ColumnLayout,
                     );
                     label(
@@ -1485,10 +1398,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1502,7 +1412,7 @@ pub fn draw_label_page(
                 let mut container = begin_frame(
                     &mut row,
                     FrameSpecBuilder::new().style(box_style),
-                    Placement2D::fixed(230.0, 140.0),
+                    RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
                 );
                 label(
@@ -1518,14 +1428,14 @@ pub fn draw_label_page(
                             text_color: theme.rust,
                             ..LabelStyle::from_theme(&theme)
                         }),
-                    Placement2D::auto(),
+                    ColumnLayoutParams::auto(),
                 );
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
                         &mut container.ctx,
                         FrameSpecBuilder::new().style(clip_test_box_style),
-                        Placement2D::fixed(25.0, 68.0),
+                        ColumnLayoutParams::fixed(25.0, 68.0),
                         ColumnLayout,
                     );
                     label(
@@ -1548,10 +1458,7 @@ pub fn draw_label_page(
                                 text_color: theme.ink,
                                 ..LabelStyle::from_theme(&theme)
                             }),
-                        Placement2D {
-                            width: Placement::fill(),
-                            height: Placement::fill(),
-                        },
+                        ColumnLayoutParams::auto().fill_x().fill_y(),
                     );
                     clip_box.ctx.finish();
                 }
@@ -1582,16 +1489,10 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("5. Internal Text Alignment (Fixed-Width)")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
-        let mut row = ctx.child_with_layout(
-            Placement2D {
-                width: Placement::fill(),
-                height: Placement::auto(),
-            },
-            RowLayout,
-        );
+        let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
         let alignments = [
             ("Start Aligned Text", TextLineAlign::Start),
@@ -1603,7 +1504,7 @@ pub fn draw_label_page(
             let mut container = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(box_style),
-                Placement2D::fixed(230.0, 80.0),
+                RowLayoutParams::fixed(230.0, 80.0),
                 ColumnLayout,
             );
 
@@ -1627,7 +1528,7 @@ pub fn draw_label_page(
                         rule: false,
                         rule_color: theme.line,
                     }),
-                Placement2D::auto(),
+                ColumnLayoutParams::auto(),
             );
             container.ctx.spacer(6.0);
 
@@ -1649,10 +1550,7 @@ pub fn draw_label_page(
                     rule: false,
                     rule_color: theme.line,
                 }),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
+                ColumnLayoutParams::auto().fill_x(),
             );
 
             container.ctx.finish();
@@ -1681,7 +1579,7 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("6. Widget Content Placement")
                 .style(section_header),
-            Placement2D::auto(),
+            ColumnLayoutParams::auto(),
         );
 
         let positions = [
@@ -1697,13 +1595,7 @@ pub fn draw_label_page(
         ];
 
         for row_positions in positions.chunks(3) {
-            let mut row = ctx.child_with_layout(
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::auto(),
-                },
-                RowLayout,
-            );
+            let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
             for (text, x, y) in row_positions {
                 let mut cell = begin_frame(
@@ -1714,7 +1606,7 @@ pub fn draw_label_page(
                         border_width: 1.0,
                         padding: 0.0,
                     }),
-                    Placement2D::fixed(150.0, 72.0),
+                    RowLayoutParams::fixed(150.0, 72.0),
                     ColumnLayout,
                 );
                 label(
@@ -1724,10 +1616,7 @@ pub fn draw_label_page(
                         text_color: theme.ink,
                         ..LabelStyle::from_theme(&theme)
                     }),
-                    Placement2D {
-                        width: Placement::fill(),
-                        height: Placement::fill(),
-                    },
+                    ColumnLayoutParams::auto().fill_x().fill_y(),
                 );
                 cell.ctx.finish();
             }
@@ -1735,7 +1624,7 @@ pub fn draw_label_page(
             row.finish();
         }
 
-        let mut row = ctx.child_with_layout(Placement2D::fixed(360.0, 29.0), RowLayout);
+        let mut row = ctx.child_with_layout(ColumnLayoutParams::fixed(360.0, 29.0), RowLayout);
         let comparison_label = LabelStyle {
             content_placement: framewise::TextContentPlacement::CENTER,
             ..LabelStyle::from_theme(&theme)
@@ -1767,14 +1656,14 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("logical center:")
                 .style(comparison_label),
-            Placement2D::fixed(92.0, 29.0),
+            RowLayoutParams::fixed(92.0, 29.0),
         );
         row.spacer(6.0);
         {
             let mut cell = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(glyph_frame),
-                Placement2D::fixed(29.0, 29.0),
+                RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
             );
             label(
@@ -1783,10 +1672,7 @@ pub fn draw_label_page(
                     content_placement: framewise::TextContentPlacement::CENTER,
                     ..glyph_label
                 }),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fill(),
-                },
+                ColumnLayoutParams::auto().fill_x().fill_y(),
             );
             cell.ctx.finish();
         }
@@ -1796,14 +1682,14 @@ pub fn draw_label_page(
             LabelSpecBuilder::new()
                 .text("ink center:")
                 .style(comparison_label),
-            Placement2D::fixed(72.0, 29.0),
+            RowLayoutParams::fixed(72.0, 29.0),
         );
         row.spacer(6.0);
         {
             let mut cell = begin_frame(
                 &mut row,
                 FrameSpecBuilder::new().style(glyph_frame),
-                Placement2D::fixed(29.0, 29.0),
+                RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
             );
             label(
@@ -1812,10 +1698,7 @@ pub fn draw_label_page(
                     content_placement: framewise::TextContentPlacement::INK_CENTER,
                     ..glyph_label
                 }),
-                Placement2D {
-                    width: Placement::fill(),
-                    height: Placement::fill(),
-                },
+                ColumnLayoutParams::auto().fill_x().fill_y(),
             );
             cell.ctx.finish();
         }
@@ -1839,7 +1722,7 @@ pub fn draw_label_page(
                 rule: false,
                 rule_color: theme.line,
             }),
-        Placement2D::auto(),
+        ColumnLayoutParams::auto(),
     );
 
     #[cfg(feature = "scroll_area")]
