@@ -9,12 +9,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
-* Ghost button focus ring is different size! Also why different padding to other types of button?
-
 * WrapLayout still panics - these should be layout violation errors!
-
-* Focus ring review: current Rust geometry likely does not exactly match CSS because StrokeRect draws its stroke inside the supplied rect. The button code uses rect.inset(-(border_width + focus_offset)); with a 2px inside stroke, that gives only about a 1px visible gap on bordered buttons and effectively no gap on ghost buttons. To match CSS outline: 2px; outline-offset: 2px, the focus rect would probably need to account for focus_width, not border_width, for example inset by focus_offset + focus_width.
-
 
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.

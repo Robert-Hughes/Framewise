@@ -177,12 +177,13 @@ pub mod raw {
             spec.style.background
         };
 
-        // Focus ring drawn first (outset — sits outside the button bounds).
+        // CSS outline sits outside the border box. StrokeRect draws inside its
+        // rect, so expand by both the desired gap and the stroke width.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
                 rect: spec
                     .rect
-                    .inset(-(spec.style.border_width + spec.style.focus_offset)),
+                    .inset(-(spec.style.focus_offset + spec.style.focus_width)),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
             });
@@ -332,7 +333,7 @@ impl ButtonStyle {
             hovered: theme.hover,
             pressed: theme.press,
             border: Color::TRANSPARENT,
-            border_width: 0.0,
+            border_width: theme.border,
             focus: theme.rust,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
@@ -1283,7 +1284,7 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         let expected_focus_rect =
-            Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(border_width + focus_offset));
+            Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(focus_offset + focus_width));
 
         assert_eq!(
             &cmds[..],
