@@ -2,12 +2,21 @@
 
 Working notes, TODOs, open questions, and half-baked ideas.
 
+## Current Work
 
----
+* Tidy this notes file!
+  - DO NOT edit anything in the "Current Work" section.
+  - DO NOT remove anything from the file, ONLY reorder lines
+  - Group related notes into sections, like layout, rendering, widget types
+  - Use concise section headings
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+  - Add demo pages for each widget type (or possibly in groups?)
 
-* WrapLayout still panics - these should be layout violation errors!
+
+## Misc
+
+
 
   - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
@@ -127,8 +136,13 @@ Features to design and implement, roughly in dependency order:
 - [ ] Text editing (`TextEditState`)
 - [ ] Grid and table layouts
 - [ ] Clipping and layering
+
+  * Layering thoughts - focus rings are drawn *outside* of buttons, so can overlap other things. Need to be on their own layer? Possibly a special 'focus' layer. This could be done in the drawing commands themselves or perhaps deferred as part of a separate list of 'focus draw cmds' stored in the FocusSystem, rather than as part of the button itself.
+
 - [ ] Popups, menus (window level and context menu), tooltips
 - [ ] Combo boxes
+  - Auto-complete drop down for "editable" combo box.
+  - Drop downs autopopulated by dynamic code (e.g. internet fetch), showing a loading spinner/icon
 - List selects (w/ multi-select)
 - [ ] Drag and drop
 - [ ] Accessibility and tab order
@@ -202,6 +216,9 @@ For SplitRow, do we want an option to have alignment within each 'cell', like if
 * Each child within a layout has a lot of options (size, align, spacing etc.). Do we want to have any 'defaults' that you can set at the layout level, so you don't need to repeat for every child. e.g. if you want a column of right-aligned widgets.
 
 * How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback?
+
+* WrapLayout still panics - these should be layout violation errors! (Check other panics too!)
+
 
 Phases 1–3, 5, and 6 of the original layout proposal are **implemented and documented in `DESIGN.md`** (intrinsic sizing, three-state `AxisBound`, unbounded axes, deferred scroll, fit-to-children frames). Phase 4 is **partially** done: `SplitRow` (declared count, equal cells) shipped; the weighted/grid/match-tallest cases below did not. This section keeps only what's still unbuilt, plus the conceptual framing that justifies *why* some cases are possible and others never will be.
 
