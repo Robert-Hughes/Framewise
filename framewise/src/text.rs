@@ -154,7 +154,7 @@ impl TextFlow {
     /// Single-line-ish label/input default.
     ///
     /// Hard `'\n'` still creates additional source lines, but no soft wrapping is
-    /// performed. Horizontally overflowing glyphs are dropped, and vertically
+    /// performed. Horizontally overflowing clusters are dropped, and vertically
     /// overflowing lines are dropped.
     pub fn single_line() -> Self {
         Self {
@@ -166,14 +166,14 @@ impl TextFlow {
 
     /// Paragraph/caption default.
     ///
-    /// Wraps at word boundaries first, falls back to glyph wrapping for over-long
-    /// words, drops a glyph only if even a single glyph cannot fit on an empty
+    /// Wraps at word boundaries first, falls back to cluster wrapping for over-long
+    /// words, drops a cluster only if even a single cluster cannot fit on an empty
     /// line, and ellipsises vertical overflow.
     pub fn wrapped() -> Self {
         Self {
             overflow_x: OverflowX::WrapWord {
-                fallback: WrapWordFallback::WrapGlyph {
-                    fallback: WrapGlyphFallback::Drop,
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
                 },
             },
             overflow_y: OverflowY::Ellipsis {
@@ -185,14 +185,14 @@ impl TextFlow {
 
     /// Renderer-clipped text viewport default.
     ///
-    /// This policy may emit logical glyphs/lines that exceed the layout bounds.
+    /// This policy may emit logical clusters/lines that exceed the layout bounds.
     /// It is intended for renderers that apply their own scissor/clipping and
-    /// want edge glyphs to be partially visible.
+    /// want edge text to be partially visible.
     pub fn clipped_viewport() -> Self {
         Self {
             overflow_x: OverflowX::WrapWord {
-                fallback: WrapWordFallback::WrapGlyph {
-                    fallback: WrapGlyphFallback::Keep,
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Keep,
                 },
             },
             overflow_y: OverflowY::Keep,
@@ -209,7 +209,7 @@ impl TextFlow {
 ///
 /// 1. Prefer a high-level behavior, such as word wrapping.
 /// 2. If that cannot make progress, fall back to a lower-level behavior, such as
-///    glyph wrapping.
+///    cluster wrapping.
 /// 3. If even that cannot make progress, either drop the overflowing unit or keep
 ///    it and rely on downstream clipping.
 ///
@@ -234,17 +234,17 @@ pub enum OverflowX {
     /// what happens.
     WrapWord { fallback: WrapWordFallback },
 
-    /// Wrap at glyph/character-cluster boundaries.
+    /// Wrap at cluster boundaries.
     ///
-    /// If the next glyph/cluster does not fit logically on the current line, it
+    /// If the next cluster does not fit logically on the current line, it
     /// is moved to a new line. If it still cannot fit on an empty line,
     /// `fallback` decides whether it is dropped or kept partially.
     ///
-    /// “Glyph” here should be read as the smallest drawable unit the text system
-    /// can safely split without corrupting shaping. For complex scripts this may
-    /// need to mean a grapheme cluster or shaped cluster rather than a literal
-    /// font glyph.
-    WrapGlyph { fallback: WrapGlyphFallback },
+    /// A cluster is the smallest indivisible shaped text unit emitted by the
+    /// text system. It should normally correspond to a shaping cluster, and it
+    /// must not split combining marks, ligatures, or script-shaped units in a way
+    /// that would corrupt shaping.
+    WrapCluster { fallback: WrapClusterFallback },
 
     /// Replace the logically overflowing tail of the line with an ellipsis
     /// marker.
@@ -257,8 +257,8 @@ pub enum OverflowX {
     /// Include the first unit that does not fit logically within the X bounds,
     /// then drop the remaining units on that line.
     ///
-    /// This is the opt-in partial-glyph mode. It is useful when the renderer
-    /// applies clipping and the caller wants edge glyphs to be visibly sliced
+    /// This is the opt-in partial-cluster mode. It is useful when the renderer
+    /// applies clipping and the caller wants edge text to be visibly sliced
     /// rather than removed entirely.
     Keep,
 
@@ -273,38 +273,38 @@ pub enum OverflowX {
 /// line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WrapWordFallback {
-    /// Try breaking the over-long word at glyph/cluster boundaries, see OverflowX::WrapGlyph.
-    WrapGlyph { fallback: WrapGlyphFallback },
+    /// Try breaking the over-long word at cluster boundaries, see OverflowX::WrapCluster.
+    WrapCluster { fallback: WrapClusterFallback },
 
-    /// Keep the over-long word's first overflowing glyph/cluster, then truncate. See OverflowX::Keep.
+    /// Keep the over-long word's first overflowing cluster, then truncate. See OverflowX::Keep.
     ///
     /// May emit geometry outside the X bounds.
     Keep,
 
-    /// Keep the over-long word's characters that fit within the X bounds, dropping
-    /// the first overflowing character and the remaining characters of the word.
+    /// Keep the over-long word's clusters that fit within the X bounds, dropping
+    /// the first overflowing cluster and the remaining clusters of the word.
     /// Note: this does *not* drop the whole word!
     /// See OverflowX::Drop.
     Drop,
 }
 
-/// Fallback used by glyph wrapping when even one glyph/cluster cannot fit on an
+/// Fallback used by cluster wrapping when even one cluster cannot fit on an
 /// empty line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum WrapGlyphFallback {
-    /// Keep the first overflowing glyph/cluster, then truncate. See OverflowX::Keep.
+pub enum WrapClusterFallback {
+    /// Keep the first overflowing cluster, then truncate. See OverflowX::Keep.
     ///
     /// May emit geometry outside the X bounds.
     Keep,
 
-    /// Drop the glyph/cluster. See OverflowX::Drop.
+    /// Drop the cluster. See OverflowX::Drop.
     Drop,
 }
 
 /// What to do when the next visual line would not fit within the block's
 /// vertical layout bounds.
 ///
-/// This policy operates on whole visual lines, not individual glyphs. A visual
+/// This policy operates on whole visual lines, not individual clusters. A visual
 /// line may come from a hard break or from X-axis wrapping.
 ///
 /// The same inside/outside contract applies:
@@ -345,7 +345,7 @@ pub enum OverflowY {
 /// fully-inside rendering should use `Drop`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EllipsisFallback {
-    /// Keep the first overflowing glyph or line, depending on whether the
+    /// Keep the first overflowing cluster or line, depending on whether the
     /// ellipsis failure happened in X or Y handling. See `OverflowX::Keep` and `OverflowY::Keep`.
     ///
     /// May emit geometry outside the bounds.
@@ -526,10 +526,10 @@ pub struct TextMetrics {
     /// vertical overflow). Always `≥ 1`, even for empty input.
     pub line_count: u32,
 
-    /// `true` if any line was cut on the inline axis — a glyph run was wider than
+    /// `true` if any line was cut on the inline axis — a text run was wider than
     /// the available width and got clipped/ellipsised. With `wrap: true` this is
     /// rare (over-long words force-break instead) but can still occur when the
-    /// width is narrower than a single glyph.
+    /// width is narrower than a single cluster.
     pub truncated_horizontal: bool,
 
     /// `true` if whole lines were dropped because the content exceeded the
@@ -552,8 +552,8 @@ pub struct TextLayout {
 /// coordinates (origin at the block's top-left, y increasing downward).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CaretGeom {
-    /// X offset of the caret (the leading edge of the glyph at the queried byte,
-    /// or the trailing edge of the last glyph when the byte is at end-of-text).
+    /// X offset of the caret (the leading edge of the cluster at the queried byte,
+    /// or the trailing edge of the last cluster when the byte is at end-of-text).
     pub x: f32,
     /// Y offset of the top of the line the caret sits on.
     pub y_top: f32,
@@ -641,11 +641,11 @@ pub trait TextSystem {
     ///
     /// Caret positions are in the same logical block coordinate system used by
     /// `prepare`. They should follow shaped advances and line metrics, not the
-    /// tight ink box of the surrounding glyphs.
+    /// tight ink box of the surrounding text.
     ///
     /// `byte_index` must fall on a UTF-8 char boundary of the prepared string.
-    /// An index at or past the end returns the caret after the final glyph. If
-    /// the glyph at that index was dropped by overflow, the caret clamps to the
+    /// An index at or past the end returns the caret after the final cluster. If
+    /// the cluster at that index was dropped by overflow, the caret clamps to the
     /// nearest laid-out boundary.
     fn caret_geom(&self, handle: TextHandle, byte_index: usize) -> CaretGeom;
 
@@ -653,11 +653,11 @@ pub trait TextSystem {
     /// boundary, returning a byte index into the prepared string.
     ///
     /// The coordinates `pos` are in the logical block coordinate system used by
-    /// `prepare`. Hit testing should compare against the shaped logical glyph or
-    /// cluster positions in the cached run.
+    /// `prepare`. Hit testing should compare against the shaped logical cluster
+    /// positions in the cached run.
     ///
     /// The point is resolved to a line by `y` first, then to the nearest gap
-    /// between glyphs by `x`. Points above/below the block clamp to the first/last
+    /// between clusters by `x`. Points above/below the block clamp to the first/last
     /// line; points left/right of a line clamp to that line's start/end. The
     /// result is always a valid char boundary.
     fn hit_test(&self, handle: TextHandle, pos: Vec2) -> usize;

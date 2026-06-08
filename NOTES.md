@@ -5,12 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ---
 
-* I may have been using the term "glyph" incorrectly in docs and code - check this
   - Issues with the shaper and wrapping between cluster boundaries. Ignored tests added - fix.
-* Common demo page layout
 
 * Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
 
+* Ghost button focus ring is different size! Also why different padding to other types of button?
 
 * WrapLayout still panics - these should be layout violation errors!
 

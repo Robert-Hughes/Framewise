@@ -523,7 +523,7 @@ pub fn draw_button_page(
 
         let mut row =
             outer.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(29.0), RowLayout);
-        let glyph_flow = framewise::text::TextFlow {
+        let icon_flow = framewise::text::TextFlow {
             overflow_x: framewise::text::OverflowX::Keep,
             overflow_y: framewise::text::OverflowY::Keep,
             line_align: framewise::text::TextLineAlign::Start,
@@ -533,7 +533,7 @@ pub fn draw_button_page(
             text_style: framewise::TextStyle {
                 size: 30.0,
                 font: theme.sans_font,
-                flow: glyph_flow,
+                flow: icon_flow,
                 ..secondary.text_style
             },
             pad_x: 0.0,

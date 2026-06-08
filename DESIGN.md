@@ -609,7 +609,7 @@ Ink bounds are related to logical bounds but are not contained by them in genera
 
 #### Why Logical Bounds Are the Text-System Input
 
-1. **Wrapping and editing are advance-based.** Text flow is driven by glyph advances and shaped clusters. Spaces have advance but no ink; combining marks may have ink but little or no advance. Wrapping by ink would make ordinary text unstable and would make caret and hit-testing behavior harder to reason about.
+1. **Wrapping and editing are advance-based.** Text flow is driven by shaped cluster advances. A cluster is the smallest indivisible shaped text unit emitted by the text system; it should not split combining marks, ligatures, or script-shaped units in a way that would corrupt shaping. Spaces have advance but no ink; combining marks may have ink but little or no advance. Wrapping by ink would make ordinary text unstable and would make caret and hit-testing behavior harder to reason about.
 2. **The ink box is an output of shaping and rasterization.** The caller cannot provide a tight ink rect before the text system has shaped the string, selected glyphs, applied offsets, and measured raster placement.
 3. **Overflow policy must be explicit.** A caller that needs hard pixel containment should request clipping or a future ink-fit policy. A caller that passes a logical rect should not assume that visible ink cannot spill outside it.
 4. **Different widgets want different alignment bases.** Text labels, editable text, menus, and paragraphs usually want logical centering/alignment. Icon-like glyphs and optical badges may want ink centering. Keeping both concepts explicit lets each widget choose the correct behavior.

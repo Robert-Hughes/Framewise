@@ -3,7 +3,7 @@ mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::{
         EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextBounds, TextFlow,
-        TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapGlyphFallback,
+        TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback,
         WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
@@ -379,8 +379,8 @@ mod tests {
         let mut sys = sys();
         let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
         let flow = TextFlow {
-            overflow_x: OverflowX::WrapGlyph {
-                fallback: WrapGlyphFallback::Keep,
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
@@ -446,8 +446,8 @@ mod tests {
         let mut sys = sys();
         let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT
         let flow = TextFlow {
-            overflow_x: OverflowX::WrapGlyph {
-                fallback: WrapGlyphFallback::Keep,
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
@@ -930,8 +930,8 @@ mod tests {
                 400,
                 TextFlow {
                     overflow_x: OverflowX::WrapWord {
-                        fallback: WrapWordFallback::WrapGlyph {
-                            fallback: WrapGlyphFallback::Drop,
+                        fallback: WrapWordFallback::WrapCluster {
+                            fallback: WrapClusterFallback::Drop,
                         },
                     },
                     overflow_y: OverflowY::Drop,
@@ -1274,11 +1274,11 @@ mod tests {
 
     // Keep this test in sync with Card 1 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_glyph_y_keep() {
+    fn test_wrap_cluster_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
-            overflow_x: OverflowX::WrapGlyph {
-                fallback: WrapGlyphFallback::Drop,
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
@@ -1295,11 +1295,11 @@ mod tests {
 
     // Keep this test in sync with Card 2 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_glyph_fallback_drop_y_keep() {
+    fn test_wrap_cluster_fallback_drop_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
-            overflow_x: OverflowX::WrapGlyph {
-                fallback: WrapGlyphFallback::Drop,
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Drop,
             },
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
@@ -1315,11 +1315,11 @@ mod tests {
 
     // Keep this test in sync with Card 3 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_glyph_fallback_keep_y_keep() {
+    fn test_wrap_cluster_fallback_keep_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
-            overflow_x: OverflowX::WrapGlyph {
-                fallback: WrapGlyphFallback::Keep,
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
             },
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
@@ -1367,12 +1367,12 @@ mod tests {
 
     // Keep this test in sync with Card 5 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_word_fallback_wrap_glyph_y_keep() {
+    fn test_wrap_word_fallback_wrap_cluster_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
-                fallback: WrapWordFallback::WrapGlyph {
-                    fallback: WrapGlyphFallback::Drop,
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
                 },
             },
             overflow_y: OverflowY::Keep,
@@ -1400,12 +1400,12 @@ mod tests {
 
     // Keep this test in sync with Card 6 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep() {
+    fn test_wrap_word_fallback_wrap_cluster_fallback_drop_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
-                fallback: WrapWordFallback::WrapGlyph {
-                    fallback: WrapGlyphFallback::Drop,
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
                 },
             },
             overflow_y: OverflowY::Keep,
@@ -1422,12 +1422,12 @@ mod tests {
 
     // Keep this test in sync with Card 7 in Section 4.1 of sample/src/label_page.rs
     #[test]
-    fn test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep() {
+    fn test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep() {
         let mut sys = sys();
         let flow = TextFlow {
             overflow_x: OverflowX::WrapWord {
-                fallback: WrapWordFallback::WrapGlyph {
-                    fallback: WrapGlyphFallback::Keep,
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Keep,
                 },
             },
             overflow_y: OverflowY::Keep,

@@ -2,7 +2,7 @@ use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec};
 use crate::text::SampleTextSystem;
 use framewise::{
     EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextFlow, TextLineAlign,
-    TextMetrics, TextStyle, Vec2, WrapGlyphFallback, WrapWordFallback,
+    TextMetrics, TextStyle, Vec2, WrapClusterFallback, WrapWordFallback,
 };
 
 struct Line {
@@ -264,11 +264,11 @@ impl SampleTextSystem {
             if let Some(w) = max_w {
                 match flow.overflow_x {
                     OverflowX::WrapWord { fallback } => {
-                        let wrapped = Self::wrap_glyphs_at_words(seg, w, fallback);
+                        let wrapped = Self::wrap_clusters_at_words(seg, w, fallback);
                         final_sublines.extend(wrapped);
                     }
-                    OverflowX::WrapGlyph { fallback } => {
-                        let wrapped = Self::wrap_glyphs_at_glyphs(seg, w, fallback);
+                    OverflowX::WrapCluster { fallback } => {
+                        let wrapped = Self::wrap_clusters(seg, w, fallback);
                         final_sublines.extend(wrapped);
                     }
                     _ => {
@@ -538,10 +538,10 @@ impl SampleTextSystem {
         g.x + g.advance
     }
 
-    fn wrap_glyphs_at_glyphs(
+    fn wrap_clusters(
         glyphs: Vec<GlyphPosition>,
         w: f32,
-        fallback: WrapGlyphFallback,
+        fallback: WrapClusterFallback,
     ) -> Vec<Vec<GlyphPosition>> {
         let mut lines = Vec::new();
         if glyphs.is_empty() {
@@ -583,7 +583,7 @@ impl SampleTextSystem {
             } else {
                 if current_line.is_empty() {
                     match fallback {
-                        WrapGlyphFallback::Keep => {
+                        WrapClusterFallback::Keep => {
                             let mut g_moved = g;
                             g_moved.x = rel_start_x;
                             current_line.push(g_moved);
@@ -591,7 +591,7 @@ impl SampleTextSystem {
                             current_line = Vec::new();
                             current_line_start_x = Self::logical_glyph_end(&g);
                         }
-                        WrapGlyphFallback::Drop => {
+                        WrapClusterFallback::Drop => {
                             break;
                         }
                     }
@@ -608,7 +608,7 @@ impl SampleTextSystem {
                         current_line.push(g_moved);
                     } else {
                         match fallback {
-                            WrapGlyphFallback::Keep => {
+                            WrapClusterFallback::Keep => {
                                 let mut g_moved = g;
                                 g_moved.x = new_rel_start_x;
                                 current_line.push(g_moved);
@@ -616,7 +616,7 @@ impl SampleTextSystem {
                                 current_line = Vec::new();
                                 current_line_start_x = Self::logical_glyph_end(&g);
                             }
-                            WrapGlyphFallback::Drop => {
+                            WrapClusterFallback::Drop => {
                                 break;
                             }
                         }
@@ -630,7 +630,7 @@ impl SampleTextSystem {
         lines
     }
 
-    fn wrap_glyphs_at_words(
+    fn wrap_clusters_at_words(
         glyphs: Vec<GlyphPosition>,
         w: f32,
         fallback: WrapWordFallback,
@@ -728,9 +728,9 @@ impl SampleTextSystem {
                         current_logical_w += word_logical_w;
                     } else {
                         match &fallback {
-                            WrapWordFallback::WrapGlyph { fallback: gf } => {
+                            WrapWordFallback::WrapCluster { fallback: gf } => {
                                 let seg_len = seg.glyphs.len();
-                                let wrapped = Self::wrap_glyphs_at_glyphs(seg.glyphs, w, *gf);
+                                let wrapped = Self::wrap_clusters(seg.glyphs, w, *gf);
                                 let mut wrapped_count = 0;
                                 if !wrapped.is_empty() {
                                     lines.extend(wrapped[..wrapped.len() - 1].to_vec());
@@ -741,7 +741,7 @@ impl SampleTextSystem {
                                         .fold(0.0, f32::max);
                                     wrapped_count = wrapped.iter().map(|line| line.len()).sum();
                                 }
-                                if *gf == WrapGlyphFallback::Drop && wrapped_count < seg_len {
+                                if *gf == WrapClusterFallback::Drop && wrapped_count < seg_len {
                                     break;
                                 }
                             }

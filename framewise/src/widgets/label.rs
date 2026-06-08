@@ -618,8 +618,8 @@ mod tests {
 
         let flow = crate::text::TextFlow {
             overflow_x: crate::text::OverflowX::WrapWord {
-                fallback: crate::text::WrapWordFallback::WrapGlyph {
-                    fallback: crate::text::WrapGlyphFallback::Drop,
+                fallback: crate::text::WrapWordFallback::WrapCluster {
+                    fallback: crate::text::WrapClusterFallback::Drop,
                 },
             },
             overflow_y: crate::text::OverflowY::Ellipsis {

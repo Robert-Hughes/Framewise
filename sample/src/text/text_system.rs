@@ -343,8 +343,8 @@ impl TextSystem for SampleTextSystem {
             .or_else(|| run.lines.first())
             .expect("a prepared run always has at least one line");
 
-        // X within the line: leading edge of the glyph at/after byte_index,
-        // else the trailing edge of the last glyph on the line.
+        // X within the line: leading edge of the cluster at/after byte_index,
+        // else the trailing edge of the last cluster on the line.
         let glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
         let x = if byte_index >= line.byte_end {
             glyphs

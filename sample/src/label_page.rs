@@ -5,7 +5,7 @@ use framewise::{
     layout::Align,
     layouts::linear::{ColumnLayout, ColumnLayoutParams, RowLayout, RowLayoutParams},
     text::{
-        EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapGlyphFallback,
+        EllipsisFallback, OverflowX, OverflowY, TextFlow, TextLineAlign, WrapClusterFallback,
         WrapWordFallback,
     },
     theme::Theme,
@@ -860,8 +860,8 @@ pub fn draw_label_page(
         {
             let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
-            // Card 1: X: WrapGlyph, Y: Keep
-            // Keep this card in sync with test_wrap_glyph_y_keep in sample/src/text/tests.rs
+            // Card 1: X: WrapCluster, Y: Keep
+            // Keep this card in sync with test_wrap_cluster_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -872,7 +872,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("1. X: WrapGlyph, Y: Keep")
+                        .text("1. X: WrapCluster, Y: Keep")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -899,8 +899,8 @@ pub fn draw_label_page(
                             .style(LabelStyle {
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
-                                        overflow_x: OverflowX::WrapGlyph {
-                                            fallback: WrapGlyphFallback::Drop,
+                                        overflow_x: OverflowX::WrapCluster {
+                                            fallback: WrapClusterFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
                                         line_align: TextLineAlign::Start,
@@ -920,8 +920,8 @@ pub fn draw_label_page(
             }
             row.spacer(20.0);
 
-            // Card 2: X: WrapGlyph (F: Drop), Y: Keep
-            // Keep this card in sync with test_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
+            // Card 2: X: WrapCluster (F: Drop), Y: Keep
+            // Keep this card in sync with test_wrap_cluster_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -932,7 +932,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("2. X: WrapGlyph(F:Drop)")
+                        .text("2. X: WrapCluster(F:Drop)")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -959,8 +959,8 @@ pub fn draw_label_page(
                             .style(LabelStyle {
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
-                                        overflow_x: OverflowX::WrapGlyph {
-                                            fallback: WrapGlyphFallback::Drop,
+                                        overflow_x: OverflowX::WrapCluster {
+                                            fallback: WrapClusterFallback::Drop,
                                         },
                                         overflow_y: OverflowY::Keep,
                                         line_align: TextLineAlign::Start,
@@ -980,8 +980,8 @@ pub fn draw_label_page(
             }
             row.spacer(20.0);
 
-            // Card 3: X: WrapGlyph (F: Keep), Y: Keep
-            // Keep this card in sync with test_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
+            // Card 3: X: WrapCluster (F: Keep), Y: Keep
+            // Keep this card in sync with test_wrap_cluster_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -992,7 +992,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("3. X: WrapGlyph(F:Keep)")
+                        .text("3. X: WrapCluster(F:Keep)")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -1019,8 +1019,8 @@ pub fn draw_label_page(
                             .style(LabelStyle {
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
-                                        overflow_x: OverflowX::WrapGlyph {
-                                            fallback: WrapGlyphFallback::Keep,
+                                        overflow_x: OverflowX::WrapCluster {
+                                            fallback: WrapClusterFallback::Keep,
                                         },
                                         overflow_y: OverflowY::Keep,
                                         line_align: TextLineAlign::Start,
@@ -1112,8 +1112,8 @@ pub fn draw_label_page(
             }
             row.spacer(20.0);
 
-            // Card 5: X: WrapWord (F: WrapGlyph), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_y_keep in sample/src/text/tests.rs
+            // Card 5: X: WrapWord (F: WrapCluster), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1124,7 +1124,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("5. X: WrapWord(F:WrapG)")
+                        .text("5. X: WrapWord(F:WrapC)")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -1152,8 +1152,8 @@ pub fn draw_label_page(
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
                                         overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapGlyph {
-                                                fallback: WrapGlyphFallback::Drop,
+                                            fallback: WrapWordFallback::WrapCluster {
+                                                fallback: WrapClusterFallback::Drop,
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
@@ -1174,8 +1174,8 @@ pub fn draw_label_page(
             }
             row.spacer(20.0);
 
-            // Card 6: X: WrapWord (F: WrapGlyph F: Drop), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_drop_y_keep in sample/src/text/tests.rs
+            // Card 6: X: WrapWord (F: WrapCluster F: Drop), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1186,7 +1186,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("6. X: WrapWord(F:WG F:Dr)")
+                        .text("6. X: WrapWord(F:WC F:Dr)")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -1214,8 +1214,8 @@ pub fn draw_label_page(
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
                                         overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapGlyph {
-                                                fallback: WrapGlyphFallback::Drop,
+                                            fallback: WrapWordFallback::WrapCluster {
+                                                fallback: WrapClusterFallback::Drop,
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
@@ -1242,8 +1242,8 @@ pub fn draw_label_page(
         {
             let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
 
-            // Card 7: X: WrapWord (F: WrapGlyph F: Keep), Y: Keep
-            // Keep this card in sync with test_wrap_word_fallback_wrap_glyph_fallback_keep_y_keep in sample/src/text/tests.rs
+            // Card 7: X: WrapWord (F: WrapCluster F: Keep), Y: Keep
+            // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
                     &mut row,
@@ -1254,7 +1254,7 @@ pub fn draw_label_page(
                 label(
                     &mut container.ctx,
                     LabelSpecBuilder::new()
-                        .text("7. X: WrapWord(F:WG F:Kp)")
+                        .text("7. X: WrapWord(F:WC F:Kp)")
                         .style(LabelStyle {
                             text_style: framewise::TextStyle {
                                 font: theme.mono_font,
@@ -1282,8 +1282,8 @@ pub fn draw_label_page(
                                 text_style: framewise::TextStyle {
                                     flow: TextFlow {
                                         overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapGlyph {
-                                                fallback: WrapGlyphFallback::Keep,
+                                            fallback: WrapWordFallback::WrapCluster {
+                                                fallback: WrapClusterFallback::Keep,
                                             },
                                         },
                                         overflow_y: OverflowY::Keep,
@@ -1587,22 +1587,22 @@ pub fn draw_label_page(
             content_placement: framewise::TextContentPlacement::CENTER,
             ..LabelStyle::from_theme(&theme)
         };
-        let glyph_flow = TextFlow {
+        let icon_flow = TextFlow {
             overflow_x: OverflowX::Keep,
             overflow_y: OverflowY::Keep,
             line_align: TextLineAlign::Start,
         };
-        let glyph_label = LabelStyle {
+        let icon_label = LabelStyle {
             text_style: framewise::TextStyle::new(
                 theme.sans_font,
                 30.0,
                 theme.sans_weight_regular,
-                glyph_flow,
+                icon_flow,
             ),
             text_color: theme.rust,
             ..LabelStyle::from_theme(&theme)
         };
-        let glyph_frame = FrameStyle {
+        let icon_frame = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
             border: theme.line,
             border_width: 1.0,
@@ -1620,7 +1620,7 @@ pub fn draw_label_page(
         {
             let mut cell = begin_frame(
                 &mut row,
-                FrameSpecBuilder::new().style(glyph_frame),
+                FrameSpecBuilder::new().style(icon_frame),
                 RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
             );
@@ -1628,7 +1628,7 @@ pub fn draw_label_page(
                 &mut cell.ctx,
                 LabelSpecBuilder::new().text("×").style(LabelStyle {
                     content_placement: framewise::TextContentPlacement::CENTER,
-                    ..glyph_label
+                    ..icon_label
                 }),
                 ColumnLayoutParams::auto().fill_x().fill_y(),
             );
@@ -1646,7 +1646,7 @@ pub fn draw_label_page(
         {
             let mut cell = begin_frame(
                 &mut row,
-                FrameSpecBuilder::new().style(glyph_frame),
+                FrameSpecBuilder::new().style(icon_frame),
                 RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
             );
@@ -1654,7 +1654,7 @@ pub fn draw_label_page(
                 &mut cell.ctx,
                 LabelSpecBuilder::new().text("×").style(LabelStyle {
                     content_placement: framewise::TextContentPlacement::INK_CENTER,
-                    ..glyph_label
+                    ..icon_label
                 }),
                 ColumnLayoutParams::auto().fill_x().fill_y(),
             );
