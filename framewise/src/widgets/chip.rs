@@ -3,7 +3,6 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::FontId,
     types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
@@ -26,10 +25,26 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ChipResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a chip's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_chip_intrinsic_size<T: TextSystem>(
+        spec: &ChipSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let t = text_system.measure(
+            spec.text,
+            spec.style.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        crate::layout::IntrinsicSize::preferred(t.logical_size)
     }
 
     /// Low-level chip widget function.
@@ -42,6 +57,7 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> ChipResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -77,7 +93,6 @@ pub mod raw {
             state.checked = !state.checked;
         }
 
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -85,7 +100,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
+        let layout = text_system.prepare(spec.text, spec.style.text_style, spec.rect);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -114,15 +129,19 @@ pub mod raw {
         });
 
         let text_color = if state.checked { s.active_text } else { s.text };
-        let ty = r.y + (h - layout.size.y) * 0.5;
+        let ty = r.y + (h - layout.metrics.logical_size.y) * 0.5;
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(r.x + pad_x, ty, layout.size.x, layout.size.y),
+            rect: Rect::new(
+                r.x + pad_x,
+                ty,
+                layout.metrics.logical_size.x,
+                layout.metrics.logical_size.y,
+            ),
             color: tint(text_color),
             handle: layout.handle,
         });
 
         ChipResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -141,8 +160,7 @@ pub mod raw {
 pub struct ChipStyle {
     pub height: f32,
     pub pad_x: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub background: Color,
     pub active_bg: Color,
     pub border: Color,
@@ -160,8 +178,12 @@ impl ChipStyle {
         Self {
             height: theme.h_sm,
             pad_x: 8.0,
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             active_bg: theme.ink,
             border: theme.ink,
@@ -270,17 +292,28 @@ pub fn chip<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut ChipState,
 ) -> ChipResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .clip_rect(clip)
         .build();
-    let result = raw::chip(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_chip_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::chip(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     ChipResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -296,14 +329,17 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn chip_raw<'a>(spec: ChipSpec<'a>) -> raw::ChipResult {
-        raw::chip(
+    fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
+        let mut cmds = DrawCommands::new();
+        let res = raw::chip(
             spec,
             &mut ChipState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
-        )
+            &mut cmds,
+        );
+        (res, cmds)
     }
 
     #[test]
@@ -316,11 +352,11 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = chip_raw(spec);
+        let (_res, cmds) = chip_raw(spec);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.background,
@@ -353,17 +389,19 @@ mod tests {
         };
         let style = spec.style;
         let mut state = state;
-        let res = raw::chip(
+        let mut cmds = DrawCommands::new();
+        raw::chip(
             spec,
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.active_bg,
@@ -398,20 +436,22 @@ mod tests {
         };
         let style = spec.style;
         let mut state = state;
-        let res = raw::chip(
+        let mut cmds = DrawCommands::new();
+        raw::chip(
             spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
         let expected_focus_rect = r.inset(-style.focus_offset);
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
                     rect: expected_focus_rect,
                     color: style.focus,
@@ -454,12 +494,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::chip(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -489,12 +531,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::chip(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -515,6 +559,7 @@ mod tests {
         // Frame 1: Focus chip
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -527,6 +572,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -534,6 +580,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -546,6 +593,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -554,6 +602,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -566,6 +615,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -585,36 +635,36 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = ChipStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = ChipSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut chip_state = ChipState::default();
         let result = super::chip(
             &mut ctx,
-            ChipSpecBuilder::new().text("X").rect(custom_rect),
-            layout_rect,
+            ChipSpecBuilder::new().text("X"),
+            placement,
             &mut chip_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

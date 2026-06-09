@@ -4,6 +4,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- Migrate and re-enable remaining widgets
+
+- Separate structs for high/low/calc_intrinsic widgets. In progress
+
+- Z buffer and z in draw commands
+- "Layer" concept passed throug hteh WidgetContext and into widget funcs, use to derive Z, esp. for focus rings.
+
 - Add a high-level helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox
 
 - Fix checkbox tri-state clicking in spec page

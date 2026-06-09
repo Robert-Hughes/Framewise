@@ -1048,15 +1048,18 @@ fn static_badge<CF, LS: LayoutState>(
 ) {
     let size = 9.0;
     let color = t.muted;
-    let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
-        text_style: framewise::TextStyle {
-            size,
-            ..(LabelStyle::from_theme(t)).text_style
-        },
-        text_color: color,
-        ..LabelStyle::from_theme(t)
-    }).rect(rect);
-    framewise::widgets::label::raw::label(spec_builder.build(), b.text_system, &mut b.cmds);
+    let spec_builder = LabelSpecBuilder::new()
+        .text("(STATIC)")
+        .style(LabelStyle {
+            text_style: framewise::TextStyle {
+                size,
+                ..(LabelStyle::from_theme(t)).text_style
+            },
+            text_color: color,
+            ..LabelStyle::from_theme(t)
+        })
+        .rect(rect);
+    framewise::widgets::label::raw::label(spec_builder.build(), b.text_system, b.cmds);
 }
 
 fn sec_y<CF>(
@@ -1546,7 +1549,10 @@ fn section_01_buttons<CF>(
             let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
             // Add STATIC badge for fake state columns
             if (1..=3).contains(&ci) {
-                let r = b.layout(Rect::new(col_x, y - 14.0, 44.0, 12.0), IntrinsicSize::UNKNOWN);
+                let r = b.layout(
+                    Rect::new(col_x, y - 14.0, 44.0, 12.0),
+                    IntrinsicSize::UNKNOWN,
+                );
                 static_badge(&mut b, &t, r);
             }
             {
@@ -1941,12 +1947,11 @@ fn section_03_toggles<CF>(
         for (ci, col) in col_labels.iter().enumerate() {
             // Add STATIC badge for fake state columns
             if (3..=4).contains(&ci) {
-                let r = b.layout(Rect::new(label_w + ci as f32 * cell_w, y - 14.0, 44.0, 12.0), IntrinsicSize::UNKNOWN);
-                static_badge(
-                    &mut b,
-                    &t,
-                    r,
+                let r = b.layout(
+                    Rect::new(label_w + ci as f32 * cell_w, y - 14.0, 44.0, 12.0),
+                    IntrinsicSize::UNKNOWN,
                 );
+                static_badge(&mut b, &t, r);
             }
             {
                 let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
@@ -2059,7 +2064,8 @@ fn section_03_toggles<CF>(
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
         {
-            let mut b = b.child_with_layout(RowLayoutParams::auto().fixed_x(200.0), ColumnLayout {});
+            let mut b =
+                b.child_with_layout(RowLayoutParams::auto().fixed_x(200.0), ColumnLayout {});
             let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
             for (i, radio_label) in radio_labels.iter().enumerate() {
                 b.spacer(16.0);
@@ -2077,7 +2083,9 @@ fn section_03_toggles<CF>(
                         }
                     }
                 } else {
-                    let r = draw_radio_fake_state(&mut b, Vec2::new(14.0, 14.0), false, true, false).content_bounds;
+                    let r =
+                        draw_radio_fake_state(&mut b, Vec2::new(14.0, 14.0), false, true, false)
+                            .content_bounds;
                     static_badge(&mut b, &t, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
                 }
                 b.spacer(16.0);
@@ -2119,7 +2127,8 @@ fn section_03_toggles<CF>(
                             true,
                             true,
                             false,
-                        ).content_bounds;
+                        )
+                        .content_bounds;
                         static_badge(&mut b, &t, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
                     }
                     3 => {
