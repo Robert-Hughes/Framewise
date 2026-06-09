@@ -19,6 +19,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct DividerCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
 
     /// Measure a divider's intrinsic size from its spec.
@@ -26,9 +29,9 @@ pub mod raw {
     /// A divider has no inherent preferred size. This returns
     /// [`IntrinsicSize::UNKNOWN`].
     ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
-    pub fn calc_divider_intrinsic_size(spec: &DividerSpec) -> crate::layout::IntrinsicSize {
+    pub fn calc_divider_intrinsic_size(
+        spec: &DividerCalcIntrinsicSizeSpec,
+    ) -> crate::layout::IntrinsicSize {
         let _ = spec;
         crate::layout::IntrinsicSize::UNKNOWN
     }
@@ -56,11 +59,18 @@ pub struct DividerResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DividerSpec {
+    pub color: Color,
+    pub width: f32,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DividerSpecBuilder {
-    pub rect: Option<Rect>,
     pub color: Option<Color>,
     pub width: Option<f32>,
 }
@@ -77,23 +87,16 @@ impl DividerSpecBuilder {
         self.width = Some(width);
         self
     }
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.color.is_none() {
             self.color = Some(theme.line);
         }
         self
     }
-    pub fn build(self) -> raw::DividerSpec {
-        raw::DividerSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> DividerSpec {
+        DividerSpec {
             color: self
                 .color
                 .expect("color not set — call .color() or defaults_from_theme()"),
@@ -113,14 +116,16 @@ pub fn divider<T: TextSystem, S: LayoutState, CF>(
     builder: DividerSpecBuilder,
     layout_params: S::Params,
 ) -> DividerResult {
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_divider_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::DividerCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_divider_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let _result = raw::divider(spec, ctx.cmds);
+    let raw_spec = raw::DividerSpec {
+        rect,
+        color: spec.color,
+        width: spec.width,
+    };
+    let _result = raw::divider(raw_spec, ctx.cmds);
 
     DividerResult {
         layout: LayoutInfo::tight(rect),
