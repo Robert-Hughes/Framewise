@@ -21,6 +21,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct CheckboxResult {
         pub input: InputInfo,
         pub focused: bool,
@@ -28,7 +31,7 @@ pub mod raw {
     }
 
     /// Compute intrinsic size for Checkbox. Currently returns UNKNOWN.
-    pub fn calc_checkbox_intrinsic_size(_spec: &CheckboxSpec) -> IntrinsicSize {
+    pub fn calc_checkbox_intrinsic_size(_spec: &CheckboxCalcIntrinsicSizeSpec) -> IntrinsicSize {
         IntrinsicSize::UNKNOWN
     }
 
@@ -232,14 +235,20 @@ pub struct CheckboxResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckboxSpec {
+    pub disabled: bool,
+    pub style: CheckboxStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxSpecBuilder {
-    pub rect: Option<Rect>,
     pub disabled: Option<bool>,
     pub style: Option<CheckboxStyle>,
-    pub clip_rect: Option<ClipRect>,
 }
 impl CheckboxSpecBuilder {
     pub fn new() -> Self {
@@ -256,21 +265,8 @@ impl CheckboxSpecBuilder {
         self
     }
 
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
-
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(CheckboxStyle::from_theme(theme));
@@ -278,16 +274,12 @@ impl CheckboxSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::CheckboxSpec {
-        raw::CheckboxSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> CheckboxSpec {
+        CheckboxSpec {
             disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -303,19 +295,17 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut CheckboxState,
 ) -> CheckboxResult {
-    // Build a provisional spec with a placeholder rect to compute intrinsic size.
-    // Any `rect` set on the builder is ignored by the high-level path — placement
-    // is the layout's job (use `ManualLayout`, or the raw fn, for explicit rects).
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::CheckboxCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_checkbox_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::checkbox(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let raw_spec = raw::CheckboxSpec {
+        rect,
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::checkbox(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     CheckboxResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -980,13 +970,7 @@ mod tests {
 
     #[test]
     fn test_calc_checkbox_intrinsic_size() {
-        let spec = CheckboxSpec {
-            rect: Rect::PLACEHOLDER,
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
-
+        let spec = raw::CheckboxCalcIntrinsicSizeSpec {};
         let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
         assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
     }
