@@ -267,6 +267,7 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 - Popups, menus (window level and context menu), tooltips
 - Dialogs (blocking and non-blocking)
+- Could provide a "WindowSystem" trait to framewise which allows it to dynamically spawn new OS windows when it needs a tooltip etc. that overhangs the window.
 
 ## Text Editing
 
@@ -318,3 +319,4 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 - Off-screen draw cost — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
+- Early-out from widget functions if it's offscreen or completely clipped

@@ -268,13 +268,15 @@ Three key rules keep these bounds from leaking infinity into leaf widget geometr
 
 **Reading the accumulated extent — `resolve_space`.** `LayoutState` exposes `fn resolve_space(&self) -> Rect`: the accumulated content resolved against the layout's own `LayoutSpace` bounds (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it), measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands the resolved `Rect` to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the origin with zero extent before any child is placed.
 
-**The `calc_*_intrinsic_size` companion.** Each raw widget that participates gains an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes the widget's `*Spec` so its signature stays stable as size-relevant fields are added (they live in the spec/style), but it **must not read `spec.rect`**: the rect is the *output* of the layout step that consumes the intrinsic size, so it isn't known yet. Structurally, `rect` is the *only* spec field that is unknowable before `calc` runs — everything else (content, style, clip, disabled) is an input. Callers therefore build the spec with `Rect::PLACEHOLDER` (NaN) before measuring; any arithmetic on it yields NaN, making accidental use loud rather than silent.
+**The `calc_*_intrinsic_size` companion.** Each raw widget that participates has an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes a dedicated raw measurement spec such as `raw::ButtonCalcIntrinsicSizeSpec`, containing only the fields needed to measure that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect intrinsic size.
 
-**High-level flow.** The high-level widget function: (1) resolves defaults and builds the spec with `Rect::PLACEHOLDER`; (2) calls `calc_*_intrinsic_size(&spec, …)`; (3) calls `layout(params, intrinsic)` to get the real rect; (4) assigns `spec.rect` and calls the raw function. Under `ManualLayout` the intrinsic is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both `calc` and the raw draw); a later `Layout::WANTS_INTRINSIC` const can gate it.
+This keeps the type honest: intrinsic sizing runs before layout, so the widget rect is not available and cannot appear in the measurement spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller calc spec directly.
+
+**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*CalcIntrinsicSizeSpec` from the size-relevant fields; (3) calls `calc_*_intrinsic_size(&calc_spec, …)`; (4) calls `layout(params, intrinsic)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls the raw function. Under `ManualLayout` the intrinsic is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both `calc` and the raw draw); a later `Layout::WANTS_INTRINSIC` const can gate it.
 
 #### Deferred-own-size containers
 
-Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, intrinsic)` at `begin`, assign the resulting concrete `Rect` onto the spec, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
+Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, intrinsic)` at `begin`, construct a raw spec with the resulting concrete `Rect`, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
 
 A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_layout`:
 
@@ -282,13 +284,12 @@ A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` 
 2. Children are built into the inset space.
 3. At `end`, the measured content extent (read via `resolve_space`) is added to the chrome to produce the real bounds. `end_frame` patches the placeholder draw commands in place with that resolved rect.
 
-This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `Rect`" rule but does not: the rect *is* the input type — the Spec is unchanged, `rect` stays the only special field (per [the calc companion](#sizing-resolution-rules)), and **no layout-level type (`LayoutSpace`, `AxisBound`) ever crosses into the raw layer**. The raw function stays completely layout-agnostic; the provisional-then-patch dance lives entirely in the high-level function and the begin/end command-index plumbing.
+This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `Rect`" rule but does not: its raw begin function specifically accepts a provisional raw spec for a deferred container lifecycle. Normal leaf widgets receive fully resolved raw specs, and measurement uses separate calc-intrinsic specs. **No layout-level type (`LayoutSpace`, `AxisBound`) ever crosses into the raw layer.** The raw function stays completely layout-agnostic; the provisional-then-patch dance lives entirely in the high-level function and the begin/end command-index plumbing.
 
-**Two placeholder markers, two states:**
-- `Rect::PLACEHOLDER` (all-NaN) — "not resolved *at all*". Used to feed `calc_*_intrinsic_size` before the layout step runs, when even the origin is unknown.
+**Provisional geometry marker:**
 - `Rect::pending_extent(x, y)` (origin set, extent NaN) — "origin known, extent pending". Used for a deferred container's provisional rect between `begin` and the `end` patch.
 
-Both keep the loud-on-misuse property: any arithmetic on the NaN extent yields NaN rather than a plausible-looking wrong number. Future deferred-own-size containers follow the `Frame` template: keep the Spec intact, hand raw a `pending_extent` rect, patch at `end`, and omit `layout` from the high-level result.
+It keeps the loud-on-misuse property: any arithmetic on the NaN extent yields NaN rather than a plausible-looking wrong number. Future deferred-own-size containers follow the `Frame` template: hand raw a `pending_extent` rect, patch at `end`, and omit `layout` from the high-level result.
 
 #### Trait-Decoupled Stateful Spacers
 
@@ -313,9 +314,9 @@ Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button:
 Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list (which frame containers rely on for placeholder patching). The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
 
 ```rust
-pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
-pub fn label<T: TextSystem>(spec: LabelSpec, text_system: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
-pub fn text_edit<T: TextSystem>(spec: TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
+pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
+pub fn label<T: TextSystem>(spec: raw::LabelSpec, text_system: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
+pub fn text_edit<T: TextSystem>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
 ```
 
 Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
@@ -324,7 +325,7 @@ Each `raw::*Result` is a concrete struct with no trait requirements on callers, 
 
 A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)`) called when the context is finished; it receives the shared command buffer and the layout's resolved space (the `Rect` from `finish()` reading `resolve_space()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
-High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a simplified spec/state:
+High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a high-level spec/state:
 
 ```rust
 pub fn button<T, S, CF>(
@@ -347,7 +348,6 @@ These freestanding functions automatically:
 Each widget defines two result structs reflecting the two API layers.
 
 **`raw::*Result`** is returned by the low-level raw function. It contains:
-- `draw: DrawCommands` — the caller manages command accumulation directly
 - Interaction outputs (`InputInfo`, `focused`, etc.)
 - `content_bounds: Rect` when the widget computes an inner area distinct from the input rect (e.g. a widget with a border or padding). The raw function is the authoritative place to compute this, since it has the spec in hand.
 - **Not** the input `Rect` itself — the caller supplied it explicitly, echoing it back is redundant
@@ -359,44 +359,45 @@ Each widget defines two result structs reflecting the two API layers.
 - **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
 - **Not** `*State` — mutated in-place
 
-The high-level function maps between them: it builds the spec (with a `Rect::PLACEHOLDER`), measures the intrinsic size, resolves the real rect via `ctx.layout_state.layout(params, intrinsic)`, assigns it onto the spec, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
+The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the smaller raw calc-intrinsic spec, measures the intrinsic size, resolves the real rect via `ctx.layout_state.layout(params, intrinsic)`, constructs the raw widget spec with the resolved rect and context clip, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
 
 Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. (Container widgets that compute their own bounds — scroll areas, windows — instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.)
 
-### Spec and SpecBuilder Pattern
+### Spec, Calc Spec, Raw Spec, and Builder Pattern
 
-Every widget type follows a consistent two-struct pattern for configuration:
+Every widget type follows a consistent layered configuration pattern:
 
-- **`*Spec`**: A fully resolved specification struct used by low-level raw widget functions. All fields are concrete values (colors, fonts, rectangles, etc.) with no optional or unresolved state. The low-level function receives this spec and produces draw commands and interaction info. Each `*Spec` struct is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids clutter the normal module level with stuff the high-level user won't use.
+- **High-level `*Spec`**: The ergonomic user-facing configuration struct produced by the builder and used by the high-level context function. It contains only fields that are meaningful for high-level callers, such as content, style, and flags. It does not contain layout-resolved fields such as `rect`, or context-managed fields such as `clip_rect`.
 
-- **`*SpecBuilder`**: A builder struct used by high-level widget functions to construct the `*Spec`. The builder holds optional fields and provides ergonomic setter methods. The high-level function uses the builder to:
-  1. Apply defaults from the `WidgetContext` (via `.defaults_from_theme()` and `.rect()`)
-  2. Allow the app to override specific parameters (via setter methods like `.text()`, `.style()`, etc.)
-  3. Call `.build()` to produce the fully resolved `*Spec` for the low-level function
+- **`*SpecBuilder`**: A builder struct used by high-level callers to construct the high-level `*Spec`. The builder holds optional fields and provides ergonomic setter methods. It applies theme defaults for user-facing values and panics only for required high-level inputs with no sensible default.
+
+- **`raw::*CalcIntrinsicSizeSpec`**: A low-level measurement specification struct used by `raw::calc_*_intrinsic_size`. It contains only the fields needed to compute intrinsic size. For example, `raw::ButtonCalcIntrinsicSizeSpec` contains the button text and style, but not `rect` or `clip_rect`.
+
+- **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
 
 This pattern cleanly separates concerns:
 - **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.
-- **High-level functions** are ergonomic and integrated — they resolve defaults from the context, handle layout, and bridge to the low-level layer.
+- **Intrinsic sizing** is type-safe — measurement specs cannot accidentally contain or read fields that are unavailable before layout.
+- **High-level functions** are ergonomic and integrated — they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
 
 > [!IMPORTANT]
-> **Spec and SpecBuilder Value-Type Rule:** `*Spec` and `*SpecBuilder` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
+> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*CalcIntrinsicSizeSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
 
 > [!IMPORTANT]
-> **Theme Must Not Appear in `*Spec`:** A `*Spec` struct must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting `*Spec` contains only those resolved primitives. This keeps every `*Spec` self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw calc spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
 > **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — **every field, including bool flags like `disabled` and `large`, is `Option<T>`** and starts as `None`. `build()` applies defaults for fields that have an obvious, context-independent value (e.g. `disabled` → `unwrap_or(false)`) and panics with a clear message for fields with no sensible default; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*). Making every field `Option<T>` is essential: `None` means "the user did not set this", which lets both `defaults_from_theme` and the high-level widget function inject context-aware defaults — something impossible if bools silently default to `false` in `new()`.
 
 ### `defaults_from_theme` — Theme as Fallback
 
-Every `*SpecBuilder` exposes a `defaults_from_theme(theme: &Theme)` method. It fills only the fields that are **not already set** — theme values are fallbacks, not overrides. Explicitly set fields always win:
+Every `*SpecBuilder` exposes a `defaults_from_theme(theme: &Theme)` method. It fills only the fields that are **not already set** — theme values are fallbacks, not overrides. Explicitly set fields always win. This is the fallback rule applied by high-level functions internally:
 
 ```rust
 // custom style is preserved — defaults_from_theme sees style.is_some() and skips it
 let spec = ButtonSpecBuilder::new()
     .text("Save".into())
     .style(my_brand_style)
-    .rect(rect)
     .defaults_from_theme(&theme)
     .build();
 ```
@@ -405,36 +406,25 @@ This is the only correct behaviour given the call order: the app sets fields on 
 
 **High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
 
-**The `rect` exception.** Fields set by the user on the builder are honored — the high-level widget functions will not overwrite them. The **only** exception is `rect`, which is always determined by the layout system; any user-provided value on the builder is ignored by the high-level path. (Internally the high-level function overwrites it: it builds the spec with `Rect::PLACEHOLDER`, measures the intrinsic size, then assigns the layout-resolved rect.) If explicit placement is wanted, use `ManualLayout` with the high-level functions — its `Params` *is* the rect — or drop to the low-level `raw::` function and set `rect` on the spec directly.
+The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*Spec` and `raw::*CalcIntrinsicSizeSpec` directly, supplying already-resolved styles and geometry. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
 
-**Raw API callers** must either call `defaults_from_theme` manually or set every field explicitly. Skipping both will cause `build()` to panic on the first unset field:
-
-```rust
-// themed defaults for unset fields
-let spec = builder.rect(rect).defaults_from_theme(&theme).build();
-
-// fully explicit — no theme involvement
-let spec = builder.rect(rect).style(my_style).build();
-
-// panics at build() — style is unset
-let spec = builder.rect(rect).build();
-```
+Explicit high-level placement is expressed through the layout parameters, not the spec. Under `ManualLayout`, the layout parameter *is* the rect. Callers that want to bypass layout entirely use the low-level `raw::` function and set `rect` directly on `raw::*Spec`.
 
 ### SpecBuilder Field Visibility
 
-`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. The trade-off: fields like `rect` and `clip_rect` — which are managed automatically by high-level context functions and should not be set by high-level callers — can be set directly with no compile-time guard. (For `rect` this is harmless, since the high-level path ignores any builder-set value and resolves the rect from the layout regardless — see "The `rect` exception" above.)
+`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. Builder fields are limited to high-level configuration, so layout-resolved fields like `rect` and context-managed fields like `clip_rect` do not appear on high-level builders.
 
-The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the "framework manages this" contract self-enforcing for `rect` and `clip_rect`; all operations are already covered by the existing setter methods.
+The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the public API narrower, but all operations are already covered by the existing setter methods.
 
-For now, fields remain `pub` and the framework-managed setter methods (`rect`, `clip_rect`, `defaults_from_theme`) carry doc comments explaining when to call them. Those struct fields may also warrant the same doc comments directly on their field declarations for the same reason.
+For now, fields remain `pub`. Framework-managed values are absent from the high-level builder and are introduced later by the high-level context function when it constructs raw specs.
 
 ### Default Implementations — Spec, Style, and Builder
 
 None of `*Spec`, `*Style`, or `*SpecBuilder` structs implement `Default`. The reasons differ by type but share a common root: multiple sources of default values creates drift and obscures intent.
 
-**`*Spec` structs — no `Default`**
+**High-level `*Spec` and raw spec structs — no `Default`**
 
-Specs are fully resolved; every field is a concrete value with no `Option<>`. A `Default` impl must invent values for fields like `rect` (which has no `Default` of its own) and `style`, producing instances that compile but render broken — silent failure instead of an explicit signal. Lifetime-parameterised specs (`MenuSpec<'a>`, `TabsSpec<'a>`, etc.) add a further constraint: they cannot implement `Default` without `'static` bounds, which would be unacceptable. The builder is the correct layer for partial state; the spec is not.
+Specs are resolved values for their layer; every field is a concrete value with no `Option<>` unless `None` is itself a meaningful widget value. A `Default` impl must invent values for required content, style, or raw geometry, producing instances that compile but render broken — silent failure instead of an explicit signal. Lifetime-parameterised specs (`MenuSpec<'a>`, `TabsSpec<'a>`, etc.) add a further constraint: they cannot implement `Default` without `'static` bounds, which would be unacceptable. The builder is the correct layer for partial high-level state; raw specs are constructed explicitly.
 
 **`*Style` structs — no `Default`**
 
@@ -444,7 +434,7 @@ The only authoritative source of style defaults is the `*Style::from_theme()` (o
 
 Because every builder field is `Option<T>`, `derive(Default)` produces exactly an all-`None` struct — identical to a hand-written `new()`. All builder structs therefore `#[derive(Default)]` and keep a `new()` constructor that forwards to `Self::default()`. This gives callers both spellings (`ButtonSpecBuilder::new()` and `ButtonSpecBuilder::default()`) with zero drift risk: there is only one source of truth.
 
-**When a `*Spec` field is itself `Option<T>`, the builder field is `Option<Option<T>>`**
+**When a high-level `*Spec` field is itself `Option<T>`, the builder field is `Option<Option<T>>`**
 
 Some `*Spec` fields are `Option<T>` not because they are unresolved, but because `None` is a meaningful resolved value (e.g. `thumb_size_ratio: Option<f32>` where `None` means "no scrollbar thumb", or `peak: Option<f32>` where `None` means "no peak marker"). The builder must still distinguish "caller never set this" from "caller explicitly set this to `None`". The solution is `Option<Option<T>>` in the builder:
 
@@ -462,13 +452,13 @@ pub fn peak(mut self, peak: Option<f32>) -> Self {
 
 `build()` unwraps the outer layer with `.unwrap_or(<default>)` to recover the `Option<T>` the spec expects.
 
-**The asymmetry between `*Spec` and `*SpecBuilder` is intentional**
+**The asymmetry between high-level `*Spec` and `*SpecBuilder` is intentional**
 
-`*Spec` is fully resolved — no partial state, no `Option<>`, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: every field is `Option<T>` and `None` means "not yet set". This distinction enables a three-stage default precedence chain:
+High-level `*Spec` is resolved for the high-level API — no partial state, no unresolved fields, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: every field is `Option<T>` and `None` means "not yet set". This distinction enables a three-stage default precedence chain:
 
 1. **User-specified** — fields set by the caller via builder setter methods. Always win.
-2. **High-level widget function default** — if a field is still `None` when the high-level function runs, it may inject a context-aware default before calling `build()`. Examples: `clip_rect` is always set here from the context's current clip; a container widget might set `disabled = true` on all children while it is loading.
-3. **`build()` default or panic** — fields still `None` at `build()` time either get a context-independent default (`disabled` → `false`, `large` → `false`) via `unwrap_or`, or cause a panic with a descriptive message if no sensible default exists (`rect`, `style`).
+2. **High-level widget function default** — if a field is still `None` when the high-level function runs, it may inject a context-aware default before calling `build()`. Examples: style defaults derived from the context theme, or a container widget forcing `disabled = true` on all children while it is loading.
+3. **`build()` default or panic** — fields still `None` at `build()` time either get a context-independent default (`disabled` → `false`, `large` → `false`) via `unwrap_or`, or cause a panic with a descriptive message if no sensible default exists (`text`, `style`).
 
 This means defaults are applied **as late as possible**, giving higher layers the opportunity to provide sensible context-aware values rather than being silently pre-empted by a `false` baked in at construction time.
 
@@ -484,7 +474,7 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button<T: TextSystem>(spec: ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
+pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
 pub fn button<T, S, CF>(
@@ -493,12 +483,21 @@ pub fn button<T, S, CF>(
     layout_params: S::Params,
     state: &mut ButtonState,
 ) -> ButtonResult {
-    let rect = ctx.layout(layout_params);
-    let spec = builder
-        .rect(rect)
-        .defaults_from_theme(&ctx.theme)
-        .build();
-    let r = raw::button(spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::ButtonCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    let raw_spec = raw::ButtonSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        disabled: spec.disabled,
+    };
+    let r = raw::button(raw_spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
         input: r.input,
