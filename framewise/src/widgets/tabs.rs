@@ -2,8 +2,8 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
-    text::{FontId, TextSystem},
+    layout::{IntrinsicSize, LayoutState},
+    text::{TextBounds, TextStyle, TextSystem},
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -23,10 +23,27 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TabsResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a tabs widget's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_tabs_intrinsic_size<T: TextSystem>(
+        spec: &TabsSpec,
+        text_system: &mut T,
+    ) -> IntrinsicSize {
+        let s = spec.style;
+        let mut total_w = 0.0_f32;
+        for label in spec.items.iter() {
+            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            total_w += metrics.logical_size.x + s.pad_x * 2.0;
+        }
+        IntrinsicSize::preferred(Vec2::new(total_w, s.height))
     }
 
     /// Low-level tabs widget function.
@@ -39,8 +56,8 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> TabsResult {
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
 
         let tab_h = s.height;
@@ -50,8 +67,8 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let layout = text_system.prepare(label, s.text_size, spec.style.font);
-            total_w += layout.size.x + pad_x * 2.0;
+            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            total_w += metrics.logical_size.x + pad_x * 2.0;
         }
 
         let (focused, clicked) = if spec.disabled {
@@ -63,7 +80,7 @@ pub mod raw {
                 spec.clip_rect,
                 input,
                 focus_system,
-                crate::focus::FocusTraversalKeys::all(),
+                crate::focus::FocusTraversalKeys::tab_only(),
                 spec.disabled,
             )
         };
@@ -86,8 +103,8 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let layout = text_system.prepare(label, s.text_size, spec.style.font);
-                let tab_w = layout.size.x + pad_x * 2.0;
+                let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+                let tab_w = metrics.logical_size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
                 if tab_rect.contains(input.mouse_pos) && is_visible {
@@ -115,9 +132,12 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let layout = text_system.prepare(label, s.text_size, spec.style.font);
-            let tab_w = layout.size.x + pad_x * 2.0;
+            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            let tab_w = metrics.logical_size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
+
+            let text_h = metrics.logical_size.y;
+            let text_w = metrics.logical_size.x;
 
             // Focus ring.
             let visually_focused = focused && i == state.active_index;
@@ -130,9 +150,11 @@ pub mod raw {
             }
 
             let text_color = if is_active { s.text } else { s.inactive_text };
-            let ty = spec.rect.y + (tab_h - layout.size.y) * 0.5;
+            let ty = spec.rect.y + (tab_h - text_h) * 0.5;
+            let text_rect = Rect::new(x + pad_x, ty, text_w, text_h);
+            let layout = text_system.prepare(label, s.text_style, text_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
+                rect: text_rect,
                 color: tint(text_color),
                 handle: layout.handle,
             });
@@ -159,7 +181,6 @@ pub mod raw {
         }
 
         TabsResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h)
                     .contains(input.mouse_pos)
@@ -185,8 +206,7 @@ pub struct TabsStyle {
     pub height: f32,
     pub pad_x: f32,
     pub underbar_height: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: TextStyle,
     pub border: Color,
     pub text: Color,
     pub inactive_text: Color,
@@ -204,8 +224,12 @@ impl TabsStyle {
             height: 36.0,
             pad_x: 18.0,
             underbar_height: 3.0,
-            text_size: theme.text_md,
-            font: theme.sans_font,
+            text_style: TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             border: theme.ink,
             text: theme.ink,
             inactive_text: theme.muted,
@@ -312,17 +336,29 @@ pub fn tabs<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut TabsState,
 ) -> TabsResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .clip_rect(clip)
         .build();
-    let result = raw::tabs(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
+    let intrinsic = raw::calc_tabs_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
 
-    ctx.append_cmds(result.draw);
+    let result = raw::tabs(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     TabsResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -337,8 +373,19 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> raw::TabsResult {
-        raw::tabs(
+    fn make_spec<'a>(items: &'a [&'a str]) -> TabsSpec<'a> {
+        TabsSpec {
+            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
+            items,
+            disabled: false,
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
+            clip_rect: None,
+        }
+    }
+
+    fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
+        let mut cmds = DrawCommands::new();
+        let result = raw::tabs(
             spec,
             &mut TabsState {
                 active_index,
@@ -347,25 +394,21 @@ mod tests {
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
-        )
+            &mut cmds,
+        );
+        (cmds, result)
     }
 
     #[test]
     fn test_tabs_visual_normal() {
         let items = ["Tab1", "Tab2"];
-        let spec = TabsSpec {
-            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
-            items: &items,
-            disabled: false,
-            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = make_spec(&items);
         let style = spec.style;
-        let res = tabs_dummy(spec, 0);
+        let (cmds, _res) = tabs_dummy(spec, 0);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 36.0),
                     p1: Vec2::new(300.0, 36.0),
@@ -409,26 +452,22 @@ mod tests {
         focus_system.begin_frame();
         let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
-        let spec = TabsSpec {
-            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
-            items: &items,
-            disabled: false,
-            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = make_spec(&items);
         let style = spec.style;
-        let res = raw::tabs(
+        let mut cmds = DrawCommands::new();
+        let _res = raw::tabs(
             spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 36.0),
                     p1: Vec2::new(300.0, 36.0),
@@ -476,21 +515,17 @@ mod tests {
 
         let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
-        let spec = TabsSpec {
-            rect: Rect::new(0.0, 0.0, 300.0, 36.0),
-            items: &items,
-            disabled: false,
-            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = make_spec(&items);
 
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::tabs(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -520,12 +555,14 @@ mod tests {
         };
 
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::tabs(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -550,18 +587,14 @@ mod tests {
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::tabs(
-            TabsSpec {
-                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
-                items: &items,
-                disabled: false,
-                style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-                clip_rect: None,
-            },
+            make_spec(&items),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_pressed_right = false;
@@ -571,18 +604,14 @@ mod tests {
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::tabs(
-            TabsSpec {
-                rect: Rect::new(0.0, 0.0, 300.0, 36.0),
-                items: &items,
-                disabled: false,
-                style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-                clip_rect: None,
-            },
+            make_spec(&items),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -602,36 +631,51 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = TabsStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = TabsSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut tabs_state = TabsState::default();
         let result = super::tabs(
             &mut ctx,
-            TabsSpecBuilder::new().items(&[]).rect(custom_rect),
-            layout_rect,
+            TabsSpecBuilder::new().items(&[]),
+            placement,
             &mut tabs_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
+    }
+
+    #[test]
+    fn test_calc_tabs_intrinsic_size() {
+        let mut ts = DummyTextSys;
+        let spec = TabsSpec {
+            rect: Rect::PLACEHOLDER,
+            items: &["Tab1", "Tab2"],
+            disabled: false,
+            style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
+            clip_rect: None,
+        };
+        // Tab1 = 4 chars * 8px = 32px + 2*18 pad = 68px; Tab2 = same = 68px; total = 136px
+        let intrinsic = raw::calc_tabs_intrinsic_size(&spec, &mut ts);
+        assert_eq!(intrinsic.preferred, Some(Vec2::new(136.0, 36.0)));
     }
 }

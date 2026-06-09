@@ -1264,7 +1264,7 @@ pub fn draw_spec_page(
             }
             #[cfg(feature = "tree")]
             {
-                section_09_tree(b, &t, content_w, y);
+                section_09_tree(b, &t, content_w);
             }
             #[cfg(all(feature = "tooltip", feature = "keycap"))]
             {
@@ -3083,34 +3083,30 @@ fn section_07_tabs<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
     // ── 07 · TABS ────────────────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "07", "Tabs", "underline tabs for plain navigation. the rust underbar is the only chrome — no rounded pills, no shadow.");
-    y += 46.0;
+    sec_y(b, &t, content_w, "07", "Tabs", "underline tabs for plain navigation. the rust underbar is the only chrome — no rounded pills, no shadow.");
     {
         const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
-        let _t1_info = {
-            let state = &mut state.tabs1_state;
-            let layout_params = Rect::new(lx, y, content_w.min(640.0), 36.0);
-            let spec_builder = TabsSpecBuilder::new().items(TABS1);
-            tabs(b, spec_builder, layout_params, state)
-        };
-        y += 36.0 + 20.0;
+        tabs(
+            b,
+            TabsSpecBuilder::new().items(TABS1),
+            ColumnLayoutParams::fixed(content_w.min(640.0), 36.0),
+            &mut state.tabs1_state,
+        );
+        b.spacer(20.0);
 
         const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
-        let _t2_info = {
-            let state = &mut state.tabs2_state;
-            let layout_params = Rect::new(lx, y, content_w.min(480.0), 36.0);
-            let spec_builder = TabsSpecBuilder::new().items(TABS2);
-            tabs(b, spec_builder, layout_params, state)
-        };
-        y += 36.0;
+        tabs(
+            b,
+            TabsSpecBuilder::new().items(TABS2),
+            ColumnLayoutParams::fixed(content_w.min(480.0), 36.0),
+            &mut state.tabs2_state,
+        );
     }
-    y += SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(
@@ -3282,14 +3278,14 @@ fn section_09_tree<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
 ) {
     let t = *t;
     // ── 09 · TREE / LIST ─────────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "09", "Tree & list",
+    sec_y(b, &t, content_w, "09", "Tree & list",
         "monospaced rows, ascii carets, ids on the right. the selected row is filled ink — it is unambiguously the focus.");
-    y += 46.0;
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
+
         static WIDGET_TREE: &[TreeRow<'static>] = &[
             TreeRow {
                 indent: 0,
@@ -3363,9 +3359,9 @@ fn section_09_tree<CF>(
             },
         ];
         tree(
-            b,
+            &mut b,
             TreeSpecBuilder::new().items(WIDGET_TREE),
-            Rect::new(lx, y, 320.0, 0.0),
+            Rect::new(MARGIN, 0.0, 320.0, 0.0),
         );
 
         static FILE_LIST: &[TreeRow<'static>] = &[
@@ -3420,15 +3416,14 @@ fn section_09_tree<CF>(
             },
         ];
         tree(
-            b,
+            &mut b,
             TreeSpecBuilder::new().items(FILE_LIST),
-            Rect::new(360.0, y, 240.0, 0.0),
+            Rect::new(MARGIN + 320.0 + 20.0, 0.0, 240.0, 0.0),
         );
 
-        y += WIDGET_TREE.len().max(FILE_LIST.len()) as f32 * 20.0 + 12.0;
+        b.finish();
     }
-    y += SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "tooltip", feature = "keycap"))]

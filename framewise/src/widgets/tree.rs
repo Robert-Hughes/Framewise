@@ -1,9 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
-    layout::LayoutState,
-    text::{FontId, TextSystem},
-    types::{Color, Rect},
+    layout::{IntrinsicSize, LayoutState},
+    text::{TextBounds, TextStyle, TextSystem},
+    types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -19,17 +18,30 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TreeResult {
-        pub draw: DrawCommands,
         pub bounds: Rect,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a tree widget's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_tree_intrinsic_size(spec: &TreeSpec) -> IntrinsicSize {
+        let s = spec.style;
+        let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
+        IntrinsicSize::preferred(Vec2::new(s.min_width, total_h))
     }
 
     /// Low-level tree widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: TextSystem>(spec: TreeSpec<'a>, text_system: &mut T) -> TreeResult {
-        let mut cmds = DrawCommands::new();
+    pub fn tree<'a, T: TextSystem>(
+        spec: TreeSpec<'a>,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) -> TreeResult {
         let s = spec.style;
 
         let row_h = s.row_height;
@@ -87,35 +99,51 @@ pub mod raw {
                 Some(false) => ">",
                 None => " ",
             };
-            let caret_layout = text_system.prepare(caret_sym, s.text_size, spec.style.font);
-            let cty = y + (row_h - caret_layout.size.y) * 0.5;
+            let caret_metrics = text_system.measure(caret_sym, s.text_style, TextBounds::UNBOUNDED);
+            let cty = y + (row_h - caret_metrics.logical_size.y) * 0.5;
+            let caret_rect = Rect::new(
+                indent_x,
+                cty,
+                caret_metrics.logical_size.x,
+                caret_metrics.logical_size.y,
+            );
+            let caret_layout = text_system.prepare(caret_sym, s.text_style, caret_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(indent_x, cty, caret_layout.size.x, caret_layout.size.y),
+                rect: caret_rect,
                 color: caret_color,
                 handle: caret_layout.handle,
             });
 
             // Label.
-            let label_layout = text_system.prepare(row.label, s.text_size, spec.style.font);
-            let lty = y + (row_h - label_layout.size.y) * 0.5;
+            let label_metrics = text_system.measure(row.label, s.text_style, TextBounds::UNBOUNDED);
+            let lty = y + (row_h - label_metrics.logical_size.y) * 0.5;
+            let label_rect = Rect::new(
+                indent_x + caret_w,
+                lty,
+                label_metrics.logical_size.x,
+                label_metrics.logical_size.y,
+            );
+            let label_layout = text_system.prepare(row.label, s.text_style, label_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(
-                    indent_x + caret_w,
-                    lty,
-                    label_layout.size.x,
-                    label_layout.size.y,
-                ),
+                rect: label_rect,
                 color: text_color,
                 handle: label_layout.handle,
             });
 
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
-                let meta_layout = text_system.prepare(meta, s.text_size, spec.style.font);
-                let mx = outer.x + w - pad_x - meta_layout.size.x;
-                let mty = y + (row_h - meta_layout.size.y) * 0.5;
+                let meta_metrics = text_system.measure(meta, s.text_style, TextBounds::UNBOUNDED);
+                let mx = outer.x + w - pad_x - meta_metrics.logical_size.x;
+                let mty = y + (row_h - meta_metrics.logical_size.y) * 0.5;
+                let meta_rect = Rect::new(
+                    mx,
+                    mty,
+                    meta_metrics.logical_size.x,
+                    meta_metrics.logical_size.y,
+                );
+                let meta_layout = text_system.prepare(meta, s.text_style, meta_rect);
                 cmds.push(DrawCmd::Text {
-                    rect: Rect::new(mx, mty, meta_layout.size.x, meta_layout.size.y),
+                    rect: meta_rect,
                     color: meta_color,
                     handle: meta_layout.handle,
                 });
@@ -132,7 +160,6 @@ pub mod raw {
         );
 
         TreeResult {
-            draw: cmds,
             bounds: outer,
             content_bounds,
         }
@@ -160,8 +187,7 @@ pub struct TreeStyle {
     pub pad_x: f32,
     pub pad_y: f32,
     pub min_width: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: TextStyle,
     pub background: Color,
     pub border: Color,
     pub selected_bg: Color,
@@ -181,8 +207,12 @@ impl TreeStyle {
             pad_x: 10.0,
             pad_y: 4.0,
             min_width: 280.0,
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             selected_bg: theme.ink,
@@ -262,11 +292,20 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
     builder: TreeSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> TreeResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::tree(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
+    // Build the spec up front with a placeholder rect so we can measure the
+    // intrinsic size; the real rect is then determined by the layout system and
+    // assigned below. Any `rect` set on the builder is ignored by the high-level
+    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
+    // for explicit rects).
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+
+    let result = raw::tree(spec, ctx.text_system, ctx.cmds);
     TreeResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -275,6 +314,7 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::focus::FocusSystem;
 
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_fields() {
@@ -289,48 +329,39 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = TreeStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = TreeSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        super::tree(
-            &mut ctx,
-            TreeSpecBuilder::new().items(&[]).rect(custom_rect),
-            layout_rect,
-        );
-        // First draw command is FillRect for the outer rect at (custom_rect.x, custom_rect.y)
-        match &cmds[0] {
-            crate::draw::DrawCmd::FillRect { rect, .. } => {
-                assert_eq!(rect.x, custom_rect.x);
-                assert_eq!(rect.y, custom_rect.y);
-            }
-            other => panic!("Expected FillRect, got {:?}", other),
-        }
+        let result = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), placement);
+        // With zero items, resolved bounds x/y should match the placement origin.
+        assert_eq!(result.layout.bounds.x, placement.x);
+        assert_eq!(result.layout.bounds.y, placement.y);
     }
 
     #[test]
     fn test_tree_bounds_and_content_bounds() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -342,7 +373,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let res = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), layout_rect);
@@ -362,5 +394,52 @@ mod tests {
             expected_h - (style.border_width + style.pad_y) * 2.0,
         );
         assert_eq!(res.layout.content_bounds, expected_content);
+    }
+
+    #[test]
+    fn test_calc_tree_intrinsic_size_empty() {
+        let spec = raw::TreeSpec {
+            rect: Rect::PLACEHOLDER,
+            items: &[],
+            style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
+        };
+        let style = spec.style;
+        let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+        assert_eq!(
+            intrinsic.preferred,
+            Some(Vec2::new(style.min_width, style.pad_y * 2.0))
+        );
+    }
+
+    #[test]
+    fn test_calc_tree_intrinsic_size_with_items() {
+        let items = [
+            TreeRow {
+                indent: 0,
+                caret: None,
+                label: "a",
+                meta: None,
+                selected: false,
+            },
+            TreeRow {
+                indent: 0,
+                caret: None,
+                label: "b",
+                meta: None,
+                selected: false,
+            },
+        ];
+        let spec = raw::TreeSpec {
+            rect: Rect::PLACEHOLDER,
+            items: &items,
+            style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
+        };
+        let style = spec.style;
+        let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+        let expected_h = 2.0 * style.row_height + style.pad_y * 2.0;
+        assert_eq!(
+            intrinsic.preferred,
+            Some(Vec2::new(style.min_width, expected_h))
+        );
     }
 }
