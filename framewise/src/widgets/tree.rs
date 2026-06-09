@@ -17,17 +17,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct TreeCalcIntrinsicSizeSpec<'a> {
+        pub items: &'a [super::TreeRow<'a>],
+        pub style: super::TreeStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TreeResult {
         pub bounds: Rect,
         pub content_bounds: Rect,
     }
 
-    /// Measure a tree widget's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
-    pub fn calc_tree_intrinsic_size(spec: &TreeSpec) -> IntrinsicSize {
+    /// Measure a tree widget's intrinsic size from its measurement spec.
+    pub fn calc_tree_intrinsic_size(spec: &TreeCalcIntrinsicSizeSpec) -> IntrinsicSize {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
         IntrinsicSize::preferred(Vec2::new(s.min_width, total_h))
@@ -232,11 +234,18 @@ pub struct TreeResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TreeSpec<'a> {
+    pub items: &'a [TreeRow<'a>],
+    pub style: TreeStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TreeSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub items: Option<&'a [TreeRow<'a>]>,
     pub style: Option<TreeStyle>,
 }
@@ -255,15 +264,8 @@ impl<'a> TreeSpecBuilder<'a> {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(TreeStyle::from_theme(theme));
@@ -271,9 +273,8 @@ impl<'a> TreeSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::TreeSpec<'a> {
-        raw::TreeSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> TreeSpec<'a> {
+        TreeSpec {
             items: self.items.expect("items not set — call .items()"),
             style: self
                 .style
@@ -292,20 +293,20 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
     builder: TreeSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> TreeResult {
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real rect is then determined by the layout system and
-    // assigned below. Any `rect` set on the builder is ignored by the high-level
-    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
-    // for explicit rects).
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::TreeCalcIntrinsicSizeSpec {
+        items: spec.items,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_tree_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::TreeSpec {
+        rect,
+        items: spec.items,
+        style: spec.style,
+    };
 
-    let result = raw::tree(spec, ctx.text_system, ctx.cmds);
+    let result = raw::tree(raw_spec, ctx.text_system, ctx.cmds);
     TreeResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -398,8 +399,7 @@ mod tests {
 
     #[test]
     fn test_calc_tree_intrinsic_size_empty() {
-        let spec = raw::TreeSpec {
-            rect: Rect::PLACEHOLDER,
+        let spec = raw::TreeCalcIntrinsicSizeSpec {
             items: &[],
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
@@ -429,8 +429,7 @@ mod tests {
                 selected: false,
             },
         ];
-        let spec = raw::TreeSpec {
-            rect: Rect::PLACEHOLDER,
+        let spec = raw::TreeCalcIntrinsicSizeSpec {
             items: &items,
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
