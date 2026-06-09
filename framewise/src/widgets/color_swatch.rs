@@ -18,6 +18,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct ColorSwatchCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
         pub content_bounds: Rect,
     }
@@ -27,10 +30,8 @@ pub mod raw {
     /// A color swatch has no inherent preferred size. This returns
     /// [`IntrinsicSize::UNKNOWN`].
     ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
     pub fn calc_color_swatch_intrinsic_size(
-        spec: &ColorSwatchSpec,
+        spec: &ColorSwatchCalcIntrinsicSizeSpec,
     ) -> crate::layout::IntrinsicSize {
         let _ = spec;
         crate::layout::IntrinsicSize::UNKNOWN
@@ -63,11 +64,18 @@ pub struct ColorSwatchResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColorSwatchSpec {
+    pub color: Color,
+    pub border: Color,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ColorSwatchSpecBuilder {
-    pub rect: Option<Rect>,
     pub color: Option<Color>,
     pub border: Option<Color>,
 }
@@ -87,15 +95,8 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.border.is_none() {
             self.border = Some(theme.ink);
@@ -104,9 +105,8 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::ColorSwatchSpec {
-        raw::ColorSwatchSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> ColorSwatchSpec {
+        ColorSwatchSpec {
             color: self
                 .color
                 .expect("color not set — call .color() or defaults_from_theme()"),
@@ -127,14 +127,16 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
     builder: ColorSwatchSpecBuilder,
     layout_params: S::Params,
 ) -> ColorSwatchResult {
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_color_swatch_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::ColorSwatchCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_color_swatch_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::color_swatch(spec, ctx.cmds);
+    let raw_spec = raw::ColorSwatchSpec {
+        rect,
+        color: spec.color,
+        border: spec.border,
+    };
+    let result = raw::color_swatch(raw_spec, ctx.cmds);
     ColorSwatchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -149,11 +151,11 @@ mod tests {
 
     #[test]
     fn test_color_swatch_visual_normal() {
-        let spec = ColorSwatchSpecBuilder::new()
-            .rect(Rect::new(0.0, 0.0, 16.0, 16.0))
-            .color(Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0))
-            .border(Color::linear_rgba(0.0, 0.0, 0.0, 0.20))
-            .build();
+        let spec = ColorSwatchSpec {
+            rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+            color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
+            border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
+        };
         let mut cmds = DrawCommands::new();
         let res = raw::color_swatch(spec, &mut cmds);
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
