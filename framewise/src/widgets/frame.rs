@@ -18,6 +18,11 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
+    pub struct FrameCalcIntrinsicSizeSpec {
+        pub style: super::FrameStyle,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameToken {
         pub fill_index: usize,
         pub clip_index: usize,
@@ -37,9 +42,9 @@ pub mod raw {
     /// minimum size derived from padding and border width alone, so that a frame
     /// with no children does not collapse to a degenerate zero rect.
     ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
-    pub fn calc_frame_intrinsic_size(spec: &FrameSpec) -> crate::layout::IntrinsicSize {
+    pub fn calc_frame_intrinsic_size(
+        spec: &FrameCalcIntrinsicSizeSpec,
+    ) -> crate::layout::IntrinsicSize {
         let _ = spec;
         crate::layout::IntrinsicSize::UNKNOWN
     }
@@ -150,11 +155,17 @@ pub struct FrameResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameSpec {
+    pub style: FrameStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FrameSpecBuilder {
-    pub rect: Option<Rect>,
     pub style: Option<FrameStyle>,
 }
 
@@ -166,14 +177,8 @@ impl FrameSpecBuilder {
         self.style = Some(style);
         self
     }
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(FrameStyle::from_theme(theme));
@@ -181,9 +186,8 @@ impl FrameSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::FrameSpec {
-        raw::FrameSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> FrameSpec {
+        FrameSpec {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -219,12 +223,10 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     inner_layout: L,
 ) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b>
 {
-    let spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let inset = spec.style.border_width + spec.style.padding;
-    let intrinsic = raw::calc_frame_intrinsic_size(&spec);
+    let calc_spec = raw::FrameCalcIntrinsicSizeSpec { style: spec.style };
+    let intrinsic = raw::calc_frame_intrinsic_size(&calc_spec);
 
     let policy = ctx.layout_policy;
     let violation_font = ctx.theme.sans_font;
@@ -242,7 +244,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         move |cmds, outer| {
             let spec = raw::FrameSpec {
                 rect: Rect::pending_extent(outer.x, outer.y),
-                ..spec
+                style: spec.style,
             };
             let raw::FrameResult {
                 token: frame_token, ..
@@ -353,10 +355,7 @@ mod tests {
             border_width: 2.0,
             padding: 4.0,
         };
-        let spec = raw::FrameSpec {
-            rect: Rect::PLACEHOLDER,
-            style,
-        };
+        let spec = raw::FrameCalcIntrinsicSizeSpec { style };
         assert_eq!(
             raw::calc_frame_intrinsic_size(&spec),
             crate::layout::IntrinsicSize::UNKNOWN
