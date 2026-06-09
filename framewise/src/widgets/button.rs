@@ -892,69 +892,22 @@ mod tests {
     fn test_hover_and_press_state() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_system = FocusSystem::new();
 
-        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
-
-        // Frame 1: Mouse outside
-        let mut input = Input {
-            mouse_pos: Vec2::new(150.0, 150.0),
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        let res = raw::button(
-            spec(),
+        crate::widgets::test_helpers::assert_hover_and_press_state(
             &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(!res.input.hovered);
-        assert!(!res.input.pressed);
-
-        // Frame 2: Mouse inside, not down
-        input.mouse_pos = Vec2::new(50.0, 25.0);
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(res.input.hovered, "Should be hovered");
-        assert!(!res.input.pressed, "Should not be pressed");
-
-        // Frame 3: Mouse down inside
-        input.mouse_down = true;
-        input.mouse_pressed = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(res.input.hovered, "Should be hovered while pressed down");
-        assert!(res.input.pressed, "Should be pressed");
-
-        // Frame 4: Drag outside
-        input.mouse_pos = Vec2::new(150.0, 150.0);
-        input.mouse_pressed = false;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(!res.input.hovered, "Should lose hover when dragged out");
-        assert!(
-            !res.input.pressed,
-            "Should lose pressed state when dragged out"
+            Vec2::new(50.0, 25.0),
+            Vec2::new(150.0, 150.0),
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 

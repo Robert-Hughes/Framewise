@@ -1,6 +1,51 @@
 use crate::{
-    draw::DrawCommands, focus::FocusId, focus::FocusSystem, input::Input, widget::InputInfo,
+    draw::DrawCommands,
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    types::Vec2,
+    widget::InputInfo,
 };
+
+pub fn assert_hover_and_press_state<State>(
+    state: &mut State,
+    inside_pos: Vec2,
+    outside_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input {
+        mouse_pos: outside_pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.hovered, "Widget should not be hovered");
+    assert!(!result.pressed, "Widget should not be pressed");
+
+    input.mouse_pos = inside_pos;
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(result.hovered, "Widget should be hovered");
+    assert!(!result.pressed, "Widget should not be pressed");
+
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(
+        result.hovered,
+        "Widget should be hovered while pressed down"
+    );
+    assert!(result.pressed, "Widget should be pressed");
+
+    input.mouse_pos = outside_pos;
+    input.mouse_pressed = false;
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.hovered, "Widget should lose hover when dragged out");
+    assert!(
+        !result.pressed,
+        "Widget should lose pressed state when dragged out"
+    );
+}
 
 pub fn assert_spacebar_click<State>(
     state: &mut State,

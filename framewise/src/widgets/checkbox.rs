@@ -579,6 +579,32 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_hover_and_press_state() {
+        let mut state = CheckboxState::default();
+
+        crate::widgets::test_helpers::assert_hover_and_press_state(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            Vec2::new(150.0, 150.0),
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+    }
+
+    #[test]
     fn test_checkbox_spacebar_click() {
         let mut state = CheckboxState::default();
         let focus_id = state.focus_id;
