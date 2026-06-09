@@ -1040,18 +1040,24 @@ const SEC_GAP: f32 = 72.0;
 fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextSystem, LS, CF>, rect: Rect) {
     let size = 9.0;
     let color = b.theme.muted;
-    let spec_builder = LabelSpecBuilder::new()
-        .text("(STATIC)")
-        .style(LabelStyle {
-            text_style: framewise::TextStyle {
-                size,
-                ..(LabelStyle::from_theme(&b.theme)).text_style
-            },
-            text_color: color,
-            ..LabelStyle::from_theme(&b.theme)
-        })
-        .rect(rect);
-    framewise::widgets::label::raw::label(spec_builder.build(), b.text_system, b.cmds);
+    let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
+        text_style: framewise::TextStyle {
+            size,
+            ..(LabelStyle::from_theme(&b.theme)).text_style
+        },
+        text_color: color,
+        ..LabelStyle::from_theme(&b.theme)
+    });
+    let spec = spec_builder.build();
+    framewise::widgets::label::raw::label(
+        framewise::widgets::label::raw::LabelSpec {
+            rect,
+            text: spec.text,
+            style: spec.style,
+        },
+        b.text_system,
+        b.cmds,
+    );
 }
 
 fn sec_y<CF>(

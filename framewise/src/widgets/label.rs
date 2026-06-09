@@ -21,17 +21,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct LabelCalcIntrinsicSizeSpec<'a> {
+        pub text: &'a str,
+        pub style: super::LabelStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct LabelResult {
         pub content_bounds: Rect,
     }
 
-    /// Measure a label's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
+    /// Measure a label's intrinsic size from its measurement spec.
     pub fn calc_label_intrinsic_size<T: TextSystem>(
-        spec: &LabelSpec,
+        spec: &LabelCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let t = text_system.measure(
@@ -86,6 +88,8 @@ pub mod raw {
     }
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
 /// Visual configuration for a label.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LabelStyle {
@@ -128,11 +132,18 @@ pub struct LabelResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LabelSpec<'a> {
+    pub text: &'a str,
+    pub style: LabelStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LabelSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<LabelStyle>,
 }
@@ -149,23 +160,16 @@ impl<'a> LabelSpecBuilder<'a> {
         self.style = Some(style);
         self
     }
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(LabelStyle::from_theme(theme));
         }
         self
     }
-    pub fn build(self) -> raw::LabelSpec<'a> {
-        raw::LabelSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> LabelSpec<'a> {
+        LabelSpec {
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
@@ -185,20 +189,20 @@ pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> LabelResult {
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real rect is then determined by the layout system and
-    // assigned below. Any `rect` set on the builder is ignored by the high-level
-    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
-    // for explicit rects).
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_label_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::LabelCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_label_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::LabelSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+    };
 
-    let r = raw::label(spec, ctx.text_system, ctx.cmds);
+    let r = raw::label(raw_spec, ctx.text_system, ctx.cmds);
 
     LabelResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -549,8 +553,7 @@ mod tests {
     fn test_calc_label_intrinsic_size() {
         let mut ts = DummyTextSys;
         let theme = crate::theme::Theme::default();
-        let spec = LabelSpec {
-            rect: Rect::PLACEHOLDER,
+        let spec = raw::LabelCalcIntrinsicSizeSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
@@ -590,8 +593,7 @@ mod tests {
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
         style.text_style.flow = flow;
-        let spec = LabelSpec {
-            rect: Rect::PLACEHOLDER,
+        let spec = raw::LabelCalcIntrinsicSizeSpec {
             text: "Hello World",
             style,
         };

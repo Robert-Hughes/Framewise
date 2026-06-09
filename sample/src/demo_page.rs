@@ -3,7 +3,10 @@ use framewise::{
     focus::FocusSystem,
     layout::{Layout, LayoutState},
     layouts::linear::ColumnState,
-    widgets::label::{LabelSpecBuilder, LabelStyle},
+    widgets::label::{
+        raw::{LabelCalcIntrinsicSizeSpec, LabelSpec as RawLabelSpec},
+        LabelSpecBuilder, LabelStyle,
+    },
     ColumnLayoutParams, LayoutViolationPolicy, Rect, TextSystem, WidgetContext,
 };
 
@@ -77,12 +80,14 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
     };
 
-    let label_spec = LabelSpecBuilder::new()
-        .text(title)
-        .style(title_style)
-        .rect(Rect::PLACEHOLDER);
+    let label_spec = LabelSpecBuilder::new().text(title).style(title_style);
+    let label_spec = label_spec.build();
+    let label_spec = LabelCalcIntrinsicSizeSpec {
+        text: label_spec.text,
+        style: label_spec.style,
+    };
     let label_intrinsic = framewise::widgets::label::raw::calc_label_intrinsic_size(
-        &label_spec.build(),
+        &label_spec,
         parent_ctx.text_system,
     );
     let title_h = label_intrinsic.preferred.map_or(24.0, |p| p.y);
@@ -94,11 +99,11 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         label_width,
         title_h,
     );
-    let spec = LabelSpecBuilder::new()
-        .text(title)
-        .style(title_style)
-        .rect(title_rect)
-        .build();
+    let spec = RawLabelSpec {
+        rect: title_rect,
+        text: title,
+        style: title_style,
+    };
     framewise::widgets::label::raw::label(spec, parent_ctx.text_system, parent_ctx.cmds);
 
     let offset_y = title_h + 24.0;
