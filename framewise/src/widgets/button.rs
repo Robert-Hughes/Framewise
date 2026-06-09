@@ -647,96 +647,40 @@ mod tests {
     #[test]
     fn test_drag_off_and_release_does_not_click_other_button() {
         let mut text_system = DummyTextSys;
-
         let mut state1 = ButtonState::default();
         let mut state2 = ButtonState::default();
 
-        let btn1_spec = || ButtonSpec {
-            text: "Click Me",
-            ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
-        };
-        let btn2_spec = || ButtonSpec {
-            text: "Btn2",
-            ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
-        };
-
-        // Frame 1: Mouse down on Btn1
-        let mut focus_system = FocusSystem::new();
-        let mut input = Input {
-            mouse_pos: Vec2::new(50.0, 25.0),
-            mouse_down: true,
-            mouse_pressed: true,
-            mouse_clicked: false,
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        let res1 = raw::button(
-            btn1_spec(),
+        crate::widgets::test_helpers::assert_drag_off_and_release_does_not_click_other(
             &mut state1,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(res1.input.pressed);
-
-        // Frame 2: Mouse dragged over Btn2
-        input.mouse_pressed = false;
-        input.mouse_pos = Vec2::new(50.0, 125.0);
-        raw::button(
-            btn1_spec(),
-            &mut state1,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        let res2 = raw::button(
-            btn2_spec(),
             &mut state2,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-
-        assert!(
-            !res2.input.pressed,
-            "Btn2 should not be pressed when mouse is dragged over it"
-        );
-        assert!(
-            !res2.input.hovered,
-            "Btn2 should not be hovered while dragging another widget"
-        );
-
-        // Frame 3: Mouse released over Btn2
-        input.mouse_down = false;
-        input.mouse_clicked = true;
-        let res1 = raw::button(
-            btn1_spec(),
-            &mut state1,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-
-        let res2 = raw::button(
-            btn2_spec(),
-            &mut state2,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-
-        assert!(
-            !res2.input.clicked,
-            "Btn2 should not be clicked if mouse down was not on Btn2"
-        );
-        assert!(
-            !res1.input.clicked,
-            "Btn1 should not be clicked since mouse was released outside"
+            Vec2::new(50.0, 25.0),
+            Vec2::new(50.0, 125.0),
+            false,
+            |state1, state2, input, focus_system, cmds| {
+                let res1 = raw::button(
+                    ButtonSpec {
+                        text: "Click Me",
+                        ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                );
+                let res2 = raw::button(
+                    ButtonSpec {
+                        text: "Btn2",
+                        ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                );
+                (res1.input, res2.input)
+            },
         );
     }
 

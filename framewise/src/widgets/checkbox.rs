@@ -605,6 +605,53 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_drag_off_and_release_does_not_click_other_checkbox() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+
+        crate::widgets::test_helpers::assert_drag_off_and_release_does_not_click_other(
+            &mut state1,
+            &mut state2,
+            Vec2::new(15.0, 15.0),
+            Vec2::new(15.0, 115.0),
+            true,
+            |state1, state2, input, focus_system, cmds| {
+                let res1 = raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 110.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                (res1.input, res2.input)
+            },
+        );
+
+        assert_eq!(
+            state2.checked,
+            CheckedState::Unchecked,
+            "Dragging onto another checkbox must not toggle it on release"
+        );
+    }
+
+    #[test]
     fn test_checkbox_spacebar_click() {
         let mut state = CheckboxState::default();
         let focus_id = state.focus_id;
