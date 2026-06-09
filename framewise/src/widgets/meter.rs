@@ -24,13 +24,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct MeterCalcIntrinsicSizeSpec {
+        pub style: super::MeterStyle,
+        /// Number of bars to display.
+        pub bars: usize,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MeterResult {}
 
     /// Compute the intrinsic size of a meter widget.
     ///
     /// Width = total bar width + gaps, Height = bar height.
-    /// Does not read `spec.rect`.
-    pub fn calc_meter_intrinsic_size(spec: &MeterSpec) -> IntrinsicSize {
+    pub fn calc_meter_intrinsic_size(spec: &MeterCalcIntrinsicSizeSpec) -> IntrinsicSize {
         let w = spec.bars as f32 * spec.style.bar_w
             + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;
         let h = spec.style.bar_h;
@@ -103,11 +109,20 @@ pub struct MeterResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MeterSpec {
+    pub value: f32,
+    pub style: MeterStyle,
+    pub peak: Option<f32>,
+    pub bars: usize,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MeterSpecBuilder {
-    pub rect: Option<Rect>,
     pub value: Option<f32>,
     pub style: Option<MeterStyle>,
     pub peak: Option<Option<f32>>, // matches original API
@@ -139,13 +154,8 @@ impl MeterSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(MeterStyle::from_theme(theme));
@@ -153,9 +163,8 @@ impl MeterSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::MeterSpec {
-        raw::MeterSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> MeterSpec {
+        MeterSpec {
             value: self.value.expect("value not set — call .value()"),
             style: self
                 .style
@@ -174,15 +183,21 @@ pub fn meter<T: TextSystem, S: LayoutState, CF>(
     builder: MeterSpecBuilder,
     layout_params: S::Params,
 ) -> MeterResult {
-    // Create a provisional spec with a placeholder rect to compute intrinsic size.
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_meter_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::MeterCalcIntrinsicSizeSpec {
+        style: spec.style,
+        bars: spec.bars,
+    };
+    let intrinsic = raw::calc_meter_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    raw::meter(spec, ctx.cmds);
+    let raw_spec = raw::MeterSpec {
+        rect,
+        value: spec.value,
+        style: spec.style,
+        peak: spec.peak,
+        bars: spec.bars,
+    };
+    raw::meter(raw_spec, ctx.cmds);
     MeterResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -278,7 +293,6 @@ mod tests {
     fn test_builder_defaults() {
         let theme = crate::theme::Theme::default();
         let spec = MeterSpecBuilder::new()
-            .rect(Rect::new(0.0, 0.0, 100.0, 20.0))
             .value(0.5)
             .defaults_from_theme(&theme)
             .build();
