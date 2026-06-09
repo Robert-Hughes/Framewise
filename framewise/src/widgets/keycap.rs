@@ -17,17 +17,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct KeycapCalcIntrinsicSizeSpec<'a> {
+        pub text: &'a str,
+        pub style: super::KeycapStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct KeycapResult {
         pub content_bounds: Rect,
     }
 
-    /// Measure a keycap's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** - this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
+    /// Measure a keycap's intrinsic size from its measurement spec.
     pub fn calc_keycap_intrinsic_size<T: TextSystem>(
-        spec: &KeycapSpec,
+        spec: &KeycapCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let metrics = text_system.measure(
@@ -141,11 +143,18 @@ pub struct KeycapResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeycapSpec<'a> {
+    pub text: &'a str,
+    pub style: KeycapStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct KeycapSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<KeycapStyle>,
 }
@@ -164,15 +173,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(KeycapStyle::from_theme(theme));
@@ -180,9 +182,8 @@ impl<'a> KeycapSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::KeycapSpec<'a> {
-        raw::KeycapSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> KeycapSpec<'a> {
+        KeycapSpec {
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
@@ -201,14 +202,19 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> KeycapResult {
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_keycap_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::KeycapCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::keycap(spec, ctx.text_system, ctx.cmds);
+    let raw_spec = raw::KeycapSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+    };
+    let result = raw::keycap(raw_spec, ctx.text_system, ctx.cmds);
     KeycapResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
