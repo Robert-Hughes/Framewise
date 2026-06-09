@@ -2,9 +2,9 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    layout::LayoutState,
-    text::{FontId, TextSystem},
-    types::{ClipRect, Color, Rect},
+    layout::{IntrinsicSize, LayoutState},
+    text::{TextBounds, TextFlow, TextStyle, TextSystem},
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -23,11 +23,33 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
         pub clipboard_action: Option<ClipboardAction>,
+    }
+
+    /// Measure a text edit's intrinsic size from its current state and spec.
+    ///
+    /// **Must not read `spec.rect`** — this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends on the
+    /// current text, style, and padding.
+    pub fn calc_text_edit_intrinsic_size<T: TextSystem>(
+        spec: &TextEditSpec,
+        state: &TextEditState,
+        text_system: &mut T,
+    ) -> IntrinsicSize {
+        let text = if state.value.is_empty() {
+            " "
+        } else {
+            &state.value
+        };
+        let metrics = text_system.measure(text, spec.style.text_style, TextBounds::UNBOUNDED);
+        let inset = (spec.style.border_width + spec.style.padding) * 2.0;
+        IntrinsicSize::preferred(Vec2::new(
+            metrics.logical_size.x + inset,
+            (metrics.logical_size.y + inset).max(spec.style.min_height),
+        ))
     }
 
     /// Low-level text edit widget function.
@@ -40,9 +62,8 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> TextEditResult {
-        let mut cmds = DrawCommands::new();
-
         let mut clipboard_action = None;
 
         // Disabled: draw at reduced alpha, no interaction.
@@ -60,17 +81,24 @@ pub mod raw {
             let inset = spec.style.border_width + spec.style.padding;
             let content_rect = spec.rect.inset(inset);
             if !state.value.is_empty() {
-                let layout =
-                    text_system.prepare(&state.value, spec.style.text_size, spec.style.font);
-                let ty = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
+                let metrics = text_system.measure(
+                    &state.value,
+                    spec.style.text_style,
+                    TextBounds {
+                        max_width: Some(content_rect.w),
+                        max_height: Some(content_rect.h),
+                    },
+                );
+                let ty = content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0;
+                let text_rect = Rect::new(content_rect.x, ty, content_rect.w, content_rect.h);
+                let layout = text_system.prepare(&state.value, spec.style.text_style, text_rect);
                 cmds.push(DrawCmd::Text {
-                    rect: Rect::new(content_rect.x, ty, content_rect.w, content_rect.h),
+                    rect: text_rect,
                     color: tint(spec.style.text_color),
                     handle: layout.handle,
                 });
             }
             return TextEditResult {
-                draw: cmds,
                 content_bounds: content_rect,
                 clipboard_action: None,
                 focused: false,
@@ -232,15 +260,6 @@ pub mod raw {
             state.caret_byte = 0; // fallback
         }
 
-        // Prepare text to get layout handle
-        let text_content = if state.value.is_empty() {
-            " "
-        } else {
-            &state.value
-        };
-        let layout = text_system.prepare(text_content, spec.style.text_size, spec.style.font);
-        let handle = layout.handle;
-
         let inset = spec.style.border_width + spec.style.padding;
         let mut content_rect = spec.rect.inset(inset);
         if spec.error {
@@ -248,14 +267,36 @@ pub mod raw {
             content_rect.x += spec.style.error_stripe_width;
             content_rect.w -= spec.style.error_stripe_width;
         }
-        let text_y = content_rect.y + (content_rect.h - layout.size.y) / 2.0;
+
+        // Prepare text after content bounds are known so hit testing and caret
+        // geometry use the same logical text block that will be drawn.
+        let text_content = if state.value.is_empty() {
+            " "
+        } else {
+            &state.value
+        };
+        let metrics = text_system.measure(
+            text_content,
+            spec.style.text_style,
+            TextBounds {
+                max_width: Some(content_rect.w),
+                max_height: Some(content_rect.h),
+            },
+        );
+        let text_y = content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0;
+        let text_rect = Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h);
+        let layout = text_system.prepare(text_content, spec.style.text_style, text_rect);
+        let handle = layout.handle;
 
         // Mouse interaction
         if contains && input.mouse_pressed {
             focus_system.take_focus(state.focus_id);
 
-            let relative_x = input.mouse_pos.x - content_rect.x;
-            let clicked_byte = text_system.hit_test_x(handle, relative_x);
+            let relative_pos = Vec2::new(
+                input.mouse_pos.x - text_rect.x,
+                input.mouse_pos.y - text_rect.y,
+            );
+            let clicked_byte = text_system.hit_test(handle, relative_pos);
             let clicked_byte = clicked_byte.min(state.value.len());
 
             // Handling double/triple clicks
@@ -279,8 +320,11 @@ pub mod raw {
 
         if state.is_dragging {
             if input.mouse_down {
-                let relative_x = input.mouse_pos.x - content_rect.x;
-                let current_byte = text_system.hit_test_x(handle, relative_x);
+                let relative_pos = Vec2::new(
+                    input.mouse_pos.x - text_rect.x,
+                    input.mouse_pos.y - text_rect.y,
+                );
+                let current_byte = text_system.hit_test(handle, relative_pos);
                 let current_byte = current_byte.min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
@@ -356,14 +400,14 @@ pub mod raw {
                     let start = sel.min(state.caret_byte);
                     let end = sel.max(state.caret_byte);
 
-                    let start_x = text_system.measure_byte_x(handle, start);
-                    let end_x = text_system.measure_byte_x(handle, end);
+                    let start_caret = text_system.caret_geom(handle, start);
+                    let end_caret = text_system.caret_geom(handle, end);
 
                     let sel_rect = Rect::new(
-                        content_rect.x + start_x,
-                        content_rect.y,
-                        end_x - start_x,
-                        content_rect.h,
+                        text_rect.x + start_caret.x.min(end_caret.x),
+                        text_rect.y + start_caret.y_top,
+                        (end_caret.x - start_caret.x).abs(),
+                        start_caret.height,
                     );
 
                     cmds.push(DrawCmd::FillRect {
@@ -377,7 +421,7 @@ pub mod raw {
         // Text
         if !state.value.is_empty() {
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h),
+                rect: text_rect,
                 color: spec.style.text_color,
                 handle,
             });
@@ -394,8 +438,13 @@ pub mod raw {
             };
 
             if blink_on {
-                let cursor_x = text_system.measure_byte_x(handle, state.caret_byte);
-                let caret_rect = Rect::new(content_rect.x + cursor_x, text_y, 1.0, layout.size.y);
+                let caret = text_system.caret_geom(handle, state.caret_byte);
+                let caret_rect = Rect::new(
+                    text_rect.x + caret.x,
+                    text_rect.y + caret.y_top,
+                    1.0,
+                    caret.height,
+                );
                 cmds.push(DrawCmd::FillRect {
                     rect: caret_rect,
                     color: spec.style.caret_color,
@@ -409,7 +458,6 @@ pub mod raw {
         state.was_focused = focused || (contains && input.mouse_pressed);
 
         TextEditResult {
-            draw: cmds,
             content_bounds: content_rect,
             clipboard_action,
             focused,
@@ -433,9 +481,9 @@ pub struct TextEditStyle {
     pub border_width: f32,
     pub error_border: Color,
     pub error_stripe_width: f32,
+    pub min_height: f32,
     pub padding: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: TextStyle,
     pub text_color: Color,
     pub caret_color: Color,
     pub select_color: Color,
@@ -452,9 +500,14 @@ impl TextEditStyle {
             error_border: theme.rust,
             error_stripe_width: 4.0,
             border_width: theme.border,
+            min_height: theme.h_md,
             padding: 4.0,
-            text_size: theme.text_mono,
-            font: theme.mono_font,
+            text_style: TextStyle::new(
+                theme.mono_font,
+                theme.text_mono,
+                theme.sans_weight_regular,
+                TextFlow::single_line(),
+            ),
             text_color: theme.ink,
             caret_color: theme.rust,
             select_color: theme.rust_soft,
@@ -703,18 +756,24 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut TextEditState,
 ) -> TextEditResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
+        .rect(Rect::PLACEHOLDER)
         .defaults_from_theme(&ctx.theme)
         .clip_rect(clip)
         .time(ctx.time)
         .build();
-    let result = raw::text_edit(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_text_edit_intrinsic_size(&spec, state, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::text_edit(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     TextEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -739,25 +798,23 @@ mod tests {
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
         assert_eq!(
-            builder.style.unwrap().font,
-            TextEditStyle::from_theme(&theme).font
+            builder.style.unwrap().text_style.font,
+            TextEditStyle::from_theme(&theme).text_style.font
         );
         assert_eq!(
-            builder.style.unwrap().text_size,
-            TextEditStyle::from_theme(&theme).text_size
+            builder.style.unwrap().text_style.size,
+            TextEditStyle::from_theme(&theme).text_style.size
         );
     }
 
     #[test]
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
-        let custom_style = TextEditStyle {
-            font: FontId(99),
-            ..TextEditStyle::from_theme(&crate::theme::Theme::framewise())
-        };
+        let mut custom_style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
+        custom_style.text_style.size = 99.0;
         let builder = TextEditSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().font, FontId(99));
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     fn spec() -> TextEditSpec {
@@ -791,6 +848,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abc");
         assert_eq!(state.caret_byte, 3);
@@ -807,6 +865,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.caret_byte, 2);
 
@@ -819,6 +878,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abxc");
         assert_eq!(state.caret_byte, 3);
@@ -843,6 +903,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "helo");
         assert_eq!(state.caret_byte, 2);
@@ -855,6 +916,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "heo");
         assert_eq!(state.caret_byte, 2);
@@ -879,6 +941,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello rld");
         assert_eq!(state.caret_byte, 6); // end of "hello "
@@ -891,6 +954,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello ");
         assert_eq!(state.caret_byte, 6);
@@ -922,6 +986,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.selection_byte, Some(1));
         assert_eq!(state.caret_byte, 3);
@@ -934,6 +999,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "halo");
         assert_eq!(state.caret_byte, 2);
@@ -960,6 +1026,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
@@ -973,6 +1040,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
@@ -984,6 +1052,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert!(!state.is_dragging);
         assert_eq!(state.selection_byte, Some(5));
@@ -1012,6 +1081,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         // Selection should be "rust" (6 to 10)
         assert_eq!(state.selection_byte, Some(6));
@@ -1028,6 +1098,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
@@ -1041,6 +1112,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
@@ -1060,17 +1132,22 @@ mod tests {
 
         let mut input = Input::default();
 
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
-        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+        );
         assert!(has_caret, "Caret should be visible initially");
 
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
@@ -1079,15 +1156,19 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
-        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+        );
         assert!(!has_caret, "Caret should be hidden during off phase");
 
         input.text_events.push(TextEvent::CaretLeft {
             shift: false,
             ctrl: false,
         });
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
@@ -1096,17 +1177,21 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         assert_eq!(state.last_caret_move_time, 0.6);
 
-        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+        );
         assert!(
             has_caret,
             "Caret should be visible immediately after moving"
         );
 
         input.text_events.clear();
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             TextEditSpec {
                 time: 1.0,
                 ..spec()
@@ -1115,11 +1200,15 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
-        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+        );
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             TextEditSpec {
                 time: 1.2,
                 ..spec()
@@ -1128,8 +1217,11 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
-        let has_caret = res.draw.0.iter().any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color));
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+        );
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
     }
 
@@ -1169,6 +1261,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, Some(0));
@@ -1195,6 +1288,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
 
         focus_system.end_frame();
@@ -1207,6 +1301,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
 
         assert!(state.was_focused);
@@ -1232,6 +1327,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         focus_system.end_frame();
 
@@ -1266,6 +1362,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         focus_system.end_frame();
 
@@ -1297,6 +1394,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
         assert_eq!(state.value, "hello world");
@@ -1309,6 +1407,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
@@ -1323,6 +1422,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut DrawCommands::new(),
         );
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
@@ -1337,17 +1437,19 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let input = Input::default();
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
@@ -1378,17 +1480,19 @@ mod tests {
         state.was_focused = true; // ensure state knows
 
         let input = Input::default();
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
@@ -1425,17 +1529,19 @@ mod tests {
         state.caret_byte = 5;
 
         let input = Input::default();
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             spec(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
@@ -1446,7 +1552,7 @@ mod tests {
                     width: spec().style.border_width,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(5.0, 5.0, 40.0, 20.0),
+                    rect: Rect::new(5.0, 7.0, 40.0, 16.0),
                     color: spec().style.select_color,
                 },
                 DrawCmd::Text {
@@ -1467,17 +1573,19 @@ mod tests {
         sp.error = true;
 
         let input = Input::default();
-        let res = raw::text_edit(
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
             sp.clone(),
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: sp.style.error_background,
@@ -1502,26 +1610,26 @@ mod tests {
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut te_state = TextEditState::default();
         let result = super::text_edit(
             &mut ctx,
-            TextEditSpecBuilder::new().rect(custom_rect),
-            layout_rect,
+            TextEditSpecBuilder::new(),
+            custom_rect,
             &mut te_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);

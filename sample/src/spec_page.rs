@@ -1707,17 +1707,16 @@ fn section_02_text_inputs<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
-    // ── 02 · TEXT INPUTS ─────────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "02", "Text inputs", "mono caret in rust signals the live insertion point. focus ring sits inside the border so widgets don't shift.");
-    y += 46.0;
+    sec_y(b, &t, content_w, "02", "Text inputs", "mono caret in rust signals the live insertion point. focus ring sits inside the border so widgets don't shift.");
 
-    group_y(b, &t, y, "states · single-line");
-    y += 20.0;
+    group_y(b, &t, "states · single-line");
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 110.0), ManualLayout);
+        let mut y = 0.0;
+        let lx = 0.0;
         let col_labels = ["DEFAULT", "HOVER", "FOCUSED", "ERROR", "DISABLED"];
         let row_labels = ["empty", "filled"];
         let cell_w = 160.0_f32;
@@ -1737,7 +1736,7 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
         }
         y += 20.0;
@@ -1755,7 +1754,7 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
             for ci in 0..5 {
                 let idx = ri * 5 + ci;
@@ -1766,18 +1765,19 @@ fn section_02_text_inputs<CF>(
                     let layout_params =
                         Rect::new(label_w + ci as f32 * (cell_w + 8.0), y, cell_w, t.h_md);
                     let spec_builder = TextEditSpecBuilder::new().error(error).disabled(disabled);
-                    text_edit(b, spec_builder, layout_params, state)
+                    text_edit(&mut b, spec_builder, layout_params, state)
                 };
             }
             y += t.h_md + 8.0;
         }
+        b.finish();
     }
-    y += GROUP_GAP;
 
-    group_y(b, &t, y, "labelled  ·  prefixed  ·  multiline");
-    y += 20.0;
+    group_y(b, &t, "labelled  ·  prefixed  ·  multiline");
     {
-        // Labelled field
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 130.0), ManualLayout);
+        let y = 0.0;
+        let lx = 0.0;
         let field_x = lx;
         {
             let layout_params = Rect::new(field_x, y, 120.0, 14.0);
@@ -1793,13 +1793,13 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         let _info = {
             let state = &mut state.te_labelled;
             let layout_params = Rect::new(field_x, y + 18.0, 160.0, t.h_md);
             let spec_builder = TextEditSpecBuilder::new();
-            text_edit(b, spec_builder, layout_params, state)
+            text_edit(&mut b, spec_builder, layout_params, state)
         };
         {
             let layout_params = Rect::new(field_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
@@ -1815,7 +1815,7 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // Prefixed field (draw prefix addon manually)
@@ -1832,7 +1832,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         {
             let layout_params = Rect::new(pf_x, y + 18.0, 24.0, t.h_md);
@@ -1859,13 +1859,13 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         let _info = {
             let state = &mut state.te_prefixed;
             let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, t.h_md);
             let spec_builder = TextEditSpecBuilder::new();
-            text_edit(b, spec_builder, layout_params, state)
+            text_edit(&mut b, spec_builder, layout_params, state)
         };
         {
             let layout_params = Rect::new(pf_x, y + 18.0 + t.h_md + 4.0, 200.0, 14.0);
@@ -1881,7 +1881,7 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // Multiline field
@@ -1900,17 +1900,17 @@ fn section_02_text_inputs<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         let _info = {
             let state = &mut state.te_multiline;
             let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
             let spec_builder = TextEditSpecBuilder::new();
-            text_edit(b, spec_builder, layout_params, state)
+            text_edit(&mut b, spec_builder, layout_params, state)
         };
+        b.finish();
     }
-    y += 18.0 + 68.0 + 4.0 + 14.0 + SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
