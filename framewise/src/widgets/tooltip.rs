@@ -18,18 +18,20 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct TooltipCalcIntrinsicSizeSpec<'a> {
+        pub text: &'a str,
+        pub style: super::TooltipStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TooltipResult {
         pub bounds: Rect,
         pub content_bounds: Rect,
     }
 
-    /// Measure a tooltip's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** - this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
+    /// Measure a tooltip's intrinsic size from its measurement spec.
     pub fn calc_tooltip_intrinsic_size<T: TextSystem>(
-        spec: &TooltipSpec,
+        spec: &TooltipCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
@@ -176,11 +178,19 @@ pub struct TooltipResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TooltipSpec<'a> {
+    pub text: &'a str,
+    pub variant: TooltipVariant,
+    pub style: TooltipStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TooltipSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub variant: Option<TooltipVariant>,
     pub style: Option<TooltipStyle>,
@@ -204,15 +214,8 @@ impl<'a> TooltipSpecBuilder<'a> {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(TooltipStyle::from_theme(theme));
@@ -220,9 +223,8 @@ impl<'a> TooltipSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::TooltipSpec<'a> {
-        raw::TooltipSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> TooltipSpec<'a> {
+        TooltipSpec {
             text: self.text.expect("text not set — call .text()"),
             variant: self.variant.expect("variant not set — call .variant()"),
             style: self
@@ -242,14 +244,20 @@ pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
     builder: TooltipSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> TooltipResult {
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_tooltip_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::TooltipCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_tooltip_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::tooltip(spec, ctx.text_system, ctx.cmds);
+    let raw_spec = raw::TooltipSpec {
+        rect,
+        text: spec.text,
+        variant: spec.variant,
+        style: spec.style,
+    };
+    let result = raw::tooltip(raw_spec, ctx.text_system, ctx.cmds);
     TooltipResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
