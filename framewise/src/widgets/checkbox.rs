@@ -315,6 +315,110 @@ mod tests {
     use super::raw::CheckboxSpec;
     use super::*;
 
+    fn checkbox_spec(rect: Rect) -> CheckboxSpec {
+        CheckboxSpec {
+            rect,
+            disabled: false,
+            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+            clip_rect: None,
+        }
+    }
+
+    fn draw_two_checkboxes(
+        focus_system: &mut FocusSystem,
+        state1: &mut CheckboxState,
+        state2: &mut CheckboxState,
+        input: &Input,
+        cmds: &mut DrawCommands,
+    ) {
+        raw::checkbox(
+            checkbox_spec(Rect::new(0.0, 0.0, 14.0, 14.0)),
+            state1,
+            input,
+            focus_system,
+            cmds,
+        );
+        raw::checkbox(
+            checkbox_spec(Rect::new(0.0, 40.0, 14.0, 14.0)),
+            state2,
+            input,
+            focus_system,
+            cmds,
+        );
+    }
+
+    #[test]
+    fn test_checkbox_tab_moves_focus_next() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_tab_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_checkboxes(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_checkbox_right_arrow_moves_focus_next() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_right_arrow_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_checkboxes(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_checkbox_down_arrow_moves_focus_next() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_down_arrow_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_checkboxes(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_checkbox_shift_tab_moves_focus_prev() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_shift_tab_moves_focus_prev(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_checkboxes(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
     #[test]
     fn test_checkbox_visual_off() {
         let spec = CheckboxSpec {

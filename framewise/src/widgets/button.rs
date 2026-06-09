@@ -540,107 +540,105 @@ mod tests {
         }
     }
 
-    /// Run one frame with two buttons.
-    fn two_btn_frame(
+    fn draw_two_buttons(
         focus_system: &mut FocusSystem,
         s1: &mut ButtonState,
         s2: &mut ButtonState,
         input: &Input,
+        text_system: &mut DummyTextSys,
+        cmds: &mut DrawCommands,
     ) {
-        let mut ts = DummyTextSys;
-        focus_system.begin_frame();
-        let mut cmds = DrawCommands::new();
         raw::button(
             btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)),
             s1,
             input,
             focus_system,
-            &mut ts,
-            &mut cmds,
+            text_system,
+            cmds,
         );
         raw::button(
             btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
             s2,
             input,
             focus_system,
-            &mut ts,
-            &mut cmds,
+            text_system,
+            cmds,
         );
-        focus_system.end_frame();
     }
 
     #[test]
     fn test_button_tab_moves_focus_next() {
-        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_system.take_focus(s1.focus_id);
+        let focus1 = s1.focus_id;
+        let focus2 = s2.focus_id;
+        let mut text_system = DummyTextSys;
 
-        let mut input = Input::default();
-        input.key_pressed_tab = true;
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
-        // Focus shift resolves at end_frame; confirm in next frame
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(s2.focus_id),
-            "Tab should move focus to btn2"
+        crate::widgets::test_helpers::assert_tab_moves_focus_next(
+            &mut s1,
+            focus1,
+            &mut s2,
+            focus2,
+            |s1, s2, input, focus_system, cmds| {
+                draw_two_buttons(focus_system, s1, s2, input, &mut text_system, cmds);
+            },
         );
     }
 
     #[test]
     fn test_button_right_arrow_moves_focus_next() {
-        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_system.take_focus(s1.focus_id);
+        let focus1 = s1.focus_id;
+        let focus2 = s2.focus_id;
+        let mut text_system = DummyTextSys;
 
-        let mut input = Input::default();
-        input.key_pressed_right = true;
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(s2.focus_id),
-            "Right arrow should move focus to btn2"
+        crate::widgets::test_helpers::assert_right_arrow_moves_focus_next(
+            &mut s1,
+            focus1,
+            &mut s2,
+            focus2,
+            |s1, s2, input, focus_system, cmds| {
+                draw_two_buttons(focus_system, s1, s2, input, &mut text_system, cmds);
+            },
         );
     }
 
     #[test]
     fn test_button_down_arrow_moves_focus_next() {
-        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        focus_system.take_focus(s1.focus_id);
+        let focus1 = s1.focus_id;
+        let focus2 = s2.focus_id;
+        let mut text_system = DummyTextSys;
 
-        let mut input = Input::default();
-        input.key_pressed_down = true;
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(s2.focus_id),
-            "Down arrow should move focus to btn2"
+        crate::widgets::test_helpers::assert_down_arrow_moves_focus_next(
+            &mut s1,
+            focus1,
+            &mut s2,
+            focus2,
+            |s1, s2, input, focus_system, cmds| {
+                draw_two_buttons(focus_system, s1, s2, input, &mut text_system, cmds);
+            },
         );
     }
 
     #[test]
     fn test_button_shift_tab_moves_focus_prev() {
-        let mut focus_system = FocusSystem::new();
         let mut s1 = ButtonState::default();
         let mut s2 = ButtonState::default();
-        // Start with focus on s2
-        focus_system.take_focus(s2.focus_id);
+        let focus1 = s1.focus_id;
+        let focus2 = s2.focus_id;
+        let mut text_system = DummyTextSys;
 
-        let mut input = Input::default();
-        input.key_pressed_tab = true;
-        input.modifier_shift = true;
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &input);
-        two_btn_frame(&mut focus_system, &mut s1, &mut s2, &Input::default());
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(s1.focus_id),
-            "Shift+Tab should move focus back to btn1"
+        crate::widgets::test_helpers::assert_shift_tab_moves_focus_prev(
+            &mut s1,
+            focus1,
+            &mut s2,
+            focus2,
+            |s1, s2, input, focus_system, cmds| {
+                draw_two_buttons(focus_system, s1, s2, input, &mut text_system, cmds);
+            },
         );
     }
 

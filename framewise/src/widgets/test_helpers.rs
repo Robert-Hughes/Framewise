@@ -120,6 +120,77 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
     );
 }
 
+pub fn assert_tab_moves_focus_next<StateA, StateB>(
+    state_a: &mut StateA,
+    focus_a: FocusId,
+    state_b: &mut StateB,
+    focus_b: FocusId,
+    run: impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    assert_focus_moves(
+        state_a,
+        focus_a,
+        state_b,
+        focus_b,
+        |input| input.key_pressed_tab = true,
+        run,
+    );
+}
+
+pub fn assert_right_arrow_moves_focus_next<StateA, StateB>(
+    state_a: &mut StateA,
+    focus_a: FocusId,
+    state_b: &mut StateB,
+    focus_b: FocusId,
+    run: impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    assert_focus_moves(
+        state_a,
+        focus_a,
+        state_b,
+        focus_b,
+        |input| input.key_pressed_right = true,
+        run,
+    );
+}
+
+pub fn assert_down_arrow_moves_focus_next<StateA, StateB>(
+    state_a: &mut StateA,
+    focus_a: FocusId,
+    state_b: &mut StateB,
+    focus_b: FocusId,
+    run: impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    assert_focus_moves(
+        state_a,
+        focus_a,
+        state_b,
+        focus_b,
+        |input| input.key_pressed_down = true,
+        run,
+    );
+}
+
+pub fn assert_shift_tab_moves_focus_prev<StateA, StateB>(
+    state_a: &mut StateA,
+    focus_a: FocusId,
+    state_b: &mut StateB,
+    focus_b: FocusId,
+    run: impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    assert_focus_moves(
+        state_a,
+        focus_b,
+        state_b,
+        focus_a,
+        |input| {
+            input.key_pressed_tab = true;
+            input.modifier_shift = true;
+        },
+        run,
+    );
+}
+
 pub fn assert_mouse_click_on_release<State>(
     state: &mut State,
     inside_pos: Vec2,
@@ -230,6 +301,53 @@ fn run_frame<State>(
     let result = run(state, input, focus_system, cmds);
     focus_system.end_frame();
     result
+}
+
+fn assert_focus_moves<StateA, StateB>(
+    state_a: &mut StateA,
+    initial_focus: FocusId,
+    state_b: &mut StateB,
+    expected_focus: FocusId,
+    configure_input: impl FnOnce(&mut Input),
+    mut run: impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input::default();
+    configure_input(&mut input);
+    let mut cmds = DrawCommands::new();
+    focus_system.take_focus(initial_focus);
+
+    run_focus_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    run_focus_frame(
+        state_a,
+        state_b,
+        &Input::default(),
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+
+    assert_eq!(focus_system.current_focus(), Some(expected_focus));
+}
+
+fn run_focus_frame<StateA, StateB>(
+    state_a: &mut StateA,
+    state_b: &mut StateB,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    cmds: &mut DrawCommands,
+    run: &mut impl FnMut(&mut StateA, &mut StateB, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    focus_system.begin_frame();
+    run(state_a, state_b, input, focus_system, cmds);
+    focus_system.end_frame();
 }
 
 fn run_two_widget_frame<StateA, StateB>(
