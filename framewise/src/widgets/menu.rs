@@ -1,8 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::FocusSystem,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -20,17 +19,62 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct MenuResult {
-        pub draw: DrawCommands,
         pub bounds: Rect,
         pub content_bounds: Rect,
+    }
+
+    pub fn calc_menu_intrinsic_size<T: TextSystem>(
+        spec: &MenuSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let mut widest: f32 = s.min_width;
+        let mut height = s.pad_y * 2.0;
+        for item in spec.items {
+            match item {
+                MenuItem::Item {
+                    label, shortcut, ..
+                } => {
+                    height += s.row_height;
+                    let label_w = text_system
+                        .measure(label, s.label_style, crate::text::TextBounds::UNBOUNDED)
+                        .logical_size
+                        .x;
+                    let shortcut_w = shortcut
+                        .map(|sc| {
+                            text_system
+                                .measure(sc, s.meta_style, crate::text::TextBounds::UNBOUNDED)
+                                .logical_size
+                                .x
+                        })
+                        .unwrap_or(0.0);
+                    widest = widest.max(label_w + shortcut_w + s.pad_x * 3.0);
+                }
+                MenuItem::Separator => height += s.separator_height,
+                MenuItem::Group(label) => {
+                    height += s.group_height;
+                    widest = widest.max(
+                        text_system
+                            .measure(label, s.meta_style, crate::text::TextBounds::UNBOUNDED)
+                            .logical_size
+                            .x
+                            + s.pad_x * 2.0,
+                    );
+                }
+            }
+        }
+        crate::layout::IntrinsicSize::preferred(Vec2::new(widest, height))
     }
 
     /// Low-level menu widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: TextSystem>(spec: MenuSpec<'a>, text_system: &mut T) -> MenuResult {
-        let mut cmds = DrawCommands::new();
+    pub fn menu<'a, T: TextSystem>(
+        spec: MenuSpec<'a>,
+        text_system: &mut T,
+        cmds: &mut DrawCommands,
+    ) -> MenuResult {
         let s = spec.style;
 
         let row_h = s.row_height;
@@ -77,10 +121,21 @@ pub mod raw {
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {
-                    let layout = text_system.prepare(label, s.meta_size, spec.style.meta_font);
                     let ty = y + s.group_text_y;
+                    let metrics = text_system.measure(
+                        label,
+                        s.meta_style,
+                        crate::text::TextBounds::UNBOUNDED,
+                    );
+                    let rect = Rect::new(
+                        outer.x + pad_x,
+                        ty,
+                        metrics.logical_size.x,
+                        metrics.logical_size.y,
+                    );
+                    let layout = text_system.prepare(label, s.meta_style, rect);
                     cmds.push(DrawCmd::Text {
-                        rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
+                        rect,
                         color: s.muted,
                         handle: layout.handle,
                     });
@@ -109,10 +164,21 @@ pub mod raw {
                     } else {
                         tint(s.text)
                     };
-                    let layout = text_system.prepare(label, s.label_size, spec.style.label_font);
-                    let ty = y + (row_h - layout.size.y) * 0.5;
+                    let metrics = text_system.measure(
+                        label,
+                        s.label_style,
+                        crate::text::TextBounds::UNBOUNDED,
+                    );
+                    let ty = y + (row_h - metrics.logical_size.y) * 0.5;
+                    let rect = Rect::new(
+                        outer.x + pad_x,
+                        ty,
+                        metrics.logical_size.x,
+                        metrics.logical_size.y,
+                    );
+                    let layout = text_system.prepare(label, s.label_style, rect);
                     cmds.push(DrawCmd::Text {
-                        rect: Rect::new(outer.x + pad_x, ty, layout.size.x, layout.size.y),
+                        rect,
                         color: text_color,
                         handle: layout.handle,
                     });
@@ -128,11 +194,22 @@ pub mod raw {
                         } else {
                             tint(s.muted)
                         };
-                        let sc_layout = text_system.prepare(sc, s.meta_size, spec.style.meta_font);
-                        let sc_x = outer.x + w - pad_x - sc_layout.size.x;
-                        let sc_ty = y + (row_h - sc_layout.size.y) * 0.5;
+                        let sc_metrics = text_system.measure(
+                            sc,
+                            s.meta_style,
+                            crate::text::TextBounds::UNBOUNDED,
+                        );
+                        let sc_x = outer.x + w - pad_x - sc_metrics.logical_size.x;
+                        let sc_ty = y + (row_h - sc_metrics.logical_size.y) * 0.5;
+                        let sc_rect = Rect::new(
+                            sc_x,
+                            sc_ty,
+                            sc_metrics.logical_size.x,
+                            sc_metrics.logical_size.y,
+                        );
+                        let sc_layout = text_system.prepare(sc, s.meta_style, sc_rect);
                         cmds.push(DrawCmd::Text {
-                            rect: Rect::new(sc_x, sc_ty, sc_layout.size.x, sc_layout.size.y),
+                            rect: sc_rect,
                             color: sc_color,
                             handle: sc_layout.handle,
                         });
@@ -151,7 +228,6 @@ pub mod raw {
         );
 
         MenuResult {
-            draw: cmds,
             bounds: outer,
             content_bounds,
         }
@@ -182,10 +258,8 @@ pub struct MenuStyle {
     pub group_text_y: f32,
     pub separator_y: f32,
     pub min_width: f32,
-    pub label_size: f32,
-    pub meta_size: f32,
-    pub label_font: FontId,
-    pub meta_font: FontId,
+    pub label_style: crate::text::TextStyle,
+    pub meta_style: crate::text::TextStyle,
     pub background: Color,
     pub border: Color,
     pub separator: Color,
@@ -209,10 +283,18 @@ impl MenuStyle {
             group_text_y: 8.0,
             separator_y: 4.0,
             min_width: 200.0,
-            label_size: theme.text_md,
-            meta_size: theme.text_sm,
-            label_font: theme.sans_font,
-            meta_font: theme.mono_font,
+            label_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
+            meta_style: crate::text::TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             separator: theme.line,
@@ -294,11 +376,14 @@ pub fn menu<'a, T: TextSystem, S: LayoutState, CF>(
     builder: MenuSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> MenuResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
-    let spec = builder.rect(rect).defaults_from_theme(&ctx.theme).build();
-    let result = raw::menu(spec, ctx.text_system);
-    ctx.append_cmds(result.draw);
+    let mut spec = builder
+        .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
+        .build();
+    let intrinsic = raw::calc_menu_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::menu(spec, ctx.text_system, ctx.cmds);
     MenuResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -307,6 +392,7 @@ pub fn menu<'a, T: TextSystem, S: LayoutState, CF>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::focus::FocusSystem;
 
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_fields() {
@@ -321,35 +407,31 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = MenuStyle::from_theme(&theme);
-        custom_style.label_size = 99.0;
+        custom_style.label_style.size = 99.0;
         let builder = MenuSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().label_size, 99.0);
+        assert_eq!(builder.style.unwrap().label_style.size, 99.0);
     }
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
-        let result = super::menu(
-            &mut ctx,
-            MenuSpecBuilder::new().items(&[]).rect(custom_rect),
-            layout_rect,
-        );
+        let result = super::menu(&mut ctx, MenuSpecBuilder::new().items(&[]), custom_rect);
         // x and y come from the user-provided rect
         assert_eq!(result.layout.bounds.x, custom_rect.x);
         assert_eq!(result.layout.bounds.y, custom_rect.y);
@@ -357,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_menu_bounds_and_content_bounds() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
@@ -369,7 +451,8 @@ mod tests {
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let res = super::menu(&mut ctx, MenuSpecBuilder::new().items(&[]), layout_rect);

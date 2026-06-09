@@ -217,7 +217,7 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
 
 #[cfg(feature = "select")]
 fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, ColumnState, CF>,
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     value: &'s str,
     options: &'s [&'s str],
@@ -240,7 +240,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
 
     let dummy_input = Input::default();
     let spec = SelectSpec {
-        rect: b.layout(layout_params, IntrinsicSize::UNKNOWN),
+        rect,
         value,
         items: options,
         disabled: is_disabled,
@@ -248,17 +248,14 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
         clip_rect: b.clip_rect,
     };
 
-    let result = raw_select(
+    raw_select(
         spec,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
         b.text_system,
+        b.cmds,
     );
-    {
-        let cmds = result.draw;
-        b.append_cmds(cmds);
-    };
 }
 
 #[cfg(feature = "drag_number")]
@@ -2471,18 +2468,14 @@ fn section_05_selection<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
-    // ── 05 · SELECTION ───────────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "05", "Selection", "selects, segmented controls, and menus share one rule: the chosen thing is filled ink, paper text. no surprises.");
-    y += 46.0;
+    sec_y(b, &t, content_w, "05", "Selection", "selects, segmented controls, and menus share one rule: the chosen thing is filled ink, paper text. no surprises.");
 
-    group_y(b, &t, y, "select  ·  segmented  ·  chips");
-    y += 20.0;
+    group_y(b, &t, "select  ·  segmented  ·  chips");
     {
-        // Select widgets
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 120.0), ManualLayout);
         const LAYOUT_OPTS: &[&str] = &["Layout: row", "Layout: column", "Layout: grid"];
         let value = if state.sel_state.selected_index < LAYOUT_OPTS.len() {
             LAYOUT_OPTS[state.sel_state.selected_index]
@@ -2490,17 +2483,21 @@ fn section_05_selection<CF>(
             ""
         };
         let sel_state = &mut state.sel_state;
-        let _sel_info = select(
-            b,
+        select(
+            &mut b,
             SelectSpecBuilder::new().value(value).items(LAYOUT_OPTS),
-            Rect::new(lx, y, 160.0, t.h_md),
+            Rect::new(0.0, 0.0, 180.0, t.h_md),
             sel_state,
         );
 
-        static_badge(b, &t, lx - 48.0, y + t.h_md + 4.0);
+        let badge_rect = b.layout(
+            Rect::new(0.0, t.h_md + 12.0, 70.0, 12.0),
+            IntrinsicSize::UNKNOWN,
+        );
+        static_badge(&mut b, &t, badge_rect);
         draw_select_fake_state(
-            b,
-            Rect::new(lx, y + t.h_md + 4.0, 160.0, t.h_md),
+            &mut b,
+            Rect::new(0.0, t.h_md + 28.0, 180.0, t.h_md),
             "Layout row",
             LAYOUT_OPTS,
             true,
@@ -2509,63 +2506,74 @@ fn section_05_selection<CF>(
             false,
         );
 
-        // Segmented controls
-        let seg_x = 200.0;
         const SEGS1: &[&str] = &["row", "column", "grid", "flex"];
-        let _seg1_info = {
+        {
             let state = &mut state.seg1_state;
-            let layout_params = Rect::new(seg_x, y, 0.0, t.h_md);
+            let layout_params = Rect::new(220.0, 0.0, 0.0, t.h_md);
             let spec_builder = SegmentedSpecBuilder::new().items(SEGS1);
-            segmented(b, spec_builder, layout_params, state)
+            segmented(&mut b, spec_builder, layout_params, state);
         };
         const SEGS2: &[&str] = &["start", "center", "end"];
-        let _seg2_info = {
+        {
             let state = &mut state.seg2_state;
-            let layout_params = Rect::new(seg_x, y + t.h_md + 4.0, 0.0, t.h_md);
+            let layout_params = Rect::new(220.0, t.h_md + 8.0, 0.0, t.h_md);
             let spec_builder = SegmentedSpecBuilder::new().items(SEGS2);
-            segmented(b, spec_builder, layout_params, state)
+            segmented(&mut b, spec_builder, layout_params, state);
         };
 
-        // Chips
         let chip_labels = ["opengl", "vulkan", "metal", "wgpu"];
-        let chip_y = y;
         let mut chip_x = 560.0;
         for (i, label) in chip_labels.iter().enumerate() {
-            let layout = b.text_system.prepare(label, t.text_sm, t.mono_font);
-            let chip_w = (layout.size.x + 16.0).max(32.0);
-            let _chip_info = {
-                let state = &mut state.chip_states[i];
-                let layout_params = Rect::new(chip_x, chip_y, chip_w, 22.0);
-                let spec_builder = ChipSpecBuilder::new().text(label).style(ChipStyle {
+            let chip_style = ChipStyle {
+                text_style: TextStyle {
                     font: b.theme.sans_font,
-                    ..ChipStyle::from_theme(&b.theme)
-                });
-                chip(b, spec_builder, layout_params, state)
+                    size: t.text_sm,
+                    ..ChipStyle::from_theme(&b.theme).text_style
+                },
+                ..ChipStyle::from_theme(&b.theme)
+            };
+            let metrics = b.text_system.measure(
+                label,
+                chip_style.text_style,
+                framewise::text::TextBounds::UNBOUNDED,
+            );
+            let chip_w = (metrics.logical_size.x + 16.0).max(32.0);
+            {
+                let state = &mut state.chip_states[i];
+                let layout_params = Rect::new(chip_x, 0.0, chip_w, 22.0);
+                let spec_builder = ChipSpecBuilder::new().text(label).style(chip_style);
+                chip(&mut b, spec_builder, layout_params, state);
             };
             chip_x += chip_w + 6.0;
         }
-        let add_layout = b
-            .text_system
-            .prepare("+ add backend", t.text_sm, t.mono_font);
-        let add_w = (add_layout.size.x + 16.0).max(32.0);
-        let _add_info = {
+        let chip_style = ChipStyle {
+            text_style: TextStyle {
+                font: b.theme.sans_font,
+                size: t.text_sm,
+                ..ChipStyle::from_theme(&b.theme).text_style
+            },
+            ..ChipStyle::from_theme(&b.theme)
+        };
+        let add_metrics = b.text_system.measure(
+            "+ add backend",
+            chip_style.text_style,
+            framewise::text::TextBounds::UNBOUNDED,
+        );
+        let add_w = (add_metrics.logical_size.x + 16.0).max(32.0);
+        {
             let state = &mut state.chip_states[4];
-            let layout_params = Rect::new(560.0, y + 28.0, add_w, 22.0);
+            let layout_params = Rect::new(560.0, 30.0, add_w, 22.0);
             let spec_builder = ChipSpecBuilder::new()
                 .text("+ add backend")
-                .style(ChipStyle {
-                    font: b.theme.sans_font,
-                    ..ChipStyle::from_theme(&b.theme)
-                });
-            chip(b, spec_builder, layout_params, state)
+                .style(chip_style);
+            chip(&mut b, spec_builder, layout_params, state);
         };
+        b.finish();
     }
-    let select_open_h = 3.0 * 26.0 + 8.0;
-    y += t.h_md + 4.0 + t.h_md + select_open_h + GROUP_GAP;
 
-    group_y(b, &t, y, "dropdown menu (open)");
-    y += 20.0;
+    group_y(b, &t, "dropdown menu (open)");
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 300.0), ManualLayout);
         static ITEMS1: &[MenuItem<'static>] = &[
             MenuItem::Group("FRAME"),
             MenuItem::Item {
@@ -2609,9 +2617,9 @@ fn section_05_selection<CF>(
             },
         ];
         menu(
-            b,
+            &mut b,
             MenuSpecBuilder::new().items(ITEMS1),
-            Rect::new(lx, y, 240.0, 0.0),
+            Rect::new(0.0, 0.0, 240.0, 0.0),
         );
 
         static ITEMS2: &[MenuItem<'static>] = &[
@@ -2642,24 +2650,13 @@ fn section_05_selection<CF>(
             },
         ];
         menu(
-            b,
+            &mut b,
             MenuSpecBuilder::new().items(ITEMS2),
-            Rect::new(264.0, y, 200.0, 0.0),
+            Rect::new(264.0, 0.0, 200.0, 0.0),
         );
-
-        let menu1_h: f32 = ITEMS1
-            .iter()
-            .map(|i| match i {
-                MenuItem::Item { .. } => 26.0,
-                MenuItem::Separator => 9.0,
-                MenuItem::Group(_) => 22.0,
-            })
-            .sum::<f32>()
-            + 8.0;
-        y += menu1_h;
+        b.finish();
     }
-    y += SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(feature = "scroll_area")]
@@ -3393,32 +3390,28 @@ fn section_11_window<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
-    // ── 11 · WINDOW CHROME ───────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "11", "Window & panel chrome",
+    sec_y(b, &t, content_w, "11", "Window & panel chrome",
         "title bar inverts to ink. window controls are typographic — no traffic-light cosplay. status strip carries live state."                );
-    y += 46.0;
     {
-        // Light window: Inspector with content
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 300.0), ManualLayout);
         let win_buttons = [
             WindowButton { symbol: "−" },
             WindowButton { symbol: "▢" },
             WindowButton { symbol: "×" },
         ];
-        let win_rect = Rect::new(lx, y, 360.0, 280.0);
+        let win_rect = Rect::new(0.0, 0.0, 360.0, 280.0);
         let mut win = {
             let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Inspector")
                 .buttons(&win_buttons)
                 .status_bar(true)
                 .status_text("RENDERING  frame #00248  2.4 ms");
-            begin_window(b, widget_spec_builder, win_rect, ManualLayout).ctx
+            begin_window(&mut b, widget_spec_builder, win_rect, ManualLayout).ctx
         };
 
-        // Inner content: drag numbers + checkboxes
         let mut iy = 0.0;
         let mut drx = 0.0;
         let cr_w = win_rect.w - 32.0;
@@ -3485,8 +3478,7 @@ fn section_11_window<CF>(
         }
         win.finish();
 
-        // Dark variant window (drawn with DrawCmds)
-        let dw = Rect::new(388.0, y, 300.0, 240.0);
+        let dw = Rect::new(388.0, 0.0, 300.0, 240.0);
         let dark_bg = Color::from_srgb_u8(26, 24, 20, 255);
         let darker = Color::from_srgb_u8(12, 11, 9, 255);
         let dark_bdr = Color::from_srgb_u8(58, 53, 45, 255);
@@ -3513,7 +3505,7 @@ fn section_11_window<CF>(
             b.append_cmds(cmds);
         };
         {
-            let layout_params = Rect::new(dw.x + 10.0, y + 6.0, 180.0, 14.0);
+            let layout_params = Rect::new(dw.x + 10.0, 6.0, 180.0, 14.0);
             let size = t.text_sm;
             let spec_builder = LabelSpecBuilder::new()
                 .text("FRAMEWISE · DARK")
@@ -3525,10 +3517,10 @@ fn section_11_window<CF>(
                     text_color: light,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         {
-            let layout_params = Rect::new(dw.x + dw.w - 28.0, y + 6.0, 20.0, 14.0);
+            let layout_params = Rect::new(dw.x + dw.w - 28.0, 6.0, 20.0, 14.0);
             let size = t.text_sm;
             let spec_builder = LabelSpecBuilder::new().text("✕").style(LabelStyle {
                 text_style: framewise::TextStyle {
@@ -3538,12 +3530,11 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         let cx = dw.x + 16.0;
-        let cyw = y + 26.0 + 16.0;
-        // keycap row
+        let cyw = 26.0 + 16.0;
         {
             let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
             let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
@@ -3581,7 +3572,7 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         {
             let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
@@ -3594,7 +3585,7 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&t)
             });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
         {
             let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
@@ -3610,7 +3601,7 @@ fn section_11_window<CF>(
                         text_color: muted_l,
                         ..LabelStyle::from_theme(&t)
                     });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // fake dark input
@@ -3644,7 +3635,7 @@ fn section_11_window<CF>(
                     text_color: muted_l,
                     ..LabelStyle::from_theme(&t)
                 });
-            label(b, spec_builder, layout_params)
+            label(&mut b, spec_builder, layout_params)
         };
 
         // fake dark tabs
@@ -3675,7 +3666,7 @@ fn section_11_window<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
             if i == 0 {
                 {
@@ -3707,13 +3698,13 @@ fn section_11_window<CF>(
                     text_color: muted_l,
                     ..LabelStyle::from_theme(&t)
                 });
-                label(b, spec_builder, layout_params)
+                label(&mut b, spec_builder, layout_params)
             };
         }
 
-        y += 280.0 + SEC_GAP;
+        b.finish();
     }
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(
@@ -3732,15 +3723,14 @@ fn section_12_in_use<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
-    // ── 12 · IN USE ──────────────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "12", "In use",
+    sec_y(b, &t, content_w, "12", "In use",
         "the widgets composed into the kind of panel they were designed for — a settings sheet inside an inspector window.");
-    y += 46.0;
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 500.0), ManualLayout);
+        let y = 0.0;
         // Left: Renderer Settings window
         let win_w_left = 440.0_f32;
         let win_h_full = 480.0_f32;
@@ -3749,14 +3739,14 @@ fn section_12_in_use<CF>(
             WindowButton { symbol: "▢" },
             WindowButton { symbol: "×" },
         ];
-        let wr = Rect::new(lx, y, win_w_left, win_h_full);
+        let wr = Rect::new(0.0, y, win_w_left, win_h_full);
         let mut win = {
             let widget_spec_builder = WindowSpecBuilder::new()
                 .title("Renderer Settings")
                 .buttons(&win_buttons)
                 .status_bar(true)
                 .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa");
-            begin_window(b, widget_spec_builder, wr, ManualLayout).ctx
+            begin_window(&mut b, widget_spec_builder, wr, ManualLayout).ctx
         };
         let cr_w = win_w_left - 32.0;
 
@@ -4083,7 +4073,7 @@ fn section_12_in_use<CF>(
                 .buttons(&fl_buttons)
                 .status_bar(true)
                 .status_text("RECORDING  248 frames  2.6 ms avg");
-            begin_window(b, widget_spec_builder, fl_rect, ManualLayout).ctx
+            begin_window(&mut b, widget_spec_builder, fl_rect, ManualLayout).ctx
         };
         let fl_cr_w = rcol_w - 32.0;
         let fl_cr_h = fl_h - 80.0; // 26 title + 22 status + 32 padding
@@ -4173,7 +4163,7 @@ fn section_12_in_use<CF>(
                 .buttons(&qa_buttons)
                 .status_bar(false)
                 .status_text("");
-            begin_window(b, widget_spec_builder, qa_rect, ManualLayout).ctx
+            begin_window(&mut b, widget_spec_builder, qa_rect, ManualLayout).ctx
         };
         let qa_cr_w = rcol_w - 32.0;
 
@@ -4210,10 +4200,10 @@ fn section_12_in_use<CF>(
             Rect::new(0.0, -8.0, qa_cr_w, 0.0),
         );
         qa_win.finish();
-        y += win_h_full;
+        let _ = win_h_full;
+        b.finish();
     }
-    y += SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 fn footer_section<CF>(

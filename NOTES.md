@@ -8,7 +8,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Golden spec page shouldn't have a scroll bar (auto-size!)!
 
-- Separate structs for high/low/calc_intrinsic widgets. In progress
+- Separate structs for high/low/calc_intrinsic widgets. In progress (see stash)
 
 - Z buffer and z in draw commands
 - "Layer" concept passed throug hteh WidgetContext and into widget funcs, use to derive Z, esp. for focus rings.
@@ -26,6 +26,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Add demo pages for each widget type (or possibly in groups?)
+  - Use/add reusable widget test helpers (test_helpers.rs)
 
 
 ## Design Principles

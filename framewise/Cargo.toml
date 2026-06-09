@@ -5,7 +5,7 @@ edition = "2021"
 description = "A Rust GUI library where the app is always in control."
 
 [features]
-default = ["button", "slider", "scroll_area", "frame", "label", "keycap", "status", "tooltip", "checkbox", "radio", "switch", "color_swatch", "divider", "meter", "progress_bar", "spinner", "tree", "tabs", "chip", "drag_number", "segmented"]
+default = ["button", "slider", "scroll_area", "frame", "label", "keycap", "status", "tooltip", "checkbox", "radio", "switch", "color_swatch", "divider", "meter", "progress_bar", "spinner", "tree", "tabs", "chip", "drag_number", "segmented", "select", "menu", "window"]
 button       = []
 checkbox     = []
 chip         = []

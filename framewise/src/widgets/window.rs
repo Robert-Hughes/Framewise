@@ -2,7 +2,6 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState},
-    text::FontId,
     types::{Color, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     TextSystem,
@@ -23,8 +22,20 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct WindowResult {
-        pub draw: DrawCommands,
         pub content_bounds: Rect,
+    }
+
+    pub fn calc_window_intrinsic_size(spec: &WindowSpec) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let status_h = if spec.status_bar {
+            s.status_height
+        } else {
+            0.0
+        };
+        crate::layout::IntrinsicSize::preferred(Vec2::new(
+            240.0,
+            s.title_height + status_h + s.content_pad_y * 2.0 + 80.0,
+        ))
     }
 
     /// Low-level window begin function.
@@ -34,8 +45,8 @@ pub mod raw {
     pub fn begin_window<'a, T: TextSystem>(
         spec: WindowSpec<'a>,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> WindowResult {
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
 
         let title_h = s.title_height;
@@ -64,15 +75,18 @@ pub mod raw {
             color: s.title_bg,
         });
 
-        let title_layout = text_system.prepare(spec.title, s.text_size, spec.style.font);
-        let tty = spec.rect.y + (title_h - title_layout.size.y) * 0.5;
+        let title_metrics =
+            text_system.measure(spec.title, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let tty = spec.rect.y + (title_h - title_metrics.logical_size.y) * 0.5;
+        let title_text_rect = Rect::new(
+            spec.rect.x + s.text_pad_x,
+            tty,
+            title_metrics.logical_size.x,
+            title_metrics.logical_size.y,
+        );
+        let title_layout = text_system.prepare(spec.title, s.text_style, title_text_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(
-                spec.rect.x + s.text_pad_x,
-                tty,
-                title_layout.size.x,
-                title_layout.size.y,
-            ),
+            rect: title_text_rect,
             color: s.title_text,
             handle: title_layout.handle,
         });
@@ -81,10 +95,18 @@ pub mod raw {
         let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
-            let btn_layout = text_system.prepare(btn.symbol, s.text_size, spec.style.font);
-            let bty = spec.rect.y + (title_h - btn_layout.size.y) * 0.5;
+            let btn_metrics =
+                text_system.measure(btn.symbol, s.text_style, crate::text::TextBounds::UNBOUNDED);
+            let bty = spec.rect.y + (title_h - btn_metrics.logical_size.y) * 0.5;
+            let btn_rect = Rect::new(
+                btn_x,
+                bty,
+                btn_metrics.logical_size.x,
+                btn_metrics.logical_size.y,
+            );
+            let btn_layout = text_system.prepare(btn.symbol, s.text_style, btn_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(btn_x, bty, btn_layout.size.x, btn_layout.size.y),
+                rect: btn_rect,
                 color: s.title_text,
                 handle: btn_layout.handle,
             });
@@ -99,16 +121,22 @@ pub mod raw {
                 color: s.status_border,
                 width: s.border_width,
             });
-            let status_layout =
-                text_system.prepare(spec.status_text.unwrap_or(""), s.text_size, spec.style.font);
-            let sty = bar_y + (status_h - status_layout.size.y) * 0.5;
+            let status_text = spec.status_text.unwrap_or("");
+            let status_metrics = text_system.measure(
+                status_text,
+                s.text_style,
+                crate::text::TextBounds::UNBOUNDED,
+            );
+            let sty = bar_y + (status_h - status_metrics.logical_size.y) * 0.5;
+            let status_rect = Rect::new(
+                spec.rect.x + s.text_pad_x,
+                sty,
+                status_metrics.logical_size.x,
+                status_metrics.logical_size.y,
+            );
+            let status_layout = text_system.prepare(status_text, s.text_style, status_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(
-                    spec.rect.x + s.text_pad_x,
-                    sty,
-                    status_layout.size.x,
-                    status_layout.size.y,
-                ),
+                rect: status_rect,
                 color: s.status_text,
                 handle: status_layout.handle,
             });
@@ -126,7 +154,6 @@ pub mod raw {
         cmds.push(DrawCmd::PushClip { rect: content });
 
         WindowResult {
-            draw: cmds,
             content_bounds: content,
         }
     }
@@ -135,8 +162,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn end_window() -> DrawCommands {
-        DrawCommands(vec![DrawCmd::PopClip])
+    pub fn end_window(cmds: &mut DrawCommands) {
+        cmds.push(DrawCmd::PopClip);
     }
 }
 
@@ -157,8 +184,7 @@ pub struct WindowStyle {
     pub content_pad_x: f32,
     pub content_pad_y: f32,
     pub text_pad_x: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub background: Color,
     pub border: Color,
     pub title_bg: Color,
@@ -179,8 +205,12 @@ impl WindowStyle {
             content_pad_x: 16.0,
             content_pad_y: 16.0,
             text_pad_x: 10.0,
-            text_size: theme.text_sm,
-            font: theme.mono_font,
+            text_style: crate::text::TextStyle::new(
+                theme.mono_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             title_bg: theme.ink,
@@ -280,21 +310,17 @@ pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
     builder: WindowSpecBuilder<'c>,
     layout_params: S::Params,
     inner_layout: L,
-) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut DrawCommands, Vec2)> {
-    let layout_bounds = ctx.layout_state.layout(layout_params);
-    let bounds = builder.rect.unwrap_or(layout_bounds);
-
+) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)> {
     let buttons = builder.buttons.unwrap_or(&[]);
-    let spec = builder
-        .rect(bounds)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .buttons(buttons)
         .build();
-    let raw::WindowResult {
-        draw,
-        content_bounds,
-    } = raw::begin_window(spec, ctx.text_system);
-    ctx.append_cmds(draw);
+    let intrinsic = raw::calc_window_intrinsic_size(&spec);
+    let bounds = ctx.layout(layout_params, intrinsic);
+    spec.rect = bounds;
+    let raw::WindowResult { content_bounds } = raw::begin_window(spec, ctx.text_system, ctx.cmds);
 
     let new_clip = Some(
         ctx.clip_rect
@@ -302,9 +328,8 @@ pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
     );
 
     // The window's cleanup doesn't depend on its content extent.
-    let on_finish = move |_: &mut FocusSystem, cmds: &mut DrawCommands, _content_extent: Vec2| {
-        let post_cmds = raw::end_window();
-        cmds.extend(post_cmds);
+    let on_finish = move |_: &mut FocusSystem, _: &mut T, cmds: &mut DrawCommands, _: Rect| {
+        raw::end_window(cmds);
     };
 
     let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(
@@ -336,34 +361,34 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = WindowStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = WindowSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         use crate::test_utils::DummyTextSys;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 200.0, 150.0);
         let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let child = super::begin_window(
             &mut ctx,
-            WindowSpecBuilder::new().title("T").rect(custom_rect),
-            layout_rect,
+            WindowSpecBuilder::new().title("T"),
+            custom_rect,
             ManualLayout,
         );
         child.ctx.finish();

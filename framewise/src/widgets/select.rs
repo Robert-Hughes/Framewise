@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{ClipRect, Color, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -24,10 +24,32 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SelectResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    pub fn calc_select_intrinsic_size<T: TextSystem>(
+        spec: &SelectSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let mut widest = text_system
+            .measure(spec.value, s.text_style, crate::text::TextBounds::UNBOUNDED)
+            .logical_size
+            .x;
+        for item in spec.items {
+            widest = widest.max(
+                text_system
+                    .measure(item, s.text_style, crate::text::TextBounds::UNBOUNDED)
+                    .logical_size
+                    .x,
+            );
+        }
+        crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(
+            (widest + s.pad_x * 2.0 + s.chevron_right).max(s.min_width),
+            s.height,
+        ))
     }
 
     /// Low-level select widget function.
@@ -40,6 +62,7 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -168,7 +191,6 @@ pub mod raw {
             }
         }
 
-        let mut cmds = DrawCommands::new();
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
@@ -198,25 +220,39 @@ pub mod raw {
             spec.value
         };
 
-        let val_layout = text_system.prepare(display_text, s.text_size, spec.style.font);
-        let vty = r.y + (s.height - val_layout.size.y) * 0.5;
+        let val_metrics = text_system.measure(
+            display_text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let vty = r.y + (s.height - val_metrics.logical_size.y) * 0.5;
+        let val_rect = Rect::new(
+            r.x + s.pad_x,
+            vty,
+            val_metrics.logical_size.x,
+            val_metrics.logical_size.y,
+        );
+        let val_layout = text_system.prepare(display_text, s.text_style, val_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(r.x + s.pad_x, vty, val_layout.size.x, val_layout.size.y),
+            rect: val_rect,
             color: tint(s.text),
             handle: val_layout.handle,
         });
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_layout = text_system.prepare("v", s.chevron_size, spec.style.font);
-        let cty = r.y + (s.height - chev_layout.size.y) * 0.5;
+        let chev_metrics =
+            text_system.measure("v", s.chevron_style, crate::text::TextBounds::UNBOUNDED);
+        let cty = r.y + (s.height - chev_metrics.logical_size.y) * 0.5;
+        let chev_rect = Rect::new(
+            r.x + r.w - s.chevron_right,
+            cty,
+            chev_metrics.logical_size.x,
+            chev_metrics.logical_size.y,
+        );
+        let chev_layout = text_system.prepare("v", s.chevron_style, chev_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(
-                r.x + r.w - s.chevron_right,
-                cty,
-                chev_layout.size.x,
-                chev_layout.size.y,
-            ),
+            rect: chev_rect,
             color: tint(chev_color),
             handle: chev_layout.handle,
         });
@@ -256,15 +292,18 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_layout = text_system.prepare(opt, s.text_size, spec.style.font);
-                let oty = row_y + (row_h - opt_layout.size.y) * 0.5;
+                let opt_metrics =
+                    text_system.measure(opt, s.text_style, crate::text::TextBounds::UNBOUNDED);
+                let oty = row_y + (row_h - opt_metrics.logical_size.y) * 0.5;
+                let opt_rect = Rect::new(
+                    popup.x + s.pad_x + 2.0,
+                    oty,
+                    opt_metrics.logical_size.x,
+                    opt_metrics.logical_size.y,
+                );
+                let opt_layout = text_system.prepare(opt, s.text_style, opt_rect);
                 cmds.push(DrawCmd::Text {
-                    rect: Rect::new(
-                        popup.x + s.pad_x + 2.0,
-                        oty,
-                        opt_layout.size.x,
-                        opt_layout.size.y,
-                    ),
+                    rect: opt_rect,
                     color: tint(text_color),
                     handle: opt_layout.handle,
                 });
@@ -272,7 +311,6 @@ pub mod raw {
         }
 
         SelectResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -296,9 +334,8 @@ pub struct SelectStyle {
     pub popup_pad_y: f32,
     pub pad_x: f32,
     pub chevron_right: f32,
-    pub text_size: f32,
-    pub chevron_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
+    pub chevron_style: crate::text::TextStyle,
     pub background: Color,
     pub border: Color,
     pub text: Color,
@@ -324,9 +361,18 @@ impl SelectStyle {
             popup_pad_y: 4.0,
             pad_x: 10.0,
             chevron_right: 18.0,
-            text_size: theme.text_md,
-            chevron_size: theme.text_sm,
-            font: theme.sans_font,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
+            chevron_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_sm,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             text: theme.ink,
@@ -443,17 +489,23 @@ pub fn select<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SelectState,
 ) -> SelectResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .clip_rect(clip)
         .build();
-    let result = raw::select(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_select_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::select(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     SelectResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -469,14 +521,17 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn select_dummy<'a>(spec: SelectSpec<'a>) -> raw::SelectResult {
-        raw::select(
+    fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
+        let mut cmds = DrawCommands::new();
+        let result = raw::select(
             spec,
             &mut SelectState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
-        )
+            &mut cmds,
+        );
+        (result, cmds)
     }
 
     #[test]
@@ -491,11 +546,11 @@ mod tests {
             clip_rect: None,
         };
         let s = spec.style;
-        let res = select_dummy(spec);
+        let (_, cmds) = select_dummy(spec);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                     color: s.background,
@@ -543,20 +598,22 @@ mod tests {
         };
 
         let mut state = state;
-        let res = raw::select(
+        let mut cmds = DrawCommands::new();
+        raw::select(
             spec,
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
             &mut text_system,
+            &mut cmds,
         );
 
         let r = Rect::new(0.0, 0.0, 180.0, 28.0);
         let popup = Rect::new(0.0, 30.0, 180.0, 86.0);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
@@ -638,12 +695,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -676,12 +735,14 @@ mod tests {
 
         let mut state = state;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             spec,
             &mut state,
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -706,6 +767,7 @@ mod tests {
         // Frame 1: Press Arrow Down while closed -> selected index changes to 1
         input.key_pressed_down = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -719,6 +781,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_pressed_down = false;
@@ -730,6 +793,7 @@ mod tests {
         input.key_down_space = true;
         input.key_pressed_space = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -743,6 +807,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -750,6 +815,7 @@ mod tests {
         input.key_pressed_space = false;
         input.key_released_space = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -763,6 +829,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_released_space = false;
@@ -773,6 +840,7 @@ mod tests {
         // Frame 3: Press Arrow Down while open -> hovers index 2
         input.key_pressed_down = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -786,6 +854,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_pressed_down = false;
@@ -795,6 +864,7 @@ mod tests {
         // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
         input.key_pressed_enter = true;
         focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -808,6 +878,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -828,37 +899,34 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = SelectStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = SelectSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
     fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut sel_state = SelectState::default();
         let result = super::select(
             &mut ctx,
-            SelectSpecBuilder::new()
-                .items(&[])
-                .value("")
-                .rect(custom_rect),
-            layout_rect,
+            SelectSpecBuilder::new().items(&[]).value(""),
+            custom_rect,
             &mut sel_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
