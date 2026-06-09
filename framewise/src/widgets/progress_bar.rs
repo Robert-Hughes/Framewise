@@ -24,11 +24,16 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct ProgressBarCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarResult {}
 
     /// Compute intrinsic size for ProgressBar.
     /// Currently returns UNKNOWN as per user preference.
-    pub fn calc_progress_bar_intrinsic_size(_spec: &ProgressBarSpec) -> IntrinsicSize {
+    pub fn calc_progress_bar_intrinsic_size(
+        _spec: &ProgressBarCalcIntrinsicSizeSpec,
+    ) -> IntrinsicSize {
         IntrinsicSize::UNKNOWN
     }
 
@@ -109,11 +114,20 @@ pub struct ProgressBarResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProgressBarSpec {
+    pub value: f32,
+    pub phase: f32,
+    pub active: bool,
+    pub style: ProgressBarStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ProgressBarSpecBuilder {
-    pub rect: Option<Rect>,
     pub value: Option<f32>,
     pub phase: Option<f32>,
     pub active: Option<bool>,
@@ -145,13 +159,8 @@ impl ProgressBarSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(ProgressBarStyle::from_theme(theme));
@@ -159,9 +168,8 @@ impl ProgressBarSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::ProgressBarSpec {
-        raw::ProgressBarSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> ProgressBarSpec {
+        ProgressBarSpec {
             value: self.value.expect("value not set — call .value()"),
             phase: self.phase.unwrap_or(0.0),
             active: self.active.unwrap_or(false),
@@ -180,16 +188,18 @@ pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,
 ) -> ProgressBarResult {
-    // Build a provisional spec with a placeholder rect to compute intrinsic size.
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_progress_bar_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::ProgressBarCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_progress_bar_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    spec.phase = ctx.time as f32;
-    raw::progress_bar(spec, ctx.cmds);
+    let raw_spec = raw::ProgressBarSpec {
+        rect,
+        value: spec.value,
+        phase: ctx.time as f32,
+        active: spec.active,
+        style: spec.style,
+    };
+    raw::progress_bar(raw_spec, ctx.cmds);
     ProgressBarResult {
         layout: LayoutInfo::tight(rect),
     }
