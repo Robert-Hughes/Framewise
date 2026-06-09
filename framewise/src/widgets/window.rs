@@ -21,11 +21,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct WindowCalcIntrinsicSizeSpec {
+        pub status_bar: bool,
+        pub style: super::WindowStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct WindowResult {
         pub content_bounds: Rect,
     }
 
-    pub fn calc_window_intrinsic_size(spec: &WindowSpec) -> crate::layout::IntrinsicSize {
+    pub fn calc_window_intrinsic_size(
+        spec: &WindowCalcIntrinsicSizeSpec,
+    ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let status_h = if spec.status_bar {
             s.status_height
@@ -229,11 +237,21 @@ pub struct WindowResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowSpec<'a> {
+    pub title: &'a str,
+    pub buttons: &'a [WindowButton],
+    pub status_bar: bool,
+    pub status_text: Option<&'a str>,
+    pub style: WindowStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct WindowSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub title: Option<&'a str>,
     pub buttons: Option<&'a [WindowButton]>,
     pub status_bar: Option<bool>,
@@ -267,15 +285,8 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(WindowStyle::from_theme(theme));
@@ -283,9 +294,8 @@ impl<'a> WindowSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::WindowSpec<'a> {
-        raw::WindowSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> WindowSpec<'a> {
+        WindowSpec {
             title: self.title.expect("title not set — call .title()"),
             buttons: self.buttons.expect("buttons not set — call .buttons()"),
             status_bar: self.status_bar.unwrap_or(false),
@@ -312,15 +322,26 @@ pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
     inner_layout: L,
 ) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)> {
     let buttons = builder.buttons.unwrap_or(&[]);
-    let mut spec = builder
+    let spec = builder
         .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
         .buttons(buttons)
         .build();
-    let intrinsic = raw::calc_window_intrinsic_size(&spec);
+    let calc_spec = raw::WindowCalcIntrinsicSizeSpec {
+        status_bar: spec.status_bar,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_window_intrinsic_size(&calc_spec);
     let bounds = ctx.layout(layout_params, intrinsic);
-    spec.rect = bounds;
-    let raw::WindowResult { content_bounds } = raw::begin_window(spec, ctx.text_system, ctx.cmds);
+    let raw_spec = raw::WindowSpec {
+        rect: bounds,
+        title: spec.title,
+        buttons: spec.buttons,
+        status_bar: spec.status_bar,
+        status_text: spec.status_text,
+        style: spec.style,
+    };
+    let raw::WindowResult { content_bounds } =
+        raw::begin_window(raw_spec, ctx.text_system, ctx.cmds);
 
     let new_clip = Some(
         ctx.clip_rect
