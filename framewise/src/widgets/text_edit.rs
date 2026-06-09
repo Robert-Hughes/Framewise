@@ -22,6 +22,11 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct TextEditCalcIntrinsicSizeSpec {
+        pub style: super::TextEditStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditResult {
         pub input: InputInfo,
         pub focused: bool,
@@ -29,13 +34,9 @@ pub mod raw {
         pub clipboard_action: Option<ClipboardAction>,
     }
 
-    /// Measure a text edit's intrinsic size from its current state and spec.
-    ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends on the
-    /// current text, style, and padding.
+    /// Measure a text edit's intrinsic size from its current state and measurement spec.
     pub fn calc_text_edit_intrinsic_size<T: TextSystem>(
-        spec: &TextEditSpec,
+        spec: &TextEditCalcIntrinsicSizeSpec,
         state: &TextEditState,
         text_system: &mut T,
     ) -> IntrinsicSize {
@@ -566,16 +567,22 @@ pub struct TextEditResult {
     pub clipboard_action: Option<ClipboardAction>,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextEditSpec {
+    pub style: TextEditStyle,
+    pub error: bool,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TextEditSpecBuilder {
-    pub rect: Option<Rect>,
     pub style: Option<TextEditStyle>,
-    pub clip_rect: Option<ClipRect>,
     pub error: Option<bool>,
     pub disabled: Option<bool>,
-    pub time: Option<f64>,
 }
 
 impl TextEditSpecBuilder {
@@ -587,11 +594,6 @@ impl TextEditSpecBuilder {
         self.style = Some(style);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
     pub fn error(mut self, error: bool) -> Self {
         self.error = Some(error);
         self
@@ -600,20 +602,9 @@ impl TextEditSpecBuilder {
         self.disabled = Some(disabled);
         self
     }
-    pub fn time(mut self, time: f64) -> Self {
-        self.time = Some(time);
-        self
-    }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(TextEditStyle::from_theme(theme));
@@ -621,18 +612,13 @@ impl TextEditSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::TextEditSpec {
-        raw::TextEditSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> TextEditSpec {
+        TextEditSpec {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
             error: self.error.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
-            time: self.time.unwrap_or(0.0),
         }
     }
 }
@@ -756,18 +742,20 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut TextEditState,
 ) -> TextEditResult {
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .rect(Rect::PLACEHOLDER)
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .time(ctx.time)
-        .build();
-    let intrinsic = raw::calc_text_edit_intrinsic_size(&spec, state, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::TextEditCalcIntrinsicSizeSpec { style: spec.style };
+    let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::TextEditSpec {
+        rect,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        error: spec.error,
+        disabled: spec.disabled,
+        time: ctx.time,
+    };
     let result = raw::text_edit(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
