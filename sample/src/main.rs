@@ -486,7 +486,7 @@ impl ApplicationHandler for App {
                                 feature = "menu"
                             ))]
                             {
-                                self.spec_page_state.w.iu_vsync.checked = self.vsync;
+                                self.spec_page_state.widgets.iu_vsync.checked = self.vsync;
                             }
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
@@ -671,7 +671,7 @@ impl ApplicationHandler for App {
                     feature = "menu"
                 ))]
                 if self.active_page == AppPage::WidgetSpec {
-                    self.vsync = self.spec_page_state.w.iu_vsync.checked;
+                    self.vsync = self.spec_page_state.widgets.iu_vsync.checked;
                 }
 
                 if let Some(gpu) = &mut self.gpu {

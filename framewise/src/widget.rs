@@ -409,7 +409,7 @@ impl<
     /// The layout's resolved [`resolve_space`](LayoutState::resolve_space) is
     /// passed to the closure so container widgets (e.g. a deferred scroll area) can
     /// resolve geometry from how large their children turned out.
-    pub fn finish(self) {
+    pub fn finish(self) -> Rect {
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
         let font = self.theme.sans_font;
@@ -442,6 +442,8 @@ impl<
                 width: 1.0,
             });
         }
+
+        resolved_space
     }
 }
 

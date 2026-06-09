@@ -1,35 +1,47 @@
 #[cfg(feature = "page_spec")]
 mod spec_page_golden {
-    use crate::render_test_utils::{assert_matches_png_golden, render_commands_to_rgba};
-    use framewise::{focus::FocusSystem, input::Input};
+    use crate::{
+        render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
+        text::SampleTextSystem,
+    };
+    use framewise::{
+        focus::FocusSystem, input::Input, DrawCommands, LayoutSpace, RowLayout, Theme,
+        WidgetContext,
+    };
 
     #[test]
     fn spec_page_matches_golden() {
         pollster::block_on(async {
-            let width = 1600;
-            let height = 1620;
-            let Some(actual) = render_commands_to_rgba(width, height, |text_system| {
-                let mut focus_system = FocusSystem::new();
-                let mut state = crate::spec_page::SpecPageState::default();
-                let input = Input::default();
+            let mut text_system = SampleTextSystem::new();
+            text_system.begin_frame();
 
-                focus_system.begin_frame();
-                let cmds = crate::spec_page::draw_spec_page(
-                    text_system,
-                    &mut focus_system,
-                    &mut state,
-                    &input,
-                    0.0,
-                    width as f32,
-                    height as f32,
-                    false,
-                );
-                focus_system.end_frame();
-                cmds
-            })
-            .await
+            let mut focus_system = FocusSystem::new();
+            let mut state = crate::spec_page::SpecWidgetsState::default();
+            let input = Input::default();
+
+            focus_system.begin_frame();
+
+            let mut cmds = DrawCommands::new();
+            let mut ctx = WidgetContext::root(
+                Theme::framewise(),
+                &mut text_system,
+                &mut focus_system,
+                &input,
+                RowLayout,
+                LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
+                &mut cmds,
+            );
+
+            crate::spec_page::draw_spec_page_inner(&mut state, &mut ctx, false, 1600.0);
+
+            let rect = ctx.finish();
+
+            focus_system.end_frame();
+
+            let Some(actual) =
+                render_commands_to_rgba(rect.w as u32, rect.h as u32, cmds, text_system).await
             else {
-                return;
+                panic!("Failed to render commands to RGBA");
             };
 
             let golden_path =

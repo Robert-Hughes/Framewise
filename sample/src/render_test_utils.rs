@@ -9,14 +9,12 @@ pub struct RgbaImage {
     pub pixels: Vec<u8>,
 }
 
-pub async fn render_commands_to_rgba<F>(
+pub async fn render_commands_to_rgba(
     width: u32,
     height: u32,
-    build_commands: F,
-) -> Option<RgbaImage>
-where
-    F: FnOnce(&mut SampleTextSystem) -> DrawCommands,
-{
+    draw_commands: DrawCommands,
+    mut text_system: SampleTextSystem,
+) -> Option<RgbaImage> {
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
         ..Default::default()
@@ -70,9 +68,6 @@ where
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     let mut renderer = Renderer::new(&device, wgpu::TextureFormat::Rgba8UnormSrgb);
-    let mut text_system = SampleTextSystem::new();
-    text_system.begin_frame();
-    let cmds = build_commands(&mut text_system);
 
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("golden_test_encoder"),
@@ -82,7 +77,7 @@ where
         &queue,
         &view,
         &mut encoder,
-        &cmds,
+        &draw_commands,
         (width, height),
         &mut text_system,
     );
