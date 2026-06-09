@@ -39,6 +39,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct SliderCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
         pub input: InputInfo,
         pub focused: bool,
@@ -51,9 +54,9 @@ pub mod raw {
     /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a cross-axis minimum
     /// derived from `style.thumb_size`.
     ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
-    pub fn calc_slider_intrinsic_size(spec: &SliderSpec) -> crate::layout::IntrinsicSize {
+    pub fn calc_slider_intrinsic_size(
+        spec: &SliderCalcIntrinsicSizeSpec,
+    ) -> crate::layout::IntrinsicSize {
         let _ = spec;
         crate::layout::IntrinsicSize::UNKNOWN
     }
@@ -671,11 +674,25 @@ pub struct SliderResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SliderSpec {
+    pub min: f32,
+    pub max: f32,
+    pub page_step: f32,
+    pub step: f32,
+    pub orientation: Orientation,
+    pub thumb_size_ratio: Option<f32>,
+    pub style: SliderStyle,
+    pub claim_scroll_at_ends: bool,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliderSpecBuilder {
-    pub rect: Option<Rect>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub page_step: Option<f32>,
@@ -683,9 +700,7 @@ pub struct SliderSpecBuilder {
     pub orientation: Option<Orientation>,
     pub thumb_size_ratio: Option<Option<f32>>,
     pub style: Option<SliderStyle>,
-    pub clip_rect: Option<ClipRect>,
     pub claim_scroll_at_ends: Option<bool>,
-    pub time: Option<f64>,
     pub disabled: Option<bool>,
 }
 
@@ -722,17 +737,8 @@ impl SliderSpecBuilder {
         self.style = Some(style);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
     pub fn claim_scroll_at_ends(mut self, claim_scroll_at_ends: bool) -> Self {
         self.claim_scroll_at_ends = Some(claim_scroll_at_ends);
-        self
-    }
-    pub fn time(mut self, time: f64) -> Self {
-        self.time = Some(time);
         self
     }
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -740,15 +746,8 @@ impl SliderSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(SliderStyle::from_theme(theme));
@@ -756,9 +755,8 @@ impl SliderSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::SliderSpec {
-        raw::SliderSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> SliderSpec {
+        SliderSpec {
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             page_step: self.page_step.unwrap_or(10.0),
@@ -768,11 +766,7 @@ impl SliderSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
-            time: self.time.unwrap_or(0.0),
             disabled: self.disabled.unwrap_or(false),
         }
     }
@@ -789,23 +783,26 @@ pub fn slider<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SliderState,
 ) -> SliderResult {
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real rect is then determined by the layout system and
-    // assigned below. Any `rect` set on the builder is ignored by the high-level
-    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
-    // for explicit rects).
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .time(ctx.time)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_slider_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::SliderCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_slider_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::SliderSpec {
+        rect,
+        min: spec.min,
+        max: spec.max,
+        page_step: spec.page_step,
+        step: spec.step,
+        orientation: spec.orientation,
+        thumb_size_ratio: spec.thumb_size_ratio,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        claim_scroll_at_ends: spec.claim_scroll_at_ends,
+        time: ctx.time,
+        disabled: spec.disabled,
+    };
 
-    let result = raw::slider(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let result = raw::slider(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
     SliderResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
@@ -2105,7 +2102,7 @@ mod tests {
     #[test]
     fn test_calc_slider_intrinsic_size() {
         // A slider's size is caller-driven; it reports no intrinsic measurement.
-        let spec = test_spec(0.0, 100.0, true);
+        let spec = raw::SliderCalcIntrinsicSizeSpec {};
         assert_eq!(
             raw::calc_slider_intrinsic_size(&spec),
             crate::layout::IntrinsicSize::UNKNOWN
