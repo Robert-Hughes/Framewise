@@ -21,6 +21,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct RadioResult {
         pub input: InputInfo,
         pub focused: bool,
@@ -28,7 +31,7 @@ pub mod raw {
     }
 
     /// Compute intrinsic size for Radio. Currently returns UNKNOWN.
-    pub fn calc_radio_intrinsic_size(_spec: &RadioSpec) -> IntrinsicSize {
+    pub fn calc_radio_intrinsic_size(_spec: &RadioCalcIntrinsicSizeSpec) -> IntrinsicSize {
         IntrinsicSize::UNKNOWN
     }
 
@@ -183,14 +186,20 @@ pub struct RadioResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadioSpec {
+    pub disabled: bool,
+    pub style: RadioStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct RadioSpecBuilder {
-    pub rect: Option<Rect>,
     pub disabled: Option<bool>,
     pub style: Option<RadioStyle>,
-    pub clip_rect: Option<ClipRect>,
 }
 
 impl RadioSpecBuilder {
@@ -208,21 +217,8 @@ impl RadioSpecBuilder {
         self
     }
 
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
-
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(RadioStyle::from_theme(theme));
@@ -230,16 +226,12 @@ impl RadioSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::RadioSpec {
-        raw::RadioSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> RadioSpec {
+        RadioSpec {
             disabled: self.disabled.unwrap_or(false),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -255,19 +247,17 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut RadioState,
 ) -> RadioResult {
-    // Build a provisional spec with a placeholder rect to compute intrinsic size.
-    // Any `rect` set on the builder is ignored by the high-level path — placement
-    // is the layout's job (use `ManualLayout`, or the raw fn, for explicit rects).
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_radio_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::RadioCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_radio_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::radio(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let raw_spec = raw::RadioSpec {
+        rect,
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::radio(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
