@@ -24,19 +24,23 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct DragNumberCalcIntrinsicSizeSpec<'a> {
+        pub text: &'a str,
+        pub style: super::DragNumberStyle,
+        pub min: f32,
+        pub max: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct DragNumberResult {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
     }
 
-    /// Measure a drag number's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** - this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry or live state.
+    /// Measure a drag number's intrinsic size from its measurement spec.
     pub fn calc_drag_number_intrinsic_size<T: TextSystem>(
-        spec: &DragNumberSpec,
+        spec: &DragNumberCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
@@ -289,17 +293,26 @@ pub struct DragNumberResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DragNumberSpec<'a> {
+    pub text: &'a str,
+    pub style: DragNumberStyle,
+    pub min: f32,
+    pub max: f32,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DragNumberSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<DragNumberStyle>,
     pub min: Option<f32>,
     pub max: Option<f32>,
     pub disabled: Option<bool>,
-    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> DragNumberSpecBuilder<'a> {
@@ -327,21 +340,9 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(DragNumberStyle::from_theme(theme));
@@ -349,9 +350,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::DragNumberSpec<'a> {
-        raw::DragNumberSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> DragNumberSpec<'a> {
+        DragNumberSpec {
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
@@ -359,9 +359,6 @@ impl<'a> DragNumberSpecBuilder<'a> {
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             disabled: self.disabled.unwrap_or(false),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -377,17 +374,26 @@ pub fn drag_number<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut DragNumberState,
 ) -> DragNumberResult {
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .clip_rect(clip)
-        .build();
-    let intrinsic = raw::calc_drag_number_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::DragNumberCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+        min: spec.min,
+        max: spec.max,
+    };
+    let intrinsic = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::DragNumberSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+        min: spec.min,
+        max: spec.max,
+        disabled: spec.disabled,
+        clip_rect: ctx.clip_rect,
+    };
     let result = raw::drag_number(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
