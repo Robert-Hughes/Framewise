@@ -37,7 +37,9 @@ use framewise::{
     types::Rect,
     widget::WidgetContext,
     widgets::button::{
-        button, raw::calc_button_intrinsic_size, ButtonSpecBuilder, ButtonState, ButtonStyle,
+        button,
+        raw::{calc_button_intrinsic_size, ButtonCalcIntrinsicSizeSpec},
+        ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
 };
@@ -523,10 +525,12 @@ pub fn draw_layout_page(
                 let spec = ButtonSpecBuilder::new()
                     .text(label)
                     .style(secondary)
-                    .rect(Rect::PLACEHOLDER)
-                    .clip_rect(None)
                     .defaults_from_theme(&theme)
                     .build();
+                let spec = ButtonCalcIntrinsicSizeSpec {
+                    text: spec.text,
+                    style: spec.style,
+                };
                 calc_button_intrinsic_size(&spec, ts).preferred.unwrap().x
             };
             let w_filter = measure(right.text_system, "Filter");

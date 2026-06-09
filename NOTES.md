@@ -326,3 +326,8 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 - Off-screen draw cost — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
 - Early-out from widget functions if it's offscreen or completely clipped
+
+## API Ergonomics
+
+- WidgetContext having lots of generics makes it annoying to pass around, and to write functions that work for different kinds of layout etc.
+- Constructing a widget like: label(ctx, LabelStyle { ctx.theme.font_size, .. }) (where you use the ctx to calculate a param) fails due to double-borrow on ctx - annoying!

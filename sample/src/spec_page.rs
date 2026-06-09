@@ -117,7 +117,10 @@ use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
 use framewise::widgets::{
     button::{
         button,
-        raw::{button as raw_button, calc_button_intrinsic_size},
+        raw::{
+            button as raw_button, calc_button_intrinsic_size, ButtonCalcIntrinsicSizeSpec,
+            ButtonSpec as RawButtonSpec,
+        },
         ButtonState, ButtonStyle,
     },
     ButtonSpecBuilder,
@@ -331,15 +334,14 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
         Input::default()
     };
 
-    let spec = ButtonSpecBuilder::new()
-        .text(text)
-        .style(style)
-        .rect(rect)
-        .clip_rect(None)
-        .build();
-
     raw_button(
-        spec,
+        RawButtonSpec {
+            rect,
+            text,
+            style,
+            clip_rect: None,
+            disabled: false,
+        },
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
@@ -354,12 +356,11 @@ fn button_intrinsic_width<T: TextSystem>(
     style: ButtonStyle,
     text_system: &mut T,
 ) -> f32 {
-    let spec = ButtonSpecBuilder::new()
-        .text(text)
-        .style(style)
-        .rect(Rect::PLACEHOLDER)
-        .clip_rect(None)
-        .build();
+    let spec = ButtonSpecBuilder::new().text(text).style(style).build();
+    let spec = ButtonCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
 
     calc_button_intrinsic_size(&spec, text_system)
         .preferred

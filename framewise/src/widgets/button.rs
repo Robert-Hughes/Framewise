@@ -23,24 +23,25 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct ButtonCalcIntrinsicSizeSpec<'a> {
+        pub text: &'a str,
+        pub style: super::ButtonStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonResult {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
     }
 
-    /// Measure a button's intrinsic size from its spec.
+    /// Measure a button's intrinsic size from its measurement spec.
     ///
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
     /// padded label height.
-    ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry. Shares text shaping with
-    /// `raw::button`, which (for now) repeats it when the button is drawn.
     pub fn calc_button_intrinsic_size<T: TextSystem>(
-        spec: &ButtonSpec,
+        spec: &ButtonCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let style = &spec.style;
@@ -374,14 +375,21 @@ pub struct ButtonResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ButtonSpec<'a> {
+    pub text: &'a str,
+    pub style: ButtonStyle,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ButtonSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub text: Option<&'a str>,
     pub style: Option<ButtonStyle>,
-    pub clip_rect: Option<ClipRect>,
     pub disabled: Option<bool>,
 }
 
@@ -401,35 +409,20 @@ impl<'a> ButtonSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(ButtonStyle::secondary_from_theme(theme));
         }
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
-    pub fn build(self) -> raw::ButtonSpec<'a> {
-        raw::ButtonSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> ButtonSpec<'a> {
+        ButtonSpec {
             text: self.text.expect("text not set — call .text()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
             disabled: self.disabled.unwrap_or(false),
         }
     }
@@ -447,23 +440,23 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut ButtonState,
 ) -> ButtonResult {
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real rect is then determined by the layout system and
-    // assigned below. Any `rect` set on the builder is ignored by the high-level
-    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
-    // for explicit rects).
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .clip_rect(clip)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_button_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::ButtonCalcIntrinsicSizeSpec {
+        text: spec.text,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::ButtonSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        disabled: spec.disabled,
+    };
 
     let r = raw::button(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
@@ -1410,8 +1403,10 @@ mod tests {
     #[test]
     fn test_calc_button_intrinsic_size() {
         let mut ts = DummyTextSys;
-        // Measured from a spec with a placeholder rect — calc must not read it.
-        let spec = btn_spec(Rect::PLACEHOLDER);
+        let spec = raw::ButtonCalcIntrinsicSizeSpec {
+            text: "Btn",
+            style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
+        };
         // "Btn" = 3 chars * 8px = 24 wide, 16 tall (DummyTextSys).
         // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
         let i = raw::calc_button_intrinsic_size(&spec, &mut ts);
