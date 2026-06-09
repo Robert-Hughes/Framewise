@@ -4,6 +4,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- Add a high-level helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox
+
+- Fix checkbox tri-state clicking in spec page
+- Anti-aliasing for check?
+- Focus ring bigger to match spec page
+- See if reusable stuff can be shared between button and checkbox
+- Switch is just another checkbox??
+- Hover and depressed visual states
+
 - Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?)
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go

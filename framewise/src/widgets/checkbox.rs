@@ -43,25 +43,30 @@ pub mod raw {
         focus_system: &mut FocusSystem,
         cmds: &mut DrawCommands,
     ) -> CheckboxResult {
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
+        let focused = if spec.disabled {
+            false
         } else {
-            crate::focus::handle_widget_focus(
-                state.focus_id,
-                spec.rect,
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::all(),
-                spec.disabled,
-            )
+            focus_system.register(state.focus_id, spec.rect, spec.clip_rect)
         };
 
+        let is_visible = spec
+            .clip_rect
+            .is_none_or(|clip| clip.contains(input.mouse_pos));
+        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+
+        if !spec.disabled && contains && input.mouse_pressed {
+            state.is_active = true;
+            focus_system.take_focus(state.focus_id);
+        }
+
+        let hovered = !spec.disabled && contains && (!input.mouse_down || state.is_active);
+        let clicked = !spec.disabled && state.is_active && hovered && input.mouse_clicked;
+
         let mut is_clicked = clicked;
-        if focused && input.key_pressed_enter {
+        if !spec.disabled && focused && input.key_pressed_enter {
             is_clicked = true;
         }
-        if state.space_is_active && input.key_released_space {
+        if !spec.disabled && state.space_is_active && input.key_released_space {
             is_clicked = true;
         }
 
@@ -69,8 +74,16 @@ pub mod raw {
         if !focused || !input.key_down_space {
             state.space_is_active = false;
         }
-        if focused && input.key_pressed_space {
+        if !spec.disabled && focused && input.key_pressed_space {
             state.space_is_active = true;
+        }
+
+        if !input.mouse_down {
+            state.is_active = false;
+        }
+
+        if !spec.disabled {
+            focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
         }
 
         if is_clicked {
@@ -146,9 +159,8 @@ pub mod raw {
 
         CheckboxResult {
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
-                pressed: (clicked && input.mouse_down) || state.space_is_active,
+                hovered,
+                pressed: (state.is_active && hovered && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
             focused,
@@ -205,6 +217,8 @@ pub enum CheckedState {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CheckboxState {
     pub checked: CheckedState,
+    /// True if the mouse was pressed while hovering this checkbox, until the mouse is released.
+    pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -778,7 +792,7 @@ mod tests {
             &mut state2,
             Vec2::new(15.0, 15.0),
             Vec2::new(15.0, 115.0),
-            true,
+            false,
             |state1, state2, input, focus_system, cmds| {
                 let res1 = raw::checkbox(
                     CheckboxSpec {
