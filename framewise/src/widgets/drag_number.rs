@@ -3,8 +3,8 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{FontId, TextSystem},
-    types::{ClipRect, Color, Rect},
+    text::TextSystem,
+    types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -25,10 +25,33 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DragNumberResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a drag number's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** - this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry or live state.
+    pub fn calc_drag_number_intrinsic_size<T: TextSystem>(
+        spec: &DragNumberSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let label_metrics =
+            text_system.measure(spec.text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let min_text = format!("{:.2}", spec.min);
+        let max_text = format!("{:.2}", spec.max);
+        let min_metrics =
+            text_system.measure(&min_text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let max_metrics =
+            text_system.measure(&max_text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let value_w =
+            min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
+        let label_w = label_metrics.logical_size.x + s.text_pad_x * 2.0;
+        crate::layout::IntrinsicSize::preferred(Vec2::new(label_w + value_w, s.height))
     }
 
     /// Low-level drag number widget function.
@@ -41,6 +64,7 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> DragNumberResult {
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -59,8 +83,9 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let text_layout = text_system.prepare(spec.text, s.text_size, spec.style.font);
-        let text_w = text_layout.size.x + s.text_pad_x * 2.0;
+        let text_metrics =
+            text_system.measure(spec.text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let text_w = text_metrics.logical_size.x + s.text_pad_x * 2.0;
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
 
@@ -103,7 +128,6 @@ pub mod raw {
             }
         }
 
-        let mut cmds = DrawCommands::new();
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
@@ -140,14 +164,16 @@ pub mod raw {
             color: tint(text_bg),
         });
 
-        let lty = spec.rect.y + (spec.rect.h - text_layout.size.y) * 0.5;
+        let lty = spec.rect.y + (spec.rect.h - text_metrics.logical_size.y) * 0.5;
+        let text_rect = Rect::new(
+            spec.rect.x + s.text_pad_x,
+            lty,
+            text_metrics.logical_size.x,
+            text_metrics.logical_size.y,
+        );
+        let text_layout = text_system.prepare(spec.text, s.text_style, text_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(
-                spec.rect.x + s.text_pad_x,
-                lty,
-                text_layout.size.x,
-                text_layout.size.y,
-            ),
+            rect: text_rect,
             color: tint(s.text_text),
             handle: text_layout.handle,
         });
@@ -162,17 +188,27 @@ pub mod raw {
         }
 
         let value_text = format!("{:.2}", state.value);
-        let val_layout = text_system.prepare(&value_text, s.text_size, spec.style.font);
-        let vtx = value_x + (value_w - val_layout.size.x) * 0.5;
-        let vty = spec.rect.y + (spec.rect.h - val_layout.size.y) * 0.5;
+        let value_metrics = text_system.measure(
+            &value_text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let vtx = value_x + (value_w - value_metrics.logical_size.x) * 0.5;
+        let vty = spec.rect.y + (spec.rect.h - value_metrics.logical_size.y) * 0.5;
+        let value_rect = Rect::new(
+            vtx,
+            vty,
+            value_metrics.logical_size.x,
+            value_metrics.logical_size.y,
+        );
+        let val_layout = text_system.prepare(&value_text, s.text_style, value_rect);
         cmds.push(DrawCmd::Text {
-            rect: Rect::new(vtx, vty, val_layout.size.x, val_layout.size.y),
+            rect: value_rect,
             color: tint(s.value_text),
             handle: val_layout.handle,
         });
 
         DragNumberResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: spec.rect.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -189,9 +225,9 @@ pub mod raw {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DragNumberStyle {
-    pub text_size: f32,
+    pub height: f32,
     pub text_pad_x: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub background: Color,
     pub border: Color,
     pub focus: Color,
@@ -209,9 +245,14 @@ pub struct DragNumberStyle {
 impl DragNumberStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            text_size: theme.text_md,
+            height: theme.h_md,
             text_pad_x: 10.0,
-            font: theme.sans_font,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             focus: theme.rust,
@@ -336,17 +377,23 @@ pub fn drag_number<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut DragNumberState,
 ) -> DragNumberResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .clip_rect(clip)
         .build();
-    let result = raw::drag_number(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_drag_number_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::drag_number(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     DragNumberResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -362,8 +409,9 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
 
-    fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> raw::DragNumberResult {
-        raw::drag_number(
+    fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
+        let mut cmds = DrawCommands::new();
+        let res = raw::drag_number(
             spec,
             &mut DragNumberState {
                 value,
@@ -372,7 +420,9 @@ mod tests {
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
-        )
+            &mut cmds,
+        );
+        (res, cmds)
     }
 
     #[test]
@@ -388,11 +438,11 @@ mod tests {
         };
 
         let style = spec.style;
-        let res = drag_num(spec, 50.0);
+        let (_res, cmds) = drag_num(spec, 50.0);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.background,
@@ -446,17 +496,19 @@ mod tests {
         let mut input = Input::default();
         input.mouse_down = true;
         let mut state = state;
-        let res = raw::drag_number(
+        let mut cmds = DrawCommands::new();
+        let _res = raw::drag_number(
             spec,
             &mut state,
             &input,
             &mut FocusSystem::new(),
             &mut DummyTextSys,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
                     rect: Rect::new(9.0, 9.0, 102.0, 30.0),
                     color: style.focus,
@@ -507,17 +559,19 @@ mod tests {
         };
 
         let style = spec.style;
-        let res = raw::drag_number(
+        let mut cmds = DrawCommands::new();
+        let _res = raw::drag_number(
             spec,
             &mut DragNumberState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
             &mut text_system,
+            &mut cmds,
         );
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.background,
@@ -568,6 +622,7 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::drag_number(
             spec,
@@ -575,6 +630,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -608,6 +664,7 @@ mod tests {
         };
 
         let mut state = state;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::drag_number(
             spec,
@@ -615,6 +672,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -640,6 +698,7 @@ mod tests {
 
         // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
         input.key_pressed_right = true;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::drag_number(
             DragNumberSpec {
@@ -655,6 +714,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_pressed_right = false;
@@ -663,6 +723,7 @@ mod tests {
 
         // Frame 2: Press Arrow Left -> value decreases back to 50.0
         input.key_pressed_left = true;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::drag_number(
             DragNumberSpec {
@@ -678,6 +739,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -697,36 +759,36 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = DragNumberStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = DragNumberSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut dn_state = DragNumberState::default();
         let result = super::drag_number(
             &mut ctx,
-            DragNumberSpecBuilder::new().text("x").rect(custom_rect),
-            layout_rect,
+            DragNumberSpecBuilder::new().text("x"),
+            placement,
             &mut dn_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }

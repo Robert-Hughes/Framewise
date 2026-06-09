@@ -6,6 +6,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Migrate and re-enable remaining widgets
 
+- Golden spec page shouldn't have a scroll bar (auto-size!)!
+
 - Separate structs for high/low/calc_intrinsic widgets. In progress
 
 - Z buffer and z in draw commands

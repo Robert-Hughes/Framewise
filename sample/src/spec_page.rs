@@ -263,7 +263,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
 
 #[cfg(feature = "drag_number")]
 fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
-    b: &mut WidgetContext<T, ColumnState, CF>,
+    b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     label: &str,
     val: f32,
@@ -296,11 +296,9 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
         &dummy_input,
         &mut dummy_focus_sys,
         b.text_system,
+        b.cmds,
     );
-    {
-        let cmds = result.draw;
-        b.append_cmds(cmds);
-    };
+    let _ = result;
 }
 
 #[cfg(feature = "button")]
@@ -2185,419 +2183,282 @@ fn section_04_sliders<CF>(
     b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
     t: &Theme,
     content_w: f32,
-    mut y: f32,
     state: &mut SpecWidgets,
 ) {
     let t = *t;
     // ── 04 · SLIDERS · DRAGS ─────────────────────────────────────────────────
-    sec_y(b, &t, y, content_w, "04", "Sliders & numeric drags",
-        "drag-number reads like a function parameter — label + value, scrubbable in either direction. fill bar shows magnitude.");
-    y += 46.0;
+    sec_y(
+        b,
+        &t,
+        content_w,
+        "04",
+        "Sliders & numeric drags",
+        "drag-number reads like a function parameter — label + value, scrubbable in either direction. fill bar shows magnitude.",
+    );
 
-    group_y(b, &t, y, "slider · single value");
-    y += 20.0;
+    group_y(b, &t, "slider · single value");
     {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 178.0), ManualLayout);
         let slider_w = 360.0_f32;
         let row_gap = 14.0_f32;
+        let mut y = 0.0;
+        let values = [
+            (0.1, &mut state.slider1_state, false),
+            (0.1, &mut state.slider2_state, false),
+            (0.1, &mut state.slider3_state, false),
+            (1.0, &mut state.slider4_state, true),
+        ];
 
-        {
-            let step = 0.1;
-            let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-            let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-            slider(b, spec_builder, layout_params, &mut state.slider1_state);
-        };
-        {
-            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
-            let text: &str = &format!("{:.2}", state.slider1_state.value);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        y += t.h_md + row_gap;
-
-        {
-            let step = 0.1;
-            let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-            let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-            slider(b, spec_builder, layout_params, &mut state.slider2_state);
-        };
-        {
-            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
-            let text: &str = &format!("{:.2}", state.slider2_state.value);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        y += t.h_md + row_gap;
-
-        {
-            let step = 0.1;
-            let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-            let spec_builder = SliderSpecBuilder::new().max(1.0).page_step(step).step(step);
-            slider(b, spec_builder, layout_params, &mut state.slider3_state);
-        };
-        {
-            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
-            let text: &str = &format!("{:.2}", state.slider3_state.value);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        y += t.h_md + row_gap;
-
-        // Stepped slider (0–9) with tick marks
-        {
-            let step = 1.0;
-            let layout_params = Rect::new(lx, y, slider_w, t.h_md);
-            let spec_builder = SliderSpecBuilder::new().max(9.0).page_step(step);
-            slider(b, spec_builder, layout_params, &mut state.slider4_state);
-        };
-        {
-            let layout_params = Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0);
-            let text: &str = &format!("{:.0} / 9", state.slider4_state.value);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        // tick marks below track
-        let tick_y = y + t.h_md + 2.0;
-        let tick_h = 4.0;
-        let usable = slider_w - 12.0;
-        for i in 0..=9usize {
-            let tx = 6.0 + (i as f32 / 9.0) * usable;
-            {
-                let layout_params = Rect::new(tx - 0.5, tick_y, 1.0, tick_h);
-                let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-                let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
-                    rect,
-                    color: t.line,
-                }]);
-                b.append_cmds(cmds);
+        for (step, slider_state, show_ticks) in values {
+            let spec_builder = if show_ticks {
+                SliderSpecBuilder::new().max(9.0).page_step(step)
+            } else {
+                SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
             };
-        }
-        y += t.h_md + 8.0;
-    }
-    y += GROUP_GAP;
+            slider(
+                &mut b,
+                spec_builder,
+                Rect::new(0.0, y, slider_w, t.h_md),
+                slider_state,
+            );
 
-    group_y(b, &t, y, "range slider");
-    y += 20.0;
-    {
-        let track_w = 360.0_f32;
-        let mid_y = y + t.h_md * 0.5;
-        {
-            let layout_params = Rect::new(lx, mid_y - 0.75, track_w, 12.0);
-            let r = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-            let cmds = {
-                let lx = r.x;
-                let track_w = r.w;
-                let mid_y = r.y + 0.75;
-                let t1 = 0.24_f32;
-                let t2 = 0.76_f32;
-                let fill_x1 = track_w * t1;
-                let fill_x2 = track_w * t2;
-                let ts = 12.0_f32; // thumb size
-                let half_ts = ts * 0.5;
+            let text = if show_ticks {
+                format!("{:.0} / 9", slider_state.value)
+            } else {
+                format!("{:.2}", slider_state.value)
+            };
+            label(
+                &mut b,
+                LabelSpecBuilder::new().text(&text).style(LabelStyle {
+                    text_style: framewise::TextStyle {
+                        size: t.text_sm,
+                        ..(LabelStyle::from_theme(&t)).text_style
+                    },
+                    text_color: t.ink,
+                    ..LabelStyle::from_theme(&t)
+                }),
+                Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0),
+            );
 
-                DrawCommands::from_vec(vec![
-                    // full track
-                    DrawCmd::FillRect {
-                        rect: Rect::new(lx, mid_y - 0.75, track_w, 1.5),
+            if show_ticks {
+                let tick_y = y + t.h_md + 2.0;
+                let usable = slider_w - 12.0;
+                for i in 0..=9usize {
+                    let tx = 6.0 + (i as f32 / 9.0) * usable;
+                    let rect = b.layout(
+                        Rect::new(tx - 0.5, tick_y, 1.0, 4.0),
+                        IntrinsicSize::UNKNOWN,
+                    );
+                    b.cmds.push(DrawCmd::FillRect {
+                        rect,
                         color: t.line,
-                    },
-                    // fill bar
-                    DrawCmd::FillRect {
-                        rect: Rect::new(fill_x1, mid_y - 0.75, fill_x2 - fill_x1, 1.5),
-                        color: t.ink,
-                    },
-                    // thumb 1
-                    DrawCmd::FillRect {
-                        rect: Rect::new(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
-                        color: t.ink,
-                        width: 1.5,
-                    },
-                    // thumb 2
-                    DrawCmd::FillRect {
-                        rect: Rect::new(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
-                        color: t.paper_elev,
-                    },
-                    DrawCmd::StrokeRect {
-                        rect: Rect::new(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
-                        color: t.ink,
-                        width: 1.5,
-                    },
-                ])
-            };
-            b.append_cmds(cmds);
-        };
-        {
-            let layout_params = Rect::new(track_w + 12.0, y + 6.0, 80.0, 14.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text(".24–.76").style(LabelStyle {
+                    });
+                }
+                y += t.h_md + 8.0;
+            } else {
+                y += t.h_md + row_gap;
+            }
+        }
+        b.finish();
+    }
+    b.spacer(GROUP_GAP);
+
+    group_y(b, &t, "range slider");
+    {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, t.h_md), ManualLayout);
+        let track_w = 360.0_f32;
+        let mid_y = t.h_md * 0.5;
+        let t1 = 0.24_f32;
+        let t2 = 0.76_f32;
+        let fill_x1 = track_w * t1;
+        let fill_x2 = track_w * t2;
+        let ts = 12.0_f32;
+        let half_ts = ts * 0.5;
+        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), IntrinsicSize::UNKNOWN);
+        let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
+        b.append_cmds(DrawCommands::from_vec(vec![
+            DrawCmd::FillRect {
+                rect: rect(0.0, mid_y - 0.75, track_w, 1.5),
+                color: t.line,
+            },
+            DrawCmd::FillRect {
+                rect: rect(fill_x1, mid_y - 0.75, fill_x2 - fill_x1, 1.5),
+                color: t.ink,
+            },
+            DrawCmd::FillRect {
+                rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
+                color: t.ink,
+                width: 1.5,
+            },
+            DrawCmd::FillRect {
+                rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
+                color: t.ink,
+                width: 1.5,
+            },
+        ]));
+        label(
+            &mut b,
+            LabelSpecBuilder::new().text(".24-.76").style(LabelStyle {
                 text_style: framewise::TextStyle {
-                    size,
+                    size: t.text_sm,
                     ..(LabelStyle::from_theme(&t)).text_style
                 },
-                text_color: color,
+                text_color: t.ink,
                 ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
+            }),
+            Rect::new(track_w + 12.0, 6.0, 80.0, 14.0),
+        );
+        b.finish();
     }
-    y += t.h_md + GROUP_GAP;
+    b.spacer(GROUP_GAP);
 
-    group_y(b, &t, y, "drag-number (imgui-style)");
-    y += 20.0;
+    group_y(b, &t, "drag-number (imgui-style)");
     {
-        let mut bx = lx;
-        // X — real
-        let _info = {
-            let state = &mut state.dn_showcase[0];
-            let layout_params = Rect::new(bx, y, 100.0, t.h_md);
-            let spec_builder = DragNumberSpecBuilder::new().text("X").max(800.0);
-            drag_number(b, spec_builder, layout_params, state)
-        };
-        bx += 100.0 + 8.0;
-        // Y — real
-        let _info = {
-            let state = &mut state.dn_showcase[1];
-            let layout_params = Rect::new(bx, y, 100.0, t.h_md);
-            let spec_builder = DragNumberSpecBuilder::new().text("Y").max(600.0);
-            drag_number(b, spec_builder, layout_params, state)
-        };
-        bx += 100.0 + 8.0;
-        // W — fake (forced active/dragging)
-        static_badge(b, &t, bx, y - 14.0);
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
+        let mut x = 0.0;
+        drag_number(
+            &mut b,
+            DragNumberSpecBuilder::new().text("X").max(800.0),
+            Rect::new(x, 14.0, 100.0, t.h_md),
+            &mut state.dn_showcase[0],
+        );
+        x += 108.0;
+        drag_number(
+            &mut b,
+            DragNumberSpecBuilder::new().text("Y").max(600.0),
+            Rect::new(x, 14.0, 100.0, t.h_md),
+            &mut state.dn_showcase[1],
+        );
+        x += 108.0;
+        let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), IntrinsicSize::UNKNOWN);
+        static_badge(&mut b, &t, badge_rect);
         draw_drag_number_fake_state(
-            b,
-            Rect::new(bx, y, 100.0, t.h_md),
+            &mut b,
+            Rect::new(x, 14.0, 100.0, t.h_md),
             "W",
             576.0,
             0.0,
             800.0,
             true,
         );
-        bx += 100.0 + 8.0;
-        // H — real
-        let _info = {
-            let state = &mut state.dn_showcase[2];
-            let layout_params = Rect::new(bx, y, 100.0, t.h_md);
-            let spec_builder = DragNumberSpecBuilder::new().text("H").max(600.0);
-            drag_number(b, spec_builder, layout_params, state)
-        };
+        x += 108.0;
+        drag_number(
+            &mut b,
+            DragNumberSpecBuilder::new().text("H").max(600.0),
+            Rect::new(x, 14.0, 100.0, t.h_md),
+            &mut state.dn_showcase[2],
+        );
+        b.finish();
     }
-    y += t.h_md + GROUP_GAP;
+    b.spacer(GROUP_GAP);
 
-    group_y(b, &t, y, "numeric stepper  ·  colour swatch");
-    y += 20.0;
+    group_y(b, &t, "numeric stepper  ·  colour swatch");
     {
-        // prefix + value display
-        let stepper_x = lx;
-        {
-            let layout_params = Rect::new(stepper_x, y, 64.0, t.h_md);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect,
-                    color: t.hover,
-                },
-                DrawCmd::StrokeRect {
-                    rect,
-                    color: t.line,
-                    width: 1.0,
-                },
-            ]);
-            b.append_cmds(cmds);
-        };
-        {
-            let layout_params = Rect::new(stepper_x + 6.0, y + 7.0, 56.0, 14.0);
-            let size = t.text_sm;
-            let color = t.muted;
-            let spec_builder = LabelSpecBuilder::new().text("padding").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        {
-            let layout_params = Rect::new(stepper_x + 64.0, y, 40.0, t.h_md);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect,
-                    color: t.paper_elev,
-                },
-                DrawCmd::StrokeRect {
-                    rect,
-                    color: t.line,
-                    width: 1.0,
-                },
-            ]);
-            b.append_cmds(cmds);
-        };
-        {
-            let layout_params = Rect::new(stepper_x + 72.0, y + 7.0, 24.0, 14.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-
-        // +/- buttons as text
-        let sx = stepper_x + 120.0;
-        {
-            let layout_params = Rect::new(sx, y, 84.0, t.h_sm);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
-                    color: t.paper_elev,
-                },
-                DrawCmd::StrokeRect {
-                    rect: Rect::new(rect.x, rect.y, 22.0, t.h_sm),
-                    color: t.line,
-                    width: 1.0,
-                },
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
-                    color: t.paper_elev,
-                },
-                DrawCmd::StrokeRect {
-                    rect: Rect::new(rect.x + 22., rect.y, 40.0, t.h_sm),
-                    color: t.line,
-                    width: 1.0,
-                },
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
-                    color: t.paper_elev,
-                },
-                DrawCmd::StrokeRect {
-                    rect: Rect::new(rect.x + 62., rect.y, 22.0, t.h_sm),
-                    color: t.line,
-                    width: 1.0,
-                },
-            ]);
-            b.append_cmds(cmds);
-        };
-        {
-            let layout_params = Rect::new(sx + 6.0, y + 4.0, 10.0, 14.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text("−").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        {
-            let layout_params = Rect::new(sx + 28.0, y + 4.0, 28.0, 14.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text("12").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-        {
-            let layout_params = Rect::new(sx + 68.0, y + 4.0, 10.0, 14.0);
-            let size = t.text_sm;
-            let color = t.ink;
-            let spec_builder = LabelSpecBuilder::new().text("+").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&t)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&t)
-            });
-            label(b, spec_builder, layout_params)
-        };
-
-        // color swatches
-        let sw_x = sx + 100.0;
-        let swatches: &[(Color, &str)] = &[(t.ink, "#15130f"), (t.rust, "#c25a2c")];
-        let mut bx = sw_x;
-        for (color, hex) in swatches {
-            color_swatch(
-                b,
-                ColorSwatchSpecBuilder::new().color(*color).border(t.line),
-                Rect::new(bx, y, 18.0, t.h_md),
-            );
-            {
-                let layout_params = Rect::new(bx + 22.0, y + 7.0, 60.0, 14.0);
-                let size = t.text_sm;
-                let color = t.ink;
-                let spec_builder = LabelSpecBuilder::new().text(hex).style(LabelStyle {
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, t.h_md), ManualLayout);
+        let stepper_x = 0.0;
+        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), IntrinsicSize::UNKNOWN);
+        let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
+        b.append_cmds(DrawCommands::from_vec(vec![
+            DrawCmd::FillRect {
+                rect: rect(stepper_x, 0.0, 64.0, t.h_md),
+                color: t.hover,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(stepper_x, 0.0, 64.0, t.h_md),
+                color: t.line,
+                width: 1.0,
+            },
+            DrawCmd::FillRect {
+                rect: rect(stepper_x + 64.0, 0.0, 40.0, t.h_md),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(stepper_x + 64.0, 0.0, 40.0, t.h_md),
+                color: t.line,
+                width: 1.0,
+            },
+            DrawCmd::FillRect {
+                rect: rect(120.0, 0.0, 22.0, t.h_sm),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(120.0, 0.0, 22.0, t.h_sm),
+                color: t.line,
+                width: 1.0,
+            },
+            DrawCmd::FillRect {
+                rect: rect(142.0, 0.0, 40.0, t.h_sm),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(142.0, 0.0, 40.0, t.h_sm),
+                color: t.line,
+                width: 1.0,
+            },
+            DrawCmd::FillRect {
+                rect: rect(182.0, 0.0, 22.0, t.h_sm),
+                color: t.paper_elev,
+            },
+            DrawCmd::StrokeRect {
+                rect: rect(182.0, 0.0, 22.0, t.h_sm),
+                color: t.line,
+                width: 1.0,
+            },
+        ]));
+        for (text, rect, color) in [
+            ("padding", Rect::new(6.0, 7.0, 56.0, 14.0), t.muted),
+            ("12", Rect::new(72.0, 7.0, 24.0, 14.0), t.ink),
+            ("-", Rect::new(126.0, 4.0, 10.0, 14.0), t.ink),
+            ("12", Rect::new(148.0, 4.0, 28.0, 14.0), t.ink),
+            ("+", Rect::new(188.0, 4.0, 10.0, 14.0), t.ink),
+        ] {
+            label(
+                &mut b,
+                LabelSpecBuilder::new().text(text).style(LabelStyle {
                     text_style: framewise::TextStyle {
-                        size,
+                        size: t.text_sm,
                         ..(LabelStyle::from_theme(&t)).text_style
                     },
                     text_color: color,
                     ..LabelStyle::from_theme(&t)
-                });
-                label(b, spec_builder, layout_params)
-            };
-            bx += 86.0;
+                }),
+                rect,
+            );
         }
+
+        let swatches: &[(Color, &str)] = &[(t.ink, "#15130f"), (t.rust, "#c25a2c")];
+        let mut x = 220.0;
+        for (color, hex) in swatches {
+            color_swatch(
+                &mut b,
+                ColorSwatchSpecBuilder::new().color(*color).border(t.line),
+                Rect::new(x, 0.0, 18.0, t.h_md),
+            );
+            label(
+                &mut b,
+                LabelSpecBuilder::new().text(hex).style(LabelStyle {
+                    text_style: framewise::TextStyle {
+                        size: t.text_sm,
+                        ..(LabelStyle::from_theme(&t)).text_style
+                    },
+                    text_color: t.ink,
+                    ..LabelStyle::from_theme(&t)
+                }),
+                Rect::new(x + 22.0, 7.0, 60.0, 14.0),
+            );
+            x += 86.0;
+        }
+        b.finish();
     }
-    y += t.h_md + SEC_GAP;
-    y
+    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(

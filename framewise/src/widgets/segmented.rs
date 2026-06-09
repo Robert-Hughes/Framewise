@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{FontId, TextSystem},
+    text::TextSystem,
     types::{ClipRect, Color, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -23,10 +23,33 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SegmentedResult {
-        pub draw: DrawCommands,
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+    }
+
+    /// Measure a segmented control's intrinsic size from its spec.
+    ///
+    /// **Must not read `spec.rect`** - this runs before the rect is known, so
+    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
+    /// content and style, never on geometry.
+    pub fn calc_segmented_intrinsic_size<T: TextSystem>(
+        spec: &SegmentedSpec,
+        text_system: &mut T,
+    ) -> crate::layout::IntrinsicSize {
+        let s = spec.style;
+        let total_w = spec
+            .items
+            .iter()
+            .map(|text| {
+                text_system
+                    .measure(text, s.text_style, crate::text::TextBounds::UNBOUNDED)
+                    .logical_size
+                    .x
+                    + s.pad_x * 2.0
+            })
+            .sum();
+        crate::layout::IntrinsicSize::preferred(Vec2::new(total_w, s.height))
     }
 
     /// Low-level segmented widget function.
@@ -39,13 +62,12 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         text_system: &mut T,
+        cmds: &mut DrawCommands,
     ) -> SegmentedResult {
-        let mut cmds = DrawCommands::new();
         let s = spec.style;
 
         if spec.items.is_empty() {
             return SegmentedResult {
-                draw: cmds,
                 input: InputInfo {
                     hovered: false,
                     pressed: false,
@@ -59,13 +81,16 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        // Pre-prepare all labels to get their widths.
-        let layouts: Vec<_> = spec
+        // Pre-measure all labels to get their widths.
+        let metrics: Vec<_> = spec
             .items
             .iter()
-            .map(|text| text_system.prepare(text, s.text_size, spec.style.font))
+            .map(|text| text_system.measure(text, s.text_style, crate::text::TextBounds::UNBOUNDED))
             .collect();
-        let widths: Vec<f32> = layouts.iter().map(|l| l.size.x + pad_x * 2.0).collect();
+        let widths: Vec<f32> = metrics
+            .iter()
+            .map(|m| m.logical_size.x + pad_x * 2.0)
+            .collect();
         let total_w: f32 = widths.iter().sum();
 
         let outer = Rect::new(spec.rect.x, spec.rect.y, total_w, h);
@@ -126,7 +151,13 @@ pub mod raw {
         });
 
         let mut x = spec.rect.x;
-        for (i, (layout, &w)) in layouts.iter().zip(widths.iter()).enumerate() {
+        for (i, ((label, metric), &w)) in spec
+            .items
+            .iter()
+            .zip(metrics.iter())
+            .zip(widths.iter())
+            .enumerate()
+        {
             let is_active = i == state.active_index;
             let seg_rect = Rect::new(x, spec.rect.y, w, h);
 
@@ -159,9 +190,11 @@ pub mod raw {
             }
 
             let text_color = if is_active { s.active_text } else { s.text };
-            let ty = spec.rect.y + (h - layout.size.y) * 0.5;
+            let ty = spec.rect.y + (h - metric.logical_size.y) * 0.5;
+            let text_rect = Rect::new(x + pad_x, ty, metric.logical_size.x, metric.logical_size.y);
+            let layout = text_system.prepare(label, s.text_style, text_rect);
             cmds.push(DrawCmd::Text {
-                rect: Rect::new(x + pad_x, ty, layout.size.x, layout.size.y),
+                rect: text_rect,
                 color: tint(text_color),
                 handle: layout.handle,
             });
@@ -170,7 +203,6 @@ pub mod raw {
         }
 
         SegmentedResult {
-            draw: cmds,
             input: InputInfo {
                 hovered: outer.contains(input.mouse_pos)
                     && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
@@ -189,8 +221,7 @@ pub mod raw {
 pub struct SegmentedStyle {
     pub height: f32,
     pub pad_x: f32,
-    pub text_size: f32,
-    pub font: FontId,
+    pub text_style: crate::text::TextStyle,
     pub background: Color,
     pub border: Color,
     pub active_bg: Color,
@@ -208,8 +239,12 @@ impl SegmentedStyle {
         Self {
             height: theme.h_md,
             pad_x: 14.0,
-            text_size: theme.text_md,
-            font: theme.sans_font,
+            text_style: crate::text::TextStyle::new(
+                theme.sans_font,
+                theme.text_md,
+                theme.sans_weight_regular,
+                crate::text::TextFlow::single_line(),
+            ),
             background: theme.paper_elev,
             border: theme.ink,
             active_bg: theme.ink,
@@ -317,17 +352,23 @@ pub fn segmented<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SegmentedState,
 ) -> SegmentedResult {
-    let layout_rect = ctx.layout_state.layout(layout_params);
-    let rect = builder.rect.unwrap_or(layout_rect);
     let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let spec = builder
-        .rect(rect)
+    let mut spec = builder
         .defaults_from_theme(&ctx.theme)
+        .rect(Rect::PLACEHOLDER)
         .clip_rect(clip)
         .build();
-    let result = raw::segmented(spec, state, ctx.input, ctx.focus_system, ctx.text_system);
-
-    ctx.append_cmds(result.draw);
+    let intrinsic = raw::calc_segmented_intrinsic_size(&spec, ctx.text_system);
+    let rect = ctx.layout(layout_params, intrinsic);
+    spec.rect = rect;
+    let result = raw::segmented(
+        spec,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_system,
+        ctx.cmds,
+    );
 
     SegmentedResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -342,8 +383,12 @@ mod tests {
     use super::*;
     use crate::test_utils::DummyTextSys;
 
-    fn segmented_dummy<'a>(spec: SegmentedSpec<'a>, active_index: usize) -> raw::SegmentedResult {
-        raw::segmented(
+    fn segmented_dummy<'a>(
+        spec: SegmentedSpec<'a>,
+        active_index: usize,
+    ) -> (raw::SegmentedResult, DrawCommands) {
+        let mut cmds = DrawCommands::new();
+        let res = raw::segmented(
             spec,
             &mut SegmentedState {
                 active_index,
@@ -352,7 +397,9 @@ mod tests {
             &Input::default(),
             &mut FocusSystem::new(),
             &mut DummyTextSys,
-        )
+            &mut cmds,
+        );
+        (res, cmds)
     }
 
     #[test]
@@ -366,11 +413,11 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = segmented_dummy(spec, 0);
+        let (_res, cmds) = segmented_dummy(spec, 0);
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
@@ -423,18 +470,20 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let res = raw::segmented(
+        let mut cmds = DrawCommands::new();
+        let _res = raw::segmented(
             spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
         assert_eq!(
-            res.draw,
-            DrawCommands(vec![
+            cmds,
+            DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
@@ -491,6 +540,7 @@ mod tests {
             clip_rect: None,
         };
 
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::segmented(
             spec,
@@ -498,6 +548,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -526,6 +577,7 @@ mod tests {
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 28.0)),
         };
 
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::segmented(
             spec,
@@ -533,6 +585,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -556,6 +609,7 @@ mod tests {
 
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::segmented(
             SegmentedSpec {
@@ -569,6 +623,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
         input.key_pressed_right = false;
@@ -577,6 +632,7 @@ mod tests {
 
         // Frame 2: Press Arrow Left -> changes active index back to 0
         input.key_pressed_left = true;
+        let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
         raw::segmented(
             SegmentedSpec {
@@ -590,6 +646,7 @@ mod tests {
             &input,
             &mut focus_system,
             &mut text_system,
+            &mut cmds,
         );
         focus_system.end_frame();
 
@@ -609,36 +666,36 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = SegmentedStyle::from_theme(&theme);
-        custom_style.text_size = 99.0;
+        custom_style.text_style.size = 99.0;
         let builder = SegmentedSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_size, 99.0);
+        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
     }
 
     #[test]
-    fn test_user_rect_not_overridden() {
-        use crate::layout::{Layout, ManualLayout};
+    fn test_high_level_explicit_placement_via_manual_layout() {
+        use crate::layouts::ManualLayout;
         let mut text_system = DummyTextSys;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
-        let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
-        let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_system,
             &mut focus,
             &input,
-            ManualLayout.begin(Rect::new(0.0, 0.0, 800.0, 600.0)),
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
         );
         let mut seg_state = SegmentedState::default();
         let result = super::segmented(
             &mut ctx,
-            SegmentedSpecBuilder::new().items(&[]).rect(custom_rect),
-            layout_rect,
+            SegmentedSpecBuilder::new().items(&[]),
+            placement,
             &mut seg_state,
         );
-        assert_eq!(result.layout.bounds, custom_rect);
+        assert_eq!(result.layout.bounds, placement);
     }
 }
