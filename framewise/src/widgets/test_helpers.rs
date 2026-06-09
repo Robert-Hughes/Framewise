@@ -120,6 +120,35 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
     );
 }
 
+pub fn assert_mouse_click_on_release<State>(
+    state: &mut State,
+    inside_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input {
+        mouse_pos: inside_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_clicked: false,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(result.pressed, "Widget should be pressed after mouse down");
+    assert!(
+        !result.clicked,
+        "Widget should not click until mouse release"
+    );
+
+    input.mouse_down = false;
+    input.mouse_pressed = false;
+    input.mouse_clicked = true;
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(result.clicked, "Widget should click on mouse release");
+}
+
 pub fn assert_spacebar_click<State>(
     state: &mut State,
     focus_id: FocusId,

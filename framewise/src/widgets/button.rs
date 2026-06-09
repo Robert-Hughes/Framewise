@@ -689,42 +689,21 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
 
-        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
-
-        // Frame 1: Mouse pressed
-        let mut focus_system = FocusSystem::new();
-        let mut input = Input {
-            mouse_pos: Vec2::new(50.0, 25.0),
-            mouse_down: true,
-            mouse_pressed: true,
-            mouse_clicked: false,
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        let res = raw::button(
-            spec(),
+        crate::widgets::test_helpers::assert_mouse_click_on_release(
             &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
+            Vec2::new(50.0, 25.0),
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
-        assert!(res.input.pressed);
-
-        // Frame 2: Mouse released
-        input.mouse_down = false;
-        input.mouse_pressed = false;
-        input.mouse_clicked = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-
-        assert!(res.input.clicked, "Button should register as clicked");
     }
 
     #[test]

@@ -523,6 +523,31 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_click_triggers_clicked_state() {
+        let mut state = CheckboxState::default();
+
+        crate::widgets::test_helpers::assert_mouse_click_on_release(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+    }
+
+    #[test]
     fn test_checkbox_click_takes_focus() {
         let mut focus_system = FocusSystem::new();
         let state = CheckboxState::default();
@@ -575,6 +600,41 @@ mod tests {
             focus_system.current_focus(),
             None,
             "Clicking a clipped-away checkbox must not take focus"
+        );
+    }
+
+    #[test]
+    fn test_enter_toggles_raw_checkbox() {
+        let mut focus_system = FocusSystem::new();
+        let mut state = CheckboxState::default();
+        let mut input = Input::default();
+
+        let spec = || CheckboxSpec {
+            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+            disabled: false,
+            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+            clip_rect: None,
+        };
+
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        focus_system.take_focus(state.focus_id);
+        focus_system.end_frame();
+
+        input.key_pressed_enter = true;
+        focus_system.begin_frame();
+        let result = raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        focus_system.end_frame();
+
+        assert!(
+            result.input.clicked,
+            "Checkbox should be clicked by Enter key"
+        );
+        assert_eq!(
+            state.checked,
+            CheckedState::Checked,
+            "Enter key must toggle checkbox state"
         );
     }
 
@@ -760,5 +820,56 @@ mod tests {
             &mut cb_state,
         );
         assert_eq!(result.layout.bounds, placement);
+    }
+
+    #[test]
+    fn test_high_level_honors_user_style() {
+        use crate::layouts::ManualLayout;
+        use crate::test_utils::DummyTextSys;
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let custom = CheckboxStyle {
+            background: Color::from_srgb_u8(1, 2, 3, 255),
+            ..CheckboxStyle::from_theme(&crate::theme::Theme::default())
+        };
+        let mut cb_state = CheckboxState::default();
+        super::checkbox(
+            &mut ctx,
+            CheckboxSpecBuilder::new().style(custom),
+            Rect::new(100.0, 100.0, 14.0, 14.0),
+            &mut cb_state,
+        );
+
+        let has_custom_fill = cmds
+            .iter()
+            .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.background));
+        assert!(
+            has_custom_fill,
+            "high-level checkbox must honor user-set style"
+        );
+    }
+
+    #[test]
+    fn test_calc_checkbox_intrinsic_size() {
+        let spec = CheckboxSpec {
+            rect: Rect::PLACEHOLDER,
+            disabled: false,
+            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+            clip_rect: None,
+        };
+
+        let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
+        assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
     }
 }
