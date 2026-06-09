@@ -23,6 +23,9 @@ pub mod raw {
         pub scrollbar_style: SliderStyle,
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ScrollAreaCalcIntrinsicSizeSpec {}
+
     /// Carries the geometry resolved at `begin` that `end` needs to finish the
     /// area once the content extent is known. Scroll geometry (max_scroll, thumb
     /// ratios, at_* flags) is **not** stored here — it is computed in `end` from
@@ -60,9 +63,9 @@ pub mod raw {
     /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a minimum viewport
     /// size derived from the reserved scrollbar widths.
     ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN).
-    pub fn calc_scroll_area_intrinsic_size(spec: &ScrollAreaSpec) -> crate::layout::IntrinsicSize {
+    pub fn calc_scroll_area_intrinsic_size(
+        spec: &ScrollAreaCalcIntrinsicSizeSpec,
+    ) -> crate::layout::IntrinsicSize {
         let _ = spec;
         crate::layout::IntrinsicSize::UNKNOWN
     }
@@ -574,15 +577,22 @@ pub struct ScrollAreaResult<'b, T: TextSystem, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScrollAreaSpec {
+    pub horizontal: ScrollAxis,
+    pub vertical: ScrollAxis,
+    pub scrollbar_width: f32,
+    pub scrollbar_style: SliderStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScrollAreaSpecBuilder {
-    pub rect: Option<Rect>,
     pub horizontal: Option<ScrollAxis>,
     pub vertical: Option<ScrollAxis>,
-    pub clip_rect: Option<ClipRect>,
-    pub time: Option<f64>,
     pub scrollbar_width: Option<f32>,
     pub scrollbar_style: Option<SliderStyle>,
 }
@@ -602,15 +612,6 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
-    pub fn time(mut self, time: f64) -> Self {
-        self.time = Some(time);
-        self
-    }
     pub fn scrollbar_width(mut self, scrollbar_width: f32) -> Self {
         self.scrollbar_width = Some(scrollbar_width);
         self
@@ -620,15 +621,8 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.scrollbar_width.is_none() {
             self.scrollbar_width = Some(theme.scrollbar_width);
@@ -641,18 +635,13 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::ScrollAreaSpec {
-        raw::ScrollAreaSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> ScrollAreaSpec {
+        ScrollAreaSpec {
             horizontal: self.horizontal.unwrap_or_default(),
             vertical: self.vertical.unwrap_or(ScrollAxis {
                 extent: ScrollExtent::SCROLL,
                 vis: ScrollbarVisibility::Auto,
             }),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
-            time: self.time.unwrap_or(0.0),
             scrollbar_width: self.scrollbar_width.expect(
                 "scrollbar_width not set — call .scrollbar_width() or defaults_from_theme()",
             ),
@@ -728,22 +717,19 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     crate::layouts::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
 > {
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real bounds are then determined by the layout system
-    // and assigned below. Any `rect` set on the builder is ignored by the
-    // high-level path — placement is the layout's job (use `ManualLayout`, or the
-    // raw fn, for explicit rects).
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .clip_rect(clip)
-        .time(ctx.time)
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-
-    let intrinsic = raw::calc_scroll_area_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::ScrollAreaCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_scroll_area_intrinsic_size(&calc_spec);
     let bounds = ctx.layout(layout_params, intrinsic);
-    spec.rect = bounds;
+    let raw_spec = raw::ScrollAreaSpec {
+        rect: bounds,
+        horizontal: spec.horizontal,
+        vertical: spec.vertical,
+        clip_rect: ctx.clip_rect,
+        time: ctx.time,
+        scrollbar_width: spec.scrollbar_width,
+        scrollbar_style: spec.scrollbar_style,
+    };
     let input = ctx.input;
 
     let raw::ScrollAreaResult {
@@ -751,7 +737,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         content_bounds,
         offset,
         inner_space,
-    } = raw::begin_scroll_area(spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    } = raw::begin_scroll_area(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
     let offset_layout = crate::layouts::OffsetLayout {
         offset,

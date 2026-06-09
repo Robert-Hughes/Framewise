@@ -41,21 +41,28 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
     use framewise::types::Vec2;
 
     let clip = parent_ctx.clip_rect;
-    let mut spec = framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new()
+    let spec = framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new()
         .vertical(framewise::widgets::scroll_area::ScrollAxis {
             extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
             vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
         })
-        .clip_rect(clip)
-        .time(parent_ctx.time)
         .defaults_from_theme(&parent_ctx.theme)
-        .rect(Rect::PLACEHOLDER)
         .build();
 
-    let intrinsic = framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&spec);
+    let calc_spec = framewise::widgets::scroll_area::raw::ScrollAreaCalcIntrinsicSizeSpec {};
+    let intrinsic =
+        framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&calc_spec);
     let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), intrinsic);
-    spec.rect = bounds;
     let input = parent_ctx.input;
+    let raw_spec = framewise::widgets::scroll_area::raw::ScrollAreaSpec {
+        rect: bounds,
+        horizontal: spec.horizontal,
+        vertical: spec.vertical,
+        clip_rect: clip,
+        time: parent_ctx.time,
+        scrollbar_width: spec.scrollbar_width,
+        scrollbar_style: spec.scrollbar_style,
+    };
 
     let framewise::widgets::scroll_area::raw::ScrollAreaResult {
         token,
@@ -63,7 +70,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         offset,
         inner_space,
     } = framewise::widgets::scroll_area::raw::begin_scroll_area(
-        spec,
+        raw_spec,
         &mut state.scroll,
         parent_ctx.input,
         parent_ctx.focus_system,
