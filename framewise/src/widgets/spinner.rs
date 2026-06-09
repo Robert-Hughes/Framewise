@@ -18,10 +18,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct SpinnerCalcIntrinsicSizeSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
 
     /// Compute intrinsic size for Spinner. Currently returns UNKNOWN.
-    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerSpec) -> IntrinsicSize {
+    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerCalcIntrinsicSizeSpec) -> IntrinsicSize {
         IntrinsicSize::UNKNOWN
     }
 
@@ -148,11 +151,18 @@ pub struct SpinnerResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpinnerSpec {
+    pub large: bool,
+    pub style: SpinnerStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpinnerSpecBuilder {
-    pub rect: Option<Rect>,
     pub large: Option<bool>,
     pub style: Option<SpinnerStyle>,
 }
@@ -172,15 +182,8 @@ impl SpinnerSpecBuilder {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(SpinnerStyle::from_theme(theme));
@@ -188,9 +191,8 @@ impl SpinnerSpecBuilder {
         self
     }
 
-    pub fn build(self) -> raw::SpinnerSpec {
-        raw::SpinnerSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> SpinnerSpec {
+        SpinnerSpec {
             large: self.large.unwrap_or(false),
             style: self
                 .style
@@ -209,15 +211,16 @@ pub fn spinner<T: TextSystem, S: LayoutState, CF>(
     builder: SpinnerSpecBuilder,
     layout_params: S::Params,
 ) -> SpinnerResult {
-    // Compute layout using intrinsic size (currently UNKNOWN).
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_spinner_intrinsic_size(&spec);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::SpinnerCalcIntrinsicSizeSpec {};
+    let intrinsic = raw::calc_spinner_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    raw::spinner(spec, ctx.cmds);
+    let raw_spec = raw::SpinnerSpec {
+        rect,
+        large: spec.large,
+        style: spec.style,
+    };
+    raw::spinner(raw_spec, ctx.cmds);
     SpinnerResult {
         layout: LayoutInfo::tight(rect),
     }
