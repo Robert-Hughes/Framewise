@@ -22,19 +22,21 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct SegmentedCalcIntrinsicSizeSpec<'a> {
+        pub items: &'a [&'a str],
+        pub style: super::SegmentedStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct SegmentedResult {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
     }
 
-    /// Measure a segmented control's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** - this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
+    /// Measure a segmented control's intrinsic size from its measurement spec.
     pub fn calc_segmented_intrinsic_size<T: TextSystem>(
-        spec: &SegmentedSpec,
+        spec: &SegmentedCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
@@ -276,15 +278,22 @@ pub struct SegmentedResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SegmentedSpec<'a> {
+    pub items: &'a [&'a str],
+    pub style: SegmentedStyle,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SegmentedSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
     pub style: Option<SegmentedStyle>,
     pub disabled: Option<bool>,
-    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> SegmentedSpecBuilder<'a> {
@@ -304,21 +313,9 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(SegmentedStyle::from_theme(theme));
@@ -326,17 +323,13 @@ impl<'a> SegmentedSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::SegmentedSpec<'a> {
-        raw::SegmentedSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> SegmentedSpec<'a> {
+        SegmentedSpec {
             items: self.items.expect("items not set — call .items()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             disabled: self.disabled.unwrap_or(false),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -352,17 +345,22 @@ pub fn segmented<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SegmentedState,
 ) -> SegmentedResult {
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .clip_rect(clip)
-        .build();
-    let intrinsic = raw::calc_segmented_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::SegmentedCalcIntrinsicSizeSpec {
+        items: spec.items,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_segmented_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::SegmentedSpec {
+        rect,
+        items: spec.items,
+        style: spec.style,
+        disabled: spec.disabled,
+        clip_rect: ctx.clip_rect,
+    };
     let result = raw::segmented(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
