@@ -22,19 +22,21 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct TabsCalcIntrinsicSizeSpec<'a> {
+        pub items: &'a [&'a str],
+        pub style: super::TabsStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TabsResult {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
     }
 
-    /// Measure a tabs widget's intrinsic size from its spec.
-    ///
-    /// **Must not read `spec.rect`** — this runs before the rect is known, so
-    /// callers pass [`Rect::PLACEHOLDER`] (NaN). Intrinsic size depends only on
-    /// content and style, never on geometry.
+    /// Measure a tabs widget's intrinsic size from its measurement spec.
     pub fn calc_tabs_intrinsic_size<T: TextSystem>(
-        spec: &TabsSpec,
+        spec: &TabsCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> IntrinsicSize {
         let s = spec.style;
@@ -260,15 +262,22 @@ pub struct TabsResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TabsSpec<'a> {
+    pub items: &'a [&'a str],
+    pub style: TabsStyle,
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TabsSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub items: Option<&'a [&'a str]>,
     pub style: Option<TabsStyle>,
     pub disabled: Option<bool>,
-    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> TabsSpecBuilder<'a> {
@@ -288,21 +297,9 @@ impl<'a> TabsSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(TabsStyle::from_theme(theme));
@@ -310,17 +307,13 @@ impl<'a> TabsSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::TabsSpec<'a> {
-        raw::TabsSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> TabsSpec<'a> {
+        TabsSpec {
             items: self.items.expect("items not set — call .items()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             disabled: self.disabled.unwrap_or(false),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -336,23 +329,23 @@ pub fn tabs<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut TabsState,
 ) -> TabsResult {
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    // Build the spec up front with a placeholder rect so we can measure the
-    // intrinsic size; the real rect is then determined by the layout system and
-    // assigned below. Any `rect` set on the builder is ignored by the high-level
-    // path — placement is the layout's job (use `ManualLayout`, or the raw fn,
-    // for explicit rects).
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .clip_rect(clip)
-        .build();
-    let intrinsic = raw::calc_tabs_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::TabsCalcIntrinsicSizeSpec {
+        items: spec.items,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_tabs_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::TabsSpec {
+        rect,
+        items: spec.items,
+        style: spec.style,
+        disabled: spec.disabled,
+        clip_rect: ctx.clip_rect,
+    };
 
     let result = raw::tabs(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
@@ -667,12 +660,9 @@ mod tests {
     #[test]
     fn test_calc_tabs_intrinsic_size() {
         let mut ts = DummyTextSys;
-        let spec = TabsSpec {
-            rect: Rect::PLACEHOLDER,
+        let spec = raw::TabsCalcIntrinsicSizeSpec {
             items: &["Tab1", "Tab2"],
-            disabled: false,
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
         };
         // Tab1 = 4 chars * 8px = 32px + 2*18 pad = 68px; Tab2 = same = 68px; total = 136px
         let intrinsic = raw::calc_tabs_intrinsic_size(&spec, &mut ts);
