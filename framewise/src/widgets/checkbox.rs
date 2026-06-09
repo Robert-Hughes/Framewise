@@ -579,44 +579,66 @@ mod tests {
     }
 
     #[test]
-    fn test_checkbox_keyboard_toggle() {
-        let mut focus_system = FocusSystem::new();
+    fn test_checkbox_spacebar_click() {
         let mut state = CheckboxState::default();
-        let mut input = Input::default();
+        let focus_id = state.focus_id;
 
-        let spec = || CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
-
-        // Frame 1: Explicitly focus the checkbox
-        focus_system.take_focus(state.focus_id);
-        focus_system.begin_frame();
-        let mut cmds = DrawCommands::new();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
-
-        // Frame 2: Press Space key while focused
-        input.key_down_space = true;
-        input.key_pressed_space = true;
-        focus_system.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
-
-        // Frame 3: Release Space key
-        input.key_down_space = false;
-        input.key_pressed_space = false;
-        input.key_released_space = true;
-        focus_system.begin_frame();
-        raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
+        crate::widgets::test_helpers::assert_spacebar_click(
+            &mut state,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
 
         assert_eq!(
             state.checked,
             CheckedState::Checked,
             "Spacebar release must toggle checkbox state"
+        );
+    }
+
+    #[test]
+    fn test_checkbox_spacebar_loses_focus_does_not_click() {
+        let mut state = CheckboxState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_spacebar_loses_focus_does_not_click(
+            &mut state,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                        disabled: false,
+                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
+                        clip_rect: None,
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+
+        assert_eq!(
+            state.checked,
+            CheckedState::Unchecked,
+            "Losing focus before Space release must not toggle checkbox state"
         );
     }
 

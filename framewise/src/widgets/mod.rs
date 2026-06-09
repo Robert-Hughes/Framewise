@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test_helpers;
+
 #[cfg(feature = "button")]
 pub mod button;
 #[cfg(feature = "checkbox")]

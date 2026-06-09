@@ -488,7 +488,6 @@ mod tests {
     use crate::text::TextHandle;
     use crate::theme;
     use crate::types::Vec2;
-    use FocusId;
 
     struct PlacementTextSys {
         metrics: crate::text::TextMetrics,
@@ -963,134 +962,46 @@ mod tests {
     fn test_spacebar_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_system = FocusSystem::new();
+        let focus_id = state.focus_id;
 
-        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
-
-        // Frame 1: Focus
-        let mut input = Input::default();
-        let mut cmds = DrawCommands::new();
-        raw::button(
-            spec(),
+        crate::widgets::test_helpers::assert_spacebar_click(
             &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
-        focus_system.take_focus(state.focus_id);
-        focus_system.end_frame();
-
-        // Frame 2: Space down
-        input.key_down_space = true;
-        input.key_pressed_space = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(
-            res.input.pressed,
-            "Button should be visually pressed while space is down"
-        );
-        assert!(!res.input.clicked, "Button should not be clicked yet");
-
-        // Frame 3: Space held
-        input.key_pressed_space = false;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(res.input.pressed, "Button should remain pressed");
-        assert!(!res.input.clicked, "Button should not be clicked yet");
-
-        // Frame 4: Space released
-        input.key_down_space = false;
-        input.key_released_space = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(!res.input.pressed, "Button should not be pressed");
-        assert!(res.input.clicked, "Button should be clicked on release");
     }
 
     #[test]
     fn test_spacebar_loses_focus_does_not_click() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_system = FocusSystem::new();
+        let focus_id = state.focus_id;
 
-        let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
-
-        // Frame 1: Focus
-        let mut input = Input::default();
-        let mut cmds = DrawCommands::new();
-        raw::button(
-            spec(),
+        crate::widgets::test_helpers::assert_spacebar_loses_focus_does_not_click(
             &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
-        focus_system.take_focus(state.focus_id);
-        focus_system.end_frame();
-
-        // Frame 2: Space down
-        input.key_down_space = true;
-        input.key_pressed_space = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(res.input.pressed);
-
-        // Frame 3: Lose focus!
-        input.key_pressed_space = false;
-        focus_system.take_focus(FocusId::new()); // Give focus to something else
-        focus_system.end_frame();
-
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(
-            !res.input.pressed,
-            "Should lose pressed state when focus lost"
-        );
-
-        // Frame 4: Release space
-        input.key_down_space = false;
-        input.key_released_space = true;
-        let res = raw::button(
-            spec(),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        assert!(!res.input.clicked, "Should not click because it lost focus");
     }
 
     // ── Visual Tests ─────────────────────────────────────────────────────────
