@@ -40,11 +40,13 @@ use framewise::types::Color;
 // Per-widget imports — present only when the owning feature is enabled. Marked
 // `unused_imports`-allowed because a widget feature can be on while the (possibly
 // multi-widget) section that consumes it is off.
+#[cfg(feature = "button")]
+#[allow(unused_imports)]
+use framewise::widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 #[allow(unused_imports)]
 use framewise::widgets::checkbox::{
-    checkbox, raw::checkbox as raw_checkbox, raw::CheckboxSpec, CheckboxSpecBuilder, CheckboxState,
-    CheckboxStyle, CheckedState,
+    checkbox, CheckboxSpecBuilder, CheckboxState, CheckboxStyle, CheckedState,
 };
 #[cfg(feature = "chip")]
 #[allow(unused_imports)]
@@ -55,8 +57,7 @@ use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpecBuilder};
 #[cfg(feature = "drag_number")]
 #[allow(unused_imports)]
 use framewise::widgets::drag_number::{
-    drag_number, raw::drag_number as raw_drag_number, raw::DragNumberSpec, DragNumberSpecBuilder,
-    DragNumberState, DragNumberStyle,
+    drag_number, DragNumberSpecBuilder, DragNumberState, DragNumberStyle,
 };
 #[cfg(feature = "keycap")]
 #[allow(unused_imports)]
@@ -72,17 +73,13 @@ use framewise::widgets::meter::{meter, MeterSpecBuilder};
 use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpecBuilder};
 #[cfg(feature = "radio")]
 #[allow(unused_imports)]
-use framewise::widgets::radio::{
-    radio, raw::radio as raw_radio, raw::RadioSpec, RadioSpecBuilder, RadioState, RadioStyle,
-};
+use framewise::widgets::radio::{radio, RadioSpecBuilder, RadioState, RadioStyle};
 #[cfg(feature = "segmented")]
 #[allow(unused_imports)]
 use framewise::widgets::segmented::{segmented, SegmentedSpecBuilder, SegmentedState};
 #[cfg(feature = "select")]
 #[allow(unused_imports)]
-use framewise::widgets::select::{
-    raw::select as raw_select, raw::SelectSpec, select, SelectSpecBuilder, SelectState, SelectStyle,
-};
+use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{slider, SliderSpecBuilder, SliderState};
@@ -94,9 +91,7 @@ use framewise::widgets::spinner::{spinner, SpinnerSpecBuilder};
 use framewise::widgets::status::{status, StatusSpecBuilder, StatusVariant};
 #[cfg(feature = "switch")]
 #[allow(unused_imports)]
-use framewise::widgets::switch::{
-    raw::switch as raw_switch, raw::SwitchSpec, switch, SwitchSpecBuilder, SwitchState, SwitchStyle,
-};
+use framewise::widgets::switch::{switch, SwitchSpecBuilder, SwitchState, SwitchStyle};
 #[cfg(feature = "tabs")]
 #[allow(unused_imports)]
 use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
@@ -112,19 +107,6 @@ use framewise::widgets::tree::{tree, TreeRow, TreeSpecBuilder};
 #[cfg(feature = "window")]
 #[allow(unused_imports)]
 use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
-#[cfg(feature = "button")]
-#[allow(unused_imports)]
-use framewise::widgets::{
-    button::{
-        button,
-        raw::{
-            button as raw_button, calc_button_intrinsic_size, ButtonCalcIntrinsicSizeSpec,
-            ButtonSpec as RawButtonSpec,
-        },
-        ButtonState, ButtonStyle,
-    },
-    ButtonSpecBuilder,
-};
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
@@ -147,14 +129,20 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
     }
 
     let dummy_input = Input::default();
-    let spec = CheckboxSpec {
+    let spec = framewise::widgets::checkbox::raw::CheckboxSpec {
         rect: b.layout(rect, IntrinsicSize::UNKNOWN),
         disabled: is_disabled,
         style: CheckboxStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    raw_checkbox(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds);
+    framewise::widgets::checkbox::raw::checkbox(
+        spec,
+        &mut state,
+        &dummy_input,
+        &mut dummy_focus_sys,
+        b.cmds,
+    );
 }
 
 #[cfg(feature = "radio")]
@@ -176,7 +164,7 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
     }
 
     let dummy_input = Input::default();
-    let spec = RadioSpec {
+    let spec = framewise::widgets::radio::raw::RadioSpec {
         rect: b.layout(
             RowLayoutParams::fixed(size.x, size.y),
             IntrinsicSize::UNKNOWN,
@@ -186,7 +174,13 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
         clip_rect: b.clip_rect,
     };
 
-    raw_radio(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds)
+    framewise::widgets::radio::raw::radio(
+        spec,
+        &mut state,
+        &dummy_input,
+        &mut dummy_focus_sys,
+        b.cmds,
+    )
 }
 
 #[cfg(feature = "switch")]
@@ -208,14 +202,20 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
     }
 
     let dummy_input = Input::default();
-    let spec = SwitchSpec {
+    let spec = framewise::widgets::switch::raw::SwitchSpec {
         rect: b.layout(layout_params, IntrinsicSize::UNKNOWN),
         disabled: is_disabled,
         style: SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
 
-    raw_switch(spec, &mut state, &dummy_input, &mut dummy_focus_sys, b.cmds)
+    framewise::widgets::switch::raw::switch(
+        spec,
+        &mut state,
+        &dummy_input,
+        &mut dummy_focus_sys,
+        b.cmds,
+    )
 }
 
 #[cfg(feature = "select")]
@@ -242,7 +242,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
     }
 
     let dummy_input = Input::default();
-    let spec = SelectSpec {
+    let spec = framewise::widgets::select::raw::SelectSpec {
         rect,
         value,
         items: options,
@@ -251,7 +251,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
         clip_rect: b.clip_rect,
     };
 
-    raw_select(
+    framewise::widgets::select::raw::select(
         spec,
         &mut state,
         &dummy_input,
@@ -279,7 +279,7 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
     };
 
     let dummy_input = Input::default();
-    let spec = DragNumberSpec {
+    let spec = framewise::widgets::drag_number::raw::DragNumberSpec {
         rect,
         text: label,
         min,
@@ -290,7 +290,7 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
     };
 
     let mut dummy_focus_sys = FocusSystem::new();
-    let result = raw_drag_number(
+    let result = framewise::widgets::drag_number::raw::drag_number(
         spec,
         &mut state,
         &dummy_input,
@@ -334,8 +334,8 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
         Input::default()
     };
 
-    raw_button(
-        RawButtonSpec {
+    framewise::widgets::button::raw::button(
+        framewise::widgets::button::raw::ButtonSpec {
             rect,
             text,
             style,
@@ -357,12 +357,12 @@ fn button_intrinsic_width<T: TextSystem>(
     text_system: &mut T,
 ) -> f32 {
     let spec = ButtonSpecBuilder::new().text(text).style(style).build();
-    let spec = ButtonCalcIntrinsicSizeSpec {
+    let spec = framewise::widgets::button::raw::ButtonCalcIntrinsicSizeSpec {
         text: spec.text,
         style: spec.style,
     };
 
-    calc_button_intrinsic_size(&spec, text_system)
+    framewise::widgets::button::raw::calc_button_intrinsic_size(&spec, text_system)
         .preferred
         .expect("button intrinsic size should report preferred size")
         .x
@@ -1304,12 +1304,9 @@ pub fn draw_spec_page_inner<LS, CF>(
 
             // ── FOOTER ───────────────────────────────────────────────────────────────
             footer_section(b, content_w);
-        } // end content block (drops `b` alias, releases borrow on `page`)
+        }
         content_column.finish();
-    }; // end page_cmds block
-       // `state`/`time` are only consumed by feature-gated sections; silence unused
-       // warnings in builds where those sections are compiled out.
-    let _ = &state;
+    };
     #[cfg(feature = "button")]
     if should_reset {
         *state = SpecWidgetsState::default();

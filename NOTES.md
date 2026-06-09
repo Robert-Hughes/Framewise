@@ -4,8 +4,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Separate structs for high/low/calc_intrinsic widgets. In progress (see stash)
-
+- Separate structs for high/low/calc_intrinsic widgets. In progress (see stash
 - Z buffer and z in draw commands
 - "Layer" concept passed throug hteh WidgetContext and into widget funcs, use to derive Z, esp. for focus rings.
 
