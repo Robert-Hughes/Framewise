@@ -23,6 +23,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectCalcIntrinsicSizeSpec<'a> {
+        pub value: &'a str,
+        pub style: super::SelectStyle,
+        pub items: &'a [&'a str],
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct SelectResult {
         pub input: InputInfo,
         pub focused: bool,
@@ -30,7 +37,7 @@ pub mod raw {
     }
 
     pub fn calc_select_intrinsic_size<T: TextSystem>(
-        spec: &SelectSpec,
+        spec: &SelectCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
@@ -410,16 +417,24 @@ pub struct SelectResult {
     pub focused: bool,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelectSpec<'a> {
+    pub value: &'a str,
+    pub style: SelectStyle,
+    pub items: &'a [&'a str],
+    pub disabled: bool,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SelectSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub value: Option<&'a str>,
     pub style: Option<SelectStyle>,
     pub items: Option<&'a [&'a str]>,
     pub disabled: Option<bool>,
-    pub clip_rect: Option<ClipRect>,
 }
 
 impl<'a> SelectSpecBuilder<'a> {
@@ -443,21 +458,9 @@ impl<'a> SelectSpecBuilder<'a> {
         self.disabled = Some(disabled);
         self
     }
-    /// Sets the clip rectangle. High-level context functions supply this automatically — only needed when using the raw API directly.
-    pub fn clip_rect(mut self, clip_rect: ClipRect) -> Self {
-        self.clip_rect = Some(clip_rect);
-        self
-    }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(SelectStyle::from_theme(theme));
@@ -465,18 +468,14 @@ impl<'a> SelectSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::SelectSpec<'a> {
-        raw::SelectSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> SelectSpec<'a> {
+        SelectSpec {
             value: self.value.expect("value not set — call .value()"),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
             items: self.items.expect("items not set — call .items()"),
             disabled: self.disabled.unwrap_or(false),
-            clip_rect: self
-                .clip_rect
-                .expect("clip_rect not set — call .clip_rect()"),
         }
     }
 }
@@ -489,17 +488,24 @@ pub fn select<'a, T: TextSystem, S: LayoutState, CF>(
     layout_params: S::Params,
     state: &mut SelectState,
 ) -> SelectResult {
-    let clip = builder.clip_rect.unwrap_or(ctx.clip_rect);
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .clip_rect(clip)
-        .build();
-    let intrinsic = raw::calc_select_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::SelectCalcIntrinsicSizeSpec {
+        value: spec.value,
+        style: spec.style,
+        items: spec.items,
+    };
+    let intrinsic = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
+    let raw_spec = raw::SelectSpec {
+        rect,
+        value: spec.value,
+        style: spec.style,
+        items: spec.items,
+        disabled: spec.disabled,
+        clip_rect: ctx.clip_rect,
+    };
     let result = raw::select(
-        spec,
+        raw_spec,
         state,
         ctx.input,
         ctx.focus_system,
