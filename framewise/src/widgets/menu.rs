@@ -18,13 +18,19 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
+    pub struct MenuCalcIntrinsicSizeSpec<'a> {
+        pub items: &'a [super::MenuItem<'a>],
+        pub style: super::MenuStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MenuResult {
         pub bounds: Rect,
         pub content_bounds: Rect,
     }
 
     pub fn calc_menu_intrinsic_size<T: TextSystem>(
-        spec: &MenuSpec,
+        spec: &MenuCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
@@ -316,11 +322,18 @@ pub struct MenuResult {
     pub layout: LayoutInfo,
 }
 
-// ── Spec Builder ───────────────────────────────────────────────────────────────
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MenuSpec<'a> {
+    pub items: &'a [MenuItem<'a>],
+    pub style: MenuStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MenuSpecBuilder<'a> {
-    pub rect: Option<Rect>,
     pub items: Option<&'a [MenuItem<'a>]>,
     pub style: Option<MenuStyle>,
 }
@@ -339,15 +352,8 @@ impl<'a> MenuSpecBuilder<'a> {
         self
     }
 
-    /// Sets the bounding rectangle. Called automatically by high-level context
-    /// functions from the layout engine — only needed when using the raw API directly.
-    pub fn rect(mut self, rect: Rect) -> Self {
-        self.rect = Some(rect);
-        self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level context
-    /// functions — only needed when using the raw API directly.
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             self.style = Some(MenuStyle::from_theme(theme));
@@ -355,9 +361,8 @@ impl<'a> MenuSpecBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> raw::MenuSpec<'a> {
-        raw::MenuSpec {
-            rect: self.rect.expect("rect not set — call .rect()"),
+    pub fn build(self) -> MenuSpec<'a> {
+        MenuSpec {
             items: self.items.expect("items not set — call .items()"),
             style: self
                 .style
@@ -376,14 +381,19 @@ pub fn menu<'a, T: TextSystem, S: LayoutState, CF>(
     builder: MenuSpecBuilder<'a>,
     layout_params: S::Params,
 ) -> MenuResult {
-    let mut spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .rect(Rect::PLACEHOLDER)
-        .build();
-    let intrinsic = raw::calc_menu_intrinsic_size(&spec, ctx.text_system);
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let calc_spec = raw::MenuCalcIntrinsicSizeSpec {
+        items: spec.items,
+        style: spec.style,
+    };
+    let intrinsic = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
-    spec.rect = rect;
-    let result = raw::menu(spec, ctx.text_system, ctx.cmds);
+    let raw_spec = raw::MenuSpec {
+        rect,
+        items: spec.items,
+        style: spec.style,
+    };
+    let result = raw::menu(raw_spec, ctx.text_system, ctx.cmds);
     MenuResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
