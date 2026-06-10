@@ -128,6 +128,7 @@ pub mod raw {
             p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         let mut x = spec.rect.x;
@@ -149,6 +150,7 @@ pub mod raw {
                     rect: tab_rect.inset(-s.focus_offset),
                     color: tint(s.focus),
                     width: s.focus_width,
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -160,6 +162,7 @@ pub mod raw {
                 rect: text_rect,
                 color: tint(text_color),
                 handle: layout.handle,
+                z: spec.layer.get_z(),
             });
 
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
@@ -167,16 +170,19 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
                     color: tint(s.accent),
+                    z: spec.layer.get_z(),
                 });
                 // Left uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
+                    z: spec.layer.get_z(),
                 });
                 // Right uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -410,28 +416,34 @@ mod tests {
                     p1: Vec2::new(300.0, 36.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(18.0, 10.0, 32.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 34.5, 68.0, 3.0),
                     color: style.accent,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 28.5, 3.0, 9.0),
                     color: style.accent,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(65.0, 28.5, 3.0, 9.0),
                     color: style.accent,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(86.0, 10.0, 32.0, 16.0),
                     color: style.inactive_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -469,33 +481,40 @@ mod tests {
                     p1: Vec2::new(300.0, 36.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(18.0, 10.0, 32.0, 16.0),
                     color: style.inactive_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(66.0, -2.0, 72.0, 40.0),
                     color: style.focus,
                     width: style.focus_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(86.0, 10.0, 32.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(68.0, 34.5, 68.0, 3.0),
                     color: style.accent,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(68.0, 28.5, 3.0, 9.0),
                     color: style.accent,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(133.0, 28.5, 3.0, 9.0),
                     color: style.accent,
+                    z: 0,
                 },
             ])
         );

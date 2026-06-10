@@ -46,11 +46,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.color,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: spec.border,
             width: 1.0,
+            z: spec.layer.get_z(),
         });
         ColorSwatchResult {
             content_bounds: spec.rect.inset(1.0),
@@ -174,11 +176,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                     color: default_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                     color: default_border,
                     width: 1.0,
+                    z: 0,
                 },
             ])
         );
@@ -207,11 +211,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                     color: custom_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                     color: custom_border,
                     width: 1.0,
+                    z: 0,
                 },
             ])
         );

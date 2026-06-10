@@ -309,10 +309,18 @@ impl Renderer {
 
         for cmd in cmds {
             match cmd {
-                DrawCmd::FillRect { rect, color } => {
+                // TODO: Phase 2b will map command z to depth, and may initially store converted z per vertex
+                // for batching simplicity, with future optimization possible via batching by (pipeline, clip, z)
+                // plus uniform/push-constant z. For now, z is ignored.
+                DrawCmd::FillRect { rect, color, z: _ } => {
                     push_filled_rect(&mut quad_verts, *rect, *color, window_size);
                 }
-                DrawCmd::StrokeRect { rect, color, width } => {
+                DrawCmd::StrokeRect {
+                    rect,
+                    color,
+                    width,
+                    z: _,
+                } => {
                     push_stroked_rect(&mut quad_verts, *rect, *color, *width, window_size);
                 }
                 DrawCmd::StrokeLine {
@@ -320,6 +328,7 @@ impl Renderer {
                     p1,
                     color,
                     width,
+                    z: _,
                 } => {
                     push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, window_size);
                 }
@@ -327,6 +336,7 @@ impl Renderer {
                     center,
                     radius,
                     color,
+                    z: _,
                 } => {
                     push_filled_circle(&mut quad_verts, *center, *radius, *color, window_size);
                 }
@@ -335,6 +345,7 @@ impl Renderer {
                     radius,
                     color,
                     width,
+                    z: _,
                 } => {
                     push_stroked_circle(
                         &mut quad_verts,
@@ -349,6 +360,7 @@ impl Renderer {
                     rect,
                     color,
                     handle,
+                    z: _,
                 } => {
                     if let Some(run) = text_system.runs.get(handle.0) {
                         push_text_run(

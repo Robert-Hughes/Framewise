@@ -168,6 +168,7 @@ impl App {
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
             color: Color::from_srgb_u8(28, 28, 32, 255),
+            z: 0,
         });
         let flow = TextFlow::single_line();
         let m = text_system.measure(
@@ -186,6 +187,7 @@ impl App {
             rect: Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
             color: Color::from_srgb_u8(140, 140, 150, 255),
             handle: layout.handle,
+            z: 0,
         });
         cmds
     }

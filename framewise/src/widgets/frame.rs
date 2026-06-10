@@ -70,6 +70,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect,
             color: style.background,
+            z: spec.layer.get_z(),
         });
 
         let clip_index = cmds.len();
@@ -122,6 +123,7 @@ pub mod raw {
                 rect,
                 color: style.border,
                 width: style.border_width,
+                z: spec.layer.get_z(),
             });
         }
     }
@@ -268,6 +270,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
                     violation_font,
                     v,
                     bounds,
+                    layer.get_z(),
                 );
             }
             raw::end_frame(
@@ -342,6 +345,7 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: final_rect,
                     color: Color::WHITE,
+                    z: 0,
                 },
                 DrawCmd::PushClip {
                     rect: final_content
@@ -351,6 +355,7 @@ mod tests {
                     rect: final_rect,
                     color: Color::linear_rgb(0.5, 0.5, 0.5),
                     width: 2.0,
+                    z: 0,
                 },
             ]
         );

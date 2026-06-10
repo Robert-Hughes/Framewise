@@ -54,11 +54,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: spec.style.background,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: spec.style.border,
             width: spec.style.border_width,
+            z: spec.layer.get_z(),
         });
         // Bottom shadow line
         let shadow_rect = Rect::new(
@@ -70,6 +72,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: shadow_rect,
             color: spec.style.shadow,
+            z: spec.layer.get_z(),
         });
 
         // text, centered
@@ -91,6 +94,7 @@ pub mod raw {
                 rect: text_rect,
                 color: spec.style.text_color,
                 handle: layout.handle,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -269,20 +273,24 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                     color: custom_bg,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                     color: custom_border,
                     width: 1.0,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(1.0, 30.0, 29.0, 2.0),
                     color: custom_shadow,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(11.0, 7.0, 8.0, 16.0),
                     color: custom_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );

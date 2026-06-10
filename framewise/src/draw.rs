@@ -5,13 +5,14 @@ use crate::types::{Color, Rect, Vec2};
 ///
 /// Draw commands are backend-agnostic. The renderer in the application crate
 /// is responsible for turning them into GPU calls. Commands must be executed
-/// in order; later commands appear visually above earlier ones.
+/// in order; later commands still determine visual order until renderer z support lands.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawCmd {
     /// Fill a rectangle with a solid colour.
     FillRect {
         rect: Rect,
         color: Color,
+        z: u32,
     },
 
     /// Draw the outline of a rectangle.
@@ -19,6 +20,7 @@ pub enum DrawCmd {
         rect: Rect,
         color: Color,
         width: f32,
+        z: u32,
     },
 
     /// Draw a straight line segment.
@@ -32,6 +34,7 @@ pub enum DrawCmd {
         p1: Vec2,
         color: Color,
         width: f32,
+        z: u32,
     },
 
     /// Fill a circle with a solid colour.
@@ -39,6 +42,7 @@ pub enum DrawCmd {
         center: Vec2,
         radius: f32,
         color: Color,
+        z: u32,
     },
 
     /// Draw the outline of a circle.
@@ -47,6 +51,7 @@ pub enum DrawCmd {
         radius: f32,
         color: Color,
         width: f32,
+        z: u32,
     },
 
     /// Draw a piece of prepared text.
@@ -54,6 +59,7 @@ pub enum DrawCmd {
         rect: Rect,
         color: Color,
         handle: TextHandle,
+        z: u32,
     },
     PushClip {
         rect: Rect,

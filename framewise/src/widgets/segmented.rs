@@ -146,11 +146,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: outer,
             color: tint(s.background),
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: outer,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         let mut x = spec.rect.x;
@@ -168,6 +170,7 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: seg_rect,
                     color: tint(s.active_bg),
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -178,6 +181,7 @@ pub mod raw {
                     rect: seg_rect.inset(s.focus_offset),
                     color: tint(s.focus),
                     width: s.focus_width,
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -189,6 +193,7 @@ pub mod raw {
                     p1: Vec2::new(div_x, spec.rect.y + h),
                     color: tint(s.border),
                     width: s.border_width,
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -200,6 +205,7 @@ pub mod raw {
                 rect: text_rect,
                 color: tint(text_color),
                 handle: layout.handle,
+                z: spec.layer.get_z(),
             });
 
             x += w;
@@ -422,31 +428,37 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 36.0, 28.0),
                     color: style.active_bg,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(36.0, 0.0),
                     p1: Vec2::new(36.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(14.0, 6.0, 8.0, 16.0),
                     color: style.active_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(50.0, 6.0, 8.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -489,36 +501,43 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(36.0, 0.0),
                     p1: Vec2::new(36.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(14.0, 6.0, 8.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(36.0, 0.0, 36.0, 28.0),
                     color: style.active_bg,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(38.0, 2.0, 32.0, 24.0),
                     color: style.focus,
                     width: style.focus_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(50.0, 6.0, 8.0, 16.0),
                     color: style.active_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );

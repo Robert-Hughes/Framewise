@@ -58,11 +58,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: outer,
             color: s.background,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: outer,
             color: s.border,
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         let mut y = spec.rect.y + s.pad_y;
@@ -74,6 +76,7 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: row_rect,
                     color: s.selected_bg,
+                    z: spec.layer.get_z(),
                 });
             }
 
@@ -115,6 +118,7 @@ pub mod raw {
                 rect: caret_rect,
                 color: caret_color,
                 handle: caret_layout.handle,
+                z: spec.layer.get_z(),
             });
 
             // Label.
@@ -131,6 +135,7 @@ pub mod raw {
                 rect: label_rect,
                 color: text_color,
                 handle: label_layout.handle,
+                z: spec.layer.get_z(),
             });
 
             // Meta (right-aligned).
@@ -149,6 +154,7 @@ pub mod raw {
                     rect: meta_rect,
                     color: meta_color,
                     handle: meta_layout.handle,
+                    z: spec.layer.get_z(),
                 });
             }
 

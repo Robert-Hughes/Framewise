@@ -70,11 +70,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: s.background,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: s.border,
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // Title bar.
@@ -82,6 +84,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: title_rect,
             color: s.title_bg,
+            z: spec.layer.get_z(),
         });
 
         let title_metrics =
@@ -98,6 +101,7 @@ pub mod raw {
             rect: title_text_rect,
             color: s.title_text,
             handle: title_layout.handle,
+            z: spec.layer.get_z(),
         });
 
         // Window buttons (right side).
@@ -118,6 +122,7 @@ pub mod raw {
                 rect: btn_rect,
                 color: s.title_text,
                 handle: btn_layout.handle,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -129,6 +134,7 @@ pub mod raw {
                 p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
                 color: s.status_border,
                 width: s.border_width,
+                z: spec.layer.get_z(),
             });
             let status_text = spec.status_text.unwrap_or("");
             let status_metrics = text_system.measure(
@@ -148,6 +154,7 @@ pub mod raw {
                 rect: status_rect,
                 color: s.status_text,
                 handle: status_layout.handle,
+                z: spec.layer.get_z(),
             });
         }
 

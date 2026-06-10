@@ -102,12 +102,14 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: spec.rect,
                 color: tint(spec.style.background),
+                z: spec.layer.get_z(),
             });
             if spec.style.border_width > 0.0 {
                 cmds.push(DrawCmd::StrokeRect {
                     rect: spec.rect,
                     color: tint(spec.style.border),
                     width: spec.style.border_width,
+                    z: spec.layer.get_z(),
                 });
             }
             let (text_rect, handle) = placed_text(spec.text, &spec.style, spec.rect, text_system);
@@ -115,6 +117,7 @@ pub mod raw {
                 rect: text_rect,
                 color: tint(spec.style.text_color),
                 handle,
+                z: spec.layer.get_z(),
             });
             return ButtonResult {
                 content_bounds: spec.rect.inset(spec.style.border_width),
@@ -188,6 +191,7 @@ pub mod raw {
                     .inset(-(spec.style.focus_offset + spec.style.focus_width)),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -195,6 +199,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: fill,
+            z: spec.layer.get_z(),
         });
 
         // Border.
@@ -203,6 +208,7 @@ pub mod raw {
                 rect: spec.rect,
                 color: spec.style.border,
                 width: spec.style.border_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -212,6 +218,7 @@ pub mod raw {
             rect: text_rect,
             color: spec.style.text_color,
             handle,
+            z: spec.layer.get_z(),
         });
 
         ButtonResult {
@@ -914,16 +921,19 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(48.0, 17.0, 24.0, 16.0),
                     color: text_color,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );
@@ -965,16 +975,19 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: hovered,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(48.0, 17.0, 24.0, 16.0),
                     color: text_color,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );
@@ -1019,16 +1032,19 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: pressed,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(48.0, 17.0, 24.0, 16.0),
                     color: text_color,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );
@@ -1077,20 +1093,24 @@ mod tests {
                     rect: expected_focus_rect,
                     color: focus,
                     width: focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(48.0, 17.0, 24.0, 16.0),
                     color: text_color,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );
@@ -1135,16 +1155,19 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: expected_bg,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: expected_border,
                     width: border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(48.0, 17.0, 24.0, 16.0),
                     color: expected_text,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );
@@ -1293,16 +1316,19 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                     color: custom_style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                     color: custom_style.border,
                     width: custom_style.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(13.0, 29.5, 104.0, 16.0),
                     color: custom_style.text_color,
                     handle: TextHandle(0),
+                    z: 0,
                 },
             ]
         );

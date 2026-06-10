@@ -93,6 +93,7 @@ pub mod raw {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -101,6 +102,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: r,
             color: tint(track_fill),
+            z: spec.layer.get_z(),
         });
 
         // Track border.
@@ -108,6 +110,7 @@ pub mod raw {
             rect: r,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // Thumb dot (10x10, vertically centered, left/right positioned).
@@ -125,6 +128,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
             color: tint(dot_color),
+            z: spec.layer.get_z(),
         });
 
         SwitchResult {
@@ -310,15 +314,18 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.off_fill,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
+                    z: 0,
                 },
             ])
         );
@@ -352,15 +359,18 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.on_fill,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(29.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
+                    z: 0,
                 },
             ])
         );
@@ -397,19 +407,23 @@ mod tests {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
                     width: s.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.off_fill,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
+                    z: 0,
                 },
             ])
         );
@@ -445,15 +459,18 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: tint(s.off_fill),
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: tint(s.border),
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(11.0, 13.0, 10.0, 10.0),
                     color: tint(s.off_thumb),
+                    z: 0,
                 },
             ])
         );

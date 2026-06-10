@@ -208,17 +208,20 @@ pub mod raw {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
         cmds.push(DrawCmd::FillRect {
             rect: r,
             color: tint(s.background),
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: r,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // Selected value text.
@@ -245,6 +248,7 @@ pub mod raw {
             rect: val_rect,
             color: tint(s.text),
             handle: val_layout.handle,
+            z: spec.layer.get_z(),
         });
 
         // Chevron "v".
@@ -263,6 +267,7 @@ pub mod raw {
             rect: chev_rect,
             color: tint(chev_color),
             handle: chev_layout.handle,
+            z: spec.layer.get_z(),
         });
 
         // Dropdown popup.
@@ -274,11 +279,13 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: popup,
                 color: tint(s.background),
+                z: spec.layer.get_z(),
             });
             cmds.push(DrawCmd::StrokeRect {
                 rect: popup,
                 color: tint(s.border),
                 width: s.border_width,
+                z: spec.layer.get_z(),
             });
 
             for (i, opt) in spec.items.iter().enumerate() {
@@ -291,11 +298,13 @@ pub mod raw {
                     cmds.push(DrawCmd::FillRect {
                         rect: row_rect,
                         color: tint(s.selected_bg),
+                        z: spec.layer.get_z(),
                     });
                 } else if is_hovered {
                     cmds.push(DrawCmd::FillRect {
                         rect: row_rect,
                         color: tint(s.hover),
+                        z: spec.layer.get_z(),
                     });
                 }
 
@@ -314,6 +323,7 @@ pub mod raw {
                     rect: opt_rect,
                     color: tint(text_color),
                     handle: opt_layout.handle,
+                    z: spec.layer.get_z(),
                 });
             }
         }
@@ -563,21 +573,25 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(10.0, 6.0, 64.0, 16.0),
                     color: s.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(162.0, 6.0, 8.0, 16.0),
                     color: s.muted,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -628,57 +642,69 @@ mod tests {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
                     width: s.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(10.0, 6.0, 64.0, 16.0),
                     color: s.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(162.0, 6.0, 8.0, 16.0),
                     color: s.accent,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: popup,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: popup,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 34.0, 180.0, 26.0),
                     color: s.selected_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(12.0, 39.0, 64.0, 16.0),
                     color: s.selected_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 60.0, 180.0, 26.0),
                     color: s.hover,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(12.0, 65.0, 64.0, 16.0),
                     color: s.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(12.0, 91.0, 64.0, 16.0),
                     color: s.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );

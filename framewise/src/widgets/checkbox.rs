@@ -130,6 +130,7 @@ pub mod raw {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -141,6 +142,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: r,
             color: tint(fill),
+            z: spec.layer.get_z(),
         });
 
         // Box border.
@@ -148,6 +150,7 @@ pub mod raw {
             rect: r,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // Inner mark.
@@ -163,12 +166,14 @@ pub mod raw {
                     p1,
                     color: mark,
                     width: s.mark_width,
+                    z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::StrokeLine {
                     p0: p1,
                     p1: p2,
                     color: mark,
                     width: s.mark_width,
+                    z: spec.layer.get_z(),
                 });
             }
             CheckedState::Indeterminate => {
@@ -176,6 +181,7 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                     color: tint(s.mark),
+                    z: spec.layer.get_z(),
                 });
             }
             CheckedState::Unchecked => {}
@@ -487,11 +493,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 14.0, 14.0),
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 14.0, 14.0),
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );
@@ -522,23 +530,27 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.selected_fill,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0,
                     p1,
                     color: s.mark,
                     width: s.mark_width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: p1,
                     p1: p2,
                     color: s.mark,
                     width: s.mark_width,
+                    z: 0,
                 },
             ])
         );
@@ -566,15 +578,18 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.selected_fill,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                     color: s.mark,
+                    z: 0,
                 },
             ])
         );
@@ -697,15 +712,18 @@ mod tests {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
                     width: s.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );
@@ -735,11 +753,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: tint(s.background),
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: r,
                     color: tint(s.border),
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );

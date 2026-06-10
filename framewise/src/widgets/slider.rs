@@ -156,10 +156,12 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: track_rect,
                     color: tint(spec.style.track_color),
+                    z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::FillRect {
                     rect: thumb_rect,
                     color: tint(spec.style.thumb_color),
+                    z: spec.layer.get_z(),
                 });
             } else {
                 let half_thick = spec.style.thickness * 0.5;
@@ -183,16 +185,19 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: track_line,
                     color: tint(spec.style.track_color),
+                    z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::FillRect {
                     rect: thumb_rect,
                     color: tint(spec.style.thumb_color),
+                    z: spec.layer.get_z(),
                 });
                 if spec.style.thumb_border_width > 0.0 {
                     cmds.push(DrawCmd::StrokeRect {
                         rect: thumb_rect,
                         color: tint(spec.style.thumb_border_color),
                         width: spec.style.thumb_border_width,
+                        z: spec.layer.get_z(),
                     });
                 }
             }
@@ -474,6 +479,7 @@ pub mod raw {
                 rect: track_rect.inset(-spec.style.focus_offset),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -496,10 +502,12 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: track_rect,
                 color: spec.style.track_color,
+                z: spec.layer.get_z(),
             });
             cmds.push(DrawCmd::FillRect {
                 rect: thumb_rect,
                 color: effective_thumb_fill,
+                z: spec.layer.get_z(),
             });
         } else {
             // Standalone slider: hairline track, fill bar, square thumb with border.
@@ -545,6 +553,7 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: track_line,
                 color: spec.style.track_color,
+                z: spec.layer.get_z(),
             });
 
             // Fill bar (rust when dragging, same as track otherwise — overlays track).
@@ -556,18 +565,21 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: fill_bar,
                 color: fill_color,
+                z: spec.layer.get_z(),
             });
 
             // Square thumb.
             cmds.push(DrawCmd::FillRect {
                 rect: thumb_rect,
                 color: effective_thumb_fill,
+                z: spec.layer.get_z(),
             });
             if spec.style.thumb_border_width > 0.0 {
                 cmds.push(DrawCmd::StrokeRect {
                     rect: thumb_rect,
                     color: effective_thumb_border,
                     width: spec.style.thumb_border_width,
+                    z: spec.layer.get_z(),
                 });
             }
         }
@@ -1850,6 +1862,7 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: tr,
                     color: tc,
+                    z: 0,
                 },
                 DrawCmd::FillRect { color: hc, .. },
             ) => {
@@ -1893,19 +1906,23 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
+                    z: 0,
                 },
             ]
         );
@@ -1938,19 +1955,23 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_hover_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
+                    z: 0,
                 },
             ]
         );
@@ -1983,19 +2004,23 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.thumb_drag_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_drag_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_drag_color,
                     width: spec.style.thumb_border_width,
+                    z: 0,
                 },
             ]
         );
@@ -2029,23 +2054,28 @@ mod tests {
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                     color: spec.style.focus,
                     width: spec.style.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_color,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
+                    z: 0,
                 },
             ]
         );

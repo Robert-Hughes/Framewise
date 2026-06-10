@@ -75,6 +75,7 @@ pub fn react_layout_violation<T: TextSystem>(
     font: crate::text::FontId,
     violation: LayoutViolation,
     fallback_rect: Rect,
+    z: u32,
 ) {
     match policy {
         // violation's Display already carries the "Layout panic: …" prefix.
@@ -85,6 +86,7 @@ pub fn react_layout_violation<T: TextSystem>(
                 rect: fallback_rect,
                 color,
                 width: 2.0,
+                z,
             });
             // Label at the top-left corner, in the same red.
             let layout = text_system.prepare(
@@ -101,6 +103,7 @@ pub fn react_layout_violation<T: TextSystem>(
                 ),
                 color,
                 handle: layout.handle,
+                z,
             });
         }
     }
@@ -253,6 +256,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         // space as-is, and its outer extent is exactly its measured content.
         let policy = self.layout_policy;
         let font = self.theme.sans_font;
+        let z = self.layer.get_z();
         let (child, _outer_space) = self.child_with_deferred_layout(
             placement,
             IntrinsicSize::UNKNOWN,
@@ -263,7 +267,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
                     .end_layout(Vec2::new(content.w, content.h))
                     .into_parts();
                 if let Some(v) = violation {
-                    react_layout_violation(policy, text_system, cmds, font, v, rect);
+                    react_layout_violation(policy, text_system, cmds, font, v, rect, z);
                 }
             },
         );
@@ -363,6 +367,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             .layout_state
             .layout(layout_params, intrinsic)
             .into_parts();
+        let z = self.layer.get_z();
         if let Some(v) = violation {
             react_layout_violation(
                 self.layout_policy,
@@ -371,6 +376,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
                 self.theme.sans_font,
                 v,
                 rect,
+                z,
             );
         }
 
@@ -380,6 +386,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
                 rect,
                 color: crate::types::Color::from_srgb_u8(200, 0, 255, 255),
                 width: 1.0,
+                z,
             });
         }
 
@@ -418,6 +425,7 @@ impl<
         let resolved_space = self.layout_state.resolve_space();
         let debug_layout = self.debug_layout;
         let font = self.theme.sans_font;
+        let z = self.layer.get_z();
         (self.on_finish)(
             self.focus_system,
             self.text_system,
@@ -435,6 +443,7 @@ impl<
                 font,
                 violation,
                 resolved_space,
+                z,
             );
         }
 
@@ -445,6 +454,7 @@ impl<
                 rect: resolved_space,
                 color: crate::types::Color::from_srgb_u8(255, 0, 200, 255),
                 width: 1.0,
+                z,
             });
         }
 
@@ -655,6 +665,7 @@ mod tests {
                 rect: r,
                 color,
                 width,
+                ..
             } = cmd
             {
                 if *color == Color::from_srgb_u8(255, 0, 0, 255) && *width == 2.0 {

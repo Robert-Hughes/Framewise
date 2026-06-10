@@ -53,6 +53,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: track,
             color: spec.style.track_color,
+            z: spec.layer.get_z(),
         });
 
         let fill_color = if spec.active {
@@ -71,6 +72,7 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(x, track.y, visible_w, track_h),
                     color: fill_color,
+                    z: spec.layer.get_z(),
                 });
             }
         } else {
@@ -79,6 +81,7 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     rect: Rect::new(track.x, track.y, fill_w, track_h),
                     color: fill_color,
+                    z: spec.layer.get_z(),
                 });
             }
         }
@@ -234,10 +237,12 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 50.0, 3.0),
                     color: style.fill_color,
+                    z: 0,
                 },
             ])
         );
@@ -263,10 +268,12 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 50.0, 3.0),
                     color: style.active_fill_color,
+                    z: 0,
                 },
             ])
         );
@@ -292,10 +299,12 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(60.0, 13.5, 30.000002, 3.0),
                     color: style.fill_color,
+                    z: 0,
                 },
             ])
         );

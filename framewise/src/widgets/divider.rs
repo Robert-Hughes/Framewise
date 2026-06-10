@@ -48,6 +48,7 @@ pub mod raw {
             p1: Vec2::new(spec.rect.x + spec.rect.w, mid_y),
             color: spec.color,
             width: spec.width,
+            z: 0,
         });
         DividerResult {}
     }
@@ -158,6 +159,7 @@ mod tests {
                 p1: Vec2::new(100.0, 5.0),
                 color: Color::WHITE,
                 width: 1.0,
+                z: 0,
             }])
         );
     }

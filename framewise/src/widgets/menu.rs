@@ -106,11 +106,13 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: outer,
             color: s.background,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: outer,
             color: s.border,
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         let mut y = spec.rect.y + s.pad_y;
@@ -124,6 +126,7 @@ pub mod raw {
                         p1: Vec2::new(outer.x + w, sep_y),
                         color: s.separator,
                         width: s.border_width,
+                        z: spec.layer.get_z(),
                     });
                     y += sep_h;
                 }
@@ -145,6 +148,7 @@ pub mod raw {
                         rect,
                         color: s.muted,
                         handle: layout.handle,
+                        z: spec.layer.get_z(),
                     });
                     y += group_h;
                 }
@@ -163,6 +167,7 @@ pub mod raw {
                         cmds.push(DrawCmd::FillRect {
                             rect: row_rect,
                             color: tint(s.selected_bg),
+                            z: spec.layer.get_z(),
                         });
                     }
 
@@ -188,6 +193,7 @@ pub mod raw {
                         rect,
                         color: text_color,
                         handle: layout.handle,
+                        z: spec.layer.get_z(),
                     });
 
                     if let Some(sc) = shortcut {
@@ -219,6 +225,7 @@ pub mod raw {
                             rect: sc_rect,
                             color: sc_color,
                             handle: sc_layout.handle,
+                            z: spec.layer.get_z(),
                         });
                     }
 

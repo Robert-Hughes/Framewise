@@ -69,6 +69,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
             color: dot_color,
+            z: spec.layer.get_z(),
         });
 
         let metrics = text_system.measure(
@@ -91,6 +92,7 @@ pub mod raw {
             rect: text_rect,
             color: s.text,
             handle: layout.handle,
+            z: spec.layer.get_z(),
         });
     }
 }
@@ -259,11 +261,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.ok,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(14.0, -5.0, 48.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -289,11 +293,13 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.warn,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(14.0, -5.0, 56.0, 16.0),
                     color: style.text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );

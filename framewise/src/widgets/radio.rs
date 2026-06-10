@@ -96,6 +96,7 @@ pub mod raw {
                 radius: s.radius + s.focus_offset,
                 color: tint(s.focus),
                 width: s.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
@@ -104,6 +105,7 @@ pub mod raw {
             center,
             radius: s.radius,
             color: tint(s.background),
+            z: spec.layer.get_z(),
         });
 
         // Outer ring.
@@ -112,6 +114,7 @@ pub mod raw {
             radius: s.radius,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // Inner dot when selected.
@@ -120,6 +123,7 @@ pub mod raw {
                 center,
                 radius: s.dot_radius,
                 color: tint(s.dot),
+                z: spec.layer.get_z(),
             });
         }
 
@@ -302,12 +306,14 @@ mod tests {
                     center,
                     radius: s.radius,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeCircle {
                     center,
                     radius: s.radius,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );
@@ -342,17 +348,20 @@ mod tests {
                     center,
                     radius: s.radius,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeCircle {
                     center,
                     radius: s.radius,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillCircle {
                     center,
                     radius: s.dot_radius,
                     color: s.dot,
+                    z: 0,
                 },
             ])
         );
@@ -391,17 +400,20 @@ mod tests {
                     radius: s.radius + s.focus_offset,
                     color: s.focus,
                     width: s.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillCircle {
                     center,
                     radius: s.radius,
                     color: s.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeCircle {
                     center,
                     radius: s.radius,
                     color: s.border,
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );
@@ -438,12 +450,14 @@ mod tests {
                     center,
                     radius: s.radius,
                     color: tint(s.background),
+                    z: 0,
                 },
                 DrawCmd::StrokeCircle {
                     center,
                     radius: s.radius,
                     color: tint(s.border),
                     width: s.border_width,
+                    z: 0,
                 },
             ])
         );

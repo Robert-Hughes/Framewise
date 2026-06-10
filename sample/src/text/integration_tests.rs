@@ -28,6 +28,7 @@ mod integration_tests {
                 rect: body_rect,
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 handle: describe_layout.handle,
+                z: 0,
             });
 
             let Some(actual) = render_commands_to_rgba(width, height, cmds, text_system).await

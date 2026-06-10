@@ -144,17 +144,20 @@ pub mod raw {
                 rect: spec.rect.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
+                z: spec.layer.get_z(),
             });
         }
 
         cmds.push(DrawCmd::FillRect {
             rect: spec.rect,
             color: tint(s.background),
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
             rect: spec.rect,
             color: tint(s.border),
             width: s.border_width,
+            z: spec.layer.get_z(),
         });
 
         // text section (ink/rust bg, paper text).
@@ -167,6 +170,7 @@ pub mod raw {
         cmds.push(DrawCmd::FillRect {
             rect: text_rect,
             color: tint(text_bg),
+            z: spec.layer.get_z(),
         });
 
         let lty = spec.rect.y + (spec.rect.h - text_metrics.logical_size.y) * 0.5;
@@ -181,6 +185,7 @@ pub mod raw {
             rect: text_rect,
             color: tint(s.text_text),
             handle: text_layout.handle,
+            z: spec.layer.get_z(),
         });
 
         // Value area: rust_soft fill proportional to value fraction.
@@ -189,6 +194,7 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
                 color: tint(s.value_fill),
+                z: spec.layer.get_z(),
             });
         }
 
@@ -211,6 +217,7 @@ pub mod raw {
             rect: value_rect,
             color: tint(s.value_text),
             handle: val_layout.handle,
+            z: spec.layer.get_z(),
         });
 
         DragNumberResult {
@@ -455,29 +462,35 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                     color: style.text_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
                     color: style.text_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(38.0, 10.0, 36.0, 28.0),
                     color: style.value_fill,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(54.0, 16.0, 40.0, 16.0),
                     color: style.value_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -523,33 +536,40 @@ mod tests {
                     rect: Rect::new(9.0, 9.0, 102.0, 30.0),
                     color: style.focus,
                     width: style.focus_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                     color: style.active_text_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
                     color: style.text_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(38.0, 10.0, 36.0, 28.0),
                     color: style.value_fill,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(54.0, 16.0, 40.0, 16.0),
                     color: style.value_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );
@@ -586,25 +606,30 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.background,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                     color: style.border,
                     width: style.border_width,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                     color: style.text_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(20.0, 16.0, 8.0, 16.0),
                     color: style.text_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(58.0, 16.0, 32.0, 16.0),
                     color: style.value_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
             ])
         );

@@ -71,6 +71,7 @@ pub mod raw {
             rect: text_rect,
             color: spec.style.text_color,
             handle: layout.handle,
+            z: 0,
         });
 
         if spec.style.rule {
@@ -80,6 +81,7 @@ pub mod raw {
                 p1: Vec2::new(spec.rect.x + spec.rect.w, y),
                 color: spec.style.rule_color,
                 width: 1.0,
+                z: 0,
             });
         }
 
@@ -342,6 +344,7 @@ mod tests {
                 rect: Rect::new(0.0, 0.0, 40.0, 16.0),
                 color: Color::WHITE,
                 handle: TextHandle(0),
+                z: 0,
             }]
         );
     }
@@ -376,12 +379,14 @@ mod tests {
                     rect: Rect::new(0.0, 0.0, 56.0, 16.0),
                     color: Color::WHITE,
                     handle: TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 20.0),
                     p1: Vec2::new(100.0, 20.0),
                     color: Color::WHITE,
                     width: 1.0,
+                    z: 0,
                 }
             ]
         );
@@ -411,6 +416,7 @@ mod tests {
                 rect: Rect::new(70.0, 54.0, 40.0, 16.0),
                 color: LabelStyle::from_theme(&theme::Theme::default()).text_color,
                 handle: TextHandle(0),
+                z: 0,
             }]
         );
     }

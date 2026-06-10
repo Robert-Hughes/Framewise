@@ -1195,6 +1195,7 @@ pub fn draw_spec_page(
     b.cmds.push(DrawCmd::FillRect {
         rect: win_rect,
         color: b.theme.paper,
+        z: 0,
     });
 
     // Scroll area provides clip + scroll offset for all page content.
@@ -1448,18 +1449,21 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
             color: t.ink,
             width: lw,
+            z: 0,
         },
         DrawCmd::StrokeLine {
             p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
             p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
             width: lw,
+            z: 0,
         },
         DrawCmd::StrokeLine {
             p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
             p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
             color: t.ink,
             width: lw,
+            z: 0,
         },
         // top horizontal
         DrawCmd::StrokeLine {
@@ -1467,6 +1471,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
             color: t.ink,
             width: lw,
+            z: 0,
         },
         // middle horizontal (rust)
         DrawCmd::StrokeLine {
@@ -1474,6 +1479,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
             color: t.rust,
             width: lw,
+            z: 0,
         },
         // vertical
         DrawCmd::StrokeLine {
@@ -1481,6 +1487,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
             width: lw,
+            z: 0,
         },
     ]);
 
@@ -1882,11 +1889,13 @@ fn section_02_text_inputs<CF>(
                 DrawCmd::FillRect {
                     rect,
                     color: b.theme.ink,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect,
                     color: b.theme.line,
                     width: 1.0,
+                    z: 0,
                 },
             ]);
             b.append_cmds(cmds);
@@ -2296,6 +2305,7 @@ fn section_04_sliders<CF>(
                     b.cmds.push(DrawCmd::FillRect {
                         rect,
                         color: b.theme.line,
+                        z: 0,
                     });
                 }
                 y += b.theme.h_md + 8.0;
@@ -2327,28 +2337,34 @@ fn section_04_sliders<CF>(
             DrawCmd::FillRect {
                 rect: rect(0.0, mid_y - 0.75, track_w, 1.5),
                 color: b.theme.line,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(fill_x1, mid_y - 0.75, fill_x2 - fill_x1, 1.5),
                 color: b.theme.ink,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
                 width: 1.5,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
                 width: 1.5,
+                z: 0,
             },
         ]));
         let spec = LabelSpecBuilder::new().text(".24-.76").style(LabelStyle {
@@ -2413,47 +2429,57 @@ fn section_04_sliders<CF>(
             DrawCmd::FillRect {
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                 color: b.theme.hover,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             },
             DrawCmd::FillRect {
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
+                z: 0,
             },
             DrawCmd::StrokeRect {
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             },
         ]));
         for (text, rect, color) in [
@@ -2723,6 +2749,7 @@ fn section_06_scrollbars<CF>(
                 rect,
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             }]);
 
             b.append_cmds(cmds);
@@ -2800,6 +2827,7 @@ fn section_06_scrollbars<CF>(
                 rect,
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             }]);
             b.append_cmds(cmds);
         };
@@ -2863,6 +2891,7 @@ fn section_06_scrollbars<CF>(
                 rect,
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             }]);
             b.append_cmds(cmds);
         };
@@ -2923,6 +2952,7 @@ fn section_06_scrollbars<CF>(
                 rect,
                 color: b.theme.line,
                 width: 1.0,
+                z: 0,
             }]);
             b.append_cmds(cmds);
         };
@@ -3515,15 +3545,18 @@ fn section_11_window<CF>(
                 DrawCmd::FillRect {
                     rect,
                     color: dark_bg,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect,
                     color: dark_bdr,
                     width: 1.0,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
                     color: darker,
+                    z: 0,
                 },
             ]);
             b.append_cmds(cmds);
@@ -3566,20 +3599,24 @@ fn section_11_window<CF>(
                 DrawCmd::FillRect {
                     rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                     color: Color::from_srgb_u8(42, 37, 32, 255),
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
+                    z: 0,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
                     color: Color::from_srgb_u8(42, 37, 32, 255),
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
+                    z: 0,
                 },
             ]);
 
@@ -3637,11 +3674,13 @@ fn section_11_window<CF>(
                 DrawCmd::FillRect {
                     rect,
                     color: darker,
+                    z: 0,
                 },
                 DrawCmd::StrokeRect {
                     rect,
                     color: dark_bdr,
                     width: 1.0,
+                    z: 0,
                 },
             ]);
             b.append_cmds(cmds);
@@ -3672,6 +3711,7 @@ fn section_11_window<CF>(
                 p1: Vec2::new(rect.x + rect.w, rect.y),
                 color: dark_bdr,
                 width: 1.0,
+                z: 0,
             }]);
             b.append_cmds(cmds);
         };
@@ -3699,6 +3739,7 @@ fn section_11_window<CF>(
                     let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
                         rect,
                         color: b.theme.rust,
+                        z: 0,
                     }]);
 
                     b.append_cmds(cmds);

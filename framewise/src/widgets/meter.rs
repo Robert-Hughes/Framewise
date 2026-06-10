@@ -72,6 +72,7 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 rect: bar_rect,
                 color,
+                z: spec.layer.get_z(),
             });
         }
     }
@@ -232,6 +233,7 @@ mod tests {
             expected.push(DrawCmd::FillRect {
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
+                z: 0,
             });
         }
         assert_eq!(cmds, DrawCommands::from_vec(expected));
@@ -263,6 +265,7 @@ mod tests {
             expected.push(DrawCmd::FillRect {
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
+                z: 0,
             });
         }
         assert_eq!(cmds, DrawCommands::from_vec(expected));

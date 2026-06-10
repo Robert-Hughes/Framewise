@@ -58,12 +58,14 @@ pub mod raw {
             p1: Vec2::new(x, y),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x, y),
             p1: Vec2::new(x + arm, y),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         // Top-right bracket.
         cmds.push(DrawCmd::StrokeLine {
@@ -71,12 +73,14 @@ pub mod raw {
             p1: Vec2::new(x + size, y),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size, y),
             p1: Vec2::new(x + size, y + arm),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         // Bottom-right bracket.
         cmds.push(DrawCmd::StrokeLine {
@@ -84,12 +88,14 @@ pub mod raw {
             p1: Vec2::new(x + size, y + size),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x + size, y + size),
             p1: Vec2::new(x + size - arm, y + size),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         // Bottom-left bracket.
         cmds.push(DrawCmd::StrokeLine {
@@ -97,12 +103,14 @@ pub mod raw {
             p1: Vec2::new(x, y + size),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(x, y + size),
             p1: Vec2::new(x, y + size - arm),
             color: spec.style.color,
             width: w,
+            z: spec.layer.get_z(),
         });
 
         // Animated segment on the top edge — drawn as a rust highlight.
@@ -112,6 +120,7 @@ pub mod raw {
             p1: Vec2::new(x + size * 0.1 + seg_w, y),
             color: spec.style.highlight,
             width: w,
+            z: spec.layer.get_z(),
         });
     }
 }
@@ -254,59 +263,68 @@ mod tests {
                     p0: Vec2::new(0.0, 5.0),
                     p1: Vec2::new(0.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(5.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(11.0, 0.0),
                     p1: Vec2::new(16.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(16.0, 0.0),
                     p1: Vec2::new(16.0, 5.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(16.0, 11.0),
                     p1: Vec2::new(16.0, 16.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(16.0, 16.0),
                     p1: Vec2::new(11.0, 16.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(5.0, 16.0),
                     p1: Vec2::new(0.0, 16.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 16.0),
                     p1: Vec2::new(0.0, 11.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Highlight
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(1.6, 0.0),
                     p1: Vec2::new(8.0, 0.0),
                     color: style.highlight,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
             ])
         );
@@ -332,59 +350,68 @@ mod tests {
                     p0: Vec2::new(0.0, 7.0),
                     p1: Vec2::new(0.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(7.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(17.0, 0.0),
                     p1: Vec2::new(24.0, 0.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 0.0),
                     p1: Vec2::new(24.0, 7.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 17.0),
                     p1: Vec2::new(24.0, 24.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(24.0, 24.0),
                     p1: Vec2::new(17.0, 24.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(7.0, 24.0),
                     p1: Vec2::new(0.0, 24.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(0.0, 24.0),
                     p1: Vec2::new(0.0, 17.0),
                     color: style.color,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
                 // Highlight
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(2.4, 0.0),
                     p1: Vec2::new(12.0, 0.0),
                     color: style.highlight,
-                    width: style.width
+                    width: style.width,
+                    z: 0,
                 },
             ])
         );

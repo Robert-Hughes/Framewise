@@ -77,7 +77,11 @@ pub mod raw {
         let box_h = metrics.logical_size.y + pad_y_top + pad_y_bot;
 
         let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
-        cmds.push(DrawCmd::FillRect { rect: r, color: bg });
+        cmds.push(DrawCmd::FillRect {
+            rect: r,
+            color: bg,
+            z: spec.layer.get_z(),
+        });
 
         let text_rect = Rect::new(
             r.x + pad_x,
@@ -90,6 +94,7 @@ pub mod raw {
             rect: text_rect,
             color: text_color,
             handle: layout.handle,
+            z: spec.layer.get_z(),
         });
 
         // Arrow triangle below (two lines converging to a point).
@@ -100,12 +105,14 @@ pub mod raw {
             p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
             color: bg,
             width: s.arrow_width,
+            z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
             p0: Vec2::new(arrow_x + arrow_w, arrow_y),
             p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
             color: bg,
             width: s.arrow_width,
+            z: spec.layer.get_z(),
         });
 
         let content_bounds = Rect::new(
@@ -292,23 +299,27 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.dark_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(8.0, 5.0, 56.0, 16.0),
                     color: style.dark_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(14.0, 27.0),
                     p1: Vec2::new(18.0, 31.0),
                     color: style.dark_bg,
                     width: style.arrow_width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(22.0, 27.0),
                     p1: Vec2::new(18.0, 31.0),
                     color: style.dark_bg,
                     width: style.arrow_width,
+                    z: 0,
                 },
             ])
         );
@@ -335,23 +346,27 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.rust_bg,
+                    z: 0,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(8.0, 5.0, 56.0, 16.0),
                     color: style.rust_text,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(14.0, 27.0),
                     p1: Vec2::new(18.0, 31.0),
                     color: style.rust_bg,
                     width: style.arrow_width,
+                    z: 0,
                 },
                 DrawCmd::StrokeLine {
                     p0: Vec2::new(22.0, 27.0),
                     p1: Vec2::new(18.0, 31.0),
                     color: style.rust_bg,
                     width: style.arrow_width,
+                    z: 0,
                 },
             ])
         );
