@@ -132,6 +132,11 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
     let spec = framewise::widgets::checkbox::raw::CheckboxSpec {
         rect: b.layout(rect, IntrinsicSize::UNKNOWN),
         disabled: is_disabled,
+        allowed_checked_states: vec![
+            CheckedState::Unchecked,
+            CheckedState::Checked,
+            CheckedState::Indeterminate,
+        ],
         style: CheckboxStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
     };
@@ -2021,7 +2026,11 @@ fn section_03_toggles<CF>(
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[ci];
-                    let spec_builder = CheckboxSpecBuilder::new();
+                    let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(vec![
+                        CheckedState::Unchecked,
+                        CheckedState::Checked,
+                        CheckedState::Indeterminate,
+                    ]);
                     checkbox(&mut b, spec_builder, rect, state)
                 };
             } else {
@@ -2053,7 +2062,11 @@ fn section_03_toggles<CF>(
                 let _info = {
                     let state = &mut state.cb_matrix[3 + ci];
                     let layout_params = Rect::new(cx, y, 14.0, 14.0);
-                    let spec_builder = CheckboxSpecBuilder::new();
+                    let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(vec![
+                        CheckedState::Unchecked,
+                        CheckedState::Checked,
+                        CheckedState::Indeterminate,
+                    ]);
                     checkbox(&mut b, spec_builder, layout_params, state)
                 };
             } else {

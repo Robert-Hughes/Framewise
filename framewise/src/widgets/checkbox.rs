@@ -16,6 +16,7 @@ pub mod raw {
         /// Top-left of the 14x14 box.
         pub rect: Rect,
         pub disabled: bool,
+        pub allowed_checked_states: Vec<CheckedState>,
         pub style: super::CheckboxStyle,
         pub clip_rect: ClipRect,
     }
@@ -33,6 +34,30 @@ pub mod raw {
     /// Compute intrinsic size for Checkbox. Currently returns UNKNOWN.
     pub fn calc_checkbox_intrinsic_size(_spec: &CheckboxCalcIntrinsicSizeSpec) -> IntrinsicSize {
         IntrinsicSize::UNKNOWN
+    }
+
+    fn next_allowed_checked_state(
+        current: CheckedState,
+        allowed_checked_states: &[CheckedState],
+        advance: bool,
+    ) -> CheckedState {
+        assert!(
+            !allowed_checked_states.is_empty(),
+            "CheckboxSpec::allowed_checked_states must not be empty"
+        );
+
+        let Some(index) = allowed_checked_states
+            .iter()
+            .position(|state| *state == current)
+        else {
+            return allowed_checked_states[0];
+        };
+
+        if advance {
+            allowed_checked_states[(index + 1) % allowed_checked_states.len()]
+        } else {
+            current
+        }
     }
 
     /// Low-level checkbox widget function.
@@ -89,13 +114,8 @@ pub mod raw {
             focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
         }
 
-        if is_clicked {
-            state.checked = match state.checked {
-                CheckedState::Unchecked => CheckedState::Checked,
-                CheckedState::Checked => CheckedState::Unchecked,
-                CheckedState::Indeterminate => CheckedState::Checked,
-            };
-        }
+        state.checked =
+            next_allowed_checked_state(state.checked, &spec.allowed_checked_states, is_clicked);
 
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
@@ -240,6 +260,7 @@ pub struct CheckboxResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckboxSpec {
     pub disabled: bool,
+    pub allowed_checked_states: Vec<CheckedState>,
     pub style: CheckboxStyle,
 }
 
@@ -248,6 +269,7 @@ pub struct CheckboxSpec {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CheckboxSpecBuilder {
     pub disabled: Option<bool>,
+    pub allowed_checked_states: Option<Vec<CheckedState>>,
     pub style: Option<CheckboxStyle>,
 }
 impl CheckboxSpecBuilder {
@@ -265,6 +287,11 @@ impl CheckboxSpecBuilder {
         self
     }
 
+    pub fn allowed_checked_states(mut self, allowed_checked_states: Vec<CheckedState>) -> Self {
+        self.allowed_checked_states = Some(allowed_checked_states);
+        self
+    }
+
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
@@ -277,6 +304,9 @@ impl CheckboxSpecBuilder {
     pub fn build(self) -> CheckboxSpec {
         CheckboxSpec {
             disabled: self.disabled.unwrap_or(false),
+            allowed_checked_states: self
+                .allowed_checked_states
+                .unwrap_or_else(|| vec![CheckedState::Unchecked, CheckedState::Checked]),
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
@@ -302,6 +332,7 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
     let raw_spec = raw::CheckboxSpec {
         rect,
         disabled: spec.disabled,
+        allowed_checked_states: spec.allowed_checked_states,
         style: spec.style,
         clip_rect: ctx.clip_rect,
     };
@@ -323,8 +354,20 @@ mod tests {
         CheckboxSpec {
             rect,
             disabled: false,
+            allowed_checked_states: vec![CheckedState::Unchecked, CheckedState::Checked],
             style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+        }
+    }
+
+    fn tri_state_checkbox_spec(rect: Rect) -> CheckboxSpec {
+        CheckboxSpec {
+            allowed_checked_states: vec![
+                CheckedState::Unchecked,
+                CheckedState::Checked,
+                CheckedState::Indeterminate,
+            ],
+            ..checkbox_spec(rect)
         }
     }
 
@@ -425,12 +468,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_visual_off() {
-        let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let mut cmds = DrawCommands::new();
         raw::checkbox(
@@ -458,12 +496,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_visual_on() {
-        let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
@@ -510,12 +543,7 @@ mod tests {
 
     #[test]
     fn test_checkbox_visual_indeterminate() {
-        let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let mut cmds = DrawCommands::new();
@@ -550,17 +578,103 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_clamps_state_to_first_allowed_state() {
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
+        let mut state = CheckboxState {
+            checked: CheckedState::Indeterminate,
+            ..Default::default()
+        };
+
+        raw::checkbox(
+            spec,
+            &mut state,
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut DrawCommands::new(),
+        );
+
+        assert_eq!(
+            state.checked,
+            CheckedState::Unchecked,
+            "Checkbox should clamp to the first allowed state"
+        );
+    }
+
+    #[test]
+    fn test_checkbox_click_cycles_allowed_states_in_order() {
+        let mut state = CheckboxState::default();
+
+        for expected in [
+            CheckedState::Checked,
+            CheckedState::Indeterminate,
+            CheckedState::Unchecked,
+        ] {
+            crate::widgets::test_helpers::assert_mouse_click_on_release(
+                &mut state,
+                Vec2::new(15.0, 15.0),
+                |state, input, focus_system, cmds| {
+                    raw::checkbox(
+                        tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+                        state,
+                        input,
+                        focus_system,
+                        cmds,
+                    )
+                    .input
+                },
+            );
+
+            assert_eq!(state.checked, expected);
+        }
+    }
+
+    #[test]
+    fn test_checkbox_click_honors_nonstandard_allowed_state_order() {
+        let mut state = CheckboxState {
+            checked: CheckedState::Checked,
+            ..Default::default()
+        };
+        let spec = || CheckboxSpec {
+            allowed_checked_states: vec![CheckedState::Checked, CheckedState::Indeterminate],
+            ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
+        };
+
+        for expected in [CheckedState::Indeterminate, CheckedState::Checked] {
+            crate::widgets::test_helpers::assert_mouse_click_on_release(
+                &mut state,
+                Vec2::new(15.0, 15.0),
+                |state, input, focus_system, cmds| {
+                    raw::checkbox(spec(), state, input, focus_system, cmds).input
+                },
+            );
+
+            assert_eq!(state.checked, expected);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "CheckboxSpec::allowed_checked_states must not be empty")]
+    fn test_checkbox_panics_when_allowed_states_is_empty() {
+        let mut state = CheckboxState::default();
+        raw::checkbox(
+            CheckboxSpec {
+                allowed_checked_states: Vec::new(),
+                ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
+            },
+            &mut state,
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut DrawCommands::new(),
+        );
+    }
+
+    #[test]
     fn test_checkbox_visual_focused() {
         let state = CheckboxState::default();
         let mut focus_system = FocusSystem::new();
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
-        let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
         let mut state = state;
@@ -597,10 +711,8 @@ mod tests {
     #[test]
     fn test_checkbox_visual_disabled() {
         let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: true,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
+            ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
         };
         let s = spec.style;
         let alpha = s.disabled_alpha;
@@ -639,12 +751,7 @@ mod tests {
             Vec2::new(15.0, 15.0),
             |state, input, focus_system, cmds| {
                 raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
                     state,
                     input,
                     focus_system,
@@ -663,12 +770,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
 
         let mut state = state;
         let mut cmds = DrawCommands::new();
@@ -692,10 +794,8 @@ mod tests {
         input.mouse_pressed = true;
 
         let spec = CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
+            ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
         };
 
         let mut state = state;
@@ -717,12 +817,7 @@ mod tests {
         let mut state = CheckboxState::default();
         let mut input = Input::default();
 
-        let spec = || CheckboxSpec {
-            rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-            disabled: false,
-            style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        };
+        let spec = || checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -756,12 +851,7 @@ mod tests {
             Vec2::new(150.0, 150.0),
             |state, input, focus_system, cmds| {
                 raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
                     state,
                     input,
                     focus_system,
@@ -785,24 +875,14 @@ mod tests {
             false,
             |state1, state2, input, focus_system, cmds| {
                 let res1 = raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
                     state1,
                     input,
                     focus_system,
                     cmds,
                 );
                 let res2 = raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 110.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 110.0, 14.0, 14.0)),
                     state2,
                     input,
                     focus_system,
@@ -829,12 +909,7 @@ mod tests {
             focus_id,
             |state, input, focus_system, cmds| {
                 raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
                     state,
                     input,
                     focus_system,
@@ -861,12 +936,7 @@ mod tests {
             focus_id,
             |state, input, focus_system, cmds| {
                 raw::checkbox(
-                    CheckboxSpec {
-                        rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                        disabled: false,
-                        style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
-                        clip_rect: None,
-                    },
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
                     state,
                     input,
                     focus_system,
@@ -900,6 +970,19 @@ mod tests {
         let builder = CheckboxSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
         assert_eq!(builder.style.unwrap().size, 99.0);
+    }
+
+    #[test]
+    fn test_builder_preserves_allowed_checked_states() {
+        let theme = crate::theme::Theme::framewise();
+        let allowed_checked_states = vec![CheckedState::Checked, CheckedState::Indeterminate];
+
+        let spec = CheckboxSpecBuilder::new()
+            .allowed_checked_states(allowed_checked_states.clone())
+            .defaults_from_theme(&theme)
+            .build();
+
+        assert_eq!(spec.allowed_checked_states, allowed_checked_states);
     }
 
     #[test]
@@ -965,6 +1048,43 @@ mod tests {
         assert!(
             has_custom_fill,
             "high-level checkbox must honor user-set style"
+        );
+    }
+
+    #[test]
+    fn test_high_level_honors_allowed_checked_states() {
+        use crate::layouts::ManualLayout;
+        use crate::test_utils::DummyTextSys;
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let mut cb_state = CheckboxState {
+            checked: CheckedState::Indeterminate,
+            ..Default::default()
+        };
+
+        super::checkbox(
+            &mut ctx,
+            CheckboxSpecBuilder::new()
+                .allowed_checked_states(vec![CheckedState::Checked, CheckedState::Indeterminate]),
+            Rect::new(100.0, 100.0, 14.0, 14.0),
+            &mut cb_state,
+        );
+
+        assert_eq!(
+            cb_state.checked,
+            CheckedState::Indeterminate,
+            "high-level checkbox must pass allowed states to raw checkbox"
         );
     }
 
