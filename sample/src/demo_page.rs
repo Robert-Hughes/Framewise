@@ -62,6 +62,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         time: parent_ctx.time,
         scrollbar_width: spec.scrollbar_width,
         scrollbar_style: spec.scrollbar_style,
+        layer: parent_ctx.layer,
     };
 
     let framewise::widgets::scroll_area::raw::ScrollAreaResult {
@@ -110,6 +111,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         rect: title_rect,
         text: title,
         style: title_style,
+        layer: parent_ctx.layer,
     };
     framewise::widgets::label::raw::label(spec, parent_ctx.text_system, parent_ctx.cmds);
 

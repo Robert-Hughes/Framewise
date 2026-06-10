@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState},
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -18,6 +18,7 @@ pub mod raw {
         pub status_bar: bool,
         pub status_text: Option<&'a str>,
         pub style: super::WindowStyle,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -339,6 +340,7 @@ pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
         status_bar: spec.status_bar,
         status_text: spec.status_text,
         style: spec.style,
+        layer: ctx.layer,
     };
     let raw::WindowResult { content_bounds } =
         raw::begin_window(raw_spec, ctx.text_system, ctx.cmds);

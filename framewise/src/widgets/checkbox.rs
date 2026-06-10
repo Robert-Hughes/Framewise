@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{IntrinsicSize, LayoutState},
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -19,6 +19,7 @@ pub mod raw {
         pub allowed_checked_states: Vec<CheckedState>,
         pub style: super::CheckboxStyle,
         pub clip_rect: ClipRect,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -335,6 +336,7 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
         allowed_checked_states: spec.allowed_checked_states,
         style: spec.style,
         clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
     };
     let result = raw::checkbox(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
@@ -357,6 +359,7 @@ mod tests {
             allowed_checked_states: vec![CheckedState::Unchecked, CheckedState::Checked],
             style: CheckboxStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         }
     }
 

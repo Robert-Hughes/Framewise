@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -18,6 +18,7 @@ pub mod raw {
         pub disabled: bool,
         pub style: super::SwitchStyle,
         pub clip_rect: ClipRect,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -264,6 +265,7 @@ pub fn switch<T: TextSystem, S: LayoutState, CF>(
         disabled: spec.disabled,
         style: spec.style,
         clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
     };
     let result = raw::switch(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
 
@@ -287,6 +289,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
@@ -328,6 +331,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
@@ -373,6 +377,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
@@ -417,6 +422,7 @@ mod tests {
             disabled: true,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
         let s = spec.style;
         let alpha = s.disabled_alpha;
@@ -466,6 +472,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
 
         let mut cmds = DrawCommands::new();
@@ -493,6 +500,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
+            layer: Layer::default(),
         };
 
         let mut cmds = DrawCommands::new();
@@ -518,6 +526,7 @@ mod tests {
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         };
 
         // Frame 1: Focus switch

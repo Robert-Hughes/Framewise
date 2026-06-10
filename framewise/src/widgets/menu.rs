@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -11,6 +11,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct MenuSpec<'a> {
+        pub layer: Layer,
         /// Top-left origin; width is at least 200.
         pub rect: Rect,
         pub items: &'a [super::MenuItem<'a>],
@@ -389,6 +390,7 @@ pub fn menu<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::MenuSpec {
+        layer: ctx.layer,
         rect,
         items: spec.items,
         style: spec.style,

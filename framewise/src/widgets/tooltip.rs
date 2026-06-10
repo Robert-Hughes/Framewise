@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -15,6 +15,7 @@ pub mod raw {
         pub text: &'a str,
         pub variant: super::TooltipVariant,
         pub style: super::TooltipStyle,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -256,6 +257,7 @@ pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
         text: spec.text,
         variant: spec.variant,
         style: spec.style,
+        layer: ctx.layer,
     };
     let result = raw::tooltip(raw_spec, ctx.text_system, ctx.cmds);
     TooltipResult {
@@ -277,6 +279,7 @@ mod tests {
             text: "Tooltip",
             variant: TooltipVariant::Dark,
             style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
+            layer: Layer::default(),
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
@@ -319,6 +322,7 @@ mod tests {
             text: "Tooltip",
             variant: TooltipVariant::Rust,
             style: TooltipStyle::from_theme(&crate::theme::Theme::framewise()),
+            layer: Layer::default(),
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();

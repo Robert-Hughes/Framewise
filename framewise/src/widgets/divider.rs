@@ -4,7 +4,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerSpec {
+        pub layer: Layer,
         pub rect: Rect,
         pub color: Color,
         pub width: f32,
@@ -121,6 +122,7 @@ pub fn divider<T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_divider_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::DividerSpec {
+        layer: ctx.layer,
         rect,
         color: spec.color,
         width: spec.width,
@@ -141,6 +143,7 @@ mod tests {
     #[test]
     fn test_divider_visual() {
         let spec = DividerSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 10.0),
             color: Color::WHITE,
             width: 1.0,

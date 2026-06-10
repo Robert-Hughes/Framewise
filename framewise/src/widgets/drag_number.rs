@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::TextSystem,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DragNumberSpec<'a> {
+        pub layer: Layer,
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
         pub text: &'a str,
@@ -384,6 +385,7 @@ pub fn drag_number<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::DragNumberSpec {
+        layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
@@ -434,6 +436,7 @@ mod tests {
     #[test]
     fn test_drag_number_visual_normal() {
         let spec = DragNumberSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             min: 0.0,
@@ -489,6 +492,7 @@ mod tests {
         state.is_dragging = true;
         state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             min: 0.0,
@@ -555,6 +559,7 @@ mod tests {
     fn test_drag_number_visual_min_value() {
         let mut text_system = DummyTextSys;
         let spec = DragNumberSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
             text: "X",
             min: 0.0,
@@ -618,6 +623,7 @@ mod tests {
 
         let mut text_system = DummyTextSys;
         let spec = DragNumberSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
             min: 0.0,
@@ -660,6 +666,7 @@ mod tests {
 
         let mut text_system = DummyTextSys;
         let spec = DragNumberSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
             text: "X",
             min: 0.0,
@@ -708,6 +715,7 @@ mod tests {
         focus_system.begin_frame();
         raw::drag_number(
             DragNumberSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
                 min: 0.0,
@@ -733,6 +741,7 @@ mod tests {
         focus_system.begin_frame();
         raw::drag_number(
             DragNumberSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
                 text: "X",
                 min: 0.0,

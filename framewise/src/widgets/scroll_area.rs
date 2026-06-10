@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{AxisBound, Layout, LayoutSpace, LayoutState},
     text::TextSystem,
-    types::{ClipRect, Rect, Vec2},
+    types::{ClipRect, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     widgets::SliderStyle,
 };
@@ -14,6 +14,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ScrollAreaSpec {
+        pub layer: Layer,
         pub rect: Rect,
         pub horizontal: super::ScrollAxis,
         pub vertical: super::ScrollAxis,
@@ -41,6 +42,7 @@ pub mod raw {
         pub(super) time: f64,
         pub(super) scrollbar_width: f32,
         pub(super) scrollbar_style: SliderStyle,
+        pub(super) layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -161,6 +163,7 @@ pub mod raw {
             time: spec.time,
             scrollbar_style: spec.scrollbar_style,
             scrollbar_width: spec.scrollbar_width,
+            layer: spec.layer,
         };
 
         ScrollAreaResult {
@@ -236,6 +239,7 @@ pub mod raw {
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
+                layer: token.layer,
                 // Degenerate: bar reserved (Always/Auto) but content fits, so the
                 // thumb fills the track and nothing scrolls. Disable it so it
                 // leaves focus order and dims, while still holding its gutter.
@@ -278,6 +282,7 @@ pub mod raw {
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
+                layer: token.layer,
                 // Degenerate horizontal bar (see vertical case above).
                 disabled: max_scroll.x <= 0.0,
             };
@@ -729,6 +734,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         time: ctx.time,
         scrollbar_width: spec.scrollbar_width,
         scrollbar_style: spec.scrollbar_style,
+        layer: ctx.layer,
     };
     let input = ctx.input;
 
@@ -812,6 +818,7 @@ mod tests {
         crate::layouts::OffsetLayout<crate::layouts::ManualLayout>,
     ) {
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::SCROLL,
@@ -877,6 +884,7 @@ mod tests {
         for _ in 0..2 {
             focus_system.begin_frame();
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: outer_bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -903,6 +911,7 @@ mod tests {
             );
 
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: inner_bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -988,6 +997,7 @@ mod tests {
         for _ in 0..2 {
             focus_system.begin_frame();
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -1011,6 +1021,7 @@ mod tests {
 
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "dummy".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -1061,6 +1072,7 @@ mod tests {
         for _ in 0..2 {
             focus_system.begin_frame();
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -1083,6 +1095,7 @@ mod tests {
                     .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -1135,6 +1148,7 @@ mod tests {
             // Button rendered OUTSIDE the scroll area's begin/finish.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -1151,6 +1165,7 @@ mod tests {
             );
 
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1204,6 +1219,7 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -1240,6 +1256,7 @@ mod tests {
         input.mouse_down = true;
         input.scroll_delta.y = -5.0; // would drive offset way down if it applied
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -1293,6 +1310,7 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
 
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1316,6 +1334,7 @@ mod tests {
             // Inner has no scrollbars (None) — content fits, no claim, no block.
             // (Under the Reserve policy there is no `Auto`; "no scrollbar" is None.)
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1378,6 +1397,7 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
 
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1400,6 +1420,7 @@ mod tests {
                     .token;
             // Inner Always+fits: scrollbars drawn, no scroll possible.
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -1455,6 +1476,7 @@ mod tests {
         let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -1544,6 +1566,7 @@ mod tests {
             input.mouse_pos = Vec2::new(500.0, 500.0); // far outside
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1588,6 +1611,7 @@ mod tests {
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
 
             let spec_a = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1616,6 +1640,7 @@ mod tests {
             );
 
             let spec_b = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(300.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1663,6 +1688,7 @@ mod tests {
                 Vec2::ZERO
             };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -1709,6 +1735,7 @@ mod tests {
 
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -1759,6 +1786,7 @@ mod tests {
             input.mouse_pos = Vec2::new(150.0, 250.0);
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1806,6 +1834,7 @@ mod tests {
             input.mouse_pos = Vec2::new(50.0, 250.0); // x<bounds.x → outside
             input.scroll_delta.y = if frame == 1 { -1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1856,6 +1885,7 @@ mod tests {
             input.mouse_pos = Vec2::new(194.0, 194.0); // inside corner, outside content_bounds
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -1910,6 +1940,7 @@ mod tests {
             input.mouse_pos = Vec2::new(150.0, 150.0);
             input.scroll_delta.y = if frame == 1 { 1.0 } else { 0.0 };
             let spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -1980,6 +2011,7 @@ mod tests {
             focus_system.begin_frame();
 
             let scroll_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: scroll_bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2010,6 +2042,7 @@ mod tests {
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
                     text: "visible".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2030,6 +2063,7 @@ mod tests {
             // axial score from btn_start = 80, beating btn_visible's 180.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
                     text: "clipped".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2057,6 +2091,7 @@ mod tests {
             // btn_start: below the scroll area, no clip.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
                     text: "start".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2115,6 +2150,7 @@ mod tests {
             focus_system.begin_frame();
 
             let scroll_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: scroll_bounds,
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2146,6 +2182,7 @@ mod tests {
             // 30px overlap → must be included in spatial nav.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
                     text: "partial".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2173,6 +2210,7 @@ mod tests {
             // btn_start: below the scroll area.
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
                     text: "start".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2208,6 +2246,7 @@ mod tests {
         // Pre-render to materialise the vertical slider's focus_id.
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2250,6 +2289,7 @@ mod tests {
 
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2293,6 +2333,7 @@ mod tests {
         // Pre-render to materialise the vertical slider's focus_id.
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2335,6 +2376,7 @@ mod tests {
 
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2381,6 +2423,7 @@ mod tests {
         // Pre-render to materialise the vertical slider's focus_id.
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2415,6 +2458,7 @@ mod tests {
         input.key_pressed_end = true;
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2451,6 +2495,7 @@ mod tests {
         input.key_pressed_home = true;
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: bounds,
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -2508,6 +2553,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0; // Outer has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2534,6 +2580,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2597,6 +2644,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0; // Outer vertical has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2623,6 +2671,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -2686,6 +2735,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2712,6 +2762,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2775,6 +2826,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2801,6 +2853,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -2868,6 +2921,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 0.0; // Has room to scroll down
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2895,6 +2949,7 @@ mod nested_bubbling_tests {
             .token;
             // inner content_extent.y = 300 → max scroll = 100
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -2921,6 +2976,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -2977,6 +3033,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 0.0; // Outer vert has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3003,6 +3060,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3029,6 +3087,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -3077,6 +3136,7 @@ mod nested_bubbling_tests {
         // Let's grab the focus ID of the inner scrollbar by rendering it once
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -3122,6 +3182,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 0.0; // Has room to scroll down
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3147,6 +3208,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3203,6 +3265,7 @@ mod nested_bubbling_tests {
 
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::SCROLL,
@@ -3248,6 +3311,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 0.0; // Has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3273,6 +3337,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3351,6 +3416,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // should NOT change
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3377,6 +3443,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3457,6 +3524,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3483,6 +3551,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3556,6 +3625,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 0.0; // outer has room right
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3582,6 +3652,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3608,6 +3679,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -3660,6 +3732,7 @@ mod nested_bubbling_tests {
 
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 200.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -3705,6 +3778,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 0.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3730,6 +3804,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3827,6 +3902,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3853,6 +3929,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -3878,6 +3955,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3966,6 +4044,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -3992,6 +4071,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4017,6 +4097,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4103,6 +4184,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0; // must NOT scroll down
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4129,6 +4211,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4154,6 +4237,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4180,6 +4264,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -4249,6 +4334,7 @@ mod nested_bubbling_tests {
         // Pre-render inner once to get slider focus_id
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 288.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -4295,6 +4381,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4320,6 +4407,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4345,6 +4433,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 288.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4453,6 +4542,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4479,6 +4569,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4504,6 +4595,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4591,6 +4683,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4617,6 +4710,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4642,6 +4736,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4727,6 +4822,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // must NOT scroll right
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4753,6 +4849,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4778,6 +4875,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4804,6 +4902,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -4871,6 +4970,7 @@ mod nested_bubbling_tests {
         // Pre-render inner once to get horiz slider focus_id
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 388.0, 200.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::SCROLL,
@@ -4917,6 +5017,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // must NOT scroll
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 400.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -4942,6 +5043,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let middle_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 388.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::FIT,
@@ -4967,6 +5069,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 388.0, 200.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5063,6 +5166,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0; // outer has room to scroll up
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5089,6 +5193,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5162,6 +5267,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 100.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5188,6 +5294,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5270,6 +5377,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5296,6 +5404,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5362,6 +5471,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 100.0; // outer has room to scroll left
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5388,6 +5498,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5459,6 +5570,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 100.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5485,6 +5597,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5545,6 +5658,7 @@ mod nested_bubbling_tests {
         // Pre-render to get vert slider focus_id.
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 150.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::SCROLL,
@@ -5589,6 +5703,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5614,6 +5729,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5677,6 +5793,7 @@ mod nested_bubbling_tests {
         // Pre-render to get horiz slider focus_id.
         focus_system.begin_frame();
         let inner_spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 150.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::SCROLL,
@@ -5721,6 +5838,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // outer has room to scroll right
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5746,6 +5864,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5816,6 +5935,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.y = 50.0;
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5842,6 +5962,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5868,6 +5989,7 @@ mod nested_bubbling_tests {
             .token;
             crate::widgets::button::raw::button(
                 crate::widgets::button::raw::ButtonSpec {
+                    layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
                     text: "".into(),
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
@@ -5928,6 +6050,7 @@ mod nested_bubbling_tests {
                 outer_state.offset.x = 50.0; // must NOT change
             }
             let outer_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 400.0, 300.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -5954,6 +6077,7 @@ mod nested_bubbling_tests {
             )
             .token;
             let inner_spec = ScrollAreaSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 150.0),
                 horizontal: ScrollAxis {
                     extent: ScrollExtent::SCROLL,
@@ -6057,6 +6181,7 @@ mod nested_bubbling_tests {
         let mut cmds = DrawCommands::new();
 
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 400.0, 400.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::FIT,
@@ -6092,6 +6217,7 @@ mod nested_bubbling_tests {
         let mut cmds = DrawCommands::new();
 
         let spec = ScrollAreaSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 400.0, 400.0),
             horizontal: ScrollAxis {
                 extent: ScrollExtent::AtMost(ScrollLen::Viewport),

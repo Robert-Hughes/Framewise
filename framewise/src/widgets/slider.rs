@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::TextSystem,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -36,6 +36,7 @@ pub mod raw {
         /// so it still occupies its reserved track. Used for degenerate
         /// scrollbars (thumb fills the track, nothing to scroll).
         pub disabled: bool,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -800,6 +801,7 @@ pub fn slider<T: TextSystem, S: LayoutState, CF>(
         claim_scroll_at_ends: spec.claim_scroll_at_ends,
         time: ctx.time,
         disabled: spec.disabled,
+        layer: ctx.layer,
     };
 
     let result = raw::slider(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
@@ -1513,6 +1515,7 @@ mod tests {
             claim_scroll_at_ends: claim_at_ends,
             time: 0.0,
             disabled: false,
+            layer: Layer::default(),
         }
     }
 

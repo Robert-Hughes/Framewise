@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct RadioSpec {
+        pub layer: Layer,
         /// Top-left of the 14x14 bounding area.
         pub rect: Rect,
         pub disabled: bool,
@@ -252,6 +253,7 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_radio_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::RadioSpec {
+        layer: ctx.layer,
         rect,
         disabled: spec.disabled,
         style: spec.style,
@@ -274,6 +276,7 @@ mod tests {
     #[test]
     fn test_radio_visual_unselected() {
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -313,6 +316,7 @@ mod tests {
     #[test]
     fn test_radio_visual_selected() {
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -361,6 +365,7 @@ mod tests {
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -405,6 +410,7 @@ mod tests {
     #[test]
     fn test_radio_visual_disabled() {
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: true,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -452,6 +458,7 @@ mod tests {
         input.mouse_pressed = true;
 
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -480,6 +487,7 @@ mod tests {
         input.mouse_pressed = true;
 
         let spec = RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -506,6 +514,7 @@ mod tests {
         let mut input = Input::default();
 
         let spec = || RadioSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 14.0, 14.0),
             disabled: false,
             style: RadioStyle::from_theme(&crate::theme::Theme::framewise()),

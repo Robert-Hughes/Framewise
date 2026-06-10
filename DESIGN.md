@@ -371,13 +371,13 @@ Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layo
 
 Every widget type follows a consistent layered configuration pattern:
 
-- **High-level `*Spec`**: The ergonomic user-facing configuration struct produced by the builder and used by the high-level context function. It contains only fields that are meaningful for high-level callers, such as content, style, and flags. It does not contain layout-resolved fields such as `rect`, or context-managed fields such as `clip_rect`.
+- **High-level `*Spec`**: The ergonomic user-facing configuration struct produced by the builder and used by the high-level context function. It contains only fields that are meaningful for high-level callers, such as content, style, and flags. It does not contain layout-resolved fields such as `rect`, or context-managed fields such as `clip_rect` and `layer`.
 
 - **`*SpecBuilder`**: A builder struct used by high-level callers to construct the high-level `*Spec`. The builder holds optional fields and provides ergonomic setter methods. It applies theme defaults for user-facing values and panics only for required high-level inputs with no sensible default.
 
 - **`raw::*CalcIntrinsicSizeSpec`**: A low-level measurement specification struct used by `raw::calc_*_intrinsic_size`. It contains only the fields needed to compute intrinsic size. For example, `raw::ButtonCalcIntrinsicSizeSpec` contains the button text and style, but not `rect` or `clip_rect`.
 
-- **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
+- **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect` and `layer`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
 
 This pattern cleanly separates concerns:
 - **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.

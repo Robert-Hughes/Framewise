@@ -245,3 +245,15 @@ impl Color {
         }
     }
 }
+
+// ── Layer ────────────────────────────────────────────────────────────────────
+
+/// A layer concept to control depth sorting of drawn commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Layer {}
+
+impl Layer {
+    pub fn get_z(&self) -> u32 {
+        0
+    }
+}

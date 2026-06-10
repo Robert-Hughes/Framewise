@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{IntrinsicSize, LayoutState},
     text::{TextBounds, TextStyle, TextSystem},
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -19,6 +19,7 @@ pub mod raw {
         pub style: super::TabsStyle,
         pub disabled: bool,
         pub clip_rect: ClipRect,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -342,6 +343,7 @@ pub fn tabs<'a, T: TextSystem, S: LayoutState, CF>(
         style: spec.style,
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
     };
 
     let result = raw::tabs(
@@ -373,6 +375,7 @@ mod tests {
             disabled: false,
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
+            layer: Layer::default(),
         }
     }
 
@@ -545,6 +548,7 @@ mod tests {
             disabled: false,
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: Some(Rect::new(500.0, 500.0, 300.0, 36.0)),
+            layer: Layer::default(),
         };
 
         focus_system.begin_frame();

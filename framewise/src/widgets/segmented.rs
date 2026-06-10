@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::TextSystem,
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SegmentedSpec<'a> {
+        pub layer: Layer,
         /// Top-left origin. Height is fixed at h_md (28).
         pub rect: Rect,
         pub items: &'a [&'a str],
@@ -353,6 +354,7 @@ pub fn segmented<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_segmented_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SegmentedSpec {
+        layer: ctx.layer,
         rect,
         items: spec.items,
         style: spec.style,
@@ -404,6 +406,7 @@ mod tests {
     fn test_segmented_visual_normal() {
         let items = ["A", "B"];
         let spec = SegmentedSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
@@ -461,6 +464,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
@@ -531,6 +535,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
@@ -568,6 +573,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 200.0, 28.0),
             items: &items,
             disabled: false,
@@ -611,6 +617,7 @@ mod tests {
         focus_system.begin_frame();
         raw::segmented(
             SegmentedSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 disabled: false,
@@ -634,6 +641,7 @@ mod tests {
         focus_system.begin_frame();
         raw::segmented(
             SegmentedSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
                 items: &items,
                 disabled: false,

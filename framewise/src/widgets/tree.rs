@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
     text::{TextBounds, TextStyle, TextSystem},
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -14,6 +14,7 @@ pub mod raw {
         pub rect: Rect,
         pub items: &'a [super::TreeRow<'a>],
         pub style: super::TreeStyle,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -304,6 +305,7 @@ pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
         rect,
         items: spec.items,
         style: spec.style,
+        layer: ctx.layer,
     };
 
     let result = raw::tree(raw_spec, ctx.text_system, ctx.cmds);

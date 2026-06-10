@@ -3,7 +3,7 @@ use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -15,6 +15,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct LabelSpec<'a> {
+        pub layer: Layer,
         pub rect: Rect,
         pub text: &'a str,
         pub style: super::LabelStyle,
@@ -197,6 +198,7 @@ pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_label_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::LabelSpec {
+        layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
@@ -314,6 +316,7 @@ mod tests {
     fn test_label_draws_text() {
         let mut sys = DummyTextSys;
         let spec = LabelSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Hello",
             style: LabelStyle {
@@ -347,6 +350,7 @@ mod tests {
     fn test_label_rule() {
         let mut sys = DummyTextSys;
         let spec = LabelSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Section",
             style: LabelStyle {
@@ -387,6 +391,7 @@ mod tests {
     fn test_label_logical_content_placement_bottom_right() {
         let mut sys = DummyTextSys;
         let spec = LabelSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 20.0, 100.0, 50.0),
             text: "Hello",
             style: LabelStyle {
@@ -424,6 +429,7 @@ mod tests {
             prepared_rect: None,
         };
         let spec = LabelSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 20.0, 100.0, 50.0),
             text: "◎",
             style: LabelStyle {
@@ -442,6 +448,7 @@ mod tests {
         let mut sys = RecordingTextSys { font: None };
         let expected = FontId(42);
         let spec = LabelSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "font",
             style: LabelStyle {

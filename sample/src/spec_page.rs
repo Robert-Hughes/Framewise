@@ -139,6 +139,7 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
         ],
         style: CheckboxStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
+        layer: b.layer,
     };
 
     framewise::widgets::checkbox::raw::checkbox(
@@ -177,6 +178,7 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
         disabled: is_disabled,
         style: RadioStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
+        layer: b.layer,
     };
 
     framewise::widgets::radio::raw::radio(
@@ -212,6 +214,7 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
         disabled: is_disabled,
         style: SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
+        layer: b.layer,
     };
 
     framewise::widgets::switch::raw::switch(
@@ -254,6 +257,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
         disabled: is_disabled,
         style: SelectStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
+        layer: b.layer,
     };
 
     framewise::widgets::select::raw::select(
@@ -292,6 +296,7 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
         disabled: false,
         style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
+        layer: b.layer,
     };
 
     let mut dummy_focus_sys = FocusSystem::new();
@@ -346,6 +351,7 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
             style,
             clip_rect: None,
             disabled: false,
+            layer: b.layer,
         },
         &mut state,
         &fake_input,
@@ -1059,6 +1065,7 @@ fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextSystem, LS,
             rect,
             text: spec.text,
             style: spec.style,
+            layer: b.layer,
         },
         b.text_system,
         b.cmds,

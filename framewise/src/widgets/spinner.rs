@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -15,6 +15,7 @@ pub mod raw {
         pub rect: Rect,
         pub large: bool,
         pub style: super::SpinnerStyle,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -219,6 +220,7 @@ pub fn spinner<T: TextSystem, S: LayoutState, CF>(
         rect,
         large: spec.large,
         style: spec.style,
+        layer: ctx.layer,
     };
     raw::spinner(raw_spec, ctx.cmds);
     SpinnerResult {
@@ -239,6 +241,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             large: false,
             style,
+            layer: Layer::default(),
         };
         let mut cmds = DrawCommands::new();
         raw::spinner(spec, &mut cmds);
@@ -316,6 +319,7 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 24.0, 24.0),
             large: true,
             style,
+            layer: Layer::default(),
         };
         let mut cmds = DrawCommands::new();
         raw::spinner(spec, &mut cmds);

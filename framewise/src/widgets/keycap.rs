@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -11,6 +11,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct KeycapSpec<'a> {
+        pub layer: Layer,
         pub rect: Rect,
         pub text: &'a str,
         pub style: super::KeycapStyle,
@@ -210,6 +211,7 @@ pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::KeycapSpec {
+        layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
@@ -234,6 +236,7 @@ mod tests {
         let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
         let spec = KeycapSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 30.0, 30.0),
             text: "K",
             style: KeycapStyle {

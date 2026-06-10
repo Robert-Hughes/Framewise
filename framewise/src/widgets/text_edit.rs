@@ -4,7 +4,7 @@ use crate::{
     input::{Input, TextEvent},
     layout::{IntrinsicSize, LayoutState},
     text::{TextBounds, TextFlow, TextStyle, TextSystem},
-    types::{ClipRect, Color, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -19,6 +19,7 @@ pub mod raw {
         pub error: bool,
         pub disabled: bool,
         pub time: f64,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -753,6 +754,7 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
         error: spec.error,
         disabled: spec.disabled,
         time: ctx.time,
+        layer: ctx.layer,
     };
     let result = raw::text_edit(
         raw_spec,
@@ -813,6 +815,7 @@ mod tests {
             error: false,
             disabled: false,
             time: 0.0,
+            layer: Layer::default(),
         }
     }
 

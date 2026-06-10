@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -15,6 +15,7 @@ pub mod raw {
         pub text: &'a str,
         pub variant: super::StatusVariant,
         pub style: super::StatusStyle,
+        pub layer: Layer,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -224,6 +225,7 @@ pub fn status<'a, T: TextSystem, S: LayoutState, CF>(
         text: spec.text,
         variant: spec.variant,
         style: spec.style,
+        layer: ctx.layer,
     };
     raw::status(raw_spec, ctx.text_system, ctx.cmds);
     StatusResult {
@@ -245,6 +247,7 @@ mod tests {
             text: "Online",
             variant: StatusVariant::Ok,
             style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
+            layer: Layer::default(),
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
@@ -274,6 +277,7 @@ mod tests {
             text: "Warning",
             variant: StatusVariant::Warn,
             style: StatusStyle::from_theme(&crate::theme::Theme::framewise()),
+            layer: Layer::default(),
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarSpec {
+        pub layer: Layer,
         pub rect: Rect,
         /// 0.0–1.0. Pass `f32::NAN` for indeterminate (renders partial fill at `phase`).
         pub value: f32,
@@ -193,6 +194,7 @@ pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_progress_bar_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ProgressBarSpec {
+        layer: ctx.layer,
         rect,
         value: spec.value,
         phase: ctx.time as f32,
@@ -216,6 +218,7 @@ mod tests {
     fn test_progress_bar_visual_normal() {
         let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 10.0), // h=10
             value: 0.5,
             phase: 0.0,
@@ -244,6 +247,7 @@ mod tests {
     fn test_progress_bar_visual_active() {
         let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 10.0),
             value: 0.5,
             phase: 0.0,
@@ -272,6 +276,7 @@ mod tests {
     fn test_progress_bar_visual_indeterminate() {
         let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
         let spec = ProgressBarSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 10.0),
             value: f32::NAN,
             phase: 0.5,

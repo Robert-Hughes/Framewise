@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct MeterSpec {
+        pub layer: Layer,
         pub rect: Rect,
         /// 0.0 – 1.0 fill level.
         pub value: f32,
@@ -191,6 +192,7 @@ pub fn meter<T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_meter_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::MeterSpec {
+        layer: ctx.layer,
         rect,
         value: spec.value,
         style: spec.style,
@@ -214,6 +216,7 @@ mod tests {
     fn test_meter_visual_normal() {
         let style = MeterStyle::from_theme(&crate::theme::Theme::default());
         let spec = MeterSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
             style,
@@ -238,6 +241,7 @@ mod tests {
     fn test_meter_visual_peak() {
         let style = MeterStyle::from_theme(&crate::theme::Theme::default());
         let spec = MeterSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 80.0, 14.0),
             value: 0.5,
             style,

@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    types::{ClipRect, Color, Rect},
+    types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -15,6 +15,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ButtonSpec<'a> {
+        pub layer: Layer,
         pub rect: Rect,
         pub text: &'a str,
         pub style: super::ButtonStyle,
@@ -448,6 +449,7 @@ pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ButtonSpec {
+        layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
@@ -525,6 +527,7 @@ mod tests {
 
     fn btn_spec(rect: Rect) -> ButtonSpec<'static> {
         ButtonSpec {
+            layer: Layer::default(),
             rect,
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
@@ -650,6 +653,7 @@ mod tests {
             |state1, state2, input, focus_system, cmds| {
                 let res1 = raw::button(
                     ButtonSpec {
+                        layer: Layer::default(),
                         text: "Click Me",
                         ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
                     },
@@ -661,6 +665,7 @@ mod tests {
                 );
                 let res2 = raw::button(
                     ButtonSpec {
+                        layer: Layer::default(),
                         text: "Btn2",
                         ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
                     },
@@ -736,6 +741,7 @@ mod tests {
 
         // Mouse is inside the widget rect but outside the clip_rect.
         let spec = ButtonSpec {
+            layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 30.0),
             text: "Btn".into(),
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
@@ -1096,6 +1102,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let spec = ButtonSpec {
+            layer: Layer::default(),
             disabled: true,
             ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
         };
@@ -1149,6 +1156,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = ButtonState::default();
         let spec = ButtonSpec {
+            layer: Layer::default(),
             style: ButtonStyle {
                 content_placement: crate::text::TextContentPlacement::logical(
                     crate::Align::End,
@@ -1200,6 +1208,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = ButtonState::default();
         let spec = ButtonSpec {
+            layer: Layer::default(),
             disabled: true,
             style: ButtonStyle {
                 content_placement: crate::text::TextContentPlacement::INK_CENTER,
@@ -1257,6 +1266,7 @@ mod tests {
         };
 
         let spec = ButtonSpec {
+            layer: Layer::default(),
             rect: Rect::new(5.0, 15.0, 120.0, 45.0),
             text: "Explicit Spec",
             style: custom_style,

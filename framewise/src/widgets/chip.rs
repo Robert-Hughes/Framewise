@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    types::{ClipRect, Color, Rect},
+    types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextSystem,
 };
@@ -15,6 +15,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ChipSpec<'a> {
+        pub layer: Layer,
         /// Top-left origin. Height is fixed at 22.
         pub rect: Rect,
         pub text: &'a str,
@@ -293,6 +294,7 @@ pub fn chip<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_chip_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ChipSpec {
+        layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
@@ -338,6 +340,7 @@ mod tests {
     #[test]
     fn test_chip_visual_normal() {
         let spec = ChipSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
@@ -374,6 +377,7 @@ mod tests {
         let mut state = ChipState::default();
         state.checked = true;
         let spec = ChipSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
@@ -421,6 +425,7 @@ mod tests {
         focus_system.begin_frame();
         let mut text_system = DummyTextSys;
         let spec = ChipSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
@@ -478,6 +483,7 @@ mod tests {
 
         let mut text_system = DummyTextSys;
         let spec = ChipSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
@@ -515,6 +521,7 @@ mod tests {
 
         let mut text_system = DummyTextSys;
         let spec = ChipSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
             text: "Tag",
             disabled: false,
@@ -555,6 +562,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,
@@ -576,6 +584,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,
@@ -598,6 +607,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::chip(
             ChipSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 text: "Tag",
                 disabled: false,

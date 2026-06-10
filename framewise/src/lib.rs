@@ -50,7 +50,7 @@ pub use text::{
     TextMetrics, TextStyle, TextSystem, WrapClusterFallback, WrapWordFallback,
 };
 pub use theme::Theme;
-pub use types::{ClipRect, Color, Rect, Vec2};
+pub use types::{ClipRect, Color, Layer, Rect, Vec2};
 pub use widget::{InputInfo, LayoutInfo, LayoutViolationPolicy, WidgetContext};
 
 // Widget functions (low-level API)

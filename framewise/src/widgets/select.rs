@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::LayoutState,
     text::TextSystem,
-    types::{ClipRect, Color, Rect},
+    types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SelectSpec<'a> {
+        pub layer: Layer,
         /// Bounding rect for the closed box (height h_md = 28).
         pub rect: Rect,
         pub value: &'a str,
@@ -497,6 +498,7 @@ pub fn select<'a, T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SelectSpec {
+        layer: ctx.layer,
         rect,
         value: spec.value,
         style: spec.style,
@@ -544,6 +546,7 @@ mod tests {
     fn test_select_visual_normal() {
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             items: &items,
@@ -585,6 +588,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             items: &items,
@@ -691,6 +695,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             items: &items,
@@ -731,6 +736,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 180.0, 28.0),
             value: "Option 1",
             items: &items,
@@ -776,6 +782,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 1",
                 items: &items,
@@ -802,6 +809,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 items: &items,
@@ -824,6 +832,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 items: &items,
@@ -849,6 +858,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 items: &items,
@@ -873,6 +883,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::select(
             SelectSpec {
+                layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 value: "Option 2",
                 items: &items,

@@ -5,7 +5,7 @@ use crate::layout::{
     SpacerLayoutState,
 };
 use crate::theme::Theme;
-use crate::types::{ClipRect, Rect, Vec2};
+use crate::types::{ClipRect, Layer, Rect, Vec2};
 use crate::Input;
 use crate::TextSystem;
 
@@ -119,6 +119,7 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub theme: Theme,
     pub time: f64,
     pub clip_rect: ClipRect,
+    pub layer: Layer,
 
     /// Layout-debug overlay. When set, [`finish`](WidgetContext::finish) strokes a
     /// magenta outline around this context's resolved layout space. Inherited by
@@ -158,6 +159,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
         WidgetContext {
             time: 0.0,
             clip_rect: None,
+            layer: Layer::default(),
             debug_layout: false,
             theme,
             text_system,
@@ -187,6 +189,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             theme: self.theme,
             time: self.time,
             clip_rect: inner_clip_rect,
+            layer: self.layer,
             debug_layout: self.debug_layout,
             text_system: self.text_system,
             focus_system: self.focus_system,
@@ -312,6 +315,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         U: 'c,
     {
         let clip = self.clip_rect; // Clip rect is inherited by default.
+        let layer = self.layer;
         let debug_layout = self.debug_layout; // Copied before the layout_state borrow below.
         let policy = self.layout_policy;
 
@@ -339,6 +343,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             theme: self.theme,
             time: self.time,
             clip_rect: clip,
+            layer,
             debug_layout,
             text_system: self.text_system,
             focus_system: self.focus_system,

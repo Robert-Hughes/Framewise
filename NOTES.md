@@ -4,11 +4,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Separate structs for high/low/calc_intrinsic widgets. In progress (see stash
 - Z buffer and z in draw commands
 - "Layer" concept passed throug hteh WidgetContext and into widget funcs, use to derive Z, esp. for focus rings.
 
 - Add a high-level helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox
+
+- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers.
 
 - Fix checkbox tri-state clicking in spec page
 - Anti-aliasing for check?
@@ -216,6 +217,13 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 ## Rendering & Layers
 
 - Z-ordering for fit-to-children containers — fit-to-children containers only discover their final outer size at `finish()` time (after their children have run). Because immediate-mode rendering relies on emit order, drawing the container background/border *after* its children causes the background to render on top of the children, covering them. We need a mechanism to allow containers to append backgrounds *under* children, possibly by separate command list buffering or vector slot reservation. For now in Phase 6, we leave the layering "incorrect" in the implementation, as we don't draw container backgrounds just yet.
+
+- Revisit z-buffer interaction with alpha blending before relying on layers for
+  translucent/anti-aliased content. A higher-z translucent command can write depth
+  before a lower-z command behind it has contributed colour, producing incorrect
+  compositing around text, AA edges, shadows, and translucent popups. Depth alone is
+  fine for opaque ordering, but alpha may require layer-group sorting or another
+  explicit compositing rule.
 
 - Clipping and layering
 

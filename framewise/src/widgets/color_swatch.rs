@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
     text::TextSystem,
-    types::{Color, Rect},
+    types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -11,6 +11,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchSpec {
+        pub layer: Layer,
         pub rect: Rect,
         pub color: Color,
         /// Border color drawn around the swatch. Transparent by default.
@@ -132,6 +133,7 @@ pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
     let intrinsic = raw::calc_color_swatch_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ColorSwatchSpec {
+        layer: ctx.layer,
         rect,
         color: spec.color,
         border: spec.border,
@@ -152,6 +154,7 @@ mod tests {
     #[test]
     fn test_color_swatch_visual_normal() {
         let spec = ColorSwatchSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 16.0, 16.0),
             color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
             border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
@@ -186,6 +189,7 @@ mod tests {
         let custom_color = Color::from_srgb_f32(1.0, 0.0, 0.0, 1.0);
         let custom_border = Color::from_srgb_f32(0.0, 1.0, 0.0, 1.0);
         let spec = ColorSwatchSpec {
+            layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 20.0, 20.0),
             color: custom_color,
             border: custom_border,

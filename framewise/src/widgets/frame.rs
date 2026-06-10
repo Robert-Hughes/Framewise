@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     layout::{Layout, LayoutState},
     text::TextSystem,
-    types::{Color, Rect, Vec2},
+    types::{Color, Layer, Rect, Vec2},
     widget::WidgetContext,
 };
 
@@ -13,6 +13,7 @@ pub mod raw {
     /// Input specification for a frame.
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct FrameSpec {
+        pub layer: Layer,
         pub rect: Rect,
         pub style: super::FrameStyle,
     }
@@ -233,6 +234,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
 
     // The deferred-layout borrow plumbing lives in `child_with_deferred_layout`; here we
     // only supply the frame-specific chrome via the two closures.
+    let layer = ctx.layer;
     let (child_ctx, _outer_space) = ctx.child_with_deferred_layout(
         layout_params,
         intrinsic,
@@ -243,6 +245,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
         // begun in the space inset by padding + border_width. Carry (token, spec) to finish.
         move |cmds, outer| {
             let spec = raw::FrameSpec {
+                layer,
                 rect: Rect::pending_extent(outer.x, outer.y),
                 style: spec.style,
             };
@@ -270,6 +273,7 @@ pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
             raw::end_frame(
                 frame_token,
                 raw::FrameSpec {
+                    layer,
                     rect: bounds,
                     ..spec
                 },
@@ -298,7 +302,11 @@ mod tests {
             padding: 3.0,
         };
 
-        let spec = raw::FrameSpec { rect, style };
+        let spec = raw::FrameSpec {
+            layer: Layer::default(),
+            rect,
+            style,
+        };
         let raw::FrameResult {
             token,
             content_bounds: content,
@@ -321,6 +329,7 @@ mod tests {
         raw::end_frame(
             token,
             raw::FrameSpec {
+                layer: Layer::default(),
                 rect: final_rect,
                 ..spec
             },
