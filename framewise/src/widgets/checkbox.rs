@@ -951,51 +951,73 @@ mod tests {
 
     #[test]
     fn test_checkbox_click_takes_focus() {
-        let mut focus_system = FocusSystem::new();
-        let state = CheckboxState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let mut state = CheckboxState::default();
+        let focus_id = state.focus_id;
 
-        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
-
-        let mut state = state;
-        let mut cmds = DrawCommands::new();
-        focus_system.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
-
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(state.focus_id),
-            "Clicking checkbox must request focus"
+        crate::widgets::test_helpers::assert_mouse_press_takes_focus(
+            &mut state,
+            focus_id,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 
     #[test]
     fn test_checkbox_clipped_click_does_not_take_focus() {
-        let mut focus_system = FocusSystem::new();
-        let state = CheckboxState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let mut state = CheckboxState::default();
 
-        let spec = CheckboxSpec {
-            clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
-            ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
-        };
-
-        let mut state = state;
-        let mut cmds = DrawCommands::new();
-        focus_system.begin_frame();
-        raw::checkbox(spec, &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
-
-        assert_eq!(
-            focus_system.current_focus(),
-            None,
-            "Clicking a clipped-away checkbox must not take focus"
+        crate::widgets::test_helpers::assert_clipped_mouse_press_does_not_take_focus(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        clip_rect: Some(Rect::new(500.0, 500.0, 14.0, 14.0)),
+                        ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
         );
+    }
+
+    #[test]
+    fn test_checkbox_disabled_ignores_interaction() {
+        let mut state = CheckboxState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_disabled_ignores_press_interaction(
+            &mut state,
+            focus_id,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::checkbox(
+                    CheckboxSpec {
+                        disabled: true,
+                        ..checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0))
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+        assert_eq!(state.checked, CheckedState::Unchecked);
     }
 
     #[test]

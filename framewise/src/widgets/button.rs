@@ -682,70 +682,80 @@ mod tests {
     fn test_button_click_takes_focus() {
         let mut text_system = DummyTextSys;
         let mut state = ButtonState::default();
-        let mut focus_system = FocusSystem::new();
+        let focus_id = state.focus_id;
 
-        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
-
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(50.0, 25.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-
-        focus_system.begin_frame();
-        let mut cmds = DrawCommands::new();
-        raw::button(
-            spec,
+        crate::widgets::test_helpers::assert_mouse_press_takes_focus(
             &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        focus_system.end_frame();
-
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(state.focus_id),
-            "Clicking button must request focus"
+            focus_id,
+            Vec2::new(50.0, 25.0),
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 
     #[test]
     fn test_button_clipped_click_does_not_take_focus() {
         let mut text_system = DummyTextSys;
-        let mut focus_system = FocusSystem::new();
-
-        // Mouse is inside the widget rect but outside the clip_rect.
-        let spec = ButtonSpec {
-            layer: Layer::default(),
-            rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-            text: "Btn".into(),
-            style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
-            clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 30.0)),
-            disabled: false,
-        };
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(50.0, 25.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-
         let mut state = ButtonState::default();
-        focus_system.begin_frame();
-        let mut cmds = DrawCommands::new();
-        raw::button(
-            spec,
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
-        focus_system.end_frame();
 
-        assert_eq!(
-            focus_system.current_focus(),
-            None,
-            "Clicking a clipped-away button must not take focus"
+        crate::widgets::test_helpers::assert_clipped_mouse_press_does_not_take_focus(
+            &mut state,
+            Vec2::new(50.0, 25.0),
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    ButtonSpec {
+                        layer: Layer::default(),
+                        rect: Rect::new(10.0, 10.0, 100.0, 30.0),
+                        text: "Btn",
+                        style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
+                        clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 30.0)),
+                        disabled: false,
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+    }
+
+    #[test]
+    fn test_button_disabled_ignores_interaction() {
+        let mut text_system = DummyTextSys;
+        let mut state = ButtonState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_disabled_ignores_press_interaction(
+            &mut state,
+            focus_id,
+            Vec2::new(50.0, 25.0),
+            |state, input, focus_system, cmds| {
+                raw::button(
+                    ButtonSpec {
+                        layer: Layer::default(),
+                        disabled: true,
+                        ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    &mut text_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 

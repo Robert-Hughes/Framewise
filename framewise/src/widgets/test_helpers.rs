@@ -220,6 +220,128 @@ pub fn assert_mouse_click_on_release<State>(
     assert!(result.clicked, "Widget should click on mouse release");
 }
 
+pub fn assert_mouse_press_takes_focus<State>(
+    state: &mut State,
+    focus_id: FocusId,
+    inside_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
+) {
+    let mut focus_system = FocusSystem::new();
+    let input = Input {
+        mouse_pos: inside_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(result.pressed, "Widget should be pressed after mouse down");
+    assert_eq!(
+        focus_system.current_focus(),
+        Some(focus_id),
+        "Mouse press inside widget should request focus"
+    );
+}
+
+pub fn assert_clipped_mouse_press_does_not_take_focus<State>(
+    state: &mut State,
+    inside_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
+) {
+    let mut focus_system = FocusSystem::new();
+    let input = Input {
+        mouse_pos: inside_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.hovered, "Clipped widget should not be hovered");
+    assert!(!result.pressed, "Clipped widget should not be pressed");
+    assert!(!result.clicked, "Clipped widget should not be clicked");
+    assert_eq!(
+        focus_system.current_focus(),
+        None,
+        "Mouse press on clipped-away widget should not request focus"
+    );
+}
+
+pub fn assert_disabled_ignores_press_interaction<State>(
+    state: &mut State,
+    focus_id: FocusId,
+    inside_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+
+    let mouse_press = Input {
+        mouse_pos: inside_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    let result = run_frame(state, &mouse_press, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.hovered, "Disabled widget should not be hovered");
+    assert!(!result.pressed, "Disabled widget should not be pressed");
+    assert!(
+        !result.clicked,
+        "Disabled widget should not click on mouse press"
+    );
+    assert_eq!(
+        focus_system.current_focus(),
+        None,
+        "Disabled widget should not take focus on mouse press"
+    );
+
+    let mouse_release = Input {
+        mouse_pos: inside_pos,
+        mouse_clicked: true,
+        ..Default::default()
+    };
+    let result = run_frame(
+        state,
+        &mouse_release,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    assert!(
+        !result.clicked,
+        "Disabled widget should not click on mouse release"
+    );
+
+    focus_system.take_focus(focus_id);
+    let enter = Input {
+        key_pressed_enter: true,
+        ..Default::default()
+    };
+    let result = run_frame(state, &enter, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.clicked, "Disabled widget should ignore Enter");
+
+    let space_down = Input {
+        key_down_space: true,
+        key_pressed_space: true,
+        ..Default::default()
+    };
+    let result = run_frame(state, &space_down, &mut focus_system, &mut cmds, &mut run);
+    assert!(!result.pressed, "Disabled widget should ignore Space press");
+    assert!(!result.clicked, "Disabled widget should ignore Space press");
+
+    let space_up = Input {
+        key_released_space: true,
+        ..Default::default()
+    };
+    let result = run_frame(state, &space_up, &mut focus_system, &mut cmds, &mut run);
+    assert!(
+        !result.clicked,
+        "Disabled widget should ignore Space release"
+    );
+}
+
 pub fn assert_spacebar_click<State>(
     state: &mut State,
     focus_id: FocusId,
