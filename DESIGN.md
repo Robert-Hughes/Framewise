@@ -4,14 +4,18 @@ Detailed design decisions and implementation architecture for Framewise.
 
 ---
 
-## State Storage Options
+## State Storage
 
-For features requiring state (like Button hover/press tracking, or TextEdit contents and caret position), Framewise offers the app two flexible approaches to integrating that state:
+For widgets that maintain state across frames — hover/press tracking, text content, caret position, scroll offset — Framewise defines a transparent `*State` struct per widget type (e.g. `ButtonState`, `TextEditState`). The app allocates and owns this struct; the widget receives it as `&mut *State` and mutates it in place.
 
-1. **Library-Provided Opaque State:** The app stores a library-provided struct (e.g., `ButtonState`, `TextEditState`) in its data model. The app fulfills the "app owns the state" philosophy, treating the struct opaquely and passing it mutably to the widget.
-2. **App-Managed State:** The app extracts and passes values directly (such as simple values or sub-fields of its existing data structures) to widget specs, keeping synchronization simple, explicit, and direct without complex trait layers.
+The app is responsible for initialising the state and keeping it alive for as long as the widget is displayed. If the app wants the widget's value to stay in sync with its own data store, it synchronises explicitly — reading `state.value` after each frame or writing to it before the widget call.
 
-State structs are composed based on what that widget type can do — e.g. a `FocusState` struct might be common across many widget types. We also share logic inside widget functions: a `handle_focus` function that manipulates `FocusState` could be re-used by many widget types.
+**Why library-defined state structs, rather than letting the app pass its own fields directly?**
+
+- Widget state is often richer than the app's domain model needs. A `TextEditState` tracks text content, caret position, selection range, and scroll offset — the app typically only cares about the final string. Exposing the full struct lets the widget manage its own bookkeeping without burdening the app with those details.
+- Apps commonly want a *draft* value in the widget that is only committed to the data store after validation or an explicit user action (e.g. pressing Save). The `*State` struct naturally holds this draft; the app copies it out when ready, rather than having the widget write directly into app state.
+
+State structs are composed from shared sub-structs based on widget capability — e.g. a `FocusState` sub-struct is common across many widget types, with a shared `handle_focus` helper that manipulates it.
 
 ### `*State` vs `*Spec` — What Changes and Who Changes It
 

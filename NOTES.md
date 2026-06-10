@@ -254,6 +254,22 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 - Buttons text auto-ellipses (same for labels etc. All text?), due to top down layout this is more likely to occur so should be handled nicely. Also have a tooltip to show the full text. Reusable component for this functionality?
 
+## State Storage
+
+### Alternative Considered: Two-Approach Model
+
+An earlier design offered apps two routes for widget value state:
+
+1. **Library-Provided Opaque State:** The app stores a library-provided struct (e.g. `ButtonState`, `TextEditState`) in its data model, treating it opaquely and passing it mutably to the widget.
+2. **App-Managed State:** The app extracts and passes values directly (simple scalars or sub-fields of its own data structures) to widget specs, keeping synchronisation simple, explicit, and direct without extra trait layers.
+
+This was dropped in favour of a single approach: library-defined *transparent* state structs, always owned by the app. The rationale is in `DESIGN.md` (§ State Storage), but briefly:
+
+- Widget state is often richer than the app wants to store (caret position, scroll offset, selection range) — the app shouldn't be forced to mirror that structure.
+- Apps typically want a *draft* value in the widget and only commit it to their data store after validation or an explicit save action. A library-defined struct naturally holds this draft.
+
+The "App-Managed State" option would require either a trait layer (so the widget can read/write through app types) or reducing state to the subset the app happens to store — both of which lose the richness or the simplicity that the single-struct approach provides.
+
 ## Widgets
 
 - Buttons and toggles
