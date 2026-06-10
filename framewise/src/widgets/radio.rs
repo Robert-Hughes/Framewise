@@ -93,7 +93,7 @@ pub mod raw {
         if focused {
             cmds.push(DrawCmd::StrokeCircle {
                 center,
-                radius: s.radius + s.focus_offset,
+                radius: s.radius + s.focus_offset + s.focus_width * 0.5,
                 color: tint(s.focus),
                 width: s.focus_width,
                 z: spec.layer.get_focus_z(),
@@ -397,7 +397,7 @@ mod tests {
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeCircle {
                     center,
-                    radius: s.radius + s.focus_offset,
+                    radius: s.radius + s.focus_offset + s.focus_width * 0.5,
                     color: s.focus,
                     width: s.focus_width,
                     z: 1,

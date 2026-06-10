@@ -110,7 +110,7 @@ pub mod raw {
         // Focus ring.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
-                rect: r.inset(-s.focus_offset),
+                rect: r.inset(-(s.focus_offset + s.focus_width)),
                 color: tint(s.focus),
                 width: s.focus_width,
                 z: spec.layer.get_focus_z(),
@@ -456,7 +456,7 @@ mod tests {
         focus_system.end_frame();
 
         let r = Rect::new(0.0, 0.0, 50.0, 22.0);
-        let expected_focus_rect = r.inset(-style.focus_offset);
+        let expected_focus_rect = r.inset(-(style.focus_offset + style.focus_width));
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![

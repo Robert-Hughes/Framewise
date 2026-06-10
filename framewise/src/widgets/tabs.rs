@@ -147,7 +147,7 @@ pub mod raw {
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
                 cmds.push(DrawCmd::StrokeRect {
-                    rect: tab_rect.inset(-s.focus_offset),
+                    rect: tab_rect.inset(-(s.focus_offset + s.focus_width)),
                     color: tint(s.focus),
                     width: s.focus_width,
                     z: spec.layer.get_focus_z(),
@@ -490,7 +490,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
-                    rect: Rect::new(66.0, -2.0, 72.0, 40.0),
+                    rect: Rect::new(64.0, -4.0, 76.0, 44.0),
                     color: style.focus,
                     width: style.focus_width,
                     z: 1,
