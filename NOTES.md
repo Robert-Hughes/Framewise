@@ -8,12 +8,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers.
 
-- Fix checkbox tri-state clicking in spec page
 - Anti-aliasing for check?
 - Focus ring bigger to match spec page
 - See if reusable stuff can be shared between button and checkbox
-- Switch is just another checkbox??
 - Hover and depressed visual states
+- Switch is just another checkbox??
 
 - Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?)
 

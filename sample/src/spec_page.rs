@@ -2042,11 +2042,16 @@ fn section_03_toggles<CF>(
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[ci];
-                    let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(vec![
-                        CheckedState::Unchecked,
-                        CheckedState::Checked,
-                        CheckedState::Indeterminate,
-                    ]);
+                    let spec_builder =
+                        CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
+                            vec![CheckedState::Unchecked, CheckedState::Checked]
+                        } else {
+                            vec![
+                                CheckedState::Unchecked,
+                                CheckedState::Checked,
+                                CheckedState::Indeterminate,
+                            ]
+                        });
                     checkbox(&mut b, spec_builder, rect, state)
                 };
             } else {
@@ -2078,11 +2083,17 @@ fn section_03_toggles<CF>(
                 let _info = {
                     let state = &mut state.cb_matrix[3 + ci];
                     let layout_params = Rect::new(cx, y, 14.0, 14.0);
-                    let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(vec![
-                        CheckedState::Unchecked,
-                        CheckedState::Checked,
-                        CheckedState::Indeterminate,
-                    ]);
+                    let spec_builder =
+                        CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
+                            vec![CheckedState::Unchecked, CheckedState::Checked]
+                        } else {
+                            vec![
+                                CheckedState::Unchecked,
+                                CheckedState::Checked,
+                                CheckedState::Indeterminate,
+                            ]
+                        });
+
                     checkbox(&mut b, spec_builder, layout_params, state)
                 };
             } else {
