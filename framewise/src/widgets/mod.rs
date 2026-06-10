@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test_helpers;
+mod widget_helpers;
 
 #[cfg(feature = "button")]
 pub mod button;

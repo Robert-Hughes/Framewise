@@ -72,51 +72,27 @@ pub mod raw {
         focus_system: &mut FocusSystem,
         cmds: &mut DrawCommands,
     ) -> CheckboxResult {
-        let focused = if spec.disabled {
-            false
-        } else {
-            focus_system.register(state.focus_id, spec.rect, spec.clip_rect)
-        };
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: spec.disabled,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let input_info = interaction.input;
 
-        let is_visible = spec
-            .clip_rect
-            .is_none_or(|clip| clip.contains(input.mouse_pos));
-        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-
-        if !spec.disabled && contains && input.mouse_pressed {
-            state.is_active = true;
-            focus_system.take_focus(state.focus_id);
-        }
-
-        let hovered = !spec.disabled && contains && (!input.mouse_down || state.is_active);
-        let clicked = !spec.disabled && state.is_active && hovered && input.mouse_clicked;
-
-        let mut is_clicked = clicked;
-        if !spec.disabled && focused && input.key_pressed_enter {
-            is_clicked = true;
-        }
-        if !spec.disabled && state.space_is_active && input.key_released_space {
-            is_clicked = true;
-        }
-
-        // Update space activation state for keyboard space press
-        if !focused || !input.key_down_space {
-            state.space_is_active = false;
-        }
-        if !spec.disabled && focused && input.key_pressed_space {
-            state.space_is_active = true;
-        }
-
-        if !input.mouse_down {
-            state.is_active = false;
-        }
-
-        if !spec.disabled {
-            focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
-        }
-
-        state.checked =
-            next_allowed_checked_state(state.checked, &spec.allowed_checked_states, is_clicked);
+        state.checked = next_allowed_checked_state(
+            state.checked,
+            &spec.allowed_checked_states,
+            input_info.clicked,
+        );
 
         let s = spec.style;
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
@@ -136,8 +112,20 @@ pub mod raw {
 
         // Box fill.
         let fill = match state.checked {
-            CheckedState::Unchecked => s.background,
-            _ => s.selected_fill,
+            CheckedState::Unchecked => crate::widgets::widget_helpers::interaction_color(
+                s.background,
+                s.hovered,
+                s.pressed,
+                input_info.hovered,
+                input_info.pressed,
+            ),
+            _ => crate::widgets::widget_helpers::interaction_color(
+                s.selected_fill,
+                s.selected_hovered,
+                s.selected_pressed,
+                input_info.hovered,
+                input_info.pressed,
+            ),
         };
         cmds.push(DrawCmd::FillRect {
             rect: r,
@@ -188,11 +176,7 @@ pub mod raw {
         }
 
         CheckboxResult {
-            input: InputInfo {
-                hovered,
-                pressed: (state.is_active && hovered && input.mouse_down) || state.space_is_active,
-                clicked: is_clicked,
-            },
+            input: input_info,
             focused,
             content_bounds: r.inset(s.border_width),
         }
@@ -205,7 +189,11 @@ pub mod raw {
 pub struct CheckboxStyle {
     pub size: f32,
     pub background: Color,
+    pub hovered: Color,
+    pub pressed: Color,
     pub selected_fill: Color,
+    pub selected_hovered: Color,
+    pub selected_pressed: Color,
     pub border: Color,
     pub mark: Color,
     pub focus: Color,
@@ -221,7 +209,11 @@ impl CheckboxStyle {
         Self {
             size: 14.0,
             background: theme.paper_elev,
+            hovered: theme.hover,
+            pressed: theme.press,
             selected_fill: theme.ink,
+            selected_hovered: Color::BLACK,
+            selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),
             border: theme.ink,
             mark: theme.paper,
             focus: theme.rust,
@@ -506,6 +498,78 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_visual_hovered() {
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState::default(),
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_checkbox_visual_pressed() {
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState::default(),
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.pressed,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
     fn test_checkbox_visual_on() {
         let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
@@ -557,6 +621,61 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_visual_on_hovered() {
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
+        let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
+        let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState {
+                checked: CheckedState::Checked,
+                ..Default::default()
+            },
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: s.mark,
+                    width: s.mark_width,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0: p1,
+                    p1: p2,
+                    color: s.mark,
+                    width: s.mark_width,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
     fn test_checkbox_visual_indeterminate() {
         let spec = tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
@@ -578,6 +697,51 @@ mod tests {
                 DrawCmd::FillRect {
                     rect: r,
                     color: s.selected_fill,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: s.mark,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_checkbox_visual_indeterminate_pressed() {
+        let spec = tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 14.0, 14.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState {
+                checked: CheckedState::Indeterminate,
+                ..Default::default()
+            },
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_pressed,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {

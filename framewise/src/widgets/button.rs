@@ -130,57 +130,30 @@ pub mod raw {
             };
         }
 
-        let focused = focus_system.register(state.focus_id, spec.rect, spec.clip_rect);
-
-        let is_visible = spec
-            .clip_rect
-            .is_none_or(|clip| clip.contains(input.mouse_pos));
-        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-
-        if contains && input.mouse_pressed {
-            state.is_active = true;
-        }
-
-        let hovered = contains && (!input.mouse_down || state.is_active);
-        let mut clicked = state.is_active && hovered && input.mouse_clicked;
-
-        // Trigger click on Enter (immediate) or Space release (if it was active)
-        if focused && input.key_pressed_enter {
-            clicked = true;
-        }
-        if state.space_is_active && input.key_released_space {
-            clicked = true;
-        }
-
-        // Update space activation state
-        if !focused || !input.key_down_space {
-            state.space_is_active = false;
-        }
-        if focused && input.key_pressed_space {
-            state.space_is_active = true;
-        }
-
-        // Update mouse activation state
-        if !input.mouse_down {
-            state.is_active = false;
-        }
-
-        let pressed = (state.is_active && hovered && input.mouse_down) || state.space_is_active;
-
-        if pressed {
-            focus_system.take_focus(state.focus_id);
-        }
-
-        focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::all());
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: false,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let input_info = interaction.input;
 
         // Choose fill colour based on interaction state.
-        let fill = if pressed {
-            spec.style.pressed
-        } else if hovered {
-            spec.style.hovered
-        } else {
-            spec.style.background
-        };
+        let fill = crate::widgets::widget_helpers::interaction_color(
+            spec.style.background,
+            spec.style.hovered,
+            spec.style.pressed,
+            input_info.hovered,
+            input_info.pressed,
+        );
 
         // CSS outline sits outside the border box. StrokeRect draws inside its
         // rect, so expand by both the desired gap and the stroke width.
@@ -223,11 +196,7 @@ pub mod raw {
 
         ButtonResult {
             content_bounds: spec.rect.inset(spec.style.border_width),
-            input: InputInfo {
-                hovered,
-                pressed,
-                clicked,
-            },
+            input: input_info,
             focused,
         }
     }
