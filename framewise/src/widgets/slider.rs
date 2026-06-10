@@ -479,7 +479,7 @@ pub mod raw {
                 rect: track_rect.inset(-spec.style.focus_offset),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
-                z: spec.layer.get_z(),
+                z: spec.layer.get_focus_z(),
             });
         }
 
@@ -2054,7 +2054,7 @@ mod tests {
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                     color: spec.style.focus,
                     width: spec.style.focus_width,
-                    z: 0,
+                    z: 1,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),

@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Z buffer and z in draw commands
-- "Layer" concept passed throug hteh WidgetContext and into widget funcs, use to derive Z, esp. for focus rings.
-
 - Add a high-level helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox
 
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers.
@@ -226,8 +223,6 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
   explicit compositing rule.
 
 - Clipping and layering
-
-- Layering thoughts - focus rings are drawn *outside* of buttons, so can overlap other things. Need to be on their own layer? Possibly a special 'focus' layer. This could be done in the drawing commands themselves or perhaps deferred as part of a separate list of 'focus draw cmds' stored in the FocusSystem, rather than as part of the button itself.
 
 ## Clipping & Scrolling
 

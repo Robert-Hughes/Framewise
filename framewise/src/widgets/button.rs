@@ -191,7 +191,7 @@ pub mod raw {
                     .inset(-(spec.style.focus_offset + spec.style.focus_width)),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
-                z: spec.layer.get_z(),
+                z: spec.layer.get_focus_z(),
             });
         }
 
@@ -1093,7 +1093,7 @@ mod tests {
                     rect: expected_focus_rect,
                     color: focus,
                     width: focus_width,
-                    z: 0,
+                    z: 1,
                 },
                 DrawCmd::FillRect {
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),

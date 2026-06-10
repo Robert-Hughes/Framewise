@@ -130,7 +130,7 @@ pub mod raw {
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
-                z: spec.layer.get_z(),
+                z: spec.layer.get_focus_z(),
             });
         }
 
@@ -712,7 +712,7 @@ mod tests {
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
                     width: s.focus_width,
-                    z: 0,
+                    z: 1,
                 },
                 DrawCmd::FillRect {
                     rect: r,

@@ -181,7 +181,7 @@ pub mod raw {
                     rect: seg_rect.inset(s.focus_offset),
                     color: tint(s.focus),
                     width: s.focus_width,
-                    z: spec.layer.get_z(),
+                    z: spec.layer.get_focus_z(),
                 });
             }
 
@@ -531,7 +531,7 @@ mod tests {
                     rect: Rect::new(38.0, 2.0, 32.0, 24.0),
                     color: style.focus,
                     width: style.focus_width,
-                    z: 0,
+                    z: 1,
                 },
                 DrawCmd::Text {
                     rect: Rect::new(50.0, 6.0, 8.0, 16.0),

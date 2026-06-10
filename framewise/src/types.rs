@@ -256,4 +256,8 @@ impl Layer {
     pub fn get_z(&self) -> u32 {
         0
     }
+
+    pub fn get_focus_z(&self) -> u32 {
+        1
+    }
 }
