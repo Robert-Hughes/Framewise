@@ -4,8 +4,9 @@ use crate::types::{Color, Rect, Vec2};
 /// A single drawing instruction produced by a widget.
 ///
 /// Draw commands are backend-agnostic. The renderer in the application crate
-/// is responsible for turning them into GPU calls. Commands must be executed
-/// in order; later commands still determine visual order until renderer z support lands.
+/// is responsible for turning them into GPU calls. Commands with higher `z`
+/// values are drawn above lower `z` values; commands with equal `z` preserve
+/// append order, so later commands appear visually above earlier ones.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawCmd {
     /// Fill a rectangle with a solid colour.

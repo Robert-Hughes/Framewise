@@ -4,18 +4,22 @@ use wgpu::util::DeviceExt;
 
 // ── Vertex layout ─────────────────────────────────────────────────────────────
 
-/// One GPU vertex: 2D clip-space position + RGBA colour.
+const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+/// One GPU vertex: 2D clip-space position + RGBA colour + depth.
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
     pub pos: [f32; 2],
     pub color: [f32; 4],
+    pub z: f32,
 }
 
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
         0 => Float32x2,
         1 => Float32x4,
+        2 => Float32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -27,20 +31,22 @@ impl Vertex {
     }
 }
 
-/// One GPU vertex for text: 2D clip-space position + atlas UV + RGBA colour.
+/// One GPU vertex for text: 2D clip-space position + atlas UV + RGBA colour + depth.
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct TextVertex {
     pub pos: [f32; 2],
     pub uv: [f32; 2],
     pub color: [f32; 4],
+    pub z: f32,
 }
 
 impl TextVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
+    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
         0 => Float32x2,
         1 => Float32x2,
         2 => Float32x4,
+        3 => Float32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -60,6 +66,13 @@ pub struct Renderer {
 
     atlas_texture: wgpu::Texture,
     atlas_bind_group: wgpu::BindGroup,
+    depth_target: Option<DepthTarget>,
+}
+
+struct DepthTarget {
+    _texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    size: (u32, u32),
 }
 
 impl Renderer {
@@ -114,7 +127,7 @@ impl Renderer {
                 cull_mode: None,
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(depth_stencil_state()),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
             cache: None,
@@ -193,7 +206,7 @@ impl Renderer {
                 front_face: wgpu::FrontFace::Ccw,
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(depth_stencil_state()),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
             cache: None,
@@ -255,6 +268,7 @@ impl Renderer {
             text_pipeline,
             atlas_texture,
             atlas_bind_group,
+            depth_target: None,
         }
     }
 
@@ -309,43 +323,40 @@ impl Renderer {
 
         for cmd in cmds {
             match cmd {
-                // TODO: Phase 2b will map command z to depth, and may initially store converted z per vertex
-                // for batching simplicity, with future optimization possible via batching by (pipeline, clip, z)
-                // plus uniform/push-constant z. For now, z is ignored.
-                DrawCmd::FillRect { rect, color, z: _ } => {
-                    push_filled_rect(&mut quad_verts, *rect, *color, window_size);
+                DrawCmd::FillRect { rect, color, z } => {
+                    push_filled_rect(&mut quad_verts, *rect, *color, *z, window_size);
                 }
                 DrawCmd::StrokeRect {
                     rect,
                     color,
                     width,
-                    z: _,
+                    z,
                 } => {
-                    push_stroked_rect(&mut quad_verts, *rect, *color, *width, window_size);
+                    push_stroked_rect(&mut quad_verts, *rect, *color, *width, *z, window_size);
                 }
                 DrawCmd::StrokeLine {
                     p0,
                     p1,
                     color,
                     width,
-                    z: _,
+                    z,
                 } => {
-                    push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, window_size);
+                    push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, *z, window_size);
                 }
                 DrawCmd::FillCircle {
                     center,
                     radius,
                     color,
-                    z: _,
+                    z,
                 } => {
-                    push_filled_circle(&mut quad_verts, *center, *radius, *color, window_size);
+                    push_filled_circle(&mut quad_verts, *center, *radius, *color, *z, window_size);
                 }
                 DrawCmd::StrokeCircle {
                     center,
                     radius,
                     color,
                     width,
-                    z: _,
+                    z,
                 } => {
                     push_stroked_circle(
                         &mut quad_verts,
@@ -353,6 +364,7 @@ impl Renderer {
                         *radius,
                         *color,
                         *width,
+                        *z,
                         window_size,
                     );
                 }
@@ -360,13 +372,14 @@ impl Renderer {
                     rect,
                     color,
                     handle,
-                    z: _,
+                    z,
                 } => {
                     if let Some(run) = text_system.runs.get(handle.0) {
                         push_text_run(
                             &mut text_verts,
                             *rect,
                             *color,
+                            *z,
                             run,
                             text_system,
                             window_size,
@@ -455,6 +468,8 @@ impl Renderer {
             None
         };
 
+        let depth_view = &self.ensure_depth_target(device, window_size).view;
+
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("main_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -474,7 +489,14 @@ impl Renderer {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(0.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         });
@@ -527,9 +549,53 @@ impl Renderer {
             }
         }
     }
+
+    fn ensure_depth_target(&mut self, device: &wgpu::Device, size: (u32, u32)) -> &DepthTarget {
+        let needs_recreate = self
+            .depth_target
+            .as_ref()
+            .is_none_or(|target| target.size != size);
+
+        if needs_recreate {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("depth_texture"),
+                size: wgpu::Extent3d {
+                    width: size.0.max(1),
+                    height: size.1.max(1),
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: DEPTH_FORMAT,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            });
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+            self.depth_target = Some(DepthTarget {
+                _texture: texture,
+                view,
+                size,
+            });
+        }
+
+        self.depth_target
+            .as_ref()
+            .expect("depth target should exist after creation")
+    }
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
+
+fn depth_stencil_state() -> wgpu::DepthStencilState {
+    wgpu::DepthStencilState {
+        format: DEPTH_FORMAT,
+        depth_write_enabled: true,
+        depth_compare: wgpu::CompareFunction::GreaterEqual,
+        stencil: wgpu::StencilState::default(),
+        bias: wgpu::DepthBiasState::default(),
+    }
+}
 
 /// Convert a logical-pixel rect to clip-space [-1, 1].
 fn to_clip(x: f32, y: f32, w: u32, h: u32) -> [f32; 2] {
@@ -543,22 +609,60 @@ fn color_arr(c: Color) -> [f32; 4] {
     [c.r, c.g, c.b, c.a]
 }
 
+fn z_to_depth(z: u32) -> f32 {
+    // This stores the command z redundantly in every vertex so the renderer can
+    // keep its existing broad batching. If vertex bandwidth becomes the bottleneck,
+    // batch by (pipeline, clip, z) and pass z via a uniform or push constant instead.
+    z as f32 / u32::MAX as f32
+}
+
 /// Push two triangles (six vertices) for a filled rectangle.
-fn push_filled_rect(verts: &mut Vec<Vertex>, rect: Rect, color: Color, (sw, sh): (u32, u32)) {
+fn push_filled_rect(
+    verts: &mut Vec<Vertex>,
+    rect: Rect,
+    color: Color,
+    z: u32,
+    (sw, sh): (u32, u32),
+) {
     let tl = to_clip(rect.x, rect.y, sw, sh);
     let tr = to_clip(rect.x + rect.w, rect.y, sw, sh);
     let bl = to_clip(rect.x, rect.y + rect.h, sw, sh);
     let br = to_clip(rect.x + rect.w, rect.y + rect.h, sw, sh);
     let c = color_arr(color);
+    let z = z_to_depth(z);
 
     // Two CCW triangles.
-    verts.push(Vertex { pos: tl, color: c });
-    verts.push(Vertex { pos: bl, color: c });
-    verts.push(Vertex { pos: tr, color: c });
+    verts.push(Vertex {
+        pos: tl,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: bl,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: tr,
+        color: c,
+        z,
+    });
 
-    verts.push(Vertex { pos: tr, color: c });
-    verts.push(Vertex { pos: bl, color: c });
-    verts.push(Vertex { pos: br, color: c });
+    verts.push(Vertex {
+        pos: tr,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: bl,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: br,
+        color: c,
+        z,
+    });
 }
 
 /// Push eight thin filled rects (one per side) to approximate a stroked rect.
@@ -567,6 +671,7 @@ fn push_stroked_rect(
     rect: Rect,
     color: Color,
     width: f32,
+    z: u32,
     win_size: (u32, u32),
 ) {
     let x = rect.x;
@@ -583,7 +688,7 @@ fn push_stroked_rect(
         Rect::new(x + w - lw, y, lw, h), // right
     ];
     for s in &strips {
-        push_filled_rect(verts, *s, color, win_size);
+        push_filled_rect(verts, *s, color, z, win_size);
     }
 }
 
@@ -594,6 +699,7 @@ fn push_stroke_line(
     p1: framewise::Vec2,
     color: Color,
     width: f32,
+    z: u32,
     win_size: (u32, u32),
 ) {
     let dx = p1.x - p0.x;
@@ -611,13 +717,38 @@ fn push_stroke_line(
     let c2 = to_clip(p1.x - nx, p1.y - ny, win_size.0, win_size.1);
     let d = to_clip(p1.x + nx, p1.y + ny, win_size.0, win_size.1);
     let c = color_arr(color);
+    let z = z_to_depth(z);
 
-    verts.push(Vertex { pos: a, color: c });
-    verts.push(Vertex { pos: b, color: c });
-    verts.push(Vertex { pos: c2, color: c });
-    verts.push(Vertex { pos: a, color: c });
-    verts.push(Vertex { pos: c2, color: c });
-    verts.push(Vertex { pos: d, color: c });
+    verts.push(Vertex {
+        pos: a,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: b,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: c2,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: a,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: c2,
+        color: c,
+        z,
+    });
+    verts.push(Vertex {
+        pos: d,
+        color: c,
+        z,
+    });
 }
 
 const CIRCLE_SEGS: usize = 32;
@@ -628,9 +759,11 @@ fn push_filled_circle(
     center: framewise::Vec2,
     radius: f32,
     color: Color,
+    z: u32,
     win_size: (u32, u32),
 ) {
     let c = color_arr(color);
+    let z = z_to_depth(z);
     let cx = to_clip(center.x, center.y, win_size.0, win_size.1);
     for i in 0..CIRCLE_SEGS {
         let a0 = (i as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
@@ -647,9 +780,21 @@ fn push_filled_circle(
             win_size.0,
             win_size.1,
         );
-        verts.push(Vertex { pos: cx, color: c });
-        verts.push(Vertex { pos: p0, color: c });
-        verts.push(Vertex { pos: p1, color: c });
+        verts.push(Vertex {
+            pos: cx,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: p0,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: p1,
+            color: c,
+            z,
+        });
     }
 }
 
@@ -660,9 +805,11 @@ fn push_stroked_circle(
     radius: f32,
     color: Color,
     width: f32,
+    z: u32,
     win_size: (u32, u32),
 ) {
     let c = color_arr(color);
+    let z = z_to_depth(z);
     let r_in = (radius - width * 0.5).max(0.0);
     let r_out = radius + width * 0.5;
     for i in 0..CIRCLE_SEGS {
@@ -692,12 +839,36 @@ fn push_stroked_circle(
             win_size.0,
             win_size.1,
         );
-        verts.push(Vertex { pos: i0, color: c });
-        verts.push(Vertex { pos: o0, color: c });
-        verts.push(Vertex { pos: o1, color: c });
-        verts.push(Vertex { pos: i0, color: c });
-        verts.push(Vertex { pos: o1, color: c });
-        verts.push(Vertex { pos: i1, color: c });
+        verts.push(Vertex {
+            pos: i0,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: o0,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: o1,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: i0,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: o1,
+            color: c,
+            z,
+        });
+        verts.push(Vertex {
+            pos: i1,
+            color: c,
+            z,
+        });
     }
 }
 
@@ -706,11 +877,13 @@ fn push_text_run(
     verts: &mut Vec<TextVertex>,
     rect: Rect,
     color: Color,
+    z: u32,
     run: &crate::text::CachedLayout,
     text_system: &crate::text::SampleTextSystem,
     (sw, sh): (u32, u32),
 ) {
     let c = color_arr(color);
+    let z = z_to_depth(z);
     let atlas_size = text_system.atlas_size as f32;
 
     for g in &run.glyphs {
@@ -756,32 +929,38 @@ fn push_text_run(
                 pos: tl_pos,
                 uv: [u0, v0],
                 color: c,
+                z,
             });
             verts.push(TextVertex {
                 pos: bl_pos,
                 uv: [u0, v1],
                 color: c,
+                z,
             });
             verts.push(TextVertex {
                 pos: tr_pos,
                 uv: [u1, v0],
                 color: c,
+                z,
             });
 
             verts.push(TextVertex {
                 pos: tr_pos,
                 uv: [u1, v0],
                 color: c,
+                z,
             });
             verts.push(TextVertex {
                 pos: bl_pos,
                 uv: [u0, v1],
                 color: c,
+                z,
             });
             verts.push(TextVertex {
                 pos: br_pos,
                 uv: [u1, v1],
                 color: c,
+                z,
             });
         }
     }
@@ -830,6 +1009,7 @@ mod tests {
             &mut verts,
             rect,
             Color::from_srgb_u8(0, 0, 0, 255),
+            0,
             run,
             &text_system,
             (200, 50),

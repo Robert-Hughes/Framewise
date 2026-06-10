@@ -1,11 +1,12 @@
 // Minimal passthrough shader for solid-colour quads.
 //
-// Each vertex carries its own position (clip-space) and colour.
+// Each vertex carries its own position (clip-space), colour, and depth.
 // No textures, no uniforms — the renderer pre-transforms everything on the CPU.
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
     @location(1) color:    vec4<f32>,
+    @location(2) z:        f32,
 }
 
 struct VertexOutput {
@@ -16,7 +17,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(in.position, 0.0, 1.0);
+    out.clip_position = vec4<f32>(in.position, in.z, 1.0);
     out.color         = in.color;
     return out;
 }
