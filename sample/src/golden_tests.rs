@@ -28,11 +28,11 @@ mod spec_page_golden {
                 &mut focus_system,
                 &input,
                 RowLayout,
-                LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
+                LayoutSpace::unbounded_height(0.0, 0.0, 1200.0),
                 &mut cmds,
             );
 
-            crate::spec_page::draw_spec_page_inner(&mut state, &mut ctx, false, 1600.0);
+            crate::spec_page::draw_spec_page_inner(&mut state, &mut ctx, false, 1200.0);
 
             let rect = ctx.finish();
 

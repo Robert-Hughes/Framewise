@@ -4,13 +4,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Add a high-level helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox
+- Add a (high-level) helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox (moreover, any mouse interaction like hover, pressed state, click and drag then return etc.)
 
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers.
 
-- Anti-aliasing for check?
+- Anti-aliasing for check and radio? Analytical AA is probably best?
 
-- Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?)
+- Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle.
+
+- Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?). Also, want a way to force a spacer at the end. Maybe two options/kinds?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Switch is just another checkbox??
@@ -341,6 +343,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Off-screen draw cost — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
 - Early-out from widget functions if it's offscreen or completely clipped
+- Resizing window is v. slow
 
 ## API Ergonomics
 

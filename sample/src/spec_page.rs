@@ -1032,18 +1032,6 @@ impl Default for SpecWidgetsState {
     }
 }
 
-// ── Layout constants ──────────────────────────────────────────────────────────
-
-const MARGIN: f32 = 64.0;
-// GROUP_GAP/COL_GAP are only referenced by some sections; unused when those are
-// compiled out.
-#[allow(dead_code)]
-const GROUP_GAP: f32 = 28.0;
-#[allow(dead_code)]
-const COL_GAP: f32 = 16.0;
-#[allow(dead_code)]
-const SEC_GAP: f32 = 72.0;
-
 // ── Draw helpers ──────────────────────────────────────────────────────────────
 
 // Used only by sections that show fake/static states; may be unused in minimal builds.
@@ -1229,7 +1217,7 @@ pub fn draw_spec_page_inner<LS, CF>(
     LS: SpacerLayoutState<Params = RowLayoutParams>,
     CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut DrawCommands, framewise::Rect),
 {
-    let content_w = (w - MARGIN * 2.0).min(1100.0);
+    let content_w = w.min(1100.0);
 
     page.debug_layout = debug_layout;
     // Highlight unsatisfiable layout requests in red rather than panicking (Panic is
@@ -1240,7 +1228,7 @@ pub fn draw_spec_page_inner<LS, CF>(
     #[cfg(feature = "button")]
     let mut should_reset = false;
     {
-        page.spacer(content_w / 4.0);
+        page.spacer((w - content_w) / 2.0);
         let mut content_column =
             page.child_with_layout(RowLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         {
@@ -1333,18 +1321,19 @@ pub fn draw_spec_page_inner<LS, CF>(
 }
 
 fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
+    b.spacer(64.0);
     let mut b = b.child_with_layout(
-        ColumnLayoutParams::fixed(content_w, MARGIN + 320.0),
+        ColumnLayoutParams::fixed(content_w, 320.0),
         ManualLayout,
     );
-    let logo_rect = b.layout(Rect::new(0.0, MARGIN, 96.0, 96.0), IntrinsicSize::UNKNOWN);
+    let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&b.theme, logo_rect.x, logo_rect.y));
     let tx = 124.0;
     // 28px gap + 96px logo = 124px
     let hero_w = content_w - 124.0;
     // Overline
     {
-        let layout_params = Rect::new(tx, MARGIN, hero_w, 16.0);
+        let layout_params = Rect::new(tx, 0.0, hero_w, 16.0);
         let size = b.theme.text_sm;
         let color = b.theme.muted;
         let spec_builder = LabelSpecBuilder::new()
@@ -1358,7 +1347,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
     };
     // Two-line Title (56px size, Bold, line-height 0.95)
     {
-        let layout_params = Rect::new(tx, MARGIN + 22.0, hero_w.min(540.0), 140.0);
+        let layout_params = Rect::new(tx, 22.0, hero_w.min(540.0), 140.0);
         let color = b.theme.ink;
         let spec_builder = LabelSpecBuilder::new()
             .text("A widget set that explains itself.")
@@ -1371,7 +1360,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
     };
     // Description (15px size, regular, line-height 1.55)
     {
-        let layout_params = Rect::new(tx, MARGIN + 168.0, hero_w.min(520.0), 80.0);
+        let layout_params = Rect::new(tx, 168.0, hero_w.min(520.0), 80.0);
         let color = Color::from_srgb_u8(58, 53, 45, 255);
         let spec_builder = LabelSpecBuilder::new()
             .text("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.")
@@ -1384,7 +1373,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
     };
     // Color Meta Row
     {
-        let mut b = b.child_with_layout(Rect::new(tx, MARGIN + 258.0, content_w, 100.0), RowLayout);
+        let mut b = b.child_with_layout(Rect::new(tx, 258.0, content_w, 100.0), RowLayout);
         let meta_items: &[(&str, &str)] = &[
             ("INK", "#15130F"), //TODO: actually show these as colour swatches!
             ("PAPER", "#F4F1EA"),
@@ -1422,7 +1411,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
         divider(
             &mut b,
             spec_builder,
-            Rect::new(0.0, MARGIN + 320.0, content_w, 1.0),
+            Rect::new(0.0, 320.0, content_w, 1.0),
         )
     };
 
@@ -1549,7 +1538,7 @@ fn section_01_buttons<CF>(
             if btn.input.clicked && i == 2 {
                 *should_reset = true;
             }
-            bx += w + COL_GAP;
+            bx += w + 16.0;
         }
 
         b.finish();
@@ -1693,7 +1682,7 @@ fn section_01_buttons<CF>(
                 button(&mut b, spec_builder, layout_params, state)
             };
             if i + 1 < size_defs.len() {
-                b.spacer(COL_GAP);
+                b.spacer(16.0);
             }
         }
         b.spacer(24.0);
@@ -1724,7 +1713,7 @@ fn section_01_buttons<CF>(
                 }
             }
         }
-        b.spacer(COL_GAP);
+        b.spacer(16.0);
 
         // button group 2: Build | Run | Ship
         let grp2: &[(&str, ButtonStyle)] = &[
@@ -1963,7 +1952,6 @@ fn section_02_text_inputs<CF>(
         };
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
@@ -2326,7 +2314,6 @@ fn section_04_sliders<CF>(
         }
         b.finish();
     }
-    b.spacer(GROUP_GAP);
 
     group_y(b, "range slider");
     {
@@ -2389,7 +2376,6 @@ fn section_04_sliders<CF>(
         label(&mut b, spec, Rect::new(track_w + 12.0, 6.0, 80.0, 14.0));
         b.finish();
     }
-    b.spacer(GROUP_GAP);
 
     group_y(b, "drag-number (imgui-style)");
     {
@@ -2425,7 +2411,6 @@ fn section_04_sliders<CF>(
         );
         b.finish();
     }
-    b.spacer(GROUP_GAP);
 
     group_y(b, "numeric stepper  ·  colour swatch");
     {
@@ -2532,7 +2517,6 @@ fn section_04_sliders<CF>(
         }
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(
@@ -2733,7 +2717,6 @@ fn section_05_selection<CF>(
         );
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(feature = "scroll_area")]
@@ -3050,7 +3033,6 @@ fn section_07_tabs<CF>(
             &mut state.tabs2_state,
         );
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(
@@ -3298,7 +3280,7 @@ fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
         tree(
             &mut b,
             TreeSpecBuilder::new().items(WIDGET_TREE),
-            Rect::new(MARGIN, 0.0, 320.0, 0.0),
+            Rect::new(0.0, 0.0, 320.0, 0.0),
         );
 
         static FILE_LIST: &[TreeRow<'static>] = &[
@@ -3355,12 +3337,11 @@ fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
         tree(
             &mut b,
             TreeSpecBuilder::new().items(FILE_LIST),
-            Rect::new(MARGIN + 320.0 + 20.0, 0.0, 240.0, 0.0),
+            Rect::new(320.0 + 20.0, 0.0, 240.0, 0.0),
         );
 
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "tooltip", feature = "keycap"))]
@@ -3408,7 +3389,6 @@ fn section_10_tooltips<CF>(
         );
         b.finish();
     }
-    b.spacer(GROUP_GAP);
 
     group_y(b, "keycaps");
     {
@@ -3449,7 +3429,6 @@ fn section_10_tooltips<CF>(
         }
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
@@ -3780,7 +3759,6 @@ fn section_11_window<CF>(
 
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 #[cfg(all(
@@ -4280,7 +4258,6 @@ fn section_12_in_use<CF>(
         let _ = win_h_full;
         b.finish();
     }
-    b.spacer(SEC_GAP);
 }
 
 fn footer_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
