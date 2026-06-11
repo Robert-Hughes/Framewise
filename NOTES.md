@@ -6,16 +6,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Add a (high-level) helper function to add a checkbox along with a label by its side. Clicking the label should be like clicking the checkbox (moreover, any mouse interaction like hover, pressed state, click and drag then return etc.)
 
-- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers.
+- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers. Add tests plus something on the sample app to show overlapping
 
 - Anti-aliasing for check and radio? Analytical AA is probably best?
 
-- Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle.
+- Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 
 - Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?). Also, want a way to force a spacer at the end. Maybe two options/kinds?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
-  - Switch is just another checkbox??
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)
   - Use/add reusable widget test helpers (test_helpers.rs)
@@ -329,6 +328,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Built-in themes that are good
   - A Framewise-specific one - see Framewise Widgets.html (from Claude Design) for a version of this
     - Go through and make our 'spec page' look as similar as possible to the Claude design mockup. This will be a good way to check off features/improvements!
+    - 'Dark' variant (like on the mockup)?
   - Windows native lookalike
   - Mac native lookalike
 

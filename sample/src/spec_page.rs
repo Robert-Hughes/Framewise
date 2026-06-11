@@ -1322,10 +1322,7 @@ pub fn draw_spec_page_inner<LS, CF>(
 
 fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
     b.spacer(64.0);
-    let mut b = b.child_with_layout(
-        ColumnLayoutParams::fixed(content_w, 320.0),
-        ManualLayout,
-    );
+    let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 320.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&b.theme, logo_rect.x, logo_rect.y));
     let tx = 124.0;
@@ -1408,11 +1405,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
     }
     {
         let spec_builder = DividerSpecBuilder::new();
-        divider(
-            &mut b,
-            spec_builder,
-            Rect::new(0.0, 320.0, content_w, 1.0),
-        )
+        divider(&mut b, spec_builder, Rect::new(0.0, 320.0, content_w, 1.0))
     };
 
     b.finish();

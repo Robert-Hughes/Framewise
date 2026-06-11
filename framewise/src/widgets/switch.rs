@@ -47,37 +47,23 @@ pub mod raw {
         focus_system: &mut FocusSystem,
         cmds: &mut DrawCommands,
     ) -> SwitchResult {
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
-        } else {
-            crate::focus::handle_widget_focus(
-                state.focus_id,
-                spec.rect,
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::all(),
-                spec.disabled,
-            )
-        };
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: spec.disabled,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let input_info = interaction.input;
 
-        let mut is_clicked = clicked;
-        if focused && input.key_pressed_enter {
-            is_clicked = true;
-        }
-        if state.space_is_active && input.key_released_space {
-            is_clicked = true;
-        }
-
-        // Update space activation state for keyboard space press
-        if !focused || !input.key_down_space {
-            state.space_is_active = false;
-        }
-        if focused && input.key_pressed_space {
-            state.space_is_active = true;
-        }
-
-        if is_clicked {
+        if input_info.clicked {
             state.checked = !state.checked;
         }
 
@@ -98,7 +84,23 @@ pub mod raw {
         }
 
         // Track fill.
-        let track_fill = if state.checked { s.on_fill } else { s.off_fill };
+        let track_fill = if state.checked {
+            crate::widgets::widget_helpers::interaction_color(
+                s.on_fill,
+                s.selected_hovered,
+                s.selected_pressed,
+                input_info.hovered,
+                input_info.pressed,
+            )
+        } else {
+            crate::widgets::widget_helpers::interaction_color(
+                s.off_fill,
+                s.hovered,
+                s.pressed,
+                input_info.hovered,
+                input_info.pressed,
+            )
+        };
         cmds.push(DrawCmd::FillRect {
             rect: r,
             color: tint(track_fill),
@@ -132,12 +134,7 @@ pub mod raw {
         });
 
         SwitchResult {
-            input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
-                pressed: (clicked && input.mouse_down) || state.space_is_active,
-                clicked: is_clicked,
-            },
+            input: input_info,
             focused,
             content_bounds: r.inset(s.border_width),
         }
@@ -151,7 +148,11 @@ pub struct SwitchStyle {
     pub size: Vec2,
     pub thumb_size: f32,
     pub off_fill: Color,
+    pub hovered: Color,
+    pub pressed: Color,
     pub on_fill: Color,
+    pub selected_hovered: Color,
+    pub selected_pressed: Color,
     pub border: Color,
     pub off_thumb: Color,
     pub on_thumb: Color,
@@ -168,7 +169,11 @@ impl SwitchStyle {
             size: Vec2::new(30.0, 16.0),
             thumb_size: 10.0,
             off_fill: theme.paper_elev,
+            hovered: theme.hover,
+            pressed: theme.press,
             on_fill: theme.ink,
+            selected_hovered: Color::BLACK,
+            selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),
             border: theme.ink,
             off_thumb: theme.ink,
             on_thumb: theme.paper,
@@ -186,6 +191,7 @@ impl SwitchStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchState {
     pub checked: bool,
+    pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }
@@ -286,24 +292,120 @@ mod tests {
     use super::*;
     use crate::types::Vec2;
 
-    #[test]
-    fn test_switch_visual_off() {
-        let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
+    fn switch_spec(rect: Rect) -> SwitchSpec {
+        SwitchSpec {
+            rect,
             disabled: false,
             style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
             clip_rect: None,
             layer: Layer::default(),
-        };
+        }
+    }
+
+    fn draw_two_switches(
+        focus_system: &mut FocusSystem,
+        state1: &mut SwitchState,
+        state2: &mut SwitchState,
+        input: &Input,
+        cmds: &mut DrawCommands,
+    ) {
+        raw::switch(
+            switch_spec(Rect::new(0.0, 0.0, 30.0, 16.0)),
+            state1,
+            input,
+            focus_system,
+            cmds,
+        );
+        raw::switch(
+            switch_spec(Rect::new(0.0, 40.0, 30.0, 16.0)),
+            state2,
+            input,
+            focus_system,
+            cmds,
+        );
+    }
+
+    #[test]
+    fn test_switch_tab_moves_focus_next() {
+        let mut state1 = SwitchState::default();
+        let mut state2 = SwitchState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_tab_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_switches(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_switch_right_arrow_moves_focus_next() {
+        let mut state1 = SwitchState::default();
+        let mut state2 = SwitchState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_right_arrow_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_switches(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_switch_down_arrow_moves_focus_next() {
+        let mut state1 = SwitchState::default();
+        let mut state2 = SwitchState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_down_arrow_moves_focus_next(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_switches(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_switch_shift_tab_moves_focus_prev() {
+        let mut state1 = SwitchState::default();
+        let mut state2 = SwitchState::default();
+        let focus1 = state1.focus_id;
+        let focus2 = state2.focus_id;
+
+        crate::widgets::test_helpers::assert_shift_tab_moves_focus_prev(
+            &mut state1,
+            focus1,
+            &mut state2,
+            focus2,
+            |state1, state2, input, focus_system, cmds| {
+                draw_two_switches(focus_system, state1, state2, input, cmds);
+            },
+        );
+    }
+
+    #[test]
+    fn test_switch_visual_off() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut cmds = DrawCommands::new();
         raw::switch(
             spec,
-            &mut SwitchState {
-                checked: false,
-                ..Default::default()
-            },
+            &mut SwitchState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
             &mut cmds,
@@ -332,14 +434,90 @@ mod tests {
     }
 
     #[test]
-    fn test_switch_visual_on() {
-        let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            disabled: false,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-            layer: Layer::default(),
+    fn test_switch_visual_hovered() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            ..Default::default()
         };
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState::default(),
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    color: s.off_thumb,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_switch_visual_pressed() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState::default(),
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.pressed,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    color: s.off_thumb,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_switch_visual_on() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut cmds = DrawCommands::new();
@@ -377,20 +555,58 @@ mod tests {
     }
 
     #[test]
+    fn test_switch_visual_on_hovered() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
+        let s = spec.style;
+        let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState {
+                checked: true,
+                ..Default::default()
+            },
+            &input,
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    rect: r,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(29.0, 13.0, 10.0, 10.0),
+                    color: s.on_thumb,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
     fn test_switch_visual_focused() {
-        let mut state = SwitchState::default();
+        let state = SwitchState::default();
         let mut focus_system = FocusSystem::new();
         focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
-        let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            disabled: false,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-            layer: Layer::default(),
-        };
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
+        let mut state = state;
         let mut cmds = DrawCommands::new();
         raw::switch(
             spec,
@@ -432,11 +648,8 @@ mod tests {
     #[test]
     fn test_switch_visual_disabled() {
         let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
             disabled: true,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-            layer: Layer::default(),
+            ..switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0))
         };
         let s = spec.style;
         let alpha = s.disabled_alpha;
@@ -445,10 +658,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         raw::switch(
             spec,
-            &mut SwitchState {
-                checked: false,
-                ..Default::default()
-            },
+            &mut SwitchState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
             &mut cmds,
@@ -477,98 +687,227 @@ mod tests {
     }
 
     #[test]
-    fn test_switch_click_takes_focus() {
-        let mut focus_system = FocusSystem::new();
+    fn test_switch_click_triggers_clicked_state() {
         let mut state = SwitchState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
 
-        let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            disabled: false,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-            layer: Layer::default(),
-        };
+        crate::widgets::test_helpers::assert_mouse_click_on_release(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+        assert!(state.checked);
+    }
 
-        let mut cmds = DrawCommands::new();
-        focus_system.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
+    #[test]
+    fn test_switch_click_takes_focus() {
+        let mut state = SwitchState::default();
+        let focus_id = state.focus_id;
 
-        assert_eq!(
-            focus_system.current_focus(),
-            Some(state.focus_id),
-            "Clicking switch must request focus"
+        crate::widgets::test_helpers::assert_mouse_press_takes_focus(
+            &mut state,
+            focus_id,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 
     #[test]
     fn test_switch_clipped_click_does_not_take_focus() {
-        let mut focus_system = FocusSystem::new();
         let mut state = SwitchState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
 
-        let spec = SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            disabled: false,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
-            layer: Layer::default(),
-        };
-
-        let mut cmds = DrawCommands::new();
-        focus_system.begin_frame();
-        raw::switch(spec, &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
-
-        assert_eq!(
-            focus_system.current_focus(),
-            None,
-            "Clicking a clipped-away switch must not take focus"
+        crate::widgets::test_helpers::assert_clipped_mouse_press_does_not_take_focus(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    SwitchSpec {
+                        clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
+                        ..switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0))
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
         );
     }
 
     #[test]
-    fn test_switch_keyboard_toggle() {
+    fn test_switch_disabled_ignores_interaction() {
+        let mut state = SwitchState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_disabled_ignores_press_interaction(
+            &mut state,
+            focus_id,
+            Vec2::new(15.0, 15.0),
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    SwitchSpec {
+                        disabled: true,
+                        ..switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0))
+                    },
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+        assert!(!state.checked);
+    }
+
+    #[test]
+    fn test_enter_toggles_raw_switch() {
         let mut focus_system = FocusSystem::new();
         let mut state = SwitchState::default();
         let mut input = Input::default();
 
-        let spec = || SwitchSpec {
-            rect: Rect::new(10.0, 10.0, 30.0, 16.0),
-            disabled: false,
-            style: SwitchStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-            layer: Layer::default(),
-        };
+        let spec = || switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
 
-        // Frame 1: Focus switch
-        focus_system.take_focus(state.focus_id);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        focus_system.take_focus(state.focus_id);
         focus_system.end_frame();
 
-        // Frame 2: Press Space
-        input.key_down_space = true;
-        input.key_pressed_space = true;
+        input.key_pressed_enter = true;
         focus_system.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
         focus_system.end_frame();
 
-        // Frame 3: Release Space
-        input.key_down_space = false;
-        input.key_pressed_space = false;
-        input.key_released_space = true;
-        focus_system.begin_frame();
-        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.end_frame();
+        assert!(
+            result.input.clicked,
+            "Switch should be clicked by Enter key"
+        );
+        assert!(state.checked, "Enter key must toggle switch state");
+    }
+
+    #[test]
+    fn test_switch_hover_and_press_state() {
+        let mut state = SwitchState::default();
+
+        crate::widgets::test_helpers::assert_hover_and_press_state(
+            &mut state,
+            Vec2::new(15.0, 15.0),
+            Vec2::new(150.0, 150.0),
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+    }
+
+    #[test]
+    fn test_switch_drag_off_and_release_does_not_click_other_switch() {
+        let mut state1 = SwitchState::default();
+        let mut state2 = SwitchState::default();
+
+        crate::widgets::test_helpers::assert_drag_off_and_release_does_not_click_other(
+            &mut state1,
+            &mut state2,
+            Vec2::new(15.0, 15.0),
+            Vec2::new(15.0, 115.0),
+            false,
+            |state1, state2, input, focus_system, cmds| {
+                let res1 = raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::switch(
+                    switch_spec(Rect::new(10.0, 110.0, 30.0, 16.0)),
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                (res1.input, res2.input)
+            },
+        );
+
+        assert!(
+            !state2.checked,
+            "Dragging onto another switch must not toggle it on release"
+        );
+    }
+
+    #[test]
+    fn test_switch_spacebar_click() {
+        let mut state = SwitchState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_spacebar_click(
+            &mut state,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
 
         assert!(state.checked, "Spacebar release must toggle switch state");
+    }
+
+    #[test]
+    fn test_switch_spacebar_loses_focus_does_not_click() {
+        let mut state = SwitchState::default();
+        let focus_id = state.focus_id;
+
+        crate::widgets::test_helpers::assert_spacebar_loses_focus_does_not_click(
+            &mut state,
+            focus_id,
+            |state, input, focus_system, cmds| {
+                raw::switch(
+                    switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    state,
+                    input,
+                    focus_system,
+                    cmds,
+                )
+                .input
+            },
+        );
+
+        assert!(
+            !state.checked,
+            "Losing focus before Space release must not toggle switch state"
+        );
     }
 
     #[test]
@@ -611,5 +950,50 @@ mod tests {
         let mut sw_state = SwitchState::default();
         let result = super::switch(&mut ctx, SwitchSpecBuilder::new(), placement, &mut sw_state);
         assert_eq!(result.layout.bounds, placement);
+    }
+
+    #[test]
+    fn test_high_level_honors_user_style() {
+        use crate::layouts::ManualLayout;
+        use crate::test_utils::DummyTextSys;
+        let mut text_system = DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let custom = SwitchStyle {
+            off_fill: Color::from_srgb_u8(1, 2, 3, 255),
+            ..SwitchStyle::from_theme(&crate::theme::Theme::default())
+        };
+        let mut sw_state = SwitchState::default();
+        super::switch(
+            &mut ctx,
+            SwitchSpecBuilder::new().style(custom),
+            Rect::new(100.0, 100.0, 30.0, 16.0),
+            &mut sw_state,
+        );
+
+        let has_custom_fill = cmds
+            .iter()
+            .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.off_fill));
+        assert!(
+            has_custom_fill,
+            "high-level switch must honor user-set style"
+        );
+    }
+
+    #[test]
+    fn test_calc_switch_intrinsic_size() {
+        let spec = raw::SwitchCalcIntrinsicSizeSpec {};
+        let intrinsic = raw::calc_switch_intrinsic_size(&spec);
+        assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
     }
 }
