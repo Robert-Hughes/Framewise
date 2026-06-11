@@ -756,3 +756,40 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 - **Bottom-Up Scroll Claims**: To handle nested scroll areas gracefully without immediate-mode input loops, the `FocusSystem` employs a 1-frame delayed "claim" architecture. Inner scroll areas register claims (`claim_scroll_up`, `claim_pgdn`, etc.). Because contexts are finished bottom-up, innermost scroll areas always get first pick of the claim.
 
 - **Standalone Widget Participation**: Standalone widgets like standalone sliders actively participate in this claim system (using `claim_scroll_at_ends`). When hovered or focused, they block scroll inputs from propagating up to outer scroll areas, acting as "hard stops" instead of allowing the parent to suddenly start scrolling when the slider hits its boundary.
+
+---
+
+## Analytical Antialiasing (AA)
+
+For high-performance rendering of lines, circles, and rectangles without the visual trade-offs or cost of MSAA (Multi-Sample Anti-Aliasing), Framewise uses CPU-side proxy quad expansion and GPU-side analytical distance field (SDF) evaluation.
+
+### Core Philosophy & Text Handling
+- **Text System**: AA for text is handled specially within the text system (e.g., using subpixel or grayscale glyph caching/rasterization), as text rendering is highly specialized and unique.
+- **Other Geometry**: For lines, rectangles, borders, and general widget geometry, we will use a dual solution: **pixel snapping** and **analytical AA**. This hybrid approach provides maximum visual quality with high performance, unlike MSAA (Multi-Sample Anti-Aliasing), which would yield poor visual quality for text/lines and bad performance.
+
+### Renderer vs. Widget Responsibilities
+- **Semantic Decisions (Widgets)**: Widgets/emitters (inside Framewise) are responsible for deciding if, when, and how to snap. Snapping should **not** be a hidden, renderer-wide heuristic. The renderer shouldn't automatically coerce layout/geometry, as this weakens semantic boundaries and could corrupt layout calculations.
+- **Mechanical Execution (Renderer)**: The renderer acts as a predictable, mechanical consumer of explicit draw commands. However, the renderer should provide low-level mathematical helpers (utilizing device scale, framebuffer mapping, and snapping math for centerlines or edges) that widgets can invoke when building draw commands.
+- **Proposed API**: Draw commands and primitive styles will explicitly declare their intent:
+  - `snap: PixelSnap` where `PixelSnap` has modes like `{ None, AxisAligned, AxisAlignedIfThin, Centerline }`.
+  - `aa: AaMode` where `AaMode` has modes like `{ None, Analytical }`.
+
+### Semantic Choice (Emitters)
+- Drawing commands (e.g., `DrawCmd::FillRect`, `DrawCmd::StrokeRect`, `DrawCmd::StrokeLine`, `DrawCmd::FillCircle`, `DrawCmd::StrokeCircle`) accept an explicit `anti_alias: bool` flag.
+- Setting `anti_alias: false` routes the geometry to the standard solid-color `quad_pipeline` (rendered via CPU-generated vertex coordinates).
+- Setting `anti_alias: true` routes the primitive parameters to the `aa_pipeline` (rendered via GPU-expanded proxy quads and SDF evaluation).
+
+### CPU-Side Processing & Interleaved Batching
+- **ShapeData Storage**: Analytical AA shapes do not generate geometry on the CPU. Instead, their parameters (coordinates, color, stroke width, radius, shape type, and depth) are pushed to a `ShapeData` staging buffer that is uploaded to a GPU storage buffer.
+- **Interleaved Batching**: To preserve clipping context, transparency, and alpha-blending order across the frame, the renderer's command processor (`Renderer::process_commands`) interleaves `DrawQuads`, `DrawText`, `DrawAA`, and `SetScissor` commands in their true evaluation sequence.
+- Sequential commands of the same category are batched into a single GPU draw range. When a command of a different category is encountered, the active batch is flushed, and a new `RenderCommand` is appended to the stream.
+
+### GPU-Side Pipeline & Shader Evaluation
+- **Proxy Geometry Expansion**: The vertex shader (`vs_main` in `aa.wgsl`) runs on 6 vertices per instance. It reads primitive data from the storage buffer and expands the quad bounds outward by the stroke width plus a 1-pixel gutter to guarantee coverage of the AA falloff region.
+- **Analytical Distance Fields (SDF)**: The fragment shader (`fs_main`) computes the analytical distance to the primitive's boundaries:
+  - **Line Segment**: Evaluates the distance to the segment.
+  - **Circle (Fill/Stroke)**: Evaluates distance to the radius (or stroke width bounds).
+  - **Rectangle (Fill/Stroke)**: Evaluates a signed box distance function.
+- **Coverage Blending**: Coverage is calculated as a float value from `0.0` (fully outside) to `1.0` (fully inside). Pixels with zero coverage are discarded (`discard`), while others modulate the color's alpha value for smooth hardware-accelerated alpha blending.
+- **Depth Testing**: AA shapes write depth values mapping to a 32-bit depth buffer using the `GreaterEqual` comparison function, ensuring seamless depth-based layering alongside opaque quads and text.
+

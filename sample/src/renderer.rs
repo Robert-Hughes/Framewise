@@ -58,15 +58,53 @@ impl TextVertex {
     }
 }
 
+/// One GPU primitive for analytical AA shapes: p0, p1, RGBA colour, width, radius, type, z.
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct ShapeData {
+    pub p0: [f32; 2],
+    pub p1: [f32; 2],
+    pub color: [f32; 4],
+    pub width: f32,
+    pub radius: f32,
+    pub shape_type: u32,
+    pub z: f32,
+}
+
+pub const SHAPE_TYPE_LINE: u32 = 1;
+pub const SHAPE_TYPE_FILL_CIRCLE: u32 = 2;
+pub const SHAPE_TYPE_STROKE_CIRCLE: u32 = 3;
+pub const SHAPE_TYPE_FILL_RECT: u32 = 4;
+pub const SHAPE_TYPE_STROKE_RECT: u32 = 5;
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct Globals {
+    window_size: [f32; 2],
+    _pad: [f32; 2],
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RenderCommand {
+    DrawQuads(std::ops::Range<u32>),
+    DrawText(std::ops::Range<u32>),
+    DrawAA(std::ops::Range<u32>),
+    SetScissor(Rect),
+}
+
 // ── Renderer ──────────────────────────────────────────────────────────────────
 
 pub struct Renderer {
     quad_pipeline: wgpu::RenderPipeline,
     text_pipeline: wgpu::RenderPipeline,
+    aa_pipeline: wgpu::RenderPipeline,
 
     atlas_texture: wgpu::Texture,
     atlas_bind_group: wgpu::BindGroup,
     depth_target: Option<DepthTarget>,
+
+    aa_bind_group_layout: wgpu::BindGroupLayout,
+    globals_buf: wgpu::Buffer,
 }
 
 struct DepthTarget {
@@ -216,6 +254,83 @@ impl Renderer {
             t5.elapsed()
         );
 
+        let aa_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("aa_shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("aa.wgsl").into()),
+        });
+
+        let aa_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("aa_bind_group_layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+
+        let aa_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("aa_pipeline_layout"),
+            bind_group_layouts: &[&aa_bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let aa_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("aa_pipeline"),
+            layout: Some(&aa_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &aa_shader,
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &aa_shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_fmt,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                ..Default::default()
+            },
+            depth_stencil: Some(depth_stencil_state()),
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+
+        let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("globals_buf"),
+            size: std::mem::size_of::<Globals>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let atlas_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("atlas_texture"),
             size: wgpu::Extent3d {
@@ -266,10 +381,391 @@ impl Renderer {
         Self {
             quad_pipeline,
             text_pipeline,
+            aa_pipeline,
             atlas_texture,
             atlas_bind_group,
             depth_target: None,
+            aa_bind_group_layout,
+            globals_buf,
         }
+    }
+
+    fn process_commands(
+        cmds: &[DrawCmd],
+        window_size: (u32, u32),
+        text_system: &mut crate::text::SampleTextSystem,
+    ) -> (
+        Vec<Vertex>,
+        Vec<TextVertex>,
+        Vec<ShapeData>,
+        Vec<RenderCommand>,
+    ) {
+        let mut quad_verts: Vec<Vertex> = Vec::new();
+        let mut text_verts: Vec<TextVertex> = Vec::new();
+        let mut aa_shapes: Vec<ShapeData> = Vec::new();
+        let mut render_cmds = Vec::new();
+
+        let mut current_quad_start = 0;
+        let mut current_text_start = 0;
+        let mut current_aa_start = 0;
+        let mut clip_stack: Vec<Rect> = Vec::new();
+
+        let flush_quads = |quad_verts_len: u32,
+                           current_quad_start: &mut u32,
+                           render_cmds: &mut Vec<RenderCommand>| {
+            if quad_verts_len > *current_quad_start {
+                render_cmds.push(RenderCommand::DrawQuads(
+                    *current_quad_start..quad_verts_len,
+                ));
+                *current_quad_start = quad_verts_len;
+            }
+        };
+
+        let flush_text = |text_verts_len: u32,
+                          current_text_start: &mut u32,
+                          render_cmds: &mut Vec<RenderCommand>| {
+            if text_verts_len > *current_text_start {
+                render_cmds.push(RenderCommand::DrawText(*current_text_start..text_verts_len));
+                *current_text_start = text_verts_len;
+            }
+        };
+
+        let flush_aa = |aa_shapes_len: u32,
+                        current_aa_start: &mut u32,
+                        render_cmds: &mut Vec<RenderCommand>| {
+            if aa_shapes_len > *current_aa_start {
+                render_cmds.push(RenderCommand::DrawAA(*current_aa_start..aa_shapes_len));
+                *current_aa_start = aa_shapes_len;
+            }
+        };
+
+        for cmd in cmds {
+            match cmd {
+                DrawCmd::FillRect {
+                    rect,
+                    color,
+                    z,
+                    anti_alias,
+                } => {
+                    if *anti_alias {
+                        flush_quads(
+                            quad_verts.len() as u32,
+                            &mut current_quad_start,
+                            &mut render_cmds,
+                        );
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        aa_shapes.push(ShapeData {
+                            p0: [rect.x, rect.y],
+                            p1: [rect.x + rect.w, rect.y + rect.h],
+                            color: color_arr(*color),
+                            width: 0.0,
+                            radius: 0.0,
+                            shape_type: SHAPE_TYPE_FILL_RECT,
+                            z: *z as f32,
+                        });
+                    } else {
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        flush_aa(
+                            aa_shapes.len() as u32,
+                            &mut current_aa_start,
+                            &mut render_cmds,
+                        );
+                        push_filled_rect(&mut quad_verts, *rect, *color, *z, window_size);
+                    }
+                }
+                DrawCmd::StrokeRect {
+                    rect,
+                    color,
+                    width,
+                    z,
+                    anti_alias,
+                } => {
+                    if *anti_alias {
+                        flush_quads(
+                            quad_verts.len() as u32,
+                            &mut current_quad_start,
+                            &mut render_cmds,
+                        );
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        aa_shapes.push(ShapeData {
+                            p0: [rect.x, rect.y],
+                            p1: [rect.x + rect.w, rect.y + rect.h],
+                            color: color_arr(*color),
+                            width: *width,
+                            radius: 0.0,
+                            shape_type: SHAPE_TYPE_STROKE_RECT,
+                            z: *z as f32,
+                        });
+                    } else {
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        flush_aa(
+                            aa_shapes.len() as u32,
+                            &mut current_aa_start,
+                            &mut render_cmds,
+                        );
+                        push_stroked_rect(&mut quad_verts, *rect, *color, *width, *z, window_size);
+                    }
+                }
+                DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color,
+                    width,
+                    z,
+                    anti_alias,
+                } => {
+                    if *anti_alias {
+                        flush_quads(
+                            quad_verts.len() as u32,
+                            &mut current_quad_start,
+                            &mut render_cmds,
+                        );
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        aa_shapes.push(ShapeData {
+                            p0: [p0.x, p0.y],
+                            p1: [p1.x, p1.y],
+                            color: color_arr(*color),
+                            width: *width,
+                            radius: 0.0,
+                            shape_type: SHAPE_TYPE_LINE,
+                            z: *z as f32,
+                        });
+                    } else {
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        flush_aa(
+                            aa_shapes.len() as u32,
+                            &mut current_aa_start,
+                            &mut render_cmds,
+                        );
+                        push_stroke_line(
+                            &mut quad_verts,
+                            *p0,
+                            *p1,
+                            *color,
+                            *width,
+                            *z,
+                            window_size,
+                        );
+                    }
+                }
+                DrawCmd::FillCircle {
+                    center,
+                    radius,
+                    color,
+                    z,
+                    anti_alias,
+                } => {
+                    if *anti_alias {
+                        flush_quads(
+                            quad_verts.len() as u32,
+                            &mut current_quad_start,
+                            &mut render_cmds,
+                        );
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        aa_shapes.push(ShapeData {
+                            p0: [center.x, center.y],
+                            p1: [0.0, 0.0],
+                            color: color_arr(*color),
+                            width: 0.0,
+                            radius: *radius,
+                            shape_type: SHAPE_TYPE_FILL_CIRCLE,
+                            z: *z as f32,
+                        });
+                    } else {
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        flush_aa(
+                            aa_shapes.len() as u32,
+                            &mut current_aa_start,
+                            &mut render_cmds,
+                        );
+                        push_filled_circle(
+                            &mut quad_verts,
+                            *center,
+                            *radius,
+                            *color,
+                            *z,
+                            window_size,
+                        );
+                    }
+                }
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius,
+                    color,
+                    width,
+                    z,
+                    anti_alias,
+                } => {
+                    if *anti_alias {
+                        flush_quads(
+                            quad_verts.len() as u32,
+                            &mut current_quad_start,
+                            &mut render_cmds,
+                        );
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        aa_shapes.push(ShapeData {
+                            p0: [center.x, center.y],
+                            p1: [0.0, 0.0],
+                            color: color_arr(*color),
+                            width: *width,
+                            radius: *radius,
+                            shape_type: SHAPE_TYPE_STROKE_CIRCLE,
+                            z: *z as f32,
+                        });
+                    } else {
+                        flush_text(
+                            text_verts.len() as u32,
+                            &mut current_text_start,
+                            &mut render_cmds,
+                        );
+                        flush_aa(
+                            aa_shapes.len() as u32,
+                            &mut current_aa_start,
+                            &mut render_cmds,
+                        );
+                        push_stroked_circle(
+                            &mut quad_verts,
+                            *center,
+                            *radius,
+                            *color,
+                            *width,
+                            *z,
+                            window_size,
+                        );
+                    }
+                }
+                DrawCmd::Text {
+                    rect,
+                    color,
+                    handle,
+                    z,
+                } => {
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        &mut render_cmds,
+                    );
+                    flush_aa(
+                        aa_shapes.len() as u32,
+                        &mut current_aa_start,
+                        &mut render_cmds,
+                    );
+                    if let Some(run) = text_system.runs.get(handle.0) {
+                        push_text_run(
+                            &mut text_verts,
+                            *rect,
+                            *color,
+                            *z,
+                            run,
+                            text_system,
+                            window_size,
+                        );
+                    }
+                }
+                DrawCmd::PushClip { rect } => {
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        &mut render_cmds,
+                    );
+                    flush_text(
+                        text_verts.len() as u32,
+                        &mut current_text_start,
+                        &mut render_cmds,
+                    );
+                    flush_aa(
+                        aa_shapes.len() as u32,
+                        &mut current_aa_start,
+                        &mut render_cmds,
+                    );
+
+                    let new_clip = if let Some(current) = clip_stack.last() {
+                        current.intersect(rect)
+                    } else {
+                        *rect
+                    };
+                    clip_stack.push(new_clip);
+                    render_cmds.push(RenderCommand::SetScissor(new_clip));
+                }
+                DrawCmd::PopClip => {
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        &mut render_cmds,
+                    );
+                    flush_text(
+                        text_verts.len() as u32,
+                        &mut current_text_start,
+                        &mut render_cmds,
+                    );
+                    flush_aa(
+                        aa_shapes.len() as u32,
+                        &mut current_aa_start,
+                        &mut render_cmds,
+                    );
+
+                    clip_stack.pop();
+                    let new_clip = clip_stack.last().copied().unwrap_or_else(|| {
+                        Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32)
+                    });
+                    render_cmds.push(RenderCommand::SetScissor(new_clip));
+                }
+            }
+        }
+
+        flush_quads(
+            quad_verts.len() as u32,
+            &mut current_quad_start,
+            &mut render_cmds,
+        );
+        flush_text(
+            text_verts.len() as u32,
+            &mut current_text_start,
+            &mut render_cmds,
+        );
+        flush_aa(
+            aa_shapes.len() as u32,
+            &mut current_aa_start,
+            &mut render_cmds,
+        );
+
+        (quad_verts, text_verts, aa_shapes, render_cmds)
     }
 
     /// Convert a list of `DrawCmd`s into vertices and render them.
@@ -307,144 +803,10 @@ impl Renderer {
             text_system.atlas_dirty = false;
         }
 
-        let mut quad_verts: Vec<Vertex> = Vec::new();
-        let mut text_verts: Vec<TextVertex> = Vec::new();
+        let (quad_verts, text_verts, aa_shapes, render_cmds) =
+            Self::process_commands(cmds, window_size, text_system);
 
-        enum RenderCommand {
-            DrawQuads(std::ops::Range<u32>),
-            DrawText(std::ops::Range<u32>),
-            SetScissor(Rect),
-        }
-
-        let mut render_cmds = Vec::new();
-        let mut current_quad_start = 0;
-        let mut current_text_start = 0;
-        let mut clip_stack: Vec<Rect> = Vec::new();
-
-        for cmd in cmds {
-            match cmd {
-                DrawCmd::FillRect { rect, color, z, .. } => {
-                    push_filled_rect(&mut quad_verts, *rect, *color, *z, window_size);
-                }
-                DrawCmd::StrokeRect {
-                    rect,
-                    color,
-                    width,
-                    z,
-                    ..
-                } => {
-                    push_stroked_rect(&mut quad_verts, *rect, *color, *width, *z, window_size);
-                }
-                DrawCmd::StrokeLine {
-                    p0,
-                    p1,
-                    color,
-                    width,
-                    z,
-                    ..
-                } => {
-                    push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, *z, window_size);
-                }
-                DrawCmd::FillCircle {
-                    center,
-                    radius,
-                    color,
-                    z,
-                    ..
-                } => {
-                    push_filled_circle(&mut quad_verts, *center, *radius, *color, *z, window_size);
-                }
-                DrawCmd::StrokeCircle {
-                    center,
-                    radius,
-                    color,
-                    width,
-                    z,
-                    ..
-                } => {
-                    push_stroked_circle(
-                        &mut quad_verts,
-                        *center,
-                        *radius,
-                        *color,
-                        *width,
-                        *z,
-                        window_size,
-                    );
-                }
-                DrawCmd::Text {
-                    rect,
-                    color,
-                    handle,
-                    z,
-                } => {
-                    if let Some(run) = text_system.runs.get(handle.0) {
-                        push_text_run(
-                            &mut text_verts,
-                            *rect,
-                            *color,
-                            *z,
-                            run,
-                            text_system,
-                            window_size,
-                        );
-                    }
-                }
-                DrawCmd::PushClip { rect } => {
-                    if quad_verts.len() as u32 > current_quad_start {
-                        render_cmds.push(RenderCommand::DrawQuads(
-                            current_quad_start..quad_verts.len() as u32,
-                        ));
-                        current_quad_start = quad_verts.len() as u32;
-                    }
-                    if text_verts.len() as u32 > current_text_start {
-                        render_cmds.push(RenderCommand::DrawText(
-                            current_text_start..text_verts.len() as u32,
-                        ));
-                        current_text_start = text_verts.len() as u32;
-                    }
-                    let new_clip = if let Some(current) = clip_stack.last() {
-                        current.intersect(rect)
-                    } else {
-                        *rect
-                    };
-                    clip_stack.push(new_clip);
-                    render_cmds.push(RenderCommand::SetScissor(new_clip));
-                }
-                DrawCmd::PopClip => {
-                    if quad_verts.len() as u32 > current_quad_start {
-                        render_cmds.push(RenderCommand::DrawQuads(
-                            current_quad_start..quad_verts.len() as u32,
-                        ));
-                        current_quad_start = quad_verts.len() as u32;
-                    }
-                    if text_verts.len() as u32 > current_text_start {
-                        render_cmds.push(RenderCommand::DrawText(
-                            current_text_start..text_verts.len() as u32,
-                        ));
-                        current_text_start = text_verts.len() as u32;
-                    }
-                    clip_stack.pop();
-                    let new_clip = clip_stack.last().copied().unwrap_or_else(|| {
-                        Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32)
-                    });
-                    render_cmds.push(RenderCommand::SetScissor(new_clip));
-                }
-            }
-        }
-
-        if quad_verts.len() as u32 > current_quad_start {
-            render_cmds.push(RenderCommand::DrawQuads(
-                current_quad_start..quad_verts.len() as u32,
-            ));
-        }
-        if text_verts.len() as u32 > current_text_start {
-            render_cmds.push(RenderCommand::DrawText(
-                current_text_start..text_verts.len() as u32,
-            ));
-        }
-
-        if quad_verts.is_empty() && text_verts.is_empty() {
+        if quad_verts.is_empty() && text_verts.is_empty() && aa_shapes.is_empty() {
             return;
         }
 
@@ -471,6 +833,44 @@ impl Renderer {
         } else {
             None
         };
+
+        // Write Globals Uniform
+        let globals = Globals {
+            window_size: [window_size.0 as f32, window_size.1 as f32],
+            _pad: [0.0; 2],
+        };
+        queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
+
+        // Create ShapeData storage buffer
+        let aa_sbuf = if !aa_shapes.is_empty() {
+            Some(
+                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("aa_sbuf"),
+                    contents: bytemuck::cast_slice(&aa_shapes),
+                    usage: wgpu::BufferUsages::STORAGE,
+                }),
+            )
+        } else {
+            None
+        };
+
+        // Create bind group for AA
+        let aa_bind_group = aa_sbuf.as_ref().map(|sbuf| {
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("aa_bind_group"),
+                layout: &self.aa_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: sbuf.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: self.globals_buf.as_entire_binding(),
+                    },
+                ],
+            })
+        });
 
         let depth_view = &self.ensure_depth_target(device, window_size).view;
 
@@ -505,7 +905,7 @@ impl Renderer {
             occlusion_query_set: None,
         });
 
-        let mut last_pipeline = 0; // 1 = quads, 2 = text
+        let mut last_pipeline = 0; // 1 = quads, 2 = text, 3 = aa
 
         for rc in render_cmds {
             match rc {
@@ -525,6 +925,14 @@ impl Renderer {
                         last_pipeline = 2;
                     }
                     pass.draw(range, 0..1);
+                }
+                RenderCommand::DrawAA(range) => {
+                    if last_pipeline != 3 {
+                        pass.set_pipeline(&self.aa_pipeline);
+                        pass.set_bind_group(0, aa_bind_group.as_ref().unwrap(), &[]);
+                        last_pipeline = 3;
+                    }
+                    pass.draw(0..6, range);
                 }
                 RenderCommand::SetScissor(r) => {
                     let x = r.x.max(0.0) as u32;
@@ -1028,6 +1436,89 @@ mod tests {
             actual_x, expected_x,
             "glyph quad x should snap the quantized origin before adding placement.left"
         );
+    }
+
+    #[test]
+    fn test_aa_batching_logic() {
+        use super::{RenderCommand, Renderer};
+        use framewise::{Color, DrawCmd, Rect, Vec2};
+
+        let mut text_system = SampleTextSystem::new();
+        text_system.begin_frame();
+
+        // Create a list of mixed commands to test batching/interleaving boundaries
+        let cmds = vec![
+            // 1. Opaque quads
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 100.0),
+                color: Color::from_srgb_u8(255, 0, 0, 255),
+                z: 0,
+                anti_alias: false,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(20.0, 20.0, 50.0, 50.0),
+                color: Color::from_srgb_u8(0, 255, 0, 255),
+                z: 1,
+                anti_alias: false,
+            },
+            // 2. AA shape
+            DrawCmd::StrokeLine {
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(100.0, 100.0),
+                color: Color::from_srgb_u8(0, 0, 0, 255),
+                width: 2.0,
+                z: 2,
+                anti_alias: true,
+            },
+            // 3. Clip push
+            DrawCmd::PushClip {
+                rect: Rect::new(0.0, 0.0, 50.0, 50.0),
+            },
+            // 4. AA shape inside clip
+            DrawCmd::FillCircle {
+                center: Vec2::new(25.0, 25.0),
+                radius: 10.0,
+                color: Color::from_srgb_u8(0, 0, 255, 255),
+                z: 3,
+                anti_alias: true,
+            },
+            // 5. Opaque quad inside clip
+            DrawCmd::FillRect {
+                rect: Rect::new(5.0, 5.0, 10.0, 10.0),
+                color: Color::from_srgb_u8(255, 255, 0, 255),
+                z: 4,
+                anti_alias: false,
+            },
+            // 6. Clip pop
+            DrawCmd::PopClip,
+        ];
+
+        let (quad_verts, text_verts, aa_shapes, render_cmds) =
+            Renderer::process_commands(&cmds, (800, 600), &mut text_system);
+
+        // Expect:
+        // - 3 non-AA rects total -> 3 * 6 = 18 quad_verts
+        assert_eq!(quad_verts.len(), 18);
+        // - 0 text_verts
+        assert_eq!(text_verts.len(), 0);
+        // - 2 AA shapes total (Line and Circle)
+        assert_eq!(aa_shapes.len(), 2);
+
+        // Let's inspect the batched RenderCommands
+        // 1. Quads batch for the first two rects: DrawQuads(0..12) (2 rects * 6 vertices)
+        // 2. AA batch for the first StrokeLine: DrawAA(0..1)
+        // 3. SetScissor
+        // 4. AA batch for the FillCircle inside clip: DrawAA(1..2)
+        // 5. Quads batch for the FillRect inside clip: DrawQuads(12..18)
+        // 6. SetScissor (restoring clip)
+
+        assert_eq!(render_cmds.len(), 6);
+        assert!(matches!(render_cmds[0], RenderCommand::DrawQuads(ref r) if r == &(0..12)));
+        assert!(matches!(render_cmds[1], RenderCommand::DrawAA(ref r) if r == &(0..1)));
+        assert!(matches!(render_cmds[2], RenderCommand::SetScissor(_)));
+        assert!(matches!(render_cmds[3], RenderCommand::DrawAA(ref r) if r == &(1..2)));
+        assert!(matches!(render_cmds[4], RenderCommand::DrawQuads(ref r) if r == &(12..18)));
+        assert!(matches!(render_cmds[5], RenderCommand::SetScissor(_)));
     }
 
     fn clip_x_to_pixels(x: f32, width: u32) -> f32 {
