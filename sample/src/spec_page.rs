@@ -1493,10 +1493,14 @@ fn section_01_buttons<CF>(
 
         let mut circle_icon_style = ButtonStyle::secondary_from_theme(&b.theme);
         circle_icon_style.text_style.font = b.theme.mono_font;
+        circle_icon_style.text_style.size = 18.0;
+        circle_icon_style.text_style.weight = b.theme.sans_weight_bold;
         circle_icon_style.pad_x = 0.0;
         circle_icon_style.pad_y = 0.0;
         circle_icon_style.content_placement = framewise::TextContentPlacement::INK_CENTER;
         let mut close_icon_style = ButtonStyle::secondary_from_theme(&b.theme);
+        close_icon_style.text_style.size = 18.0;
+        close_icon_style.text_style.weight = b.theme.sans_weight_bold;
         close_icon_style.pad_x = 0.0;
         close_icon_style.pad_y = 0.0;
         close_icon_style.content_placement = framewise::TextContentPlacement::INK_CENTER;
@@ -1586,6 +1590,10 @@ fn section_01_buttons<CF>(
                 let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
                     text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
                     text_color: b.theme.ink,
+                    content_placement: framewise::TextContentPlacement::logical(
+                        Align::Start,
+                        Align::Center,
+                    ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
                 label(&mut b, spec_builder, layout_params)
@@ -1752,13 +1760,9 @@ fn section_02_text_inputs<CF>(
             {
                 let layout_params =
                     Rect::new(label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
-                let size = b.theme.text_sm;
                 let color = b.theme.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: b.theme.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -1770,14 +1774,13 @@ fn section_02_text_inputs<CF>(
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
                 let layout_params = Rect::new(lx, y, label_w - 4.0, b.theme.h_md);
-                let size = b.theme.text_sm;
-                let color = b.theme.muted;
                 let spec_builder = LabelSpecBuilder::new().text(row_label).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
-                    text_color: color,
+                    text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
+                    text_color: b.theme.ink,
+                    content_placement: framewise::TextContentPlacement::logical(
+                        Align::Start,
+                        Align::Center,
+                    ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
                 label(&mut b, spec_builder, layout_params)
@@ -1966,8 +1969,12 @@ fn section_03_toggles<CF>(
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), ManualLayout {});
         let mut y = 0.0_f32;
-        let label_w = 80.0_f32;
+        let label_w = 96.0_f32;
         let cell_w = 100.0_f32;
+
+        let label_text_style = b.theme.overline_text_style(12.0).with_letter_spacing(0.04);
+        let row_height = 20.0_f32;
+        let checkbox_offset_y = 3.0_f32;
 
         let col_labels = ["OFF", "ON", "MIXED", "FOCUSED", "DISABLED"];
         for (ci, col) in col_labels.iter().enumerate() {
@@ -1981,13 +1988,9 @@ fn section_03_toggles<CF>(
             }
             {
                 let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
-                let size = b.theme.text_sm;
                 let color = b.theme.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: b.theme.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -1998,15 +2001,14 @@ fn section_03_toggles<CF>(
 
         // Row 1: box only
         {
-            let layout_params = Rect::new(0.0, y, label_w - 4.0, 14.0);
-            let size = b.theme.text_sm;
-            let color = b.theme.muted;
+            let layout_params = Rect::new(0.0, y, label_w - 4.0, row_height);
             let spec_builder = LabelSpecBuilder::new().text("box").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                },
-                text_color: color,
+                text_style: label_text_style,
+                text_color: b.theme.ink,
+                content_placement: framewise::TextContentPlacement::logical(
+                    Align::Start,
+                    Align::Center,
+                ),
                 ..LabelStyle::from_theme(&b.theme)
             });
             label(&mut b, spec_builder, layout_params)
@@ -2019,7 +2021,12 @@ fn section_03_toggles<CF>(
             (CheckedState::Checked, false, true),
         ];
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
-            let rect = Rect::new(label_w + ci as f32 * cell_w, y, 14.0, 14.0);
+            let rect = Rect::new(
+                label_w + ci as f32 * cell_w,
+                y + checkbox_offset_y,
+                14.0,
+                14.0,
+            );
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[ci];
@@ -2039,21 +2046,20 @@ fn section_03_toggles<CF>(
                 draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
             }
         }
-        y += 14.0 + 12.0;
+        y += row_height + 12.0;
 
         // Row 2: with label
         {
-            let layout_params = Rect::new(0.0, y, label_w - 4.0, 14.0);
-            let size = b.theme.text_sm;
-            let color = b.theme.muted;
+            let layout_params = Rect::new(0.0, y, label_w - 4.0, row_height);
             let spec_builder = LabelSpecBuilder::new()
                 .text("with label")
                 .style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
-                    text_color: color,
+                    text_style: label_text_style,
+                    text_color: b.theme.ink,
+                    content_placement: framewise::TextContentPlacement::logical(
+                        Align::Start,
+                        Align::Center,
+                    ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
             label(&mut b, spec_builder, layout_params)
@@ -2063,7 +2069,7 @@ fn section_03_toggles<CF>(
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[3 + ci];
-                    let layout_params = Rect::new(cx, y, 14.0, 14.0);
+                    let layout_params = Rect::new(cx, y + checkbox_offset_y, 14.0, 14.0);
                     let spec_builder =
                         CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
                             vec![CheckedState::Unchecked, CheckedState::Checked]
@@ -2080,7 +2086,7 @@ fn section_03_toggles<CF>(
             } else {
                 draw_checkbox_fake_state(
                     &mut b,
-                    Rect::new(cx, y, 14.0, 14.0),
+                    Rect::new(cx, y + checkbox_offset_y, 14.0, 14.0),
                     *cs,
                     *focused,
                     *disabled,
@@ -2093,7 +2099,7 @@ fn section_03_toggles<CF>(
                 b.theme.ink
             };
             {
-                let layout_params = Rect::new(cx + 21.0, y, 60.0, 14.0);
+                let layout_params = Rect::new(cx + 21.0, y + checkbox_offset_y, 60.0, 14.0);
                 let size = b.theme.text_sm;
                 let spec_builder = LabelSpecBuilder::new().text("vsync").style(LabelStyle {
                     text_style: framewise::TextStyle {

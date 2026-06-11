@@ -9,6 +9,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers. Add tests plus something on the sample app to show overlapping
 
 - Anti-aliasing for check and radio? Analytical AA is probably best?
+  - Perhaps renderer does one full-screen compute shader pass, with geometry 'bucketed' so that each 8x8 group(?) can see just the geometry that affects those pixels, and sums together the contributions
 
 - Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 
