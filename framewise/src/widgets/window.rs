@@ -68,11 +68,13 @@ pub mod raw {
 
         // Body.
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: spec.rect,
             color: s.background,
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: spec.rect,
             color: s.border,
             width: s.border_width,
@@ -82,6 +84,7 @@ pub mod raw {
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: title_rect,
             color: s.title_bg,
             z: spec.layer.get_z(),
@@ -130,6 +133,7 @@ pub mod raw {
         if spec.status_bar {
             let bar_y = spec.rect.y + spec.rect.h - status_h;
             cmds.push(DrawCmd::StrokeLine {
+                anti_alias: false,
                 p0: Vec2::new(spec.rect.x, bar_y),
                 p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
                 color: s.status_border,
@@ -423,7 +427,7 @@ mod tests {
         );
         child.ctx.finish();
         assert!(cmds.iter().any(
-            |cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { rect, .. } if *rect == custom_rect)
+            |cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { anti_alias: false, rect, .. } if *rect == custom_rect)
         ));
     }
 }

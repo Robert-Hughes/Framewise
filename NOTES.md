@@ -8,8 +8,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers. Add tests plus something on the sample app to show overlapping
 
-- Anti-aliasing for check and radio? Analytical AA is probably best?
-  - Perhaps renderer does one full-screen compute shader pass, with geometry 'bucketed' so that each 8x8 group(?) can see just the geometry that affects those pixels, and sums together the contributions
+- Anti-aliasing for check and radio? Analytical AA is probably best? (See [Antialiasing (AA) & Pixel Snapping](#antialiasing-aa--pixel-snapping) below).
 
 - Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 
@@ -222,6 +221,36 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
   explicit compositing rule.
 
 - Clipping and layering
+
+## Antialiasing (AA) & Pixel Snapping
+
+We want to design a unified strategy for antialiasing and pixel snapping for geometry in Framewise.
+
+### Core Philosophy & Text Handling
+- **Text System**: AA for text is handled specially within the text system (e.g., using subpixel or grayscale glyph caching/rasterization), as text rendering is highly specialized and unique.
+- **Other Geometry**: For lines, rectangles, borders, and general widget geometry, we will use a dual solution: **pixel snapping** and **analytical AA**. This hybrid approach provides maximum visual quality with high performance, unlike MSAA (Multi-Sample Anti-Aliasing), which would yield poor visual quality for text/lines and bad performance.
+
+### Pixel Snapping vs. Analytical AA
+Pixel snapping and AA are treated as separate, orthogonal rasterization controls rather than a single either-or choice.
+- **Snapping**: Determines where a primitive's boundary/center lands on the physical device grid (e.g., aligning to integer pixel boundaries).
+- **AA**: Determines how coverage/translucency is computed for the edges once positioned.
+
+#### When Snapping + AA is Useful
+- **Perfect Snap (No AA)**: A static axis-aligned 1 px separator line that is perfectly snapped and integer-aligned doesn't need AA.
+- **Snap + AA (Hybrid)**: An axis-aligned 1 px horizontal underline whose vertical (Y) position is snapped to avoid blurriness, but whose horizontal (X) endpoints animate fractionally during transitions (e.g., between tabs).
+  - The line body benefits from snapping (keeping it sharp), while the moving endpoints benefit from AA to prevent visible 1 px popping/jittering.
+
+### Renderer vs. Widget Responsibilities
+- **Semantic Decisions (Widgets)**: Widgets/emitters (inside Framewise) are responsible for deciding if, when, and how to snap. Snapping should **not** be a hidden, renderer-wide heuristic. The renderer shouldn't automatically coerce layout/geometry, as this weakens semantic boundaries and could corrupt layout calculations.
+- **Mechanical Execution (Renderer)**: The renderer acts as a predictable, mechanical consumer of explicit draw commands. However, the renderer should provide low-level mathematical helpers (utilizing device scale, framebuffer mapping, and snapping math for centerlines or edges) that widgets can invoke when building draw commands.
+- **Proposed API**: Draw commands and primitive styles will explicitly declare their intent:
+  - `snap: PixelSnap` where `PixelSnap` has modes like `{ None, AxisAligned, AxisAlignedIfThin, Centerline }`.
+  - `aa: AaMode` where `AaMode` has modes like `{ None, Analytical }`.
+
+### Proposed Renderer Design for Analytical AA
+- **Proxy Geometry**: Instead of running a fullscreen shader pass searching a global segment structure or per-pixel geometry lists, the renderer will generate tight proxy geometry (e.g., expanded quads) around line segments.
+- **Fragment Shader**: The fragment shader will run only on the pixels covered by these expanded quads (near the line).
+- **Batched Data Buffer**: Line parameters and segment details will be stored in a shared GPU buffer (e.g., SSBO or uniform buffer). The vertex and fragment shaders will index into this buffer per-line, enabling efficient batching under a single shared draw call/state.
 
 ## Clipping & Scrolling
 

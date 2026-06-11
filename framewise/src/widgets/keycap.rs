@@ -52,11 +52,13 @@ pub mod raw {
     ) -> KeycapResult {
         // Background + border
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: spec.rect,
             color: spec.style.background,
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: spec.rect,
             color: spec.style.border,
             width: spec.style.border_width,
@@ -70,6 +72,7 @@ pub mod raw {
             spec.style.shadow_height,
         );
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: shadow_rect,
             color: spec.style.shadow,
             z: spec.layer.get_z(),
@@ -271,17 +274,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                     color: custom_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                     color: custom_border,
                     width: 1.0,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(1.0, 30.0, 29.0, 2.0),
                     color: custom_shadow,
                     z: 0,

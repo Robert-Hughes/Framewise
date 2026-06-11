@@ -154,11 +154,13 @@ pub mod raw {
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             if spec.style.scrollbar_mode {
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: track_rect,
                     color: tint(spec.style.track_color),
                     z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: thumb_rect,
                     color: tint(spec.style.thumb_color),
                     z: spec.layer.get_z(),
@@ -183,17 +185,20 @@ pub mod raw {
                     )
                 };
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: track_line,
                     color: tint(spec.style.track_color),
                     z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: thumb_rect,
                     color: tint(spec.style.thumb_color),
                     z: spec.layer.get_z(),
                 });
                 if spec.style.thumb_border_width > 0.0 {
                     cmds.push(DrawCmd::StrokeRect {
+                        anti_alias: false,
                         rect: thumb_rect,
                         color: tint(spec.style.thumb_border_color),
                         width: spec.style.thumb_border_width,
@@ -476,6 +481,7 @@ pub mod raw {
         // Focus outline.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: track_rect.inset(-spec.style.focus_offset),
                 color: spec.style.focus,
                 width: spec.style.focus_width,
@@ -500,11 +506,13 @@ pub mod raw {
         if spec.style.scrollbar_mode {
             // Scrollbar: filled track background, ink/rust thumb spanning cross-section.
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: track_rect,
                 color: spec.style.track_color,
                 z: spec.layer.get_z(),
             });
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: thumb_rect,
                 color: effective_thumb_fill,
                 z: spec.layer.get_z(),
@@ -551,6 +559,7 @@ pub mod raw {
 
             // Full track (ink).
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: track_line,
                 color: spec.style.track_color,
                 z: spec.layer.get_z(),
@@ -563,6 +572,7 @@ pub mod raw {
                 spec.style.track_color
             };
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: fill_bar,
                 color: fill_color,
                 z: spec.layer.get_z(),
@@ -570,12 +580,14 @@ pub mod raw {
 
             // Square thumb.
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: thumb_rect,
                 color: effective_thumb_fill,
                 z: spec.layer.get_z(),
             });
             if spec.style.thumb_border_width > 0.0 {
                 cmds.push(DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: thumb_rect,
                     color: effective_thumb_border,
                     width: spec.style.thumb_border_width,
@@ -1860,11 +1872,16 @@ mod tests {
         match (&cmds[0], &cmds[1]) {
             (
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: tr,
                     color: tc,
                     z: 0,
                 },
-                DrawCmd::FillRect { color: hc, .. },
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    color: hc,
+                    ..
+                },
             ) => {
                 assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");
                 assert_eq!(*tc, tint(spec.style.track_color));
@@ -1904,21 +1921,25 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
@@ -1953,21 +1974,25 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_hover_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
@@ -2002,21 +2027,25 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.thumb_drag_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_drag_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_drag_color,
                     width: spec.style.thumb_border_width,
@@ -2051,27 +2080,32 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                     color: spec.style.focus,
                     width: spec.style.focus_width,
                     z: 1,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 100.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(9.25, 0.0, 1.5, 50.0),
                     color: spec.style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                     color: spec.style.thumb_border_color,
                     width: spec.style.thumb_border_width,
@@ -2125,7 +2159,11 @@ mod tests {
         // First draw command for a horizontal slider is the track-line FillRect,
         // whose x starts at the resolved track rect's x = placement.x.
         match &cmds[0] {
-            crate::draw::DrawCmd::FillRect { rect, .. } => {
+            crate::draw::DrawCmd::FillRect {
+                anti_alias: false,
+                rect,
+                ..
+            } => {
                 assert_eq!(rect.x, placement.x);
             }
             other => panic!("Expected FillRect, got {:?}", other),

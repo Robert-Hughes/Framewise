@@ -110,6 +110,7 @@ pub mod raw {
         // Focus ring.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: r.inset(-(s.focus_offset + s.focus_width)),
                 color: tint(s.focus),
                 width: s.focus_width,
@@ -123,11 +124,13 @@ pub mod raw {
             s.background
         };
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: r,
             color: tint(bg),
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: r,
             color: tint(s.border),
             width: s.border_width,
@@ -358,11 +361,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.border,
                     width: style.border_width,
@@ -407,11 +412,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.active_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                     color: style.border,
                     width: style.border_width,
@@ -461,17 +468,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: expected_focus_rect,
                     color: style.focus,
                     width: style.focus_width,
                     z: 1,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: style.border,
                     width: style.border_width,

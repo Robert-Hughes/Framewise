@@ -75,6 +75,7 @@ pub mod raw {
             // Transparent bg per mockup, just border.
             if spec.style.border_width > 0.0 {
                 cmds.push(DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: spec.rect,
                     color: tint(spec.style.border),
                     width: spec.style.border_width,
@@ -363,6 +364,7 @@ pub mod raw {
             spec.style.background
         };
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: spec.rect,
             color: bg_color,
             z: spec.layer.get_z(),
@@ -377,6 +379,7 @@ pub mod raw {
                 spec.rect.h,
             );
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: stripe,
                 color: spec.style.error_border,
                 z: spec.layer.get_z(),
@@ -393,6 +396,7 @@ pub mod raw {
                 spec.style.border
             };
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: spec.rect,
                 color: b_color,
                 width: spec.style.border_width,
@@ -418,6 +422,7 @@ pub mod raw {
                     );
 
                     cmds.push(DrawCmd::FillRect {
+                        anti_alias: false,
                         rect: sel_rect,
                         color: spec.style.select_color,
                         z: spec.layer.get_z(),
@@ -455,6 +460,7 @@ pub mod raw {
                     caret.height,
                 );
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: caret_rect,
                     color: spec.style.caret_color,
                     z: spec.layer.get_z(),
@@ -1141,7 +1147,7 @@ mod tests {
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
-            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
         );
         assert!(has_caret, "Caret should be visible initially");
 
@@ -1158,7 +1164,7 @@ mod tests {
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
-            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
         );
         assert!(!has_caret, "Caret should be hidden during off phase");
 
@@ -1181,7 +1187,7 @@ mod tests {
         assert_eq!(state.last_caret_move_time, 0.6);
 
         let has_caret = cmds.iter().any(
-            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
         );
         assert!(
             has_caret,
@@ -1202,7 +1208,7 @@ mod tests {
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
-            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
         );
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
@@ -1219,7 +1225,7 @@ mod tests {
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
-            |cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == spec().style.caret_color),
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
         );
         assert!(!has_caret, "Caret should hide after 0.5s of idle");
     }
@@ -1450,11 +1456,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.border,
                     width: spec().style.border_width,
@@ -1496,11 +1504,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.focus,
                     width: spec().style.border_width,
@@ -1513,6 +1523,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(45.0, 7.0, 1.0, 16.0),
                     color: spec().style.caret_color,
                     z: 0,
@@ -1549,17 +1560,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.focus,
                     width: spec().style.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(5.0, 7.0, 40.0, 16.0),
                     color: spec().style.select_color,
                     z: 0,
@@ -1597,16 +1611,19 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: sp.style.error_background,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 4.0, 30.0),
                     color: sp.style.error_border,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: sp.style.error_border,
                     width: spec().style.border_width,

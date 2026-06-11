@@ -51,6 +51,7 @@ pub mod raw {
             track_h,
         );
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: track,
             color: spec.style.track_color,
             z: spec.layer.get_z(),
@@ -70,6 +71,7 @@ pub mod raw {
             let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
             if visible_w > 0.0 {
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(x, track.y, visible_w, track_h),
                     color: fill_color,
                     z: spec.layer.get_z(),
@@ -79,6 +81,7 @@ pub mod raw {
             let fill_w = (spec.rect.w * spec.value.clamp(0.0, 1.0)).max(0.0);
             if fill_w > 0.0 {
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(track.x, track.y, fill_w, track_h),
                     color: fill_color,
                     z: spec.layer.get_z(),
@@ -235,11 +238,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 13.5, 50.0, 3.0),
                     color: style.fill_color,
                     z: 0,
@@ -266,11 +271,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 13.5, 50.0, 3.0),
                     color: style.active_fill_color,
                     z: 0,
@@ -297,11 +304,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 13.5, 100.0, 3.0),
                     color: style.track_color,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(60.0, 13.5, 30.000002, 3.0),
                     color: style.fill_color,
                     z: 0,

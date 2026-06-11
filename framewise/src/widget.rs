@@ -83,6 +83,7 @@ pub fn react_layout_violation<T: TextSystem>(
         LayoutViolationPolicy::Highlight => {
             let color = crate::types::Color::from_srgb_u8(255, 0, 0, 255);
             cmds.push(crate::draw::DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: fallback_rect,
                 color,
                 width: 2.0,
@@ -383,6 +384,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         // Draw the debug outline
         if self.debug_layout {
             self.cmds.push(crate::draw::DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: crate::types::Color::from_srgb_u8(200, 0, 255, 255),
                 width: 1.0,
@@ -451,6 +453,7 @@ impl<
         // layout's content (and any retroactive chrome patching, e.g. a frame).
         if debug_layout {
             self.cmds.push(crate::draw::DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: resolved_space,
                 color: crate::types::Color::from_srgb_u8(255, 0, 200, 255),
                 width: 1.0,
@@ -662,6 +665,7 @@ mod tests {
         let mut found = false;
         for cmd in ctx.cmds.iter() {
             if let crate::draw::DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: r,
                 color,
                 width,
@@ -720,7 +724,7 @@ mod tests {
             .filter(|cmd| {
                 matches!(
                     cmd,
-                    crate::draw::DrawCmd::StrokeRect { color, width, .. }
+                    crate::draw::DrawCmd::StrokeRect { anti_alias: false, color, width, .. }
                         if *color == Color::from_srgb_u8(255, 0, 0, 255) && *width == 2.0
                 )
             })

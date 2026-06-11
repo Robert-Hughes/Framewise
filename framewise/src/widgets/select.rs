@@ -205,6 +205,7 @@ pub mod raw {
         // Focus / open ring.
         if focused || state.open {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: r.inset(-s.focus_offset),
                 color: tint(s.focus),
                 width: s.focus_width,
@@ -213,11 +214,13 @@ pub mod raw {
         }
 
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: r,
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: r,
             color: tint(s.border),
             width: s.border_width,
@@ -277,11 +280,13 @@ pub mod raw {
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: popup,
                 color: tint(s.background),
                 z: spec.layer.get_z(),
             });
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: popup,
                 color: tint(s.border),
                 width: s.border_width,
@@ -296,12 +301,14 @@ pub mod raw {
 
                 if is_selected {
                     cmds.push(DrawCmd::FillRect {
+                        anti_alias: false,
                         rect: row_rect,
                         color: tint(s.selected_bg),
                         z: spec.layer.get_z(),
                     });
                 } else if is_hovered {
                     cmds.push(DrawCmd::FillRect {
+                        anti_alias: false,
                         rect: row_rect,
                         color: tint(s.hover),
                         z: spec.layer.get_z(),
@@ -571,11 +578,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                     color: s.border,
                     width: s.border_width,
@@ -639,17 +648,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r.inset(-s.focus_offset),
                     color: s.focus,
                     width: s.focus_width,
                     z: 1,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
@@ -668,17 +680,20 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: popup,
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: popup,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 34.0, 180.0, 26.0),
                     color: s.selected_bg,
                     z: 0,
@@ -690,6 +705,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 60.0, 180.0, 26.0),
                     color: s.hover,
                     z: 0,

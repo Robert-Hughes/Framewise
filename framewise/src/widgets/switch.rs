@@ -76,6 +76,7 @@ pub mod raw {
         // Focus ring.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: r.inset(-(s.focus_offset + s.focus_width)),
                 color: tint(s.focus),
                 width: s.focus_width,
@@ -102,6 +103,7 @@ pub mod raw {
             )
         };
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: r,
             color: tint(track_fill),
             z: spec.layer.get_z(),
@@ -109,6 +111,7 @@ pub mod raw {
 
         // Track border.
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: r,
             color: tint(s.border),
             width: s.border_width,
@@ -128,6 +131,7 @@ pub mod raw {
             s.off_thumb
         };
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
             color: tint(dot_color),
             z: spec.layer.get_z(),
@@ -416,17 +420,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.off_fill,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
@@ -456,17 +463,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.hovered,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
@@ -498,17 +508,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.pressed,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
@@ -537,17 +550,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.on_fill,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
                     z: 0,
@@ -580,17 +596,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.selected_hovered,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
                     z: 0,
@@ -622,23 +641,27 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r.inset(-(s.focus_offset + s.focus_width)),
                     color: s.focus,
                     width: s.focus_width,
                     z: 1,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.off_fill,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
@@ -669,17 +692,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: r,
                     color: tint(s.off_fill),
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: r,
                     color: tint(s.border),
                     width: s.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: tint(s.off_thumb),
                     z: 0,
@@ -985,7 +1011,7 @@ mod tests {
 
         let has_custom_fill = cmds
             .iter()
-            .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.off_fill));
+            .any(|c| matches!(c, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == custom.off_fill));
         assert!(
             has_custom_fill,
             "high-level switch must honor user-set style"

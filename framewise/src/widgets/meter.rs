@@ -70,6 +70,7 @@ pub mod raw {
                 spec.style.unlit
             };
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: bar_rect,
                 color,
                 z: spec.layer.get_z(),
@@ -231,6 +232,7 @@ mod tests {
         for i in 0..10 {
             let color = if i < 5 { style.ink } else { style.unlit };
             expected.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
                 z: 0,
@@ -263,6 +265,7 @@ mod tests {
                 style.unlit
             };
             expected.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
                 color,
                 z: 0,

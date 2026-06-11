@@ -44,6 +44,7 @@ pub mod raw {
     pub fn divider(spec: DividerSpec, cmds: &mut DrawCommands) -> DividerResult {
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(spec.rect.x, mid_y),
             p1: Vec2::new(spec.rect.x + spec.rect.w, mid_y),
             color: spec.color,
@@ -155,6 +156,7 @@ mod tests {
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
+                anti_alias: false,
                 p0: Vec2::new(0.0, 5.0),
                 p1: Vec2::new(100.0, 5.0),
                 color: Color::WHITE,

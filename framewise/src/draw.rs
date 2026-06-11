@@ -14,6 +14,7 @@ pub enum DrawCmd {
         rect: Rect,
         color: Color,
         z: u32,
+        anti_alias: bool,
     },
 
     /// Draw the outline of a rectangle.
@@ -22,6 +23,7 @@ pub enum DrawCmd {
         color: Color,
         width: f32,
         z: u32,
+        anti_alias: bool,
     },
 
     /// Draw a straight line segment.
@@ -36,6 +38,7 @@ pub enum DrawCmd {
         color: Color,
         width: f32,
         z: u32,
+        anti_alias: bool,
     },
 
     /// Fill a circle with a solid colour.
@@ -44,6 +47,7 @@ pub enum DrawCmd {
         radius: f32,
         color: Color,
         z: u32,
+        anti_alias: bool,
     },
 
     /// Draw the outline of a circle.
@@ -53,6 +57,7 @@ pub enum DrawCmd {
         color: Color,
         width: f32,
         z: u32,
+        anti_alias: bool,
     },
 
     /// Draw a piece of prepared text.

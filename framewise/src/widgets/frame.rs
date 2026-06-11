@@ -68,6 +68,7 @@ pub mod raw {
 
         let fill_index = cmds.len();
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect,
             color: style.background,
             z: spec.layer.get_z(),
@@ -102,7 +103,7 @@ pub mod raw {
         let content = rect.inset(inset);
 
         match cmds.get_mut(token.fill_index) {
-            Some(DrawCmd::FillRect { rect: r, .. }) => *r = rect,
+            Some(DrawCmd::FillRect { anti_alias: false, rect: r, .. }) => *r = rect,
             _ => panic!(
                 "DrawCommands corruption detected: placeholder FillRect at index {} was missing or modified!",
                 token.fill_index
@@ -120,6 +121,7 @@ pub mod raw {
 
         if style.border_width > 0.0 {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: style.border,
                 width: style.border_width,
@@ -323,7 +325,13 @@ mod tests {
 
         // FillRect and PushClip placeholders are pushed before children
         assert_eq!(cmds.len(), 2);
-        assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
+        assert!(matches!(
+            cmds[0],
+            DrawCmd::FillRect {
+                anti_alias: false,
+                ..
+            }
+        ));
         assert!(matches!(cmds[1], DrawCmd::PushClip { .. }));
 
         // end_frame patches both placeholders, then appends PopClip and StrokeRect
@@ -343,6 +351,7 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: final_rect,
                     color: Color::WHITE,
                     z: 0,
@@ -352,6 +361,7 @@ mod tests {
                 },
                 DrawCmd::PopClip,
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: final_rect,
                     color: Color::linear_rgb(0.5, 0.5, 0.5),
                     width: 2.0,

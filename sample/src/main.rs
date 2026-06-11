@@ -166,6 +166,7 @@ impl App {
         use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow, TextSystem};
         let mut cmds = framewise::DrawCommands::new();
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
             color: Color::from_srgb_u8(28, 28, 32, 255),
             z: 0,

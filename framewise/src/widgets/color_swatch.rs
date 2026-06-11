@@ -44,11 +44,13 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn color_swatch(spec: ColorSwatchSpec, cmds: &mut DrawCommands) -> ColorSwatchResult {
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: spec.rect,
             color: spec.color,
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: spec.rect,
             color: spec.border,
             width: 1.0,
@@ -174,11 +176,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                     color: default_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                     color: default_border,
                     width: 1.0,
@@ -209,11 +213,13 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                     color: custom_color,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                     color: custom_border,
                     width: 1.0,

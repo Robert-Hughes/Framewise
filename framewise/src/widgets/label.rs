@@ -77,6 +77,7 @@ pub mod raw {
         if spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
             cmds.push(DrawCmd::StrokeLine {
+                anti_alias: false,
                 p0: Vec2::new(spec.rect.x, y),
                 p1: Vec2::new(spec.rect.x + spec.rect.w, y),
                 color: spec.style.rule_color,
@@ -382,6 +383,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 20.0),
                     p1: Vec2::new(100.0, 20.0),
                     color: Color::WHITE,

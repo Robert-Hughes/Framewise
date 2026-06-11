@@ -54,6 +54,7 @@ pub mod raw {
 
         // Top-left bracket.
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x, y + arm),
             p1: Vec2::new(x, y),
             color: spec.style.color,
@@ -61,6 +62,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x, y),
             p1: Vec2::new(x + arm, y),
             color: spec.style.color,
@@ -69,6 +71,7 @@ pub mod raw {
         });
         // Top-right bracket.
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + size - arm, y),
             p1: Vec2::new(x + size, y),
             color: spec.style.color,
@@ -76,6 +79,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + size, y),
             p1: Vec2::new(x + size, y + arm),
             color: spec.style.color,
@@ -84,6 +88,7 @@ pub mod raw {
         });
         // Bottom-right bracket.
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + size, y + size - arm),
             p1: Vec2::new(x + size, y + size),
             color: spec.style.color,
@@ -91,6 +96,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + size, y + size),
             p1: Vec2::new(x + size - arm, y + size),
             color: spec.style.color,
@@ -99,6 +105,7 @@ pub mod raw {
         });
         // Bottom-left bracket.
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + arm, y + size),
             p1: Vec2::new(x, y + size),
             color: spec.style.color,
@@ -106,6 +113,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x, y + size),
             p1: Vec2::new(x, y + size - arm),
             color: spec.style.color,
@@ -116,6 +124,7 @@ pub mod raw {
         // Animated segment on the top edge — drawn as a rust highlight.
         let seg_w = size * spec.style.highlight_fraction;
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(x + size * 0.1, y),
             p1: Vec2::new(x + size * 0.1 + seg_w, y),
             color: spec.style.highlight,
@@ -260,6 +269,7 @@ mod tests {
             DrawCommands::from_vec(vec![
                 // Top-left
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 5.0),
                     p1: Vec2::new(0.0, 0.0),
                     color: style.color,
@@ -267,6 +277,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(5.0, 0.0),
                     color: style.color,
@@ -275,6 +286,7 @@ mod tests {
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(11.0, 0.0),
                     p1: Vec2::new(16.0, 0.0),
                     color: style.color,
@@ -282,6 +294,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(16.0, 0.0),
                     p1: Vec2::new(16.0, 5.0),
                     color: style.color,
@@ -290,6 +303,7 @@ mod tests {
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(16.0, 11.0),
                     p1: Vec2::new(16.0, 16.0),
                     color: style.color,
@@ -297,6 +311,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(16.0, 16.0),
                     p1: Vec2::new(11.0, 16.0),
                     color: style.color,
@@ -305,6 +320,7 @@ mod tests {
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(5.0, 16.0),
                     p1: Vec2::new(0.0, 16.0),
                     color: style.color,
@@ -312,6 +328,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 16.0),
                     p1: Vec2::new(0.0, 11.0),
                     color: style.color,
@@ -320,6 +337,7 @@ mod tests {
                 },
                 // Highlight
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(1.6, 0.0),
                     p1: Vec2::new(8.0, 0.0),
                     color: style.highlight,
@@ -347,6 +365,7 @@ mod tests {
             DrawCommands::from_vec(vec![
                 // Top-left
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 7.0),
                     p1: Vec2::new(0.0, 0.0),
                     color: style.color,
@@ -354,6 +373,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 0.0),
                     p1: Vec2::new(7.0, 0.0),
                     color: style.color,
@@ -362,6 +382,7 @@ mod tests {
                 },
                 // Top-right
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(17.0, 0.0),
                     p1: Vec2::new(24.0, 0.0),
                     color: style.color,
@@ -369,6 +390,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(24.0, 0.0),
                     p1: Vec2::new(24.0, 7.0),
                     color: style.color,
@@ -377,6 +399,7 @@ mod tests {
                 },
                 // Bottom-right
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(24.0, 17.0),
                     p1: Vec2::new(24.0, 24.0),
                     color: style.color,
@@ -384,6 +407,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(24.0, 24.0),
                     p1: Vec2::new(17.0, 24.0),
                     color: style.color,
@@ -392,6 +416,7 @@ mod tests {
                 },
                 // Bottom-left
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(7.0, 24.0),
                     p1: Vec2::new(0.0, 24.0),
                     color: style.color,
@@ -399,6 +424,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 24.0),
                     p1: Vec2::new(0.0, 17.0),
                     color: style.color,
@@ -407,6 +433,7 @@ mod tests {
                 },
                 // Highlight
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(2.4, 0.0),
                     p1: Vec2::new(12.0, 0.0),
                     color: style.highlight,

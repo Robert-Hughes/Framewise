@@ -144,11 +144,13 @@ pub mod raw {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: outer,
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: outer,
             color: tint(s.border),
             width: s.border_width,
@@ -168,6 +170,7 @@ pub mod raw {
 
             if is_active {
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: seg_rect,
                     color: tint(s.active_bg),
                     z: spec.layer.get_z(),
@@ -178,6 +181,7 @@ pub mod raw {
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
                 cmds.push(DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: seg_rect.inset(s.focus_offset),
                     color: tint(s.focus),
                     width: s.focus_width,
@@ -189,6 +193,7 @@ pub mod raw {
             if i + 1 < spec.items.len() {
                 let div_x = x + w;
                 cmds.push(DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(div_x, spec.rect.y),
                     p1: Vec2::new(div_x, spec.rect.y + h),
                     color: tint(s.border),
@@ -426,22 +431,26 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.border,
                     width: style.border_width,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 36.0, 28.0),
                     color: style.active_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(36.0, 0.0),
                     p1: Vec2::new(36.0, 28.0),
                     color: style.border,
@@ -499,17 +508,20 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                     color: style.border,
                     width: style.border_width,
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(36.0, 0.0),
                     p1: Vec2::new(36.0, 28.0),
                     color: style.border,
@@ -523,11 +535,13 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(36.0, 0.0, 36.0, 28.0),
                     color: style.active_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(38.0, 2.0, 32.0, 24.0),
                     color: style.focus,
                     width: style.focus_width,

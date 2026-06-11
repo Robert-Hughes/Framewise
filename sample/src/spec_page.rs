@@ -1181,6 +1181,7 @@ pub fn draw_spec_page(
 
     // Background fill (outside clip so it covers the whole viewport).
     b.cmds.push(DrawCmd::FillRect {
+        anti_alias: false,
         rect: win_rect,
         color: b.theme.paper,
         z: 0,
@@ -1427,6 +1428,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
     cmds.extend(vec![
         // left bracket
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
             p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
             color: t.ink,
@@ -1434,6 +1436,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             z: 0,
         },
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
             p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
@@ -1441,6 +1444,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
             z: 0,
         },
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
             p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
             color: t.ink,
@@ -1449,6 +1453,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
         },
         // top horizontal
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
             p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
             color: t.ink,
@@ -1457,6 +1462,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
         },
         // middle horizontal (rust)
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
             p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
             color: t.rust,
@@ -1465,6 +1471,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
         },
         // vertical
         DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
             p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
             color: t.ink,
@@ -1872,11 +1879,13 @@ fn section_02_text_inputs<CF>(
             let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect,
                     color: b.theme.ink,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect,
                     color: b.theme.line,
                     width: 1.0,
@@ -2301,6 +2310,7 @@ fn section_04_sliders<CF>(
                         IntrinsicSize::UNKNOWN,
                     );
                     b.cmds.push(DrawCmd::FillRect {
+                        anti_alias: false,
                         rect,
                         color: b.theme.line,
                         z: 0,
@@ -2332,32 +2342,38 @@ fn section_04_sliders<CF>(
         let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
         b.append_cmds(DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(0.0, mid_y - 0.75, track_w, 1.5),
                 color: b.theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(fill_x1, mid_y - 0.75, fill_x2 - fill_x1, 1.5),
                 color: b.theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
                 width: 1.5,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
                 width: 1.5,
@@ -2422,55 +2438,65 @@ fn section_04_sliders<CF>(
         let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
         b.append_cmds(DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                 color: b.theme.hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                 color: b.theme.line,
                 width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                 color: b.theme.line,
                 width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
+                anti_alias: false,
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line,
                 width: 1.0,
@@ -2739,6 +2765,7 @@ fn section_06_scrollbars<CF>(
         {
             let rect = b.layout(b1, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: b.theme.line,
                 width: 1.0,
@@ -2817,6 +2844,7 @@ fn section_06_scrollbars<CF>(
         {
             let rect = b.layout(b2, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: b.theme.line,
                 width: 1.0,
@@ -2881,6 +2909,7 @@ fn section_06_scrollbars<CF>(
         {
             let rect = b.layout(b3, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: b.theme.line,
                 width: 1.0,
@@ -2942,6 +2971,7 @@ fn section_06_scrollbars<CF>(
         {
             let rect = b.layout(b4, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect,
                 color: b.theme.line,
                 width: 1.0,
@@ -3532,17 +3562,20 @@ fn section_11_window<CF>(
             let rect = b.layout(dw, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect,
                     color: dark_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect,
                     color: dark_bdr,
                     width: 1.0,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
                     color: darker,
                     z: 0,
@@ -3586,22 +3619,26 @@ fn section_11_window<CF>(
             let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                     color: Color::from_srgb_u8(42, 37, 32, 255),
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
                     color: Color::from_srgb_u8(42, 37, 32, 255),
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
@@ -3661,11 +3698,13 @@ fn section_11_window<CF>(
             let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect,
                     color: darker,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect,
                     color: dark_bdr,
                     width: 1.0,
@@ -3696,6 +3735,7 @@ fn section_11_window<CF>(
             let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
             let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
+                anti_alias: false,
                 p0: Vec2::new(rect.x, rect.y),
                 p1: Vec2::new(rect.x + rect.w, rect.y),
                 color: dark_bdr,
@@ -3726,6 +3766,7 @@ fn section_11_window<CF>(
                     let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
                     let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
                     let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
+                        anti_alias: false,
                         rect,
                         color: b.theme.rust,
                         z: 0,

@@ -124,6 +124,7 @@ pub mod raw {
         // Bottom border across the full width.
         let border_y = spec.rect.y + tab_h;
         cmds.push(DrawCmd::StrokeLine {
+            anti_alias: false,
             p0: Vec2::new(spec.rect.x, border_y),
             p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
             color: tint(s.border),
@@ -147,6 +148,7 @@ pub mod raw {
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
                 cmds.push(DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: tab_rect.inset(-(s.focus_offset + s.focus_width)),
                     color: tint(s.focus),
                     width: s.focus_width,
@@ -168,18 +170,21 @@ pub mod raw {
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
             if is_active {
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Left uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Right uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
@@ -412,6 +417,7 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 36.0),
                     p1: Vec2::new(300.0, 36.0),
                     color: style.border,
@@ -425,16 +431,19 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 34.5, 68.0, 3.0),
                     color: style.accent,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(0.0, 28.5, 3.0, 9.0),
                     color: style.accent,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(65.0, 28.5, 3.0, 9.0),
                     color: style.accent,
                     z: 0,
@@ -477,6 +486,7 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeLine {
+                    anti_alias: false,
                     p0: Vec2::new(0.0, 36.0),
                     p1: Vec2::new(300.0, 36.0),
                     color: style.border,
@@ -490,6 +500,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(64.0, -4.0, 76.0, 44.0),
                     color: style.focus,
                     width: style.focus_width,
@@ -502,16 +513,19 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(68.0, 34.5, 68.0, 3.0),
                     color: style.accent,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(68.0, 28.5, 3.0, 9.0),
                     color: style.accent,
                     z: 0,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(133.0, 28.5, 3.0, 9.0),
                     color: style.accent,
                     z: 0,

@@ -104,11 +104,13 @@ pub mod raw {
         let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: outer,
             color: s.background,
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
             rect: outer,
             color: s.border,
             width: s.border_width,
@@ -122,6 +124,7 @@ pub mod raw {
                 MenuItem::Separator => {
                     let sep_y = y + s.separator_y;
                     cmds.push(DrawCmd::StrokeLine {
+                        anti_alias: false,
                         p0: Vec2::new(outer.x, sep_y),
                         p1: Vec2::new(outer.x + w, sep_y),
                         color: s.separator,
@@ -165,6 +168,7 @@ pub mod raw {
 
                     if *selected {
                         cmds.push(DrawCmd::FillRect {
+                            anti_alias: false,
                             rect: row_rect,
                             color: tint(s.selected_bg),
                             z: spec.layer.get_z(),

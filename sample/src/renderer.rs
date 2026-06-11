@@ -323,7 +323,7 @@ impl Renderer {
 
         for cmd in cmds {
             match cmd {
-                DrawCmd::FillRect { rect, color, z } => {
+                DrawCmd::FillRect { rect, color, z, .. } => {
                     push_filled_rect(&mut quad_verts, *rect, *color, *z, window_size);
                 }
                 DrawCmd::StrokeRect {
@@ -331,6 +331,7 @@ impl Renderer {
                     color,
                     width,
                     z,
+                    ..
                 } => {
                     push_stroked_rect(&mut quad_verts, *rect, *color, *width, *z, window_size);
                 }
@@ -340,6 +341,7 @@ impl Renderer {
                     color,
                     width,
                     z,
+                    ..
                 } => {
                     push_stroke_line(&mut quad_verts, *p0, *p1, *color, *width, *z, window_size);
                 }
@@ -348,6 +350,7 @@ impl Renderer {
                     radius,
                     color,
                     z,
+                    ..
                 } => {
                     push_filled_circle(&mut quad_verts, *center, *radius, *color, *z, window_size);
                 }
@@ -357,6 +360,7 @@ impl Renderer {
                     color,
                     width,
                     z,
+                    ..
                 } => {
                     push_stroked_circle(
                         &mut quad_verts,

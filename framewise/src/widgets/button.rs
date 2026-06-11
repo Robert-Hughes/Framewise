@@ -100,12 +100,14 @@ pub mod raw {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
                 rect: spec.rect,
                 color: tint(spec.style.background),
                 z: spec.layer.get_z(),
             });
             if spec.style.border_width > 0.0 {
                 cmds.push(DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: spec.rect,
                     color: tint(spec.style.border),
                     width: spec.style.border_width,
@@ -159,6 +161,7 @@ pub mod raw {
         // rect, so expand by both the desired gap and the stroke width.
         if focused {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: spec
                     .rect
                     .inset(-(spec.style.focus_offset + spec.style.focus_width)),
@@ -170,6 +173,7 @@ pub mod raw {
 
         // Background fill.
         cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
             rect: spec.rect,
             color: fill,
             z: spec.layer.get_z(),
@@ -178,6 +182,7 @@ pub mod raw {
         // Border.
         if spec.style.border_width > 0.0 {
             cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
                 rect: spec.rect,
                 color: spec.style.border,
                 width: spec.style.border_width,
@@ -898,11 +903,13 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
@@ -952,11 +959,13 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: hovered,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
@@ -1009,11 +1018,13 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: pressed,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
@@ -1069,17 +1080,20 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: expected_focus_rect,
                     color: focus,
                     width: focus_width,
                     z: 1,
                 },
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: border,
                     width: border_width,
@@ -1132,11 +1146,13 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: expected_bg,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     color: expected_border,
                     width: border_width,
@@ -1293,11 +1309,13 @@ mod tests {
             &cmds[..],
             &[
                 DrawCmd::FillRect {
+                    anti_alias: false,
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                     color: custom_style.background,
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
+                    anti_alias: false,
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                     color: custom_style.border,
                     width: custom_style.border_width,
@@ -1408,7 +1426,7 @@ mod tests {
         );
         let has_custom_fill = cmds
             .iter()
-            .any(|c| matches!(c, DrawCmd::FillRect { color, .. } if *color == custom.background));
+            .any(|c| matches!(c, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == custom.background));
         assert!(
             has_custom_fill,
             "high-level button must honor user-set style"
