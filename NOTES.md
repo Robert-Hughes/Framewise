@@ -222,6 +222,8 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 - Clipping and layering
 
+- NOw that we have z-buffering, we could draw the draw commands out-of-order if we assign a different Z for each command, to 'simulate' correct draw order even if we actually batch a bunch together or draw them out of order.
+
 ## Antialiasing (AA) & Pixel Snapping
 
 We want to design a unified strategy for antialiasing and pixel snapping for geometry in Framewise.

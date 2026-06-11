@@ -50,3 +50,143 @@ mod spec_page_golden {
         });
     }
 }
+
+mod analytical_aa_golden {
+    use crate::{
+        render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
+        text::SampleTextSystem,
+    };
+    use framewise::{Color, DrawCmd, DrawCommands, Rect, Vec2};
+
+    #[test]
+    fn test_analytical_aa_rendering() {
+        pollster::block_on(async {
+            let width = 400;
+            let height = 400;
+            let mut text_system = SampleTextSystem::new();
+            text_system.begin_frame();
+
+            let mut cmds = DrawCommands::new();
+
+            // Background fill
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(0.0, 0.0, width as f32, height as f32),
+                color: Color::from_srgb_u8(240, 240, 240, 255),
+                z: 0,
+                anti_alias: false,
+            });
+
+            // 1. Lines with and without AA
+            // Non-AA lines
+            cmds.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(20.0, 20.0),
+                p1: Vec2::new(180.0, 50.0),
+                color: Color::from_srgb_u8(0, 0, 0, 255),
+                width: 1.0,
+                z: 1,
+                anti_alias: false,
+            });
+            cmds.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(20.0, 40.0),
+                p1: Vec2::new(180.0, 100.0),
+                color: Color::from_srgb_u8(0, 0, 0, 255),
+                width: 3.0,
+                z: 1,
+                anti_alias: false,
+            });
+
+            // AA lines
+            cmds.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(220.0, 20.0),
+                p1: Vec2::new(380.0, 50.0),
+                color: Color::from_srgb_u8(0, 0, 0, 255),
+                width: 1.0,
+                z: 1,
+                anti_alias: true,
+            });
+            cmds.push(DrawCmd::StrokeLine {
+                p0: Vec2::new(220.0, 40.0),
+                p1: Vec2::new(380.0, 100.0),
+                color: Color::from_srgb_u8(0, 0, 0, 255),
+                width: 3.0,
+                z: 1,
+                anti_alias: true,
+            });
+
+            // 2. Circles with and without AA
+            // Non-AA circles (filled and stroked)
+            cmds.push(DrawCmd::FillCircle {
+                center: Vec2::new(60.0, 200.0),
+                radius: 30.0,
+                color: Color::from_srgb_u8(200, 50, 50, 255),
+                z: 1,
+                anti_alias: false,
+            });
+            cmds.push(DrawCmd::StrokeCircle {
+                center: Vec2::new(140.0, 200.0),
+                radius: 25.0,
+                color: Color::from_srgb_u8(50, 50, 200, 255),
+                width: 4.0,
+                z: 1,
+                anti_alias: false,
+            });
+
+            // AA circles (filled and stroked)
+            cmds.push(DrawCmd::FillCircle {
+                center: Vec2::new(260.0, 200.0),
+                radius: 30.0,
+                color: Color::from_srgb_u8(200, 50, 50, 255),
+                z: 1,
+                anti_alias: true,
+            });
+            cmds.push(DrawCmd::StrokeCircle {
+                center: Vec2::new(340.0, 200.0),
+                radius: 25.0,
+                color: Color::from_srgb_u8(50, 50, 200, 255),
+                width: 4.0,
+                z: 1,
+                anti_alias: true,
+            });
+
+            // 3. Rectangles with and without AA
+            // Non-AA Rects
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(20.5, 280.5, 60.0, 40.0),
+                color: Color::from_srgb_u8(50, 150, 50, 255),
+                z: 1,
+                anti_alias: false,
+            });
+            cmds.push(DrawCmd::StrokeRect {
+                rect: Rect::new(100.5, 280.5, 60.0, 40.0),
+                color: Color::from_srgb_u8(150, 150, 50, 255),
+                width: 3.0,
+                z: 1,
+                anti_alias: false,
+            });
+
+            // AA Rects
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::new(220.5, 280.5, 60.0, 40.0),
+                color: Color::from_srgb_u8(50, 150, 50, 255),
+                z: 1,
+                anti_alias: true,
+            });
+            cmds.push(DrawCmd::StrokeRect {
+                rect: Rect::new(300.5, 280.5, 60.0, 40.0),
+                color: Color::from_srgb_u8(150, 150, 50, 255),
+                width: 3.0,
+                z: 1,
+                anti_alias: true,
+            });
+
+            let Some(actual) = render_commands_to_rgba(width, height, cmds, text_system).await
+            else {
+                panic!("Failed to render commands to RGBA");
+            };
+
+            let golden_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("src/golden_analytical_aa.png");
+            assert_matches_png_golden(&actual, &golden_path);
+        });
+    }
+}
