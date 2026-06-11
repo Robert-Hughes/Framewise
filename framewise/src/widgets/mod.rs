@@ -57,7 +57,8 @@ pub mod window;
 pub use button::{button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 pub use checkbox::{
-    checkbox, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle, CheckedState,
+    checkbox, labelled_checkbox, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,
+    CheckedState,
 };
 #[cfg(feature = "chip")]
 pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
@@ -82,7 +83,7 @@ pub use meter::{meter, MeterResult, MeterSpecBuilder};
 #[cfg(feature = "progress_bar")]
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle};
 #[cfg(feature = "radio")]
-pub use radio::{radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
+pub use radio::{labelled_radio, radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
 #[cfg(feature = "scroll_area")]
 pub use scroll_area::{
     begin_scroll_area, ScrollAreaResult, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility,
@@ -100,7 +101,9 @@ pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
 #[cfg(feature = "status")]
 pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
 #[cfg(feature = "switch")]
-pub use switch::{switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle};
+pub use switch::{
+    labelled_switch, switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,
+};
 #[cfg(feature = "tabs")]
 pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 #[cfg(feature = "text_edit")]

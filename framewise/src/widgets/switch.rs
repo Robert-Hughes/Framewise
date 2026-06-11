@@ -22,7 +22,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SwitchCalcIntrinsicSizeSpec {}
+    pub struct SwitchCalcIntrinsicSizeSpec {
+        pub style: super::SwitchStyle,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SwitchResult {
@@ -31,9 +33,9 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Compute intrinsic size for Switch. Currently returns UNKNOWN.
-    pub fn calc_switch_intrinsic_size(_spec: &SwitchCalcIntrinsicSizeSpec) -> IntrinsicSize {
-        IntrinsicSize::UNKNOWN
+    /// Compute intrinsic size for Switch.
+    pub fn calc_switch_intrinsic_size(spec: &SwitchCalcIntrinsicSizeSpec) -> IntrinsicSize {
+        IntrinsicSize::preferred(spec.style.size)
     }
 
     /// Low-level switch widget function.
@@ -71,7 +73,12 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let r = Rect::new(spec.rect.x, spec.rect.y, s.size.x, s.size.y);
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - s.size.y) * 0.5,
+            s.size.x,
+            s.size.y,
+        );
 
         // Focus ring.
         if focused {
@@ -273,7 +280,7 @@ pub fn switch<T: TextSystem, S: LayoutState, CF>(
     state: &mut SwitchState,
 ) -> SwitchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SwitchCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::SwitchCalcIntrinsicSizeSpec { style: spec.style };
     let intrinsic = raw::calc_switch_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SwitchSpec {
@@ -284,6 +291,87 @@ pub fn switch<T: TextSystem, S: LayoutState, CF>(
         layer: ctx.layer,
     };
     let result = raw::switch(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    SwitchResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level labelled switch widget function using WidgetContext.
+///
+/// This draws a switch along with a label by its side. Clicking the label
+/// behaves identically to clicking the switch, and all mouse interactions
+/// (hover, pressed, click-and-drag) span the combined bounds.
+pub fn labelled_switch<T: TextSystem, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: SwitchSpecBuilder,
+    label_text: &str,
+    layout_params: S::Params,
+    state: &mut SwitchState,
+) -> SwitchResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+
+    // Resolve label style and measure text size
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
+    label_style.content_placement =
+        crate::text::TextContentPlacement::logical(crate::Align::Start, crate::Align::Center);
+    if spec.disabled {
+        let alpha = spec.style.disabled_alpha;
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * alpha,
+        );
+    }
+
+    // Calculate intrinsic size using the official functions of both widgets
+    let switch_calc_spec = raw::SwitchCalcIntrinsicSizeSpec { style: spec.style };
+    let switch_intrinsic = raw::calc_switch_intrinsic_size(&switch_calc_spec);
+    let switch_size = switch_intrinsic.preferred.unwrap();
+
+    let label_calc_spec = crate::widgets::label::raw::LabelCalcIntrinsicSizeSpec {
+        text: label_text,
+        style: label_style,
+    };
+    let label_intrinsic =
+        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_system);
+    let label_size = label_intrinsic.preferred.unwrap();
+
+    let gap = 8.0;
+    let combined_width = switch_size.x + gap + label_size.x;
+    let combined_height = f32::max(switch_size.y, label_size.y);
+    let intrinsic = IntrinsicSize::preferred(Vec2::new(combined_width, combined_height));
+
+    // Resolve combined bounds
+    let rect = ctx.layout(layout_params, intrinsic);
+
+    // Run underlying switch interaction and draw control track/thumb
+    let raw_spec = raw::SwitchSpec {
+        rect, // Pass the combined bounds for unified interaction handling
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
+    };
+    let result = raw::switch(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    // Draw the label text to the right of the control track
+    let label_rect = Rect::new(
+        rect.x + switch_size.x + gap,
+        rect.y,
+        rect.w - switch_size.x - gap,
+        rect.h,
+    );
+    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
+        layer: ctx.layer,
+        rect: label_rect,
+        text: label_text,
+        style: label_style,
+    };
+    crate::widgets::label::raw::label(raw_label_spec, ctx.text_system, ctx.cmds);
 
     SwitchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -1020,8 +1108,167 @@ mod tests {
 
     #[test]
     fn test_calc_switch_intrinsic_size() {
-        let spec = raw::SwitchCalcIntrinsicSizeSpec {};
+        let theme = crate::theme::Theme::default();
+        let style = SwitchStyle::from_theme(&theme);
+        let spec = raw::SwitchCalcIntrinsicSizeSpec { style };
         let intrinsic = raw::calc_switch_intrinsic_size(&spec);
-        assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
+        assert_eq!(intrinsic, IntrinsicSize::preferred(Vec2::new(30.0, 16.0)));
+    }
+
+    #[test]
+    fn test_switch_visual_vertically_centered() {
+        let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 20.0));
+        let s = spec.style;
+        let mut cmds = DrawCommands::new();
+        raw::switch(
+            spec,
+            &mut SwitchState::default(),
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        // Expect Y to be 10.0 + (20.0 - 16.0) * 0.5 = 12.0
+        let expected_rect = Rect::new(10.0, 12.0, 30.0, 16.0);
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: expected_rect,
+                    color: s.off_fill,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    anti_alias: false,
+                    rect: expected_rect,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(12.0, 15.0, 10.0, 10.0), // 12.0 + (16.0 - 10.0) * 0.5 = 15.0
+                    color: s.off_thumb,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_labelled_switch_intrinsic_size() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = SwitchState::default();
+        // DummyTextSys logical size reports 8.0 per character. "vsync" is 5 chars -> 40.0.
+        // Height is 16.0. Switch size is 30.0 x 16.0. Gap is 8.0.
+        // Combined width: 30.0 + 8.0 + 40.0 = 78.0.
+        // Combined height: max(16.0, 16.0) = 16.0.
+        let result = super::labelled_switch(
+            &mut ctx,
+            SwitchSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
+    }
+
+    #[test]
+    fn test_labelled_switch_click_label_toggles_state() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+
+        // Mouse click position is directly over the label area (e.g. x = 50.0, y = 10.0)
+        let input = Input {
+            mouse_pos: Vec2::new(50.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_clicked: true,
+            ..Default::default()
+        };
+
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = SwitchState::default();
+        super::labelled_switch(
+            &mut ctx,
+            SwitchSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert!(state.checked);
+    }
+
+    #[test]
+    fn test_labelled_switch_disabled_label_visual() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let theme = crate::theme::Theme::framewise();
+        {
+            let mut ctx = WidgetContext::root(
+                theme.clone(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+
+            let mut state = SwitchState::default();
+            super::labelled_switch(
+                &mut ctx,
+                SwitchSpecBuilder::new().disabled(true),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+
+        // Find the text draw command to check its color.
+        let text_cmd = cmds.iter().find_map(|cmd| {
+            if let DrawCmd::Text { color, .. } = cmd {
+                Some(*color)
+            } else {
+                None
+            }
+        });
+
+        assert!(text_cmd.is_some());
+        let color = text_cmd.unwrap();
+        // The default ink color from theme should have disabled_alpha (0.35) applied to its alpha channel.
+        let default_label_style = crate::widgets::label::LabelStyle::from_theme(&theme);
+        let expected_alpha = default_label_style.text_color.a * 0.35;
+        assert!((color.a - expected_alpha).abs() < 1e-4);
     }
 }

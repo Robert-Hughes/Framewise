@@ -22,7 +22,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct RadioCalcIntrinsicSizeSpec {}
+    pub struct RadioCalcIntrinsicSizeSpec {
+        pub style: super::RadioStyle,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct RadioResult {
@@ -31,9 +33,9 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Compute intrinsic size for Radio. Currently returns UNKNOWN.
-    pub fn calc_radio_intrinsic_size(_spec: &RadioCalcIntrinsicSizeSpec) -> IntrinsicSize {
-        IntrinsicSize::UNKNOWN
+    /// Compute intrinsic size for Radio.
+    pub fn calc_radio_intrinsic_size(spec: &RadioCalcIntrinsicSizeSpec) -> IntrinsicSize {
+        IntrinsicSize::preferred(Vec2::new(spec.style.radius * 2.0, spec.style.radius * 2.0))
     }
 
     /// Low-level radio widget function.
@@ -71,8 +73,15 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let cx = spec.rect.x + s.radius;
-        let cy = spec.rect.y + s.radius;
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - s.radius * 2.0) * 0.5,
+            s.radius * 2.0,
+            s.radius * 2.0,
+        );
+
+        let cx = r.x + s.radius;
+        let cy = r.y + s.radius;
         let center = Vec2::new(cx, cy);
 
         // Focus ring (outset 2px).
@@ -137,7 +146,7 @@ pub mod raw {
         RadioResult {
             input: input_info,
             focused,
-            content_bounds: spec.rect.inset(s.border_width),
+            content_bounds: r.inset(s.border_width),
         }
     }
 }
@@ -264,7 +273,7 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
     state: &mut RadioState,
 ) -> RadioResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::RadioCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::RadioCalcIntrinsicSizeSpec { style: spec.style };
     let intrinsic = raw::calc_radio_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::RadioSpec {
@@ -275,6 +284,87 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
         clip_rect: ctx.clip_rect,
     };
     let result = raw::radio(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    RadioResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level labelled radio widget function using WidgetContext.
+///
+/// This draws a radio along with a label by its side. Clicking the label
+/// behaves identically to clicking the radio, and all mouse interactions
+/// (hover, pressed, click-and-drag) span the combined bounds.
+pub fn labelled_radio<T: TextSystem, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: RadioSpecBuilder,
+    label_text: &str,
+    layout_params: S::Params,
+    state: &mut RadioState,
+) -> RadioResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+
+    // Resolve label style and measure text size
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
+    label_style.content_placement =
+        crate::text::TextContentPlacement::logical(crate::Align::Start, crate::Align::Center);
+    if spec.disabled {
+        let alpha = spec.style.disabled_alpha;
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * alpha,
+        );
+    }
+
+    // Calculate intrinsic size using the official functions of both widgets
+    let radio_calc_spec = raw::RadioCalcIntrinsicSizeSpec { style: spec.style };
+    let radio_intrinsic = raw::calc_radio_intrinsic_size(&radio_calc_spec);
+    let radio_size = radio_intrinsic.preferred.unwrap();
+
+    let label_calc_spec = crate::widgets::label::raw::LabelCalcIntrinsicSizeSpec {
+        text: label_text,
+        style: label_style,
+    };
+    let label_intrinsic =
+        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_system);
+    let label_size = label_intrinsic.preferred.unwrap();
+
+    let gap = 8.0;
+    let combined_width = radio_size.x + gap + label_size.x;
+    let combined_height = f32::max(radio_size.y, label_size.y);
+    let intrinsic = IntrinsicSize::preferred(Vec2::new(combined_width, combined_height));
+
+    // Resolve combined bounds
+    let rect = ctx.layout(layout_params, intrinsic);
+
+    // Run underlying radio interaction and draw control track/thumb
+    let raw_spec = raw::RadioSpec {
+        layer: ctx.layer,
+        rect, // Pass the combined bounds for unified interaction handling
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::radio(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    // Draw the label text to the right of the control track
+    let label_rect = Rect::new(
+        rect.x + radio_size.x + gap,
+        rect.y,
+        rect.w - radio_size.x - gap,
+        rect.h,
+    );
+    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
+        layer: ctx.layer,
+        rect: label_rect,
+        text: label_text,
+        style: label_style,
+    };
+    crate::widgets::label::raw::label(raw_label_spec, ctx.text_system, ctx.cmds);
 
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -1008,8 +1098,164 @@ mod tests {
 
     #[test]
     fn test_calc_radio_intrinsic_size() {
-        let spec = raw::RadioCalcIntrinsicSizeSpec {};
+        let theme = crate::theme::Theme::default();
+        let style = RadioStyle::from_theme(&theme);
+        let spec = raw::RadioCalcIntrinsicSizeSpec { style };
         let intrinsic = raw::calc_radio_intrinsic_size(&spec);
-        assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
+        assert_eq!(intrinsic, IntrinsicSize::preferred(Vec2::new(14.0, 14.0)));
+    }
+
+    #[test]
+    fn test_radio_visual_vertically_centered() {
+        let spec = radio_spec(Rect::new(10.0, 10.0, 14.0, 20.0));
+        let s = spec.style;
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            spec,
+            &mut RadioState::default(),
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        // Expect Y to be 10.0 + (20.0 - 14.0) * 0.5 = 13.0
+        // Expect center to be Vec2::new(17.0, 20.0) -> cx = 10.0 + 7.0 = 17.0, cy = 13.0 + 7.0 = 20.0
+        let center = Vec2::new(17.0, 20.0);
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillCircle {
+                    anti_alias: true,
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    anti_alias: true,
+                    center,
+                    radius: s.radius,
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_labelled_radio_intrinsic_size() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = RadioState::default();
+        // DummyTextSys logical size reports 8.0 per character. "vsync" is 5 chars -> 40.0.
+        // Height is 16.0. Radio size is 14.0 x 14.0. Gap is 8.0.
+        // Combined width: 14.0 + 8.0 + 40.0 = 62.0.
+        // Combined height: max(14.0, 16.0) = 16.0.
+        let result = super::labelled_radio(
+            &mut ctx,
+            RadioSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
+    }
+
+    #[test]
+    fn test_labelled_radio_click_label_toggles_state() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+
+        // Mouse click position is directly over the label area (e.g. x = 40.0, y = 10.0)
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_clicked: true,
+            ..Default::default()
+        };
+
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = RadioState::default();
+        super::labelled_radio(
+            &mut ctx,
+            RadioSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert!(state.checked);
+    }
+
+    #[test]
+    fn test_labelled_radio_disabled_label_visual() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let theme = crate::theme::Theme::framewise();
+        {
+            let mut ctx = WidgetContext::root(
+                theme.clone(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+
+            let mut state = RadioState::default();
+            super::labelled_radio(
+                &mut ctx,
+                RadioSpecBuilder::new().disabled(true),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+
+        // Find the text draw command to check its color.
+        let text_cmd = cmds.iter().find_map(|cmd| {
+            if let DrawCmd::Text { color, .. } = cmd {
+                Some(*color)
+            } else {
+                None
+            }
+        });
+
+        assert!(text_cmd.is_some());
+        let color = text_cmd.unwrap();
+        // The default ink color from theme should have disabled_alpha (0.35) applied to its alpha channel.
+        let default_label_style = crate::widgets::label::LabelStyle::from_theme(&theme);
+        let expected_alpha = default_label_style.text_color.a * 0.35;
+        assert!((color.a - expected_alpha).abs() < 1e-4);
     }
 }

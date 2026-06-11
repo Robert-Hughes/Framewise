@@ -67,6 +67,20 @@ We explicitly chose the app-owned `ButtonState` approach for two key reasons:
 
 ---
 
+## Interaction Bounds vs. Visual Bounds
+
+For many widgets (such as Buttons, TextInputs, and Frames), the **visual boundaries** of the widget perfectly match the **layout/interaction boundaries** (`spec.rect`).
+
+However, some widgets (such as Checkboxes, Radios, and Switches) decouple these two concepts:
+- **Interaction/Layout Bounds (`spec.rect`)**: The parent layout allocates a cell for the widget (which may be larger than the physical control, e.g. a wide row cell to accommodate a checkbox and its label). The entire `spec.rect` is used as the hit-test target (hovering, pressing, clicking) and keyboard focus registry. This maximizes the target area (Fitts's Law), making interactive controls much easier to click.
+- **Visual Bounds**: The drawn graphics of the control (e.g. the 14x14 checkbox box, 14x14 radio circle, or 30x16 switch track) are kept at a fixed size and aspect ratio to ensure visual consistency. If `spec.rect` is larger/taller than the control's natural size, the control is automatically centered vertically within `spec.rect` rather than stretching.
+
+This decoupling guarantees both premium UX (generous click targets) and consistent visual alignment in forms without requiring callers to manually calculate offsets.
+
+This is taken advantage of for the 'labelled' version of these widgets (labelled_checkbox etc.)
+
+---
+
 ## Layout System
 
 We decouple the **configuration** of a layout from its **mutable state**. This avoids the "pyramid of doom" closure nesting found in many immediate-mode libraries, while maintaining pure, linear predictability.

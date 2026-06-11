@@ -4,11 +4,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Add a (high-level) helper function to add a checkbox/switch/radio along with a label by its side. Clicking the label should be like clicking the checkbox (moreover, any mouse interaction like hover, pressed state, click and drag then return etc.)
-
 - Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers. Add tests plus something on the sample app to show overlapping
-
-- Anti-aliasing for check and radio? Analytical AA is probably best? (See [Antialiasing (AA) & Pixel Snapping](#antialiasing-aa--pixel-snapping) below).
 
 - Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 

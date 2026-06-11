@@ -23,7 +23,9 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct CheckboxCalcIntrinsicSizeSpec {}
+    pub struct CheckboxCalcIntrinsicSizeSpec {
+        pub style: super::CheckboxStyle,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct CheckboxResult {
@@ -32,9 +34,9 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Compute intrinsic size for Checkbox. Currently returns UNKNOWN.
-    pub fn calc_checkbox_intrinsic_size(_spec: &CheckboxCalcIntrinsicSizeSpec) -> IntrinsicSize {
-        IntrinsicSize::UNKNOWN
+    /// Compute intrinsic size for Checkbox.
+    pub fn calc_checkbox_intrinsic_size(spec: &CheckboxCalcIntrinsicSizeSpec) -> IntrinsicSize {
+        IntrinsicSize::preferred(Vec2::new(spec.style.size, spec.style.size))
     }
 
     fn next_allowed_checked_state(
@@ -98,7 +100,12 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
-        let r = Rect::new(spec.rect.x, spec.rect.y, s.size, s.size);
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - s.size) * 0.5,
+            s.size,
+            s.size,
+        );
 
         // Focus ring (outset 2px).
         if focused {
@@ -331,7 +338,7 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
     state: &mut CheckboxState,
 ) -> CheckboxResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::CheckboxCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::CheckboxCalcIntrinsicSizeSpec { style: spec.style };
     let intrinsic = raw::calc_checkbox_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::CheckboxSpec {
@@ -343,6 +350,88 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
         layer: ctx.layer,
     };
     let result = raw::checkbox(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    CheckboxResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level labelled checkbox widget function using WidgetContext.
+///
+/// This draws a checkbox along with a label by its side. Clicking the label
+/// behaves identically to clicking the checkbox, and all mouse interactions
+/// (hover, pressed, click-and-drag) span the combined bounds.
+pub fn labelled_checkbox<T: TextSystem, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: CheckboxSpecBuilder,
+    label_text: &str,
+    layout_params: S::Params,
+    state: &mut CheckboxState,
+) -> CheckboxResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+
+    // Resolve label style and measure text size
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
+    label_style.content_placement =
+        crate::text::TextContentPlacement::logical(crate::Align::Start, crate::Align::Center);
+    if spec.disabled {
+        let alpha = spec.style.disabled_alpha;
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * alpha,
+        );
+    }
+
+    // Calculate intrinsic size using the official functions of both widgets
+    let checkbox_calc_spec = raw::CheckboxCalcIntrinsicSizeSpec { style: spec.style };
+    let checkbox_intrinsic = raw::calc_checkbox_intrinsic_size(&checkbox_calc_spec);
+    let checkbox_size = checkbox_intrinsic.preferred.unwrap();
+
+    let label_calc_spec = crate::widgets::label::raw::LabelCalcIntrinsicSizeSpec {
+        text: label_text,
+        style: label_style,
+    };
+    let label_intrinsic =
+        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_system);
+    let label_size = label_intrinsic.preferred.unwrap();
+
+    let gap = 8.0;
+    let combined_width = checkbox_size.x + gap + label_size.x;
+    let combined_height = f32::max(checkbox_size.y, label_size.y);
+    let intrinsic = IntrinsicSize::preferred(Vec2::new(combined_width, combined_height));
+
+    // Resolve combined bounds
+    let rect = ctx.layout(layout_params, intrinsic);
+
+    // Run underlying checkbox interaction and draw control box
+    let raw_spec = raw::CheckboxSpec {
+        rect, // Pass the combined bounds for unified interaction handling
+        disabled: spec.disabled,
+        allowed_checked_states: spec.allowed_checked_states,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
+    };
+    let result = raw::checkbox(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+
+    // Draw the label text to the right of the control box
+    let label_rect = Rect::new(
+        rect.x + checkbox_size.x + gap,
+        rect.y,
+        rect.w - checkbox_size.x - gap,
+        rect.h,
+    );
+    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
+        layer: ctx.layer,
+        rect: label_rect,
+        text: label_text,
+        style: label_style,
+    };
+    crate::widgets::label::raw::label(raw_label_spec, ctx.text_system, ctx.cmds);
 
     CheckboxResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -497,6 +586,40 @@ mod tests {
                 DrawCmd::StrokeRect {
                     anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                    color: s.border,
+                    width: s.border_width,
+                    z: 0,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn test_checkbox_visual_vertically_centered() {
+        let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 20.0));
+        let s = spec.style;
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            spec,
+            &mut CheckboxState::default(),
+            &Input::default(),
+            &mut FocusSystem::new(),
+            &mut cmds,
+        );
+        // Expect Y to be 10.0 + (20.0 - 14.0) * 0.5 = 13.0
+        let expected_rect = Rect::new(10.0, 13.0, 14.0, 14.0);
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: expected_rect,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    anti_alias: false,
+                    rect: expected_rect,
                     color: s.border,
                     width: s.border_width,
                     z: 0,
@@ -1330,8 +1453,127 @@ mod tests {
 
     #[test]
     fn test_calc_checkbox_intrinsic_size() {
-        let spec = raw::CheckboxCalcIntrinsicSizeSpec {};
+        let theme = crate::theme::Theme::default();
+        let style = CheckboxStyle::from_theme(&theme);
+        let spec = raw::CheckboxCalcIntrinsicSizeSpec { style };
         let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
-        assert_eq!(intrinsic, IntrinsicSize::UNKNOWN);
+        assert_eq!(intrinsic, IntrinsicSize::preferred(Vec2::new(14.0, 14.0)));
+    }
+
+    #[test]
+    fn test_labelled_checkbox_intrinsic_size() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = CheckboxState::default();
+        // DummyTextSys logical size reports 8.0 per character. "vsync" is 5 chars -> 40.0.
+        // Height is 16.0. Checkbox size is 14.0. Gap is 8.0.
+        // Combined width: 14.0 + 8.0 + 40.0 = 62.0.
+        // Combined height: max(14.0, 16.0) = 16.0.
+        let result = super::labelled_checkbox(
+            &mut ctx,
+            CheckboxSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
+    }
+
+    #[test]
+    fn test_labelled_checkbox_click_label_toggles_state() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+
+        // Mouse click position is directly over the label area (e.g. x = 40.0, y = 10.0)
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_clicked: true,
+            ..Default::default()
+        };
+
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_system,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let mut state = CheckboxState::default();
+        super::labelled_checkbox(
+            &mut ctx,
+            CheckboxSpecBuilder::new(),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+        );
+
+        assert_eq!(state.checked, CheckedState::Checked);
+    }
+
+    #[test]
+    fn test_labelled_checkbox_disabled_label_visual() {
+        use crate::layouts::ManualLayout;
+        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let theme = crate::theme::Theme::framewise();
+        {
+            let mut ctx = WidgetContext::root(
+                theme.clone(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+
+            let mut state = CheckboxState::default();
+            super::labelled_checkbox(
+                &mut ctx,
+                CheckboxSpecBuilder::new().disabled(true),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+
+        // Find the text draw command to check its color.
+        let text_cmd = cmds.iter().find_map(|cmd| {
+            if let DrawCmd::Text { color, .. } = cmd {
+                Some(*color)
+            } else {
+                None
+            }
+        });
+
+        assert!(text_cmd.is_some());
+        let color = text_cmd.unwrap();
+        // The default ink color from theme should have disabled_alpha (0.35) applied to its alpha channel.
+        let default_label_style = crate::widgets::label::LabelStyle::from_theme(&theme);
+        let expected_alpha = default_label_style.text_color.a * 0.35;
+        assert!((color.a - expected_alpha).abs() < 1e-4);
     }
 }
