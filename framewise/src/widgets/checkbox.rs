@@ -153,7 +153,7 @@ pub mod raw {
                 let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
                 let mark = tint(s.mark);
                 cmds.push(DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0,
                     p1,
                     color: mark,
@@ -161,7 +161,7 @@ pub mod raw {
                     z: spec.layer.get_z(),
                 });
                 cmds.push(DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0: p1,
                     p1: p2,
                     color: mark,
@@ -617,7 +617,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0,
                     p1,
                     color: s.mark,
@@ -625,7 +625,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0: p1,
                     p1: p2,
                     color: s.mark,
@@ -676,7 +676,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0,
                     p1,
                     color: s.mark,
@@ -684,7 +684,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
-                    anti_alias: false,
+                    anti_alias: true,
                     p0: p1,
                     p1: p2,
                     color: s.mark,

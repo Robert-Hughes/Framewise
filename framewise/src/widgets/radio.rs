@@ -78,7 +78,7 @@ pub mod raw {
         // Focus ring (outset 2px).
         if focused {
             cmds.push(DrawCmd::StrokeCircle {
-                anti_alias: false,
+                anti_alias: true,
                 center,
                 radius: s.radius + s.focus_offset + s.focus_width * 0.5,
                 color: tint(s.focus),
@@ -106,7 +106,7 @@ pub mod raw {
             )
         };
         cmds.push(DrawCmd::FillCircle {
-            anti_alias: false,
+            anti_alias: true,
             center,
             radius: s.radius,
             color: tint(fill),
@@ -115,7 +115,7 @@ pub mod raw {
 
         // Outer ring.
         cmds.push(DrawCmd::StrokeCircle {
-            anti_alias: false,
+            anti_alias: true,
             center,
             radius: s.radius,
             color: tint(s.border),
@@ -126,7 +126,7 @@ pub mod raw {
         // Inner dot when selected.
         if state.checked {
             cmds.push(DrawCmd::FillCircle {
-                anti_alias: false,
+                anti_alias: true,
                 center,
                 radius: s.dot_radius,
                 color: tint(s.dot),
@@ -413,14 +413,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -455,14 +455,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.hovered,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -499,14 +499,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.pressed,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -537,14 +537,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -552,7 +552,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.dot_radius,
                     color: s.dot,
@@ -586,14 +586,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.selected_hovered,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -601,7 +601,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.dot_radius,
                     color: s.dot,
@@ -634,7 +634,7 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius + s.focus_offset + s.focus_width * 0.5,
                     color: s.focus,
@@ -642,14 +642,14 @@ mod tests {
                     z: 1,
                 },
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.background,
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: s.border,
@@ -682,14 +682,14 @@ mod tests {
             cmds,
             DrawCommands::from_vec(vec![
                 DrawCmd::FillCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: tint(s.background),
                     z: 0,
                 },
                 DrawCmd::StrokeCircle {
-                    anti_alias: false,
+                    anti_alias: true,
                     center,
                     radius: s.radius,
                     color: tint(s.border),
@@ -999,7 +999,7 @@ mod tests {
 
         let has_custom_fill = cmds
             .iter()
-            .any(|c| matches!(c, DrawCmd::FillCircle { anti_alias: false, color, .. } if *color == custom.background));
+            .any(|c| matches!(c, DrawCmd::FillCircle { anti_alias: true, color, .. } if *color == custom.background));
         assert!(
             has_custom_fill,
             "high-level radio must honor user-set style"
