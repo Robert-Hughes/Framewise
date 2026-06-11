@@ -2093,7 +2093,7 @@ fn section_03_toggles<CF>(
                 b.theme.ink
             };
             {
-                let layout_params = Rect::new(cx + 18.0, y, 60.0, 14.0);
+                let layout_params = Rect::new(cx + 21.0, y, 60.0, 14.0);
                 let size = b.theme.text_sm;
                 let spec_builder = LabelSpecBuilder::new().text("vsync").style(LabelStyle {
                     text_style: framewise::TextStyle {

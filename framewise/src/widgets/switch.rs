@@ -118,9 +118,9 @@ pub mod raw {
         // Thumb dot (10x10, vertically centered, left/right positioned).
         let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
         let dot_x = if state.checked {
-            r.x + r.w - s.thumb_size - s.border_width
+            r.x + r.w - s.border_width - s.thumb_offset - s.thumb_size
         } else {
-            r.x + s.border_width
+            r.x + s.border_width + s.thumb_offset
         };
         let dot_color = if state.checked {
             s.on_thumb
@@ -158,6 +158,7 @@ pub struct SwitchStyle {
     pub on_thumb: Color,
     pub focus: Color,
     pub border_width: f32,
+    pub thumb_offset: f32,
     pub focus_width: f32,
     pub focus_offset: f32,
     pub disabled_alpha: f32,
@@ -179,6 +180,7 @@ impl SwitchStyle {
             on_thumb: theme.paper,
             focus: theme.rust,
             border_width: 1.0,
+            thumb_offset: 1.0,
             focus_width: theme.focus_width,
             focus_offset: theme.focus_offset,
             disabled_alpha: 0.35,
@@ -425,7 +427,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
                 },
@@ -465,7 +467,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
                 },
@@ -507,7 +509,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
                 },
@@ -546,7 +548,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(29.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
                     z: 0,
                 },
@@ -589,7 +591,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(29.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                     color: s.on_thumb,
                     z: 0,
                 },
@@ -637,7 +639,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: s.off_thumb,
                     z: 0,
                 },
@@ -678,7 +680,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: Rect::new(11.0, 13.0, 10.0, 10.0),
+                    rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                     color: tint(s.off_thumb),
                     z: 0,
                 },
