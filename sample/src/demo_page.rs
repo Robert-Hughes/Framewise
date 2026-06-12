@@ -40,6 +40,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
 > {
     use framewise::types::Vec2;
 
+    let pad = 20.0;
     let clip = parent_ctx.clip_rect;
     let spec = framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new()
         .vertical(framewise::widgets::scroll_area::ScrollAxis {
@@ -78,7 +79,6 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         parent_ctx.cmds,
     );
 
-    let label_width = content_bounds.w;
     let theme = parent_ctx.theme;
     let title_style = LabelStyle {
         text_style: theme.heading_text_style(24.0),
@@ -100,11 +100,11 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
     );
     let title_h = label_intrinsic.preferred.map_or(24.0, |p| p.y);
 
-    // Draw the title using the offset coordinates of the scroll area
+    // Draw the title using the offset coordinates of the scroll area, inset by pad
     let title_rect = Rect::new(
-        content_bounds.x - offset.x,
-        content_bounds.y - offset.y,
-        label_width,
+        content_bounds.x + pad - offset.x,
+        content_bounds.y + pad - offset.y,
+        (content_bounds.w - 2.0 * pad).max(0.0),
         title_h,
     );
     let spec = RawLabelSpec {
@@ -115,8 +115,18 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
     };
     framewise::widgets::label::raw::label(spec, parent_ctx.text_system, parent_ctx.cmds);
 
-    let offset_y = title_h + 24.0;
+    let offset_y = pad + title_h + 24.0;
     let mut adjusted_space = inner_space;
+    adjusted_space.x += pad;
+    adjusted_space.width = match adjusted_space.width {
+        framewise::layout::AxisBound::Exact(w) => {
+            framewise::layout::AxisBound::Exact((w - 2.0 * pad).max(0.0))
+        }
+        framewise::layout::AxisBound::AtMost(w) => {
+            framewise::layout::AxisBound::AtMost((w - 2.0 * pad).max(0.0))
+        }
+        framewise::layout::AxisBound::Unbounded => framewise::layout::AxisBound::Unbounded,
+    };
     adjusted_space.y += offset_y;
     adjusted_space.height = match adjusted_space.height {
         framewise::layout::AxisBound::Exact(h) => {
@@ -140,10 +150,10 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
                           cmds: &mut DrawCommands,
                           resolved_space: Rect| {
         let full_resolved_space = Rect::new(
-            resolved_space.x,
+            resolved_space.x - pad,
             resolved_space.y - offset_y,
-            resolved_space.w,
-            resolved_space.h + offset_y + 20.0, // bottom padding of 20px
+            resolved_space.w + 2.0 * pad,
+            resolved_space.h + offset_y + pad, // bottom padding of `pad` (20.0px)
         );
         let content_extent = Vec2::new(full_resolved_space.w, full_resolved_space.h);
         framewise::widgets::scroll_area::raw::end_scroll_area(

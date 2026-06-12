@@ -52,7 +52,6 @@ pub fn draw_button_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
-    let pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
     let mut ctx = WidgetContext::root(
@@ -61,7 +60,7 @@ pub fn draw_button_page(
         focus_system,
         input,
         ColumnLayout,
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
 
