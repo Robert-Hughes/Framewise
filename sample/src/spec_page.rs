@@ -20,8 +20,8 @@ use framewise::{
     theme::Theme,
     types::{Rect, Vec2},
     widget::WidgetContext,
-    Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, ManualState,
-    RowLayout, RowLayoutParams, TextLineAlign,
+    Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, LinearSpacer,
+    ManualState, RowLayout, RowLayoutParams, TextLineAlign,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -1073,7 +1073,7 @@ fn sec_y<CF>(
     title: &str,
     detail_text: &str,
 ) {
-    b.spacer(112.0); // 16.0 + 80.0 + 16.0
+    b.spacer(LinearSpacer::always(112.0)); // 16.0 + 80.0 + 16.0
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
         {
@@ -1220,7 +1220,7 @@ pub fn draw_spec_page_inner<LS, CF>(
     debug_layout: bool,
     w: f32,
 ) where
-    <LS as SpacerLayoutState>::SpacerParams: From<f32>,
+    <LS as SpacerLayoutState>::SpacerParams: From<LinearSpacer>,
     LS: SpacerLayoutState<Params = RowLayoutParams>,
     CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut DrawCommands, framewise::Rect),
 {
@@ -1235,7 +1235,7 @@ pub fn draw_spec_page_inner<LS, CF>(
     #[cfg(feature = "button")]
     let mut should_reset = false;
     {
-        page.spacer((w - content_w) / 2.0);
+        page.spacer(LinearSpacer::always((w - content_w) / 2.0));
         let mut content_column =
             page.child_with_layout(RowLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         {
@@ -1328,7 +1328,7 @@ pub fn draw_spec_page_inner<LS, CF>(
 }
 
 fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
-    b.spacer(64.0);
+    b.spacer(LinearSpacer::always(64.0));
     let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 320.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), IntrinsicSize::UNKNOWN);
     b.append_cmds(hero_logo(&b.theme, logo_rect.x, logo_rect.y));
@@ -2134,7 +2134,7 @@ fn section_03_toggles<CF>(
                 b.child_with_layout(RowLayoutParams::auto().fixed_x(200.0), ColumnLayout {});
             let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
             for (i, radio_label) in radio_labels.iter().enumerate() {
-                b.spacer(16.0);
+                b.spacer(LinearSpacer::always(16.0));
                 if i < 3 {
                     let info = {
                         let state = &mut state.radio_states[i];
@@ -2187,7 +2187,7 @@ fn section_03_toggles<CF>(
                 "multisampling",
             ];
             for (i, switch_label) in switch_labels.iter().enumerate() {
-                b.spacer(16.0);
+                b.spacer(LinearSpacer::always(16.0));
                 let label_color = if i == 3 { b.theme.muted } else { b.theme.ink };
                 match i {
                     2 => {
@@ -4340,7 +4340,7 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
     let mut footer =
         b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
 
-    footer.spacer(FOOTER_MARGIN_TOP);
+    footer.spacer(LinearSpacer::always(FOOTER_MARGIN_TOP));
     divider(
         &mut footer,
         DividerSpecBuilder::new(),

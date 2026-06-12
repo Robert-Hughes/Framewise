@@ -383,6 +383,7 @@ impl<A: LinearAxis> Layout for LinearLayout<A> {
             content_cross: 0.0,
             pending_spacing: 0.0,
             is_closed: false,
+            has_placed_child: false,
             _axis: PhantomData,
         }
     }
@@ -427,6 +428,24 @@ impl Layout for ColumnLayout {
 pub type RowState = LinearState<Horizontal>;
 pub type ColumnState = LinearState<Vertical>;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LinearSpacer {
+    Between(f32),
+    Always(f32),
+}
+
+impl LinearSpacer {
+    pub fn always(size: f32) -> Self {
+        Self::Always(size)
+    }
+}
+
+impl From<f32> for LinearSpacer {
+    fn from(size: f32) -> Self {
+        LinearSpacer::Between(size)
+    }
+}
+
 pub struct LinearState<A> {
     space: OrientedSpace,
     cursor_main: f32,
@@ -436,17 +455,31 @@ pub struct LinearState<A> {
     content_cross: f32,
     pending_spacing: f32,
     is_closed: bool,
+    has_placed_child: bool,
     _axis: PhantomData<fn() -> A>,
 }
 
 impl<A: LinearAxis> SpacerLayoutState for LinearState<A> {
-    type SpacerParams = f32;
+    type SpacerParams = LinearSpacer;
 
-    fn spacer(&mut self, size: Self::SpacerParams) {
+    fn spacer(&mut self, params: Self::SpacerParams) {
         if self.is_closed {
             panic!("Layout panic: layout is closed, no more children can be placed after a MainAxisAlign::End child");
         }
-        self.pending_spacing += size;
+        match params {
+            LinearSpacer::Between(size) => {
+                if self.has_placed_child {
+                    self.pending_spacing += size;
+                }
+            }
+            LinearSpacer::Always(size) => {
+                self.cursor_main += self.pending_spacing;
+                self.pending_spacing = 0.0;
+                self.cursor_main += size;
+                self.content_main = self.cursor_main - self.space.origin_main;
+                self.has_placed_child = true;
+            }
+        }
     }
 }
 
@@ -714,6 +747,7 @@ impl<A: LinearAxis> LinearState<A> {
             .max((cross_pos + cross_size) - self.space.origin_cross);
         self.cursor_main = main_pos + main_size;
         self.pending_spacing = 0.0;
+        self.has_placed_child = true;
 
         LayoutResult::from_parts(
             rect,
@@ -941,7 +975,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
-        state.spacer(5.0);
+        state.spacer(5.0.into());
 
         let r2 = state
             .layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN)
@@ -970,7 +1004,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 70.0, 40.0));
 
-        state.spacer(6.0);
+        state.spacer(6.0.into());
 
         let r2 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)))
@@ -1075,7 +1109,7 @@ mod tests {
         let _ = state
             .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
-        state.spacer(5.0);
+        state.spacer(5.0.into());
         let _ = state
             .layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -1167,7 +1201,7 @@ mod tests {
         let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(10.0, 10.0, 60.0, 100.0));
 
-        state.spacer(5.0);
+        state.spacer(5.0.into());
 
         let next_rect = state
             .layout(
@@ -1201,7 +1235,7 @@ mod tests {
             .layout(RowLayoutParams::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
             .unwrap();
 
-        state.spacer(5.0);
+        state.spacer(5.0.into());
 
         let req_auto = RowLayoutParams {
             x: LinearMain::auto(),
@@ -1309,7 +1343,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
 
-        state.spacer(10.0);
+        state.spacer(10.0.into());
 
         let r2 = state
             .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
@@ -1455,7 +1489,7 @@ mod tests {
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 200.0, 24.0));
 
-        state.spacer(5.0);
+        state.spacer(5.0.into());
 
         let r2 = state
             .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 30.0)))
@@ -1484,7 +1518,7 @@ mod tests {
         let _ = state
             .layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
-        state.spacer(10.0);
+        state.spacer(10.0.into());
         let _ = state
             .layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -1576,7 +1610,7 @@ mod tests {
         let resolved_rect = token.end_layout(Vec2::new(80.0, 50.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(0.0, 0.0, 200.0, 50.0));
 
-        state.spacer(8.0);
+        state.spacer(8.0.into());
 
         let next_rect = state
             .layout(
@@ -1609,7 +1643,7 @@ mod tests {
             )
             .unwrap();
 
-        state.spacer(10.0);
+        state.spacer(10.0.into());
 
         let req_fill = ColumnLayoutParams {
             x: LinearCross::auto(),
@@ -1652,7 +1686,7 @@ mod tests {
             )
             .unwrap();
 
-        state.spacer(5.0);
+        state.spacer(5.0.into());
 
         let req2 = ColumnLayoutParams {
             x: LinearCross::auto(),
@@ -1816,8 +1850,8 @@ mod tests {
         let _ = state
             .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
-        state.spacer(5.0);
-        state.spacer(10.0);
+        state.spacer(5.0.into());
+        state.spacer(10.0.into());
         let r = state
             .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
@@ -1832,7 +1866,7 @@ mod tests {
         let _ = state
             .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
             .unwrap();
-        state.spacer(10.0);
+        state.spacer(10.0.into());
         assert_eq!(state.resolve_space().w, 10.0); // Not 20!
     }
 
@@ -1929,7 +1963,7 @@ mod tests {
         // Immediate path
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
-            state.spacer(15.0);
+            state.spacer(15.0.into());
             let r = state
                 .layout(
                     RowLayoutParams {
@@ -1946,7 +1980,7 @@ mod tests {
         // Deferred path
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
-            state.spacer(15.0);
+            state.spacer(15.0.into());
             let req = RowLayoutParams {
                 x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                 y: LinearCross::fixed(20.0),
@@ -1956,6 +1990,29 @@ mod tests {
             assert_eq!(space.x, 80.0);
             let r = token.end_layout(Vec2::new(20.0, 20.0)).unwrap();
             assert_eq!(r.x, 80.0);
+        }
+    }
+
+    #[test]
+    fn test_spacer_before_first_child() {
+        // Between spacer before first child is ignored
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            state.spacer(15.0.into());
+            let r = state
+                .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            assert_eq!(r.x, 0.0);
+        }
+
+        // Always spacer before first child is not ignored
+        {
+            let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
+            state.spacer(LinearSpacer::Always(15.0));
+            let r = state
+                .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+                .unwrap();
+            assert_eq!(r.x, 15.0);
         }
     }
 
@@ -2018,7 +2075,7 @@ mod tests {
                 .unwrap();
 
             let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                state.spacer(10.0);
+                state.spacer(10.0.into());
             }));
             assert!(res.is_err());
         }

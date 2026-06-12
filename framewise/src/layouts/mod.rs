@@ -5,8 +5,8 @@ pub mod split_row;
 pub mod wrap;
 
 pub use linear::{
-    ColumnLayout, ColumnLayoutParams, ColumnState, LinearCross, LinearMain, MainAxisAlign,
-    RowLayout, RowLayoutParams, RowState,
+    ColumnLayout, ColumnLayoutParams, ColumnState, LinearCross, LinearMain, LinearSpacer,
+    MainAxisAlign, RowLayout, RowLayoutParams, RowState,
 };
 pub use manual::{ManualLayout, ManualState};
 pub use offset::{OffsetLayout, OffsetState};

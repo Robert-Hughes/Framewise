@@ -4,8 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?). Also, want a way to force a spacer at the end. Maybe two options/kinds?
-
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)

@@ -132,7 +132,7 @@ mod tests {
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
         assert_eq!(r1, Rect::new(5.0, -5.0, 50.0, 20.0));
 
-        state.spacer(10.0);
+        state.spacer(10.0.into());
 
         let r2 = state
             .layout(

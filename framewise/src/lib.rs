@@ -40,9 +40,9 @@ pub use draw::{DrawCmd, DrawCommands};
 pub use input::Input;
 pub use layout::{Align, AxisBound, IntrinsicSize, LayoutSpace, Placement, Placement2D, Size};
 pub use layouts::{
-    ColumnLayout, ColumnLayoutParams, ColumnState, LinearCross, LinearMain, MainAxisAlign,
-    ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout, RowLayoutParams, RowState,
-    SplitRow, SplitRowState, WrapLayout, WrapState,
+    ColumnLayout, ColumnLayoutParams, ColumnState, LinearCross, LinearMain, LinearSpacer,
+    MainAxisAlign, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,
+    RowLayoutParams, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
 pub use text::{
     CaretGeom, EllipsisFallback, FontId, FontRole, LineHeight, OverflowX, OverflowY, TextBounds,

@@ -313,11 +313,16 @@ It keeps the loud-on-misuse property: any arithmetic on the NaN extent yields Na
 
 To support variable spacing between children in sequential layouts (like `RowLayout` and `ColumnLayout`) without creating loop clutter (the "dangling spacer at the end" problem), Framewise employs a **stateful, lazy spacer** mechanism decoupled via traits:
 
-1. **Stateful Deferral**: A spacer call does not immediately return a `Rect` or advance the cursor. Instead, it registers a `pending_spacing` offset on the layout state.
-2. **Lazy Insertion**: When the next child widget is placed, the layout state shifts the starting coordinate forward by the pending spacing and clears the accumulator.
-3. **Trailing Spacing Elimination**: Because the container's resolved outer size is updated based on the right/bottom edge of the placed child *before* the cursor is advanced, any trailing spacer registered after the last child is naturally ignored when the layout closes. This achieves perfect loop ergonomics without needing conditionals in the caller's code.
-4. **Compile-Time Specialization**: To avoid cluttering non-sequential layouts (like `ManualLayout`), we define a specialized `SpacerLayoutState: LayoutState` trait. The `spacer` method is only exposed on `WidgetContext` when the underlying layout state implements `SpacerLayoutState`. This makes calling `.spacer()` on an incompatible container type a compile-time error.
-5. Each layout can choose the parameter used to define a spacer for that particular layout, e.g. just an f32 or something more complicated, analagous to LayoutParams for regular layout requests.
+1. **Stateful Deferral (Between)**: By default, a `.spacer()` call (using the `LinearSpacer::Between` variant, which is the default when passing a raw `f32`) does not immediately return a `Rect` or advance the cursor. Instead, it registers a `pending_spacing` offset on the layout state.
+2. **Lazy Insertion (Between)**: When the next child widget is placed, the layout state shifts the starting coordinate forward by the pending spacing and clears the accumulator.
+3. **Double-Ended Margin Elimination (Between)**:
+   - **Leading Spacing Elimination**: If a `Between` spacer is registered before the first child has been placed, it is ignored, avoiding unwanted margins at the layout start.
+   - **Trailing Spacing Elimination**: Because the container's resolved outer size is updated based on the right/bottom edge of the placed child *before* the cursor is advanced, any trailing spacer registered after the last child is naturally ignored when the layout closes.
+   Together, these rules achieve perfect loop ergonomics: you can place the spacer anywhere in the loop body (first or last) and it will only apply between elements.
+4. **Forced Spacing (Always)**: To force spacing at the ends of a layout (e.g. for margins or centering offsets), the `LinearSpacer::Always` variant immediately advances the cursor and extends the layout's resolved content size.
+5. **Compile-Time Specialization**: To avoid cluttering non-sequential layouts (like `ManualLayout`), we define a specialized `SpacerLayoutState: LayoutState` trait. The `spacer` method is only exposed on `WidgetContext` when the underlying layout state implements `SpacerLayoutState`. This makes calling `.spacer()` on an incompatible container type a compile-time error.
+6. Each layout can choose the parameter used to define a spacer for that particular layout. For linear layouts, this is the `LinearSpacer` enum which implements `From<f32>` (mapping to `Between` by default to preserve simple float invocations).
+
 
 ---
 
