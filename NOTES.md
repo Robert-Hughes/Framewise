@@ -4,7 +4,35 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- Scrollbars
+  - Update styling to match the mockup (esp. track margins, border lines). Make configurable, so can use for text edits
+
+- Text Edit
+  - Support single line, multi-line
+  - wrapping options for multi-line
+  - prevent \n in single line? (Including pasting etc.)
+  - auto-sizing to height of text (like VS Code commit message)
+  - user-sizing using drag handle
+
+  - scrollbar visibility
+  - scrollbar styling
+    - should be snug against text edit border, currently 1px gap. May need to make more of slider stylable?
+  - mouse scroll behaviour
+  - keyboard scroll behaviour
+  - scrollbar(s) focusable?
+  - tab focus behaviour with scrollbars
+  - correct offsets with error bar
+  - Select all
+  - quadruple click to select all lines
+  - select all or select word auto-scrolling behaviour - perhaps only scroll if the viewport could cover more of the selection
+  - with selection, arrow keys should be relative to either end? (1D + 2D?)
+  - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
+  - caret cursor
+  - styling to match mockup page (background colour, borders, focus outline etc.)
+  - TESTS for all this!
+
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+  - Done 01 and 03
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)
   - Use/add reusable widget test helpers (test_helpers.rs)
@@ -243,6 +271,11 @@ We want to design a unified strategy for pixel snapping for geometry in Framewis
   - Clashes with potential use of arrow keys for changing focus navigation
   arrow keys should be used for chaing focus
 
+- Consider if mouse wheel scrolling should be 'sticky' the control that it is over when it starts, e.g. if you start scrolling up a page
+but then a widget comes under the cursor and that widget uses mouse wheel to change a slider value then that is surprising and annoying. Instead it could
+continue to scroll up, and only when you move the mouse does it 'reset' onto the widget under the cursor again?
+  - This might make scrollbars on text edits more viable?
+
 ## Text
 
 - Labels and text measurement
@@ -324,6 +357,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
   - did a little work on this already and there's some tests but it's not good yet.
   - if navigating within a scroll area, it should probably prefer to move to a (currently) not visible widget within that scroll area then to pop out to one outside (which should scroll the new one into view)
 - Tabbing to a widget that's inside a scroll area (possibly nested) should scroll to make it visible (across all nested scroll areas!)
+  - perhaps only scroll if the viewport could cover more of the area of the focussed widget (e.g. if the widget is huge and already covers the viewport, no point in moving)
 
 ## Themes
 
@@ -344,6 +378,8 @@ The "App-Managed State" option would require either a trait layer (so the widget
 
 - Off-screen draw cost — currently things can be drawn "off screen" or hidden/clipped
   and might still contribute cost. We should check this.
+    - e.g. scroll area with lots of widgets
+    - e.g. text edit with lots of text that's clipped.
 - Early-out from widget functions if it's offscreen or completely clipped
 - Resizing window is v. slow
 
