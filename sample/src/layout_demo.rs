@@ -20,6 +20,7 @@
 //!   K. `AtMost` ceiling              — nested Auto container clamps to the remainder.
 //!   L. RowLayout cross-align         — differing heights aligned in a tall row.
 //!   M. RowLayout main-axis End       — trailing action anchored to row end.
+//!   N. Overlapping buttons (ManualLayout) — manual layout with overlapping buttons.
 
 use crate::text::SampleTextSystem;
 use framewise::{
@@ -42,6 +43,7 @@ use framewise::{
         ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
+    Color, TextContentPlacement,
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -66,6 +68,8 @@ pub struct LayoutDemoState {
     pub k_btns: [ButtonState; 3], // K: AtMost shrink-wrap (fixed block + short hugs + long clamps)
     pub l_btns: [ButtonState; 9], // L: RowLayout cross-align (3 rows × 3)
     pub m_btns: [ButtonState; 3], // M: RowLayout main-axis End trailing action
+    pub n_btns: [ButtonState; 5], // N: overlapping buttons (ManualLayout)
+    pub n_clicks: [u32; 5],
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -325,6 +329,95 @@ pub fn draw_layout_page(
                 &mut state.m_btns[2],
             );
             row.finish();
+        }
+        left.spacer(18.0);
+
+        // N. Overlapping buttons (ManualLayout)
+        subheading(&mut left, "N. Overlapping buttons (ManualLayout)");
+        left.spacer(18.0);
+        {
+            let h = 140.0;
+            let mut manual = left
+                .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(h), ManualLayout);
+
+            // Button 0: Outer (Strictly encompasses Inner)
+            let mut outer_style = primary;
+            outer_style.content_placement =
+                TextContentPlacement::logical(Align::Center, Align::Start);
+            outer_style.hovered = Color::from_srgb_u8(130, 50, 200, 255); // Custom vibrant purple
+
+            let text_0 = format!("Clicks: {}", state.n_clicks[0]);
+            let r0 = button(
+                &mut manual,
+                ButtonSpecBuilder::new().text(&text_0).style(outer_style),
+                Rect::new(10.0, 10.0, 130.0, 120.0),
+                &mut state.n_btns[0],
+            );
+            if r0.input.clicked {
+                state.n_clicks[0] = (state.n_clicks[0] + 1) % 10;
+            }
+
+            // Button 1: Inner (Strictly encompassed by Outer)
+            let mut inner_style = accent;
+            inner_style.hovered = Color::from_srgb_u8(30, 140, 240, 255); // High-contrast bright blue
+
+            let text_1 = format!("Clicks: {}", state.n_clicks[1]);
+            let r1 = button(
+                &mut manual,
+                ButtonSpecBuilder::new().text(&text_1).style(inner_style),
+                Rect::new(25.0, 35.0, 100.0, 70.0),
+                &mut state.n_btns[1],
+            );
+            if r1.input.clicked {
+                state.n_clicks[1] = (state.n_clicks[1] + 1) % 10;
+            }
+
+            // Button 2: Side A (Overlaps B/C slightly)
+            let mut side_style = secondary;
+            side_style.hovered = Color::from_srgb_u8(250, 215, 200, 255); // Light peach/orange fill
+
+            let text_2 = format!("Clicks: {}", state.n_clicks[2]);
+            let r2 = button(
+                &mut manual,
+                ButtonSpecBuilder::new().text(&text_2).style(side_style),
+                Rect::new(135.0, 10.0, 85.0, 40.0),
+                &mut state.n_btns[2],
+            );
+            if r2.input.clicked {
+                state.n_clicks[2] = (state.n_clicks[2] + 1) % 10;
+            }
+
+            // Button 3: Mid (3) (Overlaps A slightly, overlaps D corner-wise)
+            let mut mid_style = primary;
+            mid_style.hovered = Color::from_srgb_u8(130, 50, 200, 255); // Same custom vibrant purple
+
+            let text_3 = format!("Clicks: {}", state.n_clicks[3]);
+            let r3 = button(
+                &mut manual,
+                ButtonSpecBuilder::new().text(&text_3).style(mid_style),
+                Rect::new(200.0, 25.0, 85.0, 40.0),
+                &mut state.n_btns[3],
+            );
+            if r3.input.clicked {
+                state.n_clicks[3] = (state.n_clicks[3] + 1) % 10;
+            }
+
+            // Button 4: Corner D (4) (Overlaps 3 corner-wise)
+            let mut corner_style = accent;
+            corner_style.hovered = Color::from_srgb_u8(30, 140, 240, 255); // Same as button 1 (bright blue)
+
+            let text_4 = format!("Clicks: {}", state.n_clicks[4]);
+            let r4 = button(
+                &mut manual,
+                ButtonSpecBuilder::new().text(&text_4).style(corner_style),
+                Rect::new(265.0, 50.0, 85.0, 40.0),
+                &mut state.n_btns[4],
+            );
+            if r4.input.clicked {
+                state.n_clicks[4] = (state.n_clicks[4] + 1) % 10;
+            }
+
+            manual.finish();
         }
 
         left.finish();
@@ -614,6 +707,7 @@ pub fn draw_layout_page(
 
             row.finish();
         }
+
         right.finish();
     }
 
