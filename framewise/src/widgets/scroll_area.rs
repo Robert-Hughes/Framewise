@@ -1211,8 +1211,41 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Frame 0: press on vertical thumb (drag start). Thumb at top of track,
-        // track at x=188..200 y=0..200. Thumb pos = 0, length ratio = 200/1000.
+        // Warmup frame: position mouse over vertical thumb to establish hover claim.
+        focus_system.begin_frame();
+        let mut input = Input::new();
+        input.mouse_pos = Vec2::new(194.0, 5.0);
+        let spec = ScrollAreaSpec {
+            layer: Layer::default(),
+            rect: bounds,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::FIT,
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Always,
+            },
+            clip_rect: None,
+            time: 0.0,
+            scrollbar_width: theme::Theme::default().scrollbar_width,
+            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                &theme::Theme::default(),
+            ),
+        };
+        let mut cmds = DrawCommands::new();
+        let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
+        raw::end_scroll_area(
+            token,
+            Vec2::new(200.0, 1000.0),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Frame 0: press on vertical thumb (drag start).
         focus_system.begin_frame();
         let mut input = Input::new();
         input.mouse_pos = Vec2::new(194.0, 5.0);
@@ -1542,9 +1575,13 @@ mod tests {
         let mut input = Input::new();
         // Live ratio 200/1000 → thumb at y 0..40. Click on the thumb.
         input.mouse_pos = Vec2::new(194.0, 10.0);
+
+        // Warmup frame to establish hover claim
+        vert_bar_frame(&mut state, &input, &mut focus_system, 1000.0);
+
+        // Click frame
         input.mouse_pressed = true;
         input.mouse_down = true;
-
         let bar_id = vert_bar_frame(&mut state, &input, &mut focus_system, 1000.0);
 
         assert_eq!(
@@ -2243,7 +2280,7 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_system = FocusSystem::new();
 
-        // Pre-render to materialise the vertical slider's focus_id.
+        // Pre-render to materialise the vertical slider's focus_id and establish hover claim.
         focus_system.begin_frame();
         let spec = ScrollAreaSpec {
             layer: Layer::default(),
@@ -2264,10 +2301,12 @@ mod tests {
             ),
         };
         let mut cmds = DrawCommands::new();
+        let mut warmup_input = Input::new();
+        warmup_input.mouse_pos = Vec2::new(194.0, 10.0);
         let token = begin_scroll_area(
             spec,
             &mut state,
-            &Input::new(),
+            &warmup_input,
             &mut focus_system,
             &mut cmds,
         )
@@ -2276,7 +2315,7 @@ mod tests {
             token,
             Vec2::new(200.0, 1000.0),
             &mut state,
-            &Input::new(),
+            &warmup_input,
             &mut focus_system,
             &mut cmds,
         );

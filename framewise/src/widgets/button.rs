@@ -997,13 +997,26 @@ mod tests {
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
-        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut state = state;
+        // Warmup frame to establish hover claim
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         let _res = raw::button(
-            spec,
+            btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Evaluation frame
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        let _res = raw::button(
+            btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
             &mut state,
             &input,
             &mut focus_system,
@@ -1053,16 +1066,28 @@ mod tests {
         let state = ButtonState::default();
         let mut input = Input::default();
         input.mouse_pos = Vec2::new(50.0, 25.0);
-        input.mouse_down = true;
-        input.mouse_pressed = true;
-
-        let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
         let mut state = state;
+        // Warmup frame to establish hover claim
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         let _res = raw::button(
-            spec,
+            btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Evaluation frame with mouse pressed
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        let _res = raw::button(
+            btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
             &mut state,
             &input,
             &mut focus_system,

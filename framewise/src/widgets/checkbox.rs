@@ -696,14 +696,33 @@ mod tests {
             mouse_pos: Vec2::new(15.0, 15.0),
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = CheckboxState::default();
+
+        // Warmup frame to establish hover claim
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::checkbox(
-            spec,
-            &mut CheckboxState::default(),
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -729,20 +748,39 @@ mod tests {
         let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-        let input = Input {
+        let mut input = Input {
             mouse_pos: Vec2::new(15.0, 15.0),
-            mouse_down: true,
-            mouse_pressed: true,
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = CheckboxState::default();
+
+        // Warmup frame with mouse inside but not pressed
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::checkbox(
-            spec,
-            &mut CheckboxState::default(),
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame with mouse pressed down
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -830,17 +868,36 @@ mod tests {
             mouse_pos: Vec2::new(15.0, 15.0),
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = CheckboxState {
+            checked: CheckedState::Checked,
+            ..Default::default()
+        };
+
+        // Warmup frame to establish hover claim
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::checkbox(
-            spec,
-            &mut CheckboxState {
-                checked: CheckedState::Checked,
-                ..Default::default()
-            },
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -924,23 +981,42 @@ mod tests {
         let spec = tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-        let input = Input {
+        let mut input = Input {
             mouse_pos: Vec2::new(15.0, 15.0),
-            mouse_down: true,
-            mouse_pressed: true,
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = CheckboxState {
+            checked: CheckedState::Indeterminate,
+            ..Default::default()
+        };
+
+        // Warmup frame with mouse inside but not pressed
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::checkbox(
-            spec,
-            &mut CheckboxState {
-                checked: CheckedState::Indeterminate,
-                ..Default::default()
-            },
+            tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame with mouse pressed down
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::checkbox(
+            tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -1557,35 +1633,93 @@ mod tests {
         use crate::layouts::ManualLayout;
         let mut text_system = crate::test_utils::DummyTextSys;
         let mut focus = FocusSystem::new();
+        let mut state = CheckboxState::default();
 
-        // Mouse click position is directly over the label area (e.g. x = 40.0, y = 10.0)
+        // Frame 1: Warmup to establish hover claim
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_checkbox(
+                &mut ctx,
+                CheckboxSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
+
+        // Frame 2: Mouse down / press
         let input = Input {
             mouse_pos: Vec2::new(40.0, 10.0),
             mouse_down: true,
             mouse_pressed: true,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_checkbox(
+                &mut ctx,
+                CheckboxSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
+
+        // Frame 3: Mouse release / click
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            mouse_down: false,
+            mouse_pressed: false,
             mouse_clicked: true,
             ..Default::default()
         };
-
         let mut cmds = DrawCommands::new();
-        let mut ctx = WidgetContext::root(
-            crate::theme::Theme::framewise(),
-            &mut text_system,
-            &mut focus,
-            &input,
-            ManualLayout,
-            Rect::new(0.0, 0.0, 800.0, 600.0),
-            &mut cmds,
-        );
-
-        let mut state = CheckboxState::default();
-        super::labelled_checkbox(
-            &mut ctx,
-            CheckboxSpecBuilder::new(),
-            "vsync",
-            Rect::new(0.0, 0.0, 100.0, 20.0),
-            &mut state,
-        );
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_checkbox(
+                &mut ctx,
+                CheckboxSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
 
         assert_eq!(state.checked, CheckedState::Checked);
     }

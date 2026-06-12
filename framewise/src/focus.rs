@@ -178,6 +178,16 @@ impl FocusSystem {
         }
     }
 
+    /// Creates a new `FocusSystem` with pre-initialized hover and focus state.
+    /// Useful for unit testing or rendering isolated mock widget states.
+    pub fn new_mocked(focused_id: Option<FocusId>, active_hover_id: Option<FocusId>) -> Self {
+        Self {
+            focused_id,
+            active_hover_id,
+            ..Self::new()
+        }
+    }
+
     pub fn begin_frame(&mut self) {
         self.keyboard_scroll_scopes.clear();
         self.focused_scroll_path.clear();

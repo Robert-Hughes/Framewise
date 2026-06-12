@@ -325,7 +325,6 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
 ) {
     let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
     let mut state = ButtonState::default();
-    let mut dummy_focus_sys = FocusSystem::new();
 
     let fake_input = if pressed {
         state.is_active = true;
@@ -340,11 +339,16 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
             ..Input::default()
         }
     } else {
-        if focused {
-            dummy_focus_sys.take_focus(state.focus_id);
-        }
         Input::default()
     };
+
+    let mock_focus = if focused { Some(state.focus_id) } else { None };
+    let mock_hover = if hover || pressed {
+        Some(state.focus_id)
+    } else {
+        None
+    };
+    let mut dummy_focus_sys = FocusSystem::new_mocked(mock_focus, mock_hover);
 
     framewise::widgets::button::raw::button(
         framewise::widgets::button::raw::ButtonSpec {

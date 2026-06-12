@@ -272,25 +272,9 @@ pub mod raw {
         // Mouse wheel scrolling — suppressed during an active drag so that drag
         // motion is authoritative (otherwise wheel ticks would stack on top of
         // the drag-projected value).
-        if is_visible
-            && is_hover_active
-            && !state.is_dragging
-            && track_rect.contains(input.mouse_pos)
-        {
+        if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
             let at_min = state.value <= min;
             let at_max = state.value >= max;
-
-            let scroll_delta = if is_vert {
-                input.scroll_delta.y
-            } else {
-                // For horizontal sliders, listen to horizontal wheel delta.
-                // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
-                if input.scroll_delta.x != 0.0 {
-                    input.scroll_delta.x
-                } else {
-                    input.scroll_delta.y
-                }
-            };
 
             if spec.claim_scroll_at_ends {
                 focus_system.claim_scroll_up(state.focus_id);
@@ -325,24 +309,38 @@ pub mod raw {
                 }
             }
 
-            let is_active_up_left = if is_vert {
-                focus_system.is_active_scroll_up(state.focus_id)
-            } else {
-                focus_system.is_active_scroll_left(state.focus_id)
-                    || focus_system.is_active_scroll_up(state.focus_id)
-            };
-            let is_active_down_right = if is_vert {
-                focus_system.is_active_scroll_down(state.focus_id)
-            } else {
-                focus_system.is_active_scroll_right(state.focus_id)
-                    || focus_system.is_active_scroll_down(state.focus_id)
-            };
+            if is_hover_active {
+                let scroll_delta = if is_vert {
+                    input.scroll_delta.y
+                } else {
+                    // For horizontal sliders, listen to horizontal wheel delta.
+                    // If horizontal is 0, map vertical wheel to horizontal movement (per user request).
+                    if input.scroll_delta.x != 0.0 {
+                        input.scroll_delta.x
+                    } else {
+                        input.scroll_delta.y
+                    }
+                };
 
-            if scroll_delta > 0.0 && is_active_up_left {
-                state.value = (state.value - scroll_delta * spec.step).clamp(min, max);
-            }
-            if scroll_delta < 0.0 && is_active_down_right {
-                state.value = (state.value - scroll_delta * spec.step).clamp(min, max);
+                let is_active_up_left = if is_vert {
+                    focus_system.is_active_scroll_up(state.focus_id)
+                } else {
+                    focus_system.is_active_scroll_left(state.focus_id)
+                        || focus_system.is_active_scroll_up(state.focus_id)
+                };
+                let is_active_down_right = if is_vert {
+                    focus_system.is_active_scroll_down(state.focus_id)
+                } else {
+                    focus_system.is_active_scroll_right(state.focus_id)
+                        || focus_system.is_active_scroll_down(state.focus_id)
+                };
+
+                if scroll_delta > 0.0 && is_active_up_left {
+                    state.value = (state.value - scroll_delta * spec.step).clamp(min, max);
+                }
+                if scroll_delta < 0.0 && is_active_down_right {
+                    state.value = (state.value - scroll_delta * spec.step).clamp(min, max);
+                }
             }
         }
 
@@ -990,11 +988,9 @@ mod tests {
         let mut input = Input::new();
         let mut focus_system = FocusSystem::new();
 
-        // 1. Click on thumb (thumb is at y=0 to y=20)
+        // Warmup frame to establish hover claim
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
@@ -1003,12 +999,14 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
-        assert!(state.is_dragging);
-        assert_eq!(state.drag_start_mouse_coord, 10.0);
+        focus_system.end_frame();
 
-        // 2. Drag down by 40px (mouse y = 50)
-        input.mouse_pressed = false;
-        input.mouse_pos.y = 50.0;
+        // 1. Click on thumb (thumb is at y=0 to y=20)
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
             &mut state,
@@ -1016,6 +1014,22 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+        assert!(state.is_dragging);
+        assert_eq!(state.drag_start_mouse_coord, 10.0);
+
+        // 2. Drag down by 40px (mouse y = 50)
+        input.mouse_pressed = false;
+        input.mouse_pos.y = 50.0;
+        focus_system.begin_frame();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
 
         // 40 / 80 usable track = 0.5 ratio = 50 value
         assert_eq!(state.value, 50.0);
@@ -1028,12 +1042,9 @@ mod tests {
         let mut input = Input::new();
         let mut focus_system = FocusSystem::new();
 
-        // 1. Initial click at bottom of track (y=80)
+        // Warmup frame to establish hover claim
         input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-
-        // Frame 1: time=0.0. Should page down by 20.0
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
@@ -1042,12 +1053,30 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // 1. Initial click at bottom of track (y=80)
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        // Frame 1: time=0.0. Should page down by 20.0
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
         assert_eq!(state.value, 20.0);
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
 
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.4,
@@ -1058,9 +1087,11 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert_eq!(state.value, 20.0);
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.5,
@@ -1071,10 +1102,12 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert_eq!(state.value, 40.0);
         assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.6,
@@ -1085,10 +1118,12 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert_eq!(state.value, 60.0);
 
         // Release mouse -> track clicking ends
         input.mouse_down = false;
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.7,
@@ -1099,6 +1134,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(!state.is_track_clicking);
     }
 
@@ -1281,8 +1317,21 @@ mod tests {
         // Click on the track
         let mut input = crate::input::Input::new();
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
-        input.mouse_pressed = true;
 
+        // Warmup frame to establish hover claim
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Evaluation frame with mouse pressed
+        input.mouse_pressed = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
@@ -1387,10 +1436,9 @@ mod tests {
         let mut input = Input::new();
         let mut focus_system = FocusSystem::new();
 
-        // Frame 1: click empty track at y=50 (thumb is at y=0..20) → page step
+        // Warmup frame to establish hover claim
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
@@ -1399,6 +1447,21 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Frame 1: click empty track at y=50 (thumb is at y=0..20) → page step
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
         assert!(
             state.is_track_clicking,
             "should be track-clicking after initial track click"
@@ -1409,6 +1472,7 @@ mod tests {
         // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
+        focus_system.begin_frame();
         raw::slider(
             spec.clone(),
             &mut state,
@@ -1416,6 +1480,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             state.is_dragging,
             "should switch to dragging after threshold exceeded"
@@ -1430,6 +1495,7 @@ mod tests {
 
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
+        focus_system.begin_frame();
         raw::slider(
             spec.clone(),
             &mut state,
@@ -1437,6 +1503,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             (state.value - 68.75).abs() < 0.01,
             "drag to 68.75, got {}",
@@ -1466,10 +1533,9 @@ mod tests {
         let mut input = Input::new();
         let mut focus_system = FocusSystem::new();
 
-        // Frame 1: initial click at y=70 (well below thumb at y=0..20).
+        // Warmup frame to establish hover claim
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
@@ -1478,12 +1544,28 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Frame 1: initial click at y=70 (well below thumb at y=0..20).
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
         assert_eq!(state.value, 60.0, "initial page: 0 + 60 = 60");
         assert!(state.is_track_clicking);
         assert_eq!(state.next_repeat_time, 0.5);
 
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.4,
@@ -1494,11 +1576,13 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert_eq!(state.value, 60.0);
 
         // Frame 3: repeat fires (t=0.5). Thumb at y=48..68, cursor at y=70 > 68 → fires.
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.5,
@@ -1509,6 +1593,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             (state.value - 87.5).abs() < 0.01,
             "repeat should stop at cursor position 87.5, got {}",
@@ -1517,6 +1602,7 @@ mod tests {
 
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.6,
@@ -1527,6 +1613,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             (state.value - 87.5).abs() < 0.01,
             "value should not change after thumb reaches cursor, got {}",
@@ -1542,6 +1629,7 @@ mod tests {
         // Drag transition should fire: thumb snaps to cursor, enters drag mode.
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.65,
@@ -1552,6 +1640,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             state.is_dragging,
             "should enter drag mode after mouse moves past threshold"
@@ -1566,6 +1655,7 @@ mod tests {
         // Frame 6: drag to y=85 → delta=10 → val_delta=12.5 → value=93.75
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
+        focus_system.begin_frame();
         raw::slider(
             SliderSpec {
                 time: 0.7,
@@ -1576,6 +1666,7 @@ mod tests {
             &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
         assert!(
             (state.value - 93.75).abs() < 0.01,
             "drag: expected 93.75, got {}",

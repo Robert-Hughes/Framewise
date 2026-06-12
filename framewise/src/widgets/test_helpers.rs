@@ -24,6 +24,9 @@ pub fn assert_hover_and_press_state<State>(
     assert!(!result.pressed, "Widget should not be pressed");
 
     input.mouse_pos = inside_pos;
+    // Warmup frame to establish the hover claim
+    let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    // Evaluation frame
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(result.hovered, "Widget should be hovered");
     assert!(!result.pressed, "Widget should not be pressed");
@@ -64,13 +67,26 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
     let mut focus_system = FocusSystem::new();
     let mut input = Input {
         mouse_pos: start_pos,
-        mouse_down: true,
-        mouse_pressed: true,
+        mouse_down: false,
+        mouse_pressed: false,
         mouse_clicked: false,
         ..Default::default()
     };
     let mut cmds = DrawCommands::new();
 
+    // Warmup frame to establish the hover claim on source widget
+    let _ = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+
+    // Now press down
+    input.mouse_down = true;
+    input.mouse_pressed = true;
     let (source, _) = run_two_widget_frame(
         state_a,
         state_b,
@@ -83,6 +99,16 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
 
     input.mouse_pressed = false;
     input.mouse_pos = other_pos;
+    // Warmup frame at other_pos to establish the hover claim on other widget
+    let _ = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    // Evaluation frame
     let (_, other) = run_two_widget_frame(
         state_a,
         state_b,
@@ -319,13 +345,19 @@ pub fn assert_mouse_click_on_release<State>(
     let mut focus_system = FocusSystem::new();
     let mut input = Input {
         mouse_pos: inside_pos,
-        mouse_down: true,
-        mouse_pressed: true,
+        mouse_down: false,
+        mouse_pressed: false,
         mouse_clicked: false,
         ..Default::default()
     };
     let mut cmds = DrawCommands::new();
 
+    // Warmup frame to establish the hover claim
+    let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+
+    // Now press down
+    input.mouse_down = true;
+    input.mouse_pressed = true;
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(result.pressed, "Widget should be pressed after mouse down");
     assert!(
@@ -347,14 +379,20 @@ pub fn assert_mouse_press_takes_focus<State>(
     mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
 ) {
     let mut focus_system = FocusSystem::new();
-    let input = Input {
+    let mut input = Input {
         mouse_pos: inside_pos,
-        mouse_down: true,
-        mouse_pressed: true,
+        mouse_down: false,
+        mouse_pressed: false,
         ..Default::default()
     };
     let mut cmds = DrawCommands::new();
 
+    // Warmup frame to establish the hover claim
+    let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+
+    // Now press down
+    input.mouse_down = true;
+    input.mouse_pressed = true;
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(result.pressed, "Widget should be pressed after mouse down");
     assert_eq!(

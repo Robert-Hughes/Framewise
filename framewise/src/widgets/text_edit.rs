@@ -1078,9 +1078,9 @@ mod tests {
             40.0 + spec().style.padding + spec().style.border_width,
             15.0,
         );
-        input.mouse_down = true;
-        input.mouse_pressed = true;
 
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1089,12 +1089,29 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse down / press
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
         assert_eq!(state.caret_byte, 5);
         assert!(state.is_dragging);
         state.was_focused = true;
 
+        // Frame 3: Dragging
         input.mouse_pressed = false;
         input.mouse_pos.x += 24.0;
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1103,10 +1120,13 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
 
+        // Frame 4: Mouse up / release
         input.mouse_down = false;
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1115,6 +1135,7 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
         assert!(!state.is_dragging);
         assert_eq!(state.selection_byte, Some(5));
         assert_eq!(state.caret_byte, 8);
@@ -1132,10 +1153,9 @@ mod tests {
             64.0 + spec().style.padding + spec().style.border_width,
             15.0,
         );
-        input.mouse_down = true;
-        input.mouse_pressed = true;
-        input.mouse_click_count = 2;
 
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1144,15 +1164,32 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse down / double-press
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
         // Selection should be "rust" (6 to 10)
         assert_eq!(state.selection_byte, Some(6));
         assert_eq!(state.caret_byte, 10);
         assert!(state.is_dragging);
         assert_eq!(state.drag_word_origin, Some((6, 10)));
 
-        // Now drag right to "world" (byte index 14 -> pixel 112)
+        // Frame 3: Drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
         input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1161,12 +1198,14 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
         // Should select "rust world", so from 6 to 16
         assert_eq!(state.selection_byte, Some(6)); // original start
         assert_eq!(state.caret_byte, 16); // end of "world"
 
-        // Drag left to "hello" (byte index 2 -> pixel 16)
+        // Frame 4: Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
+        focus_system.begin_frame();
         raw::text_edit(
             spec(),
             &mut state,
@@ -1175,6 +1214,7 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
         assert_eq!(state.caret_byte, 0); // start of "hello"
@@ -1340,9 +1380,23 @@ mod tests {
             40.0 + spec().style.padding + spec().style.border_width,
             15.0,
         );
+
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse down / press
+        focus_system.begin_frame();
         input.mouse_down = true;
         input.mouse_pressed = true;
-
         raw::text_edit(
             spec(),
             &mut state,
@@ -1351,11 +1405,11 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
-
         focus_system.end_frame();
+
+        // Frame 3: Mouse release
         focus_system.begin_frame();
         input.mouse_pressed = false;
-
         raw::text_edit(
             spec(),
             &mut state,
@@ -1364,6 +1418,7 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        focus_system.end_frame();
 
         assert!(state.was_focused);
         assert_eq!(state.selection_byte, None);
@@ -1378,9 +1433,22 @@ mod tests {
 
         let mut input = Input::default();
         input.mouse_pos = crate::types::Vec2::new(10.0, 15.0);
+
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse pressed
         input.mouse_pressed = true;
         input.mouse_down = true;
-
         focus_system.begin_frame();
         raw::text_edit(
             spec(),

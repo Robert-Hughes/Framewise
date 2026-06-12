@@ -589,17 +589,36 @@ mod tests {
             mouse_pos: Vec2::new(15.0, 15.0),
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = RadioState {
+            checked: false,
+            ..Default::default()
+        };
+
+        // Warmup frame
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::radio(
-            spec,
-            &mut RadioState {
-                checked: false,
-                ..Default::default()
-            },
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -627,23 +646,42 @@ mod tests {
         let spec = radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
         let center = Vec2::new(17.0, 17.0);
-        let input = Input {
+        let mut input = Input {
             mouse_pos: Vec2::new(15.0, 15.0),
-            mouse_down: true,
-            mouse_pressed: true,
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = RadioState {
+            checked: false,
+            ..Default::default()
+        };
+
+        // Warmup frame with mouse inside but not pressed
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::radio(
-            spec,
-            &mut RadioState {
-                checked: false,
-                ..Default::default()
-            },
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame with mouse pressed down
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -720,17 +758,36 @@ mod tests {
             mouse_pos: Vec2::new(15.0, 15.0),
             ..Default::default()
         };
+        let mut focus_system = FocusSystem::new();
+        let mut state = RadioState {
+            checked: true,
+            ..Default::default()
+        };
+
+        // Warmup frame
+        focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::radio(
-            spec,
-            &mut RadioState {
-                checked: true,
-                ..Default::default()
-            },
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
             &input,
-            &mut FocusSystem::new(),
+            &mut focus_system,
             &mut cmds,
         );
+        focus_system.end_frame();
+
+        // Evaluation frame
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::radio(
+            radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             cmds,
             DrawCommands::from_vec(vec![
@@ -1239,35 +1296,93 @@ mod tests {
         use crate::layouts::ManualLayout;
         let mut text_system = crate::test_utils::DummyTextSys;
         let mut focus = FocusSystem::new();
+        let mut state = RadioState::default();
 
-        // Mouse click position is directly over the label area (e.g. x = 40.0, y = 10.0)
+        // Frame 1: Warmup to establish hover claim
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_radio(
+                &mut ctx,
+                RadioSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
+
+        // Frame 2: Mouse down / press
         let input = Input {
             mouse_pos: Vec2::new(40.0, 10.0),
             mouse_down: true,
             mouse_pressed: true,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new();
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_radio(
+                &mut ctx,
+                RadioSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
+
+        // Frame 3: Mouse release / click
+        let input = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            mouse_down: false,
+            mouse_pressed: false,
             mouse_clicked: true,
             ..Default::default()
         };
-
         let mut cmds = DrawCommands::new();
-        let mut ctx = WidgetContext::root(
-            crate::theme::Theme::framewise(),
-            &mut text_system,
-            &mut focus,
-            &input,
-            ManualLayout,
-            Rect::new(0.0, 0.0, 800.0, 600.0),
-            &mut cmds,
-        );
-
-        let mut state = RadioState::default();
-        super::labelled_radio(
-            &mut ctx,
-            RadioSpecBuilder::new(),
-            "vsync",
-            Rect::new(0.0, 0.0, 100.0, 20.0),
-            &mut state,
-        );
+        focus.begin_frame();
+        {
+            let mut ctx = WidgetContext::root(
+                crate::theme::Theme::framewise(),
+                &mut text_system,
+                &mut focus,
+                &input,
+                ManualLayout,
+                Rect::new(0.0, 0.0, 800.0, 600.0),
+                &mut cmds,
+            );
+            super::labelled_radio(
+                &mut ctx,
+                RadioSpecBuilder::new(),
+                "vsync",
+                Rect::new(0.0, 0.0, 100.0, 20.0),
+                &mut state,
+            );
+        }
+        focus.end_frame();
 
         assert!(state.checked);
     }
