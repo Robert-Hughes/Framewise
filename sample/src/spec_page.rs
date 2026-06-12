@@ -4397,5 +4397,7 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
         title_row.finish();
     }
 
+    footer.spacer(LinearSpacer::always(128.0));
+
     footer.finish();
 }
