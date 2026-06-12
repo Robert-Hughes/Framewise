@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click/hover next frame it registers a claim. Would need to be separate to the hover scroll claims, as that accounts for hierarchical scrolling when no scroll is possible. Perhaps we have a "mouse hover" claim?
-  - button, checkbox, radio, slider, switch, text_edit
-
 - Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 
 - Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?). Also, want a way to force a spacer at the end. Maybe two options/kinds?

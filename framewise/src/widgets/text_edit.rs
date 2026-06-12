@@ -121,7 +121,12 @@ pub mod raw {
         let is_visible = spec
             .clip_rect
             .is_none_or(|clip| clip.contains(input.mouse_pos));
-        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+        let contains_raw = spec.rect.contains(input.mouse_pos) && is_visible;
+        if contains_raw {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let is_hover_active = focus_system.is_hover_active(state.focus_id);
+        let contains = contains_raw && is_hover_active;
 
         if just_focused && !(contains && input.mouse_pressed) {
             state.selection_byte = Some(0);
@@ -868,6 +873,7 @@ mod tests {
             &mut state1,
             &mut state2,
             Vec2::new(75.0, 75.0),
+            true,
             |state1, state2, input, focus_system, cmds| {
                 let mut spec1 = spec();
                 spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);

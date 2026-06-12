@@ -43,12 +43,17 @@ pub fn handle_press_interaction(
         .is_none_or(|clip| clip.contains(input.mouse_pos));
     let contains = spec.rect.contains(input.mouse_pos) && is_visible;
 
-    if contains && input.mouse_pressed {
+    if contains {
+        focus_system.claim_hover(spec.focus_id);
+    }
+    let is_hover_active = focus_system.is_hover_active(spec.focus_id);
+
+    if contains && is_hover_active && input.mouse_pressed {
         *is_active = true;
         focus_system.take_focus(spec.focus_id);
     }
 
-    let hovered = contains && (!input.mouse_down || *is_active);
+    let hovered = contains && is_hover_active && (!input.mouse_down || *is_active);
     let mut clicked = *is_active && hovered && input.mouse_clicked;
 
     if focused && input.key_pressed_enter {

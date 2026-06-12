@@ -116,6 +116,10 @@ pub struct FocusSystem {
     next_scroll_down_id: Option<FocusId>,
     next_scroll_left_id: Option<FocusId>,
     next_scroll_right_id: Option<FocusId>,
+    /// Winner of the mouse hover claim from the previous frame.
+    active_hover_id: Option<FocusId>,
+    /// Mouse hover claim being accumulated this frame.
+    next_hover_id: Option<FocusId>,
 
     // Keyboard scroll scopes
     keyboard_scroll_scopes: Vec<FocusId>,
@@ -157,6 +161,8 @@ impl FocusSystem {
             next_scroll_down_id: None,
             next_scroll_left_id: None,
             next_scroll_right_id: None,
+            active_hover_id: None,
+            next_hover_id: None,
             keyboard_scroll_scopes: Vec::new(),
             focused_scroll_path: Vec::new(),
             next_pgup_vert_id: None,
@@ -175,6 +181,7 @@ impl FocusSystem {
     pub fn begin_frame(&mut self) {
         self.keyboard_scroll_scopes.clear();
         self.focused_scroll_path.clear();
+        self.next_hover_id = None;
 
         #[cfg(debug_assertions)]
         self.seen_ids.clear();
@@ -287,6 +294,16 @@ impl FocusSystem {
     // yet, so the outer's call goes through — natural bubbling.
     //
     // Same convention as pg* claims below.
+    // ── Mouse hover claims (last-caller-wins) ──────────────────────────────────
+    pub fn claim_hover(&mut self, id: FocusId) {
+        self.next_hover_id = Some(id);
+    }
+
+    /// Returns true if this widget won the hover claim in the previous frame.
+    pub fn is_hover_active(&self, id: FocusId) -> bool {
+        self.active_hover_id == Some(id)
+    }
+
     pub fn claim_scroll_up(&mut self, id: FocusId) {
         if self.next_scroll_up_id.is_none() {
             self.next_scroll_up_id = Some(id);
@@ -399,6 +416,7 @@ impl FocusSystem {
     pub fn end_frame(&mut self) {
         // Transfer hover scroll claims
         self.active_scroll_up_id = self.next_scroll_up_id.take();
+        self.active_hover_id = self.next_hover_id.take();
         self.active_scroll_down_id = self.next_scroll_down_id.take();
         self.active_scroll_left_id = self.next_scroll_left_id.take();
         self.active_scroll_right_id = self.next_scroll_right_id.take();

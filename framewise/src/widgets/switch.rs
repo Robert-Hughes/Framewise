@@ -457,6 +457,7 @@ mod tests {
             &mut state1,
             &mut state2,
             Vec2::new(75.0, 75.0),
+            true,
             |state1, state2, input, focus_system, cmds| {
                 let res1 = raw::switch(
                     switch_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),

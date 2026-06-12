@@ -139,6 +139,16 @@ pub fn assert_overlapping_hover<StateA, StateB>(
     };
     let mut cmds = DrawCommands::new();
 
+    // Warmup frame to establish the hover claim
+    let _ = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+
     let (bottom_result, top_result) = run_two_widget_frame(
         state_a,
         state_b,
@@ -161,6 +171,7 @@ pub fn assert_overlapping_click<StateA, StateB>(
     state_a: &mut StateA,
     state_b: &mut StateB,
     overlap_pos: Vec2,
+    expect_click: bool,
     mut run: impl FnMut(
         &mut StateA,
         &mut StateB,
@@ -172,13 +183,25 @@ pub fn assert_overlapping_click<StateA, StateB>(
     let mut focus_system = FocusSystem::new();
     let mut input = Input {
         mouse_pos: overlap_pos,
-        mouse_down: true,
-        mouse_pressed: true,
+        mouse_down: false,
+        mouse_pressed: false,
         mouse_clicked: false,
         ..Default::default()
     };
     let mut cmds = DrawCommands::new();
 
+    // Warmup frame to establish the hover claim
+    let _ = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+
+    input.mouse_down = true;
+    input.mouse_pressed = true;
     let (bottom_result, top_result) = run_two_widget_frame(
         state_a,
         state_b,
@@ -211,9 +234,9 @@ pub fn assert_overlapping_click<StateA, StateB>(
         !bottom_result.clicked,
         "Bottom widget should not be clicked when overlapped"
     );
-    assert!(
-        top_result.clicked,
-        "Top widget should be clicked when overlapped"
+    assert_eq!(
+        top_result.clicked, expect_click,
+        "Top widget clicked state did not match expectation"
     );
 }
 

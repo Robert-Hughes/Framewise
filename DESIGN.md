@@ -590,8 +590,16 @@ Because Framewise lacks a retained UI tree, routing user input to the correct wi
 
 ### 3. Spatial Overlap Interaction (Hover & Scrolling)
 
-- **The Problem:** The mouse is hovering over nested elements that overlap the exact same pixel (e.g., a scroll area inside a scroll area). Who gets the mouse wheel event?
-- **The Solution:** *1-Frame Delay + Central Tracking.* Widgets register that they are hovered. Because inner widgets evaluate after outer widgets, the innermost widget overwrites the parent to "win" the hover state for that pixel. In Frame N+1, only the winning ID is allowed to consume the scroll event.
+- **The Problem:** Multiple elements overlap the exact same pixel coordinates under the mouse (e.g., two overlapping window buttons, or a scroll area nested inside another scroll area). How do we route hover, click, and scroll wheel events to the correct widget?
+- **The Solution:** *1-Frame Delay + Central Tracking.* Widgets register claims in the central `FocusSystem` during Frame N. In Frame N+1, only the widget holding the active claim is allowed to capture the interaction.
+- **Why We Need Distinct Claiming Systems:**
+  While it seems like hover, click, and scroll wheel events could share a single claim system, they have fundamentally opposite routing rules that require separate tracking:
+  1. **Mouse Hover & Click Claiming (Last-Caller-Wins):**
+     * **Rule:** Depth-based. The widget drawn *last* (top-most) should receive the hover state and click inputs.
+     * **Mechanism:** As widgets evaluate top-down, if a widget contains the mouse cursor, it registers a hover claim via `focus_system.claim_hover(id)`. Each successive widget containing the mouse overwrites the previous claim, ensuring the last (top-most) widget wins.
+  2. **Hover Scroll Claiming (First-Caller-Wins / Bottom-Up):**
+     * **Rule:** Hierarchy-based. The *innermost* scrollable container should get first pick of the scroll wheel event. If the innermost container is at its boundary, scrolling should "bubble" up to parent containers.
+     * **Mechanism:** Containers finish and teardown bottom-up (innermost first). The innermost container claims the scroll event first (`claim_scroll_up`, etc.). Parent containers finishing later check if a claim has already been registered; if so, they respect it and do not overwrite it. If the child container is at its limit and declines to claim, the parent's claim succeeds, enabling natural nested scrolling.
 - **The Guiding Principle:** Why not solve this locally by having the inner widget consume the event bottom-up when its scope closes? Because doing so would mutate the widget's local state *after* it has already laid out its children. This violates a core Framewise principle: **If local state is modified in Frame N, it must visually reflect in Frame N.** If a state change must be delayed to Frame N+1 (due to top-down evaluation constraints), that pending intent must be explicitly stored in a central system (like `FocusSystem` or `InteractionSystem`), not quietly hidden inside local widget state.
 
 ---

@@ -90,6 +90,11 @@ pub mod raw {
         } else {
             focus_system.register(state.focus_id, track_rect, spec.clip_rect)
         };
+
+        if !spec.disabled && track_rect.contains(input.mouse_pos) && is_visible {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
         let is_vert = spec.orientation == Orientation::Vertical;
 
         let track_len = if is_vert { track_rect.h } else { track_rect.w };
@@ -267,7 +272,11 @@ pub mod raw {
         // Mouse wheel scrolling — suppressed during an active drag so that drag
         // motion is authoritative (otherwise wheel ticks would stack on top of
         // the drag-projected value).
-        if is_visible && !state.is_dragging && track_rect.contains(input.mouse_pos) {
+        if is_visible
+            && is_hover_active
+            && !state.is_dragging
+            && track_rect.contains(input.mouse_pos)
+        {
             let at_min = state.value <= min;
             let at_max = state.value >= max;
 
@@ -339,6 +348,7 @@ pub mod raw {
 
         // Track click (mouse down on track, not on thumb)
         if is_visible
+            && is_hover_active
             && input.mouse_pressed
             && !thumb_rect.contains(input.mouse_pos)
             && track_rect.contains(input.mouse_pos)
@@ -356,7 +366,11 @@ pub mod raw {
         }
 
         // Thumb drag start
-        if is_visible && input.mouse_pressed && thumb_rect.contains(input.mouse_pos) {
+        if is_visible
+            && is_hover_active
+            && input.mouse_pressed
+            && thumb_rect.contains(input.mouse_pos)
+        {
             focus_system.take_focus(state.focus_id);
             state.is_dragging = true;
             state.drag_start_mouse_coord = mouse_coord;
@@ -599,7 +613,7 @@ pub mod raw {
         SliderResult {
             focused,
             input: InputInfo {
-                hovered: track_rect.contains(input.mouse_pos) && is_visible,
+                hovered: track_rect.contains(input.mouse_pos) && is_visible && is_hover_active,
                 pressed: state.is_dragging || state.is_track_clicking,
                 clicked: false,
             },
@@ -872,6 +886,7 @@ mod tests {
             &mut state1,
             &mut state2,
             Vec2::new(75.0, 75.0),
+            false,
             |state1, state2, input, focus_system, cmds| {
                 let mut spec1 = test_spec(0.0, 100.0, false);
                 spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);
