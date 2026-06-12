@@ -4,8 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?) - test_track_click_repeat_does_not_overshoot_cursor
-
 - Should .spacer() function on linear layouts should be ignored before hte first child? (Similar to ignored after last child?). Also, want a way to force a spacer at the end. Maybe two options/kinds?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go

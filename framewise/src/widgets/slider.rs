@@ -250,6 +250,7 @@ pub mod raw {
         // Track click release
         if state.is_track_clicking && !input.mouse_down {
             state.is_track_clicking = false;
+            state.track_click_direction = None;
         }
 
         // Track click → drag transition: mouse moved past threshold
@@ -267,6 +268,7 @@ pub mod raw {
             }
             state.is_dragging = true;
             state.is_track_clicking = false;
+            state.track_click_direction = None;
         }
 
         // Mouse wheel scrolling — suppressed during an active drag so that drag
@@ -357,8 +359,10 @@ pub mod raw {
             state.next_repeat_time = spec.time + 0.5;
             // Page up/down towards mouse
             if mouse_coord < _thumb_start {
+                state.track_click_direction = Some(PagingDirection::Up);
                 state.value = (state.value - spec.page_step).clamp(min, max);
             } else if mouse_coord > _thumb_end {
+                state.track_click_direction = Some(PagingDirection::Down);
                 state.value = (state.value + spec.page_step).clamp(min, max);
             }
         }
@@ -379,35 +383,45 @@ pub mod raw {
         if state.is_track_clicking && spec.time >= state.next_repeat_time {
             if track_rect.contains(input.mouse_pos) {
                 let track_start = if is_vert { track_rect.y } else { track_rect.x };
-                if mouse_coord < _thumb_start {
-                    // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
-                    let cursor_val = if usable_track > 0.0 {
-                        min + ((mouse_coord - track_start - thumb_len) / usable_track)
-                            .clamp(0.0, 1.0)
-                            * range
-                    } else {
-                        min
-                    };
-                    state.value = (state.value - spec.page_step)
-                        .max(cursor_val)
-                        .clamp(min, max);
-                    state.next_repeat_time = spec.time + 0.05;
-                } else if mouse_coord > _thumb_end {
-                    // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
-                    let cursor_val = if usable_track > 0.0 {
-                        min + ((mouse_coord - track_start) / usable_track).clamp(0.0, 1.0) * range
-                    } else {
-                        max
-                    };
-                    state.value = (state.value + spec.page_step)
-                        .min(cursor_val)
-                        .clamp(min, max);
-                    state.next_repeat_time = spec.time + 0.05;
+                match state.track_click_direction {
+                    Some(PagingDirection::Up) => {
+                        if mouse_coord < _thumb_start {
+                            // Clamp so thumb's trailing edge doesn't overshoot cursor (prevents direction flip).
+                            let cursor_val = if usable_track > 0.0 {
+                                min + ((mouse_coord - track_start - thumb_len) / usable_track)
+                                    .clamp(0.0, 1.0)
+                                    * range
+                            } else {
+                                min
+                            };
+                            state.value = (state.value - spec.page_step)
+                                .max(cursor_val)
+                                .clamp(min, max);
+                            state.next_repeat_time = spec.time + 0.05;
+                        }
+                    }
+                    Some(PagingDirection::Down) => {
+                        if mouse_coord > _thumb_end {
+                            // Clamp so thumb's leading edge doesn't overshoot cursor (prevents direction flip).
+                            let cursor_val = if usable_track > 0.0 {
+                                min + ((mouse_coord - track_start) / usable_track).clamp(0.0, 1.0)
+                                    * range
+                            } else {
+                                max
+                            };
+                            state.value = (state.value + spec.page_step)
+                                .min(cursor_val)
+                                .clamp(min, max);
+                            state.next_repeat_time = spec.time + 0.05;
+                        }
+                    }
+                    None => {}
                 }
                 // else: cursor is now inside the thumb; paging stops but keep
                 // is_track_clicking=true so the drag-transition check can still fire.
             } else {
                 state.is_track_clicking = false;
+                state.track_click_direction = None;
             }
         }
 
@@ -688,6 +702,12 @@ pub enum Orientation {
     Horizontal,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PagingDirection {
+    Up,
+    Down,
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -700,6 +720,7 @@ pub struct SliderState {
     pub is_track_clicking: bool,
     pub track_click_start_coord: f32,
     pub next_repeat_time: f64,
+    pub track_click_direction: Option<PagingDirection>,
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -2328,5 +2349,85 @@ mod tests {
             raw::calc_slider_intrinsic_size(&spec),
             crate::layout::IntrinsicSize::UNKNOWN
         );
+    }
+
+    #[test]
+    fn test_track_click_overshoot_first_page_no_jump_back() {
+        let mut state = SliderState::default();
+        let spec = SliderSpec {
+            page_step: 60.0,
+            style: SliderStyle {
+                thumb_size: 20.0,
+                ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
+            },
+            ..test_spec(0.0, 100.0, true) // track y=0..100, usable_track=80
+        };
+        let mut input = Input::new();
+        let mut focus_system = FocusSystem::new();
+
+        // Warmup frame
+        input.mouse_pos = crate::types::Vec2::new(10.0, 25.0);
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Frame 1: Click at y=25 (right next to the initial thumb at y=0..20)
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Moving one page allows overshoot (value goes to 60.0, thumb at y=48..68)
+        assert_eq!(state.value, 60.0);
+        assert!(state.is_track_clicking);
+
+        // Frame 2: Hold, before repeat fires (t=0.4)
+        input.mouse_pressed = false;
+        focus_system.begin_frame();
+        raw::slider(
+            SliderSpec {
+                time: 0.4,
+                ..spec.clone()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.value, 60.0);
+
+        // Frame 3: Repeat fires (t=0.5).
+        // Since we overshot, the cursor y=25 is now behind the thumb.
+        // It must NOT jump back or trigger overshoot protection. Value must stay 60.0.
+        focus_system.begin_frame();
+        raw::slider(
+            SliderSpec {
+                time: 0.5,
+                ..spec.clone()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.value, 60.0, "should not jump back on itself");
+        assert!(state.is_track_clicking);
     }
 }
