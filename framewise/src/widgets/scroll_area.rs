@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{AxisBound, Layout, LayoutSpace, LayoutState},
     text::TextSystem,
-    types::{ClipRect, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     widgets::SliderStyle,
 };
@@ -43,6 +43,7 @@ pub mod raw {
         pub(super) scrollbar_width: f32,
         pub(super) scrollbar_style: SliderStyle,
         pub(super) layer: Layer,
+        pub(super) corner_color: Option<Color>,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -164,6 +165,7 @@ pub mod raw {
             scrollbar_style: spec.scrollbar_style,
             scrollbar_width: spec.scrollbar_width,
             layer: spec.layer,
+            corner_color: None,
         };
 
         ScrollAreaResult {
@@ -296,6 +298,43 @@ pub mod raw {
                 cmds,
             );
             state.offset.x = state.horiz_slider_state.value;
+        }
+
+        if token.needs_v && token.needs_h {
+            if let Some(corner_color) = token.corner_color {
+                let corner_rect = Rect::new(
+                    token.content_bounds.right(),
+                    token.content_bounds.bottom(),
+                    token.scrollbar_width,
+                    token.scrollbar_width,
+                );
+                cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: corner_rect,
+                    color: corner_color,
+                    z: token.layer.get_z(),
+                });
+                if let Some(border_color) = token.scrollbar_style.track_border_color {
+                    // Left border of the corner
+                    cmds.push(DrawCmd::StrokeLine {
+                        anti_alias: false,
+                        p0: Vec2::new(corner_rect.x, corner_rect.y),
+                        p1: Vec2::new(corner_rect.x, corner_rect.y + corner_rect.h),
+                        color: border_color,
+                        width: 1.0,
+                        z: token.layer.get_z(),
+                    });
+                    // Top border of the corner
+                    cmds.push(DrawCmd::StrokeLine {
+                        anti_alias: false,
+                        p0: Vec2::new(corner_rect.x, corner_rect.y),
+                        p1: Vec2::new(corner_rect.x + corner_rect.w, corner_rect.y),
+                        color: border_color,
+                        width: 1.0,
+                        z: token.layer.get_z(),
+                    });
+                }
+            }
         }
 
         let popped = focus_system.pop_keyboard_scroll_scope();
@@ -590,6 +629,7 @@ pub struct ScrollAreaSpec {
     pub vertical: ScrollAxis,
     pub scrollbar_width: f32,
     pub scrollbar_style: SliderStyle,
+    pub corner_color: Option<Color>,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
@@ -600,6 +640,7 @@ pub struct ScrollAreaSpecBuilder {
     pub vertical: Option<ScrollAxis>,
     pub scrollbar_width: Option<f32>,
     pub scrollbar_style: Option<SliderStyle>,
+    pub corner_color: Option<Option<Color>>,
 }
 
 impl ScrollAreaSpecBuilder {
@@ -621,8 +662,14 @@ impl ScrollAreaSpecBuilder {
         self.scrollbar_width = Some(scrollbar_width);
         self
     }
+
     pub fn scrollbar_style(mut self, scrollbar_style: SliderStyle) -> Self {
         self.scrollbar_style = Some(scrollbar_style);
+        self
+    }
+
+    pub fn corner_color(mut self, corner_color: Option<Color>) -> Self {
+        self.corner_color = Some(corner_color);
         self
     }
 
@@ -636,6 +683,9 @@ impl ScrollAreaSpecBuilder {
             self.scrollbar_style = Some(crate::widgets::slider::SliderStyle::scrollbar_from_theme(
                 theme,
             ));
+        }
+        if self.corner_color.is_none() {
+            self.corner_color = Some(Some(theme.paper_elev));
         }
         self
     }
@@ -653,6 +703,7 @@ impl ScrollAreaSpecBuilder {
             scrollbar_style: self.scrollbar_style.expect(
                 "scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()",
             ),
+            corner_color: self.corner_color.flatten(),
         }
     }
 }
@@ -739,11 +790,12 @@ pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
     let input = ctx.input;
 
     let raw::ScrollAreaResult {
-        token,
+        mut token,
         content_bounds,
         offset,
         inner_space,
     } = raw::begin_scroll_area(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    token.corner_color = spec.corner_color;
 
     let offset_layout = crate::layouts::OffsetLayout {
         offset,
@@ -862,7 +914,7 @@ mod tests {
             0.0,
         );
 
-        assert_eq!(content_bounds.w, 188.0);
+        assert_eq!(content_bounds.w, 190.0);
         assert_eq!(layout.offset.y, 0.0);
     }
 
@@ -1068,7 +1120,7 @@ mod tests {
         focus_system.take_focus(btn_state.focus_id);
 
         // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
-        // content_bounds = (0,0,188,188). PgDn step must be 188, not bounds.h=200.
+        // content_bounds = (0,0,190,190). PgDn step must be 190, not bounds.h=200.
         for _ in 0..2 {
             focus_system.begin_frame();
             let spec = ScrollAreaSpec {
@@ -1122,7 +1174,7 @@ mod tests {
             focus_system.end_frame();
         }
         assert_eq!(
-            state.offset.y, 188.0,
+            state.offset.y, 190.0,
             "PgDn must advance one content-viewport, not full bounds"
         );
     }
@@ -5738,7 +5790,7 @@ mod nested_bubbling_tests {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 162.0; // at bottom (max_scroll.y = 300 - content_bounds.h(138) = 162)
+                inner_state.offset.y = 160.0; // at bottom (max_scroll.y = 300 - content_bounds.h(140) = 160)
                 outer_state.offset.y = 50.0; // outer has room
             }
             let outer_spec = ScrollAreaSpec {
@@ -5812,7 +5864,7 @@ mod nested_bubbling_tests {
             focus_system.end_frame();
         }
         assert_eq!(
-            inner_state.offset.y, 162.0,
+            inner_state.offset.y, 160.0,
             "Inner at bottom, slider should not move"
         );
         assert!(outer_state.offset.y > 50.0, "Outer should scroll down");
@@ -5873,7 +5925,7 @@ mod nested_bubbling_tests {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.x = 212.0; // at right (max_scroll.x = 400 - content_bounds.w(188) = 212)
+                inner_state.offset.x = 210.0; // at right (max_scroll.x = 400 - content_bounds.w(190) = 210)
                 outer_state.offset.x = 50.0; // outer has room to scroll right
             }
             let outer_spec = ScrollAreaSpec {
@@ -5947,7 +5999,7 @@ mod nested_bubbling_tests {
             focus_system.end_frame();
         }
         assert_eq!(
-            inner_state.offset.x, 212.0,
+            inner_state.offset.x, 210.0,
             "Inner horiz at right, slider should not move"
         );
         assert!(outer_state.offset.x > 50.0, "Outer should scroll right.");
@@ -5970,7 +6022,7 @@ mod nested_bubbling_tests {
             focus_system.begin_frame();
             input.key_pressed_page_down = frame == 1;
             if frame == 0 {
-                inner_state.offset.y = 162.0; // at bottom (max_scroll.y = 300 - content_bounds.h(138) = 162)
+                inner_state.offset.y = 160.0; // at bottom (max_scroll.y = 300 - content_bounds.h(140) = 160)
                 outer_state.offset.y = 50.0;
             }
             let outer_spec = ScrollAreaSpec {
@@ -6063,7 +6115,7 @@ mod nested_bubbling_tests {
             focus_system.end_frame();
         }
         assert_eq!(
-            inner_state.offset.y, 162.0,
+            inner_state.offset.y, 160.0,
             "Inner at bottom, should not change"
         );
         assert!(outer_state.offset.y > 50.0, "Outer should scroll down");

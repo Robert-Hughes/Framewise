@@ -94,7 +94,7 @@ impl Theme {
             text_sm: 11.0,
             text_md: 13.0,
             text_mono: 12.0,
-            scrollbar_width: 12.0,
+            scrollbar_width: 10.0,
 
             heading_letter_spacing: -0.035,
             overline_letter_spacing: 0.16,

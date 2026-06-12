@@ -121,7 +121,7 @@ pub mod raw {
 
         // Thumb hit rect — centered on the track axis.
         let thumb_rect = if spec.style.scrollbar_mode {
-            let margin = 1.0;
+            let margin = spec.style.scrollbar_thumb_margin;
             let cross = (track_cross_size - margin * 2.0).max(1.0);
             if is_vert {
                 Rect::new(track_rect.x + margin, thumb_pos, cross, thumb_len)
@@ -164,6 +164,27 @@ pub mod raw {
                     color: tint(spec.style.track_color),
                     z: spec.layer.get_z(),
                 });
+                if let Some(border_color) = spec.style.track_border_color {
+                    let (p0, p1) = if is_vert {
+                        (
+                            Vec2::new(track_rect.x, track_rect.y),
+                            Vec2::new(track_rect.x, track_rect.y + track_rect.h),
+                        )
+                    } else {
+                        (
+                            Vec2::new(track_rect.x, track_rect.y),
+                            Vec2::new(track_rect.x + track_rect.w, track_rect.y),
+                        )
+                    };
+                    cmds.push(DrawCmd::StrokeLine {
+                        anti_alias: false,
+                        p0,
+                        p1,
+                        color: tint(border_color),
+                        width: 1.0,
+                        z: spec.layer.get_z(),
+                    });
+                }
                 cmds.push(DrawCmd::FillRect {
                     anti_alias: false,
                     rect: thumb_rect,
@@ -537,6 +558,27 @@ pub mod raw {
                 color: spec.style.track_color,
                 z: spec.layer.get_z(),
             });
+            if let Some(border_color) = spec.style.track_border_color {
+                let (p0, p1) = if is_vert {
+                    (
+                        Vec2::new(track_rect.x, track_rect.y),
+                        Vec2::new(track_rect.x, track_rect.y + track_rect.h),
+                    )
+                } else {
+                    (
+                        Vec2::new(track_rect.x, track_rect.y),
+                        Vec2::new(track_rect.x + track_rect.w, track_rect.y),
+                    )
+                };
+                cmds.push(DrawCmd::StrokeLine {
+                    anti_alias: false,
+                    p0,
+                    p1,
+                    color: border_color,
+                    width: 1.0,
+                    z: spec.layer.get_z(),
+                });
+            }
             cmds.push(DrawCmd::FillRect {
                 anti_alias: false,
                 rect: thumb_rect,
@@ -656,6 +698,10 @@ pub struct SliderStyle {
     pub scrollbar_mode: bool,
     /// Alpha multiplier applied to every color when the slider is disabled.
     pub disabled_alpha: f32,
+    /// Separator border color for scrollbar tracks.
+    pub track_border_color: Option<Color>,
+    /// Margin between the scrollbar thumb and the track edge.
+    pub scrollbar_thumb_margin: f32,
 }
 
 impl SliderStyle {
@@ -674,6 +720,8 @@ impl SliderStyle {
             thumb_size: 12.0,
             scrollbar_mode: false,
             disabled_alpha: 0.32,
+            track_border_color: None,
+            scrollbar_thumb_margin: 1.0,
         }
     }
 
@@ -692,6 +740,8 @@ impl SliderStyle {
             thumb_size: 12.0,
             scrollbar_mode: true,
             disabled_alpha: 0.4,
+            track_border_color: Some(theme.line_soft),
+            scrollbar_thumb_margin: 1.0,
         }
     }
 }
@@ -2040,13 +2090,18 @@ mod tests {
         // scrollbar-mode: vertical rect (0,0,20,100), ratio None falls back to
         // fixed thumb_size? No — test_spec uses thumb_size_ratio None, so thumb_len
         // = style.thumb_size = 12. We only assert structure + tinted colors here.
-        match (&cmds[0], &cmds[1]) {
+        match (&cmds[0], &cmds[1], &cmds[2]) {
             (
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: tr,
                     color: tc,
                     z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    anti_alias: false,
+                    color: bc,
+                    ..
                 },
                 DrawCmd::FillRect {
                     anti_alias: false,
@@ -2056,11 +2111,16 @@ mod tests {
             ) => {
                 assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");
                 assert_eq!(*tc, tint(spec.style.track_color));
+                assert_eq!(*bc, tint(spec.style.track_border_color.unwrap()));
                 assert_eq!(*hc, tint(spec.style.thumb_color));
             }
             other => panic!("unexpected draw commands: {:?}", other),
         }
-        assert_eq!(cmds.len(), 2, "scrollbar-mode disabled draws track + thumb");
+        assert_eq!(
+            cmds.len(),
+            3,
+            "scrollbar-mode disabled draws track + border + thumb"
+        );
     }
 
     fn input_none() -> Input {
