@@ -649,3 +649,44 @@ fn run_two_widget_frame<StateA, StateB>(
     focus_system.end_frame();
     result
 }
+
+pub fn assert_labelled_widget_click_toggles<State>(
+    state: &mut State,
+    click_pos: Vec2,
+    mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands),
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+
+    // Frame 1: Warmup to establish hover claim
+    let input = Input {
+        mouse_pos: click_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    run(state, &input, &mut focus_system, &mut cmds);
+    focus_system.end_frame();
+
+    // Frame 2: Mouse down / press
+    let input = Input {
+        mouse_pos: click_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    run(state, &input, &mut focus_system, &mut cmds);
+    focus_system.end_frame();
+
+    // Frame 3: Mouse release / click
+    let input = Input {
+        mouse_pos: click_pos,
+        mouse_down: false,
+        mouse_pressed: false,
+        mouse_clicked: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    run(state, &input, &mut focus_system, &mut cmds);
+    focus_system.end_frame();
+}

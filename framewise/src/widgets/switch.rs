@@ -1307,95 +1307,31 @@ mod tests {
     #[test]
     fn test_labelled_switch_click_label_toggles_state() {
         use crate::layouts::ManualLayout;
-        let mut text_system = crate::test_utils::DummyTextSys;
-        let mut focus = FocusSystem::new();
         let mut state = SwitchState::default();
 
-        // Frame 1: Warmup to establish hover claim
-        let input = Input {
-            mouse_pos: Vec2::new(50.0, 10.0),
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        focus.begin_frame();
-        {
-            let mut ctx = WidgetContext::root(
-                crate::theme::Theme::framewise(),
-                &mut text_system,
-                &mut focus,
-                &input,
-                ManualLayout,
-                Rect::new(0.0, 0.0, 800.0, 600.0),
-                &mut cmds,
-            );
-            super::labelled_switch(
-                &mut ctx,
-                SwitchSpecBuilder::new(),
-                "vsync",
-                Rect::new(0.0, 0.0, 100.0, 20.0),
-                &mut state,
-            );
-        }
-        focus.end_frame();
-
-        // Frame 2: Mouse down / press
-        let input = Input {
-            mouse_pos: Vec2::new(50.0, 10.0),
-            mouse_down: true,
-            mouse_pressed: true,
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        focus.begin_frame();
-        {
-            let mut ctx = WidgetContext::root(
-                crate::theme::Theme::framewise(),
-                &mut text_system,
-                &mut focus,
-                &input,
-                ManualLayout,
-                Rect::new(0.0, 0.0, 800.0, 600.0),
-                &mut cmds,
-            );
-            super::labelled_switch(
-                &mut ctx,
-                SwitchSpecBuilder::new(),
-                "vsync",
-                Rect::new(0.0, 0.0, 100.0, 20.0),
-                &mut state,
-            );
-        }
-        focus.end_frame();
-
-        // Frame 3: Mouse release / click
-        let input = Input {
-            mouse_pos: Vec2::new(50.0, 10.0),
-            mouse_down: false,
-            mouse_pressed: false,
-            mouse_clicked: true,
-            ..Default::default()
-        };
-        let mut cmds = DrawCommands::new();
-        focus.begin_frame();
-        {
-            let mut ctx = WidgetContext::root(
-                crate::theme::Theme::framewise(),
-                &mut text_system,
-                &mut focus,
-                &input,
-                ManualLayout,
-                Rect::new(0.0, 0.0, 800.0, 600.0),
-                &mut cmds,
-            );
-            super::labelled_switch(
-                &mut ctx,
-                SwitchSpecBuilder::new(),
-                "vsync",
-                Rect::new(0.0, 0.0, 100.0, 20.0),
-                &mut state,
-            );
-        }
-        focus.end_frame();
+        crate::widgets::test_helpers::assert_labelled_widget_click_toggles(
+            &mut state,
+            Vec2::new(50.0, 10.0),
+            |state, input, focus, cmds| {
+                let mut text_system = crate::test_utils::DummyTextSys;
+                let mut ctx = WidgetContext::root(
+                    crate::theme::Theme::framewise(),
+                    &mut text_system,
+                    focus,
+                    input,
+                    ManualLayout,
+                    Rect::new(0.0, 0.0, 800.0, 600.0),
+                    cmds,
+                );
+                super::labelled_switch(
+                    &mut ctx,
+                    SwitchSpecBuilder::new(),
+                    "vsync",
+                    Rect::new(0.0, 0.0, 100.0, 20.0),
+                    state,
+                );
+            },
+        );
 
         assert!(state.checked);
     }
