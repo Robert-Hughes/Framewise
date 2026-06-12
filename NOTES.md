@@ -25,8 +25,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 Is useful when using builder cos the rect is calculated by the layout, so then maybe the bounds should be returned at hte builder level, not hte widget function level?
 - Should the returned content_bounds be screen space or relative to something? If screen-space, are they useful for much?
 
-- Consider renaming ButtonInfo (WidgetInfo) to ButtonResult/WidgetResult? for clarity?
-
 ## Input & Focus
 
 - Hit-testing and pointer input
@@ -44,6 +42,7 @@ Is useful when using builder cos the rect is calculated by the layout, so then m
 button: is_active
 slider/text_edit/drag_number: is_dragging
 checkbox/radio/switch/chip/segmented/tabs/select: no capture flag
+chip, segmented, tabs, and select should use handle_press_interaction
 DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Toggles drop it. Partly justified (toggles fire on click, no drag), BUT button keeps is_active for drag-off-cancel while checkbox doesn't → clicking checkbox + dragging off still fires. UX inconsistency not stated as deliberate. Name is_active vs is_dragging also arbitrary for same concept.
 
 - Panic on re-using FocusId should give more helpful guidance?
@@ -52,8 +51,7 @@ DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Togg
 
 ## Activation
 
-- Keyboard space/enter block — copy-pasted, no helper
-Verbatim space_is_active press/release/activation block duplicated in button, checkbox, radio, switch, chip, select. Should be shared fn. segmented/tabs/drag_number use arrow nav instead (justified).
+- Keyboard space/enter block — copy-pasted, in chip and select, use handle_press_interaction
 
 - Un-factored activation blocks
 Focus got a shared helper. Activation did NOT:
@@ -64,8 +62,6 @@ Up/Down arrow nav: select + drag_number.
 All copy-paste. Surprising that focus is DRY but activation is not.
 
 ## Layout
-
-- LayoutInfo stuff - not sure if this is still relevant given the recent layout work?
 
 - Intrinsic sizing (segmented, tabs)
 
@@ -202,16 +198,12 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 ## Rendering & Layers
 
-- Z-ordering for fit-to-children containers — fit-to-children containers only discover their final outer size at `finish()` time (after their children have run). Because immediate-mode rendering relies on emit order, drawing the container background/border *after* its children causes the background to render on top of the children, covering them. We need a mechanism to allow containers to append backgrounds *under* children, possibly by separate command list buffering or vector slot reservation. For now in Phase 6, we leave the layering "incorrect" in the implementation, as we don't draw container backgrounds just yet.
-
 - Revisit z-buffer interaction with alpha blending before relying on layers for
   translucent/anti-aliased content. A higher-z translucent command can write depth
   before a lower-z command behind it has contributed colour, producing incorrect
   compositing around text, AA edges, shadows, and translucent popups. Depth alone is
   fine for opaque ordering, but alpha may require layer-group sorting or another
   explicit compositing rule.
-
-- Clipping and layering
 
 - NOw that we have z-buffering, we could draw the draw commands out-of-order if we assign a different Z for each command, to 'simulate' correct draw order even if we actually batch a bunch together or draw them out of order.
 
@@ -239,8 +231,6 @@ We want to design a unified strategy for pixel snapping for geometry in Framewis
 - Clipping — for the most part, explicit clipping is rarely needed, as UIs generally
   shouldn't have overflowing content. The primary exception is scroll containers, which
   will require some mechanism for scissor rects or clipping regions in the renderer.
-
-- Scrolling and scroll regions
 
 - Scroll areas and virtualisation — the app chooses how many widgets to put inside
   scroll areas, so can choose real vs. virtual. Is this the right approach? How does it
