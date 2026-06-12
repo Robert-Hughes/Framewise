@@ -834,6 +834,56 @@ mod tests {
     }
 
     #[test]
+    fn test_text_edit_overlapping_hover() {
+        let mut text_system = DummyTextSys;
+        let mut state1 = TextEditState::default();
+        let mut state2 = TextEditState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_hover(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let mut spec1 = spec();
+                spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+                let mut spec2 = spec();
+                spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
+
+                let res1 =
+                    raw::text_edit(spec1, state1, input, focus_system, &mut text_system, cmds);
+                let res2 =
+                    raw::text_edit(spec2, state2, input, focus_system, &mut text_system, cmds);
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
+    fn test_text_edit_overlapping_click() {
+        let mut text_system = DummyTextSys;
+        let mut state1 = TextEditState::default();
+        let mut state2 = TextEditState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_click(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let mut spec1 = spec();
+                spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+                let mut spec2 = spec();
+                spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
+
+                let res1 =
+                    raw::text_edit(spec1, state1, input, focus_system, &mut text_system, cmds);
+                let res2 =
+                    raw::text_edit(spec2, state2, input, focus_system, &mut text_system, cmds);
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
     fn test_typing_and_cursor() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();

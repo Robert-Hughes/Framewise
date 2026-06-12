@@ -491,6 +491,64 @@ mod tests {
     }
 
     #[test]
+    fn test_checkbox_overlapping_hover() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_hover(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let res1 = raw::checkbox(
+                    checkbox_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::checkbox(
+                    checkbox_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
+    fn test_checkbox_overlapping_click() {
+        let mut state1 = CheckboxState::default();
+        let mut state2 = CheckboxState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_click(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let res1 = raw::checkbox(
+                    checkbox_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::checkbox(
+                    checkbox_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
     fn test_checkbox_tab_moves_focus_next() {
         let mut state1 = CheckboxState::default();
         let mut state2 = CheckboxState::default();

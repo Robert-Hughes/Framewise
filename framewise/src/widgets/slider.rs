@@ -842,6 +842,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_slider_overlapping_hover() {
+        let mut state1 = SliderState::default();
+        let mut state2 = SliderState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_hover(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let mut spec1 = test_spec(0.0, 100.0, false);
+                spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+                let mut spec2 = test_spec(0.0, 100.0, false);
+                spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
+
+                let res1 = raw::slider(spec1, state1, input, focus_system, cmds);
+                let res2 = raw::slider(spec2, state2, input, focus_system, cmds);
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
+    fn test_slider_overlapping_click() {
+        let mut state1 = SliderState::default();
+        let mut state2 = SliderState::default();
+
+        crate::widgets::test_helpers::assert_overlapping_click(
+            &mut state1,
+            &mut state2,
+            Vec2::new(75.0, 75.0),
+            |state1, state2, input, focus_system, cmds| {
+                let mut spec1 = test_spec(0.0, 100.0, false);
+                spec1.rect = Rect::new(0.0, 0.0, 100.0, 100.0);
+                let mut spec2 = test_spec(0.0, 100.0, false);
+                spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
+
+                let res1 = raw::slider(spec1, state1, input, focus_system, cmds);
+                let res2 = raw::slider(spec2, state2, input, focus_system, cmds);
+                (res1.input, res2.input)
+            },
+        );
+    }
+
+    #[test]
     fn test_slider_page_up_down_keyboard() {
         let mut state = SliderState::default();
         state.value = 50.0;

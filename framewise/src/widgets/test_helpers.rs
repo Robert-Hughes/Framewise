@@ -120,6 +120,103 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
     );
 }
 
+pub fn assert_overlapping_hover<StateA, StateB>(
+    state_a: &mut StateA,
+    state_b: &mut StateB,
+    overlap_pos: Vec2,
+    mut run: impl FnMut(
+        &mut StateA,
+        &mut StateB,
+        &Input,
+        &mut FocusSystem,
+        &mut DrawCommands,
+    ) -> (InputInfo, InputInfo),
+) {
+    let mut focus_system = FocusSystem::new();
+    let input = Input {
+        mouse_pos: overlap_pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let (bottom_result, top_result) = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    assert!(
+        !bottom_result.hovered,
+        "Bottom widget should not be hovered when overlapped"
+    );
+    assert!(
+        top_result.hovered,
+        "Top widget should be hovered when overlapped"
+    );
+}
+
+pub fn assert_overlapping_click<StateA, StateB>(
+    state_a: &mut StateA,
+    state_b: &mut StateB,
+    overlap_pos: Vec2,
+    mut run: impl FnMut(
+        &mut StateA,
+        &mut StateB,
+        &Input,
+        &mut FocusSystem,
+        &mut DrawCommands,
+    ) -> (InputInfo, InputInfo),
+) {
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input {
+        mouse_pos: overlap_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_clicked: false,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new();
+
+    let (bottom_result, top_result) = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    assert!(
+        !bottom_result.pressed,
+        "Bottom widget should not be pressed when overlapped click starts"
+    );
+    assert!(
+        top_result.pressed,
+        "Top widget should be pressed when overlapped click starts"
+    );
+
+    input.mouse_down = false;
+    input.mouse_pressed = false;
+    input.mouse_clicked = true;
+    let (bottom_result, top_result) = run_two_widget_frame(
+        state_a,
+        state_b,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+        &mut run,
+    );
+    assert!(
+        !bottom_result.clicked,
+        "Bottom widget should not be clicked when overlapped"
+    );
+    assert!(
+        top_result.clicked,
+        "Top widget should be clicked when overlapped"
+    );
+}
+
 pub fn assert_tab_moves_focus_next<StateA, StateB>(
     state_a: &mut StateA,
     focus_a: FocusId,

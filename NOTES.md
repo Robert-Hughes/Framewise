@@ -4,7 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click next frame it registers a claim. The claim resolution will (in future) need to account for layers. Add tests plus something on the sample app to show overlapping
+- Mouse input hit-testing should account for overlapping widgets, perhaps extend the claiming system so that when mouse is over a widget and it could accept a click/hover next frame it registers a claim. Would need to be separate to the hover scroll claims, as that accounts for hierarchical scrolling when no scroll is possible. Perhaps we have a "mouse hover" claim?
+  - button, checkbox, radio, slider, switch, text_edit
 
 - Slider click and hold to repeatedly page can jump back on itself, if you click right next to the handle. Already had and fixed a similar bug before (tested?)
 
@@ -41,6 +42,7 @@ Is useful when using builder cos the rect is calculated by the layout, so then m
   stack) overlaps one drawn earlier, the earlier widget's hit region may still be tested
   first, since it was registered first. We need a clear rule for how draw order, z-order,
   and hit-test priority interact.
+  - Update overlapping widget tests to account for layers
 
 - For widgets using handle_widget_focus + writing InputInfo manually: hovered is rect.contains(input.mouse_pos) && clip.is_none_or(...). Plain hit test (no exclusion for mouse-down-elsewhere).
   Button computes hovered = contains && (!input.mouse_down || state.is_active) — excludes hover while dragging from elsewhere. Semantic mismatch: checkbox hovers when you mouse-down on something else and drag over it; button doesn't.
