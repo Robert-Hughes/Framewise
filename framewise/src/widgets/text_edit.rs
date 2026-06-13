@@ -695,22 +695,40 @@ pub mod raw {
                     let start = sel.min(state.caret_byte);
                     let end = sel.max(state.caret_byte);
 
-                    let start_caret = text_system.caret_geom(handle, start);
-                    let end_caret = text_system.caret_geom(handle, end);
+                    for line in &layout.metrics.lines {
+                        let line_sel_start = start.max(line.byte_start);
+                        let line_sel_end = end.min(line.byte_end);
 
-                    let sel_rect = Rect::new(
-                        text_rect.x + start_caret.x.min(end_caret.x),
-                        text_rect.y + start_caret.y_top,
-                        (end_caret.x - start_caret.x).abs(),
-                        start_caret.height,
-                    );
+                        if line_sel_start < line_sel_end {
+                            let start_caret = text_system.caret_geom(handle, line_sel_start);
 
-                    cmds.push(DrawCmd::FillRect {
-                        anti_alias: false,
-                        rect: sel_rect,
-                        color: spec.style.select_color,
-                        z: spec.layer.get_z(),
-                    });
+                            let has_newline = line.byte_end > line.byte_start
+                                && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
+
+                            let end_x = if line_sel_end == line.byte_end && has_newline {
+                                // Highlight the newline character specifically
+                                let newline_width = 8.0;
+                                let nl_caret = text_system.caret_geom(handle, line.byte_end - 1);
+                                nl_caret.x + newline_width
+                            } else {
+                                text_system.caret_geom(handle, line_sel_end).x
+                            };
+
+                            let sel_rect = Rect::new(
+                                text_rect.x + start_caret.x.min(end_x),
+                                text_rect.y + start_caret.y_top,
+                                (end_x - start_caret.x).abs(),
+                                start_caret.height,
+                            );
+
+                            cmds.push(DrawCmd::FillRect {
+                                anti_alias: false,
+                                rect: sel_rect,
+                                color: spec.style.select_color,
+                                z: spec.layer.get_z(),
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -3182,6 +3200,157 @@ mod tests {
         assert_eq!(
             state.caret_byte, 17,
             "Shift+Ctrl+End should move caret to value.len()"
+        );
+    }
+
+    #[test]
+    fn test_text_edit_visual_multiline_selection() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello\nworld");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+
+        state.was_focused = true;
+        state.selection_byte = Some(3); // 'l' in "hello"
+        state.caret_byte = 9; // 'r' in "world"
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            TextEditSpec {
+                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                newline_policy: NewlinePolicy::Allow,
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                    color: spec().style.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    anti_alias: false,
+                    rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                    color: spec().style.focus,
+                    width: spec().style.border_width,
+                    z: 0,
+                },
+                DrawCmd::PushClip {
+                    rect: Rect::new(1.0, 1.0, 198.0, 98.0),
+                },
+                // Selection Rect for Line 0: "lo\n"
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(29.0, 34.0, 24.0, 16.0),
+                    color: spec().style.select_color,
+                    z: 0,
+                },
+                // Selection Rect for Line 1: "wo"
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(5.0, 50.0, 24.0, 16.0),
+                    color: spec().style.select_color,
+                    z: 0,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(5.0, 34.0, 198.0, 98.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                    z: 0,
+                },
+                DrawCmd::PopClip,
+            ])
+        );
+    }
+
+    #[test]
+    fn test_text_edit_visual_multiline_selection_three_lines() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("one\ntwo\nthree");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+
+        state.was_focused = true;
+        state.selection_byte = Some(2); // 'e' in "one"
+        state.caret_byte = 10; // 'r' in "three"
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            TextEditSpec {
+                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                newline_policy: NewlinePolicy::Allow,
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert_eq!(
+            cmds,
+            DrawCommands::from_vec(vec![
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                    color: spec().style.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeRect {
+                    anti_alias: false,
+                    rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                    color: spec().style.focus,
+                    width: spec().style.border_width,
+                    z: 0,
+                },
+                DrawCmd::PushClip {
+                    rect: Rect::new(1.0, 1.0, 198.0, 98.0),
+                },
+                // Selection Rect for Line 0: "e\n"
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(21.0, 26.0, 16.0, 16.0),
+                    color: spec().style.select_color,
+                    z: 0,
+                },
+                // Selection Rect for Line 1: "two\n"
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(5.0, 42.0, 32.0, 16.0),
+                    color: spec().style.select_color,
+                    z: 0,
+                },
+                // Selection Rect for Line 2: "th"
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(5.0, 58.0, 16.0, 16.0),
+                    color: spec().style.select_color,
+                    z: 0,
+                },
+                DrawCmd::Text {
+                    rect: Rect::new(5.0, 26.0, 198.0, 98.0),
+                    color: spec().style.text_color,
+                    handle: crate::text::TextHandle(0),
+                    z: 0,
+                },
+                DrawCmd::PopClip,
+            ])
         );
     }
 }

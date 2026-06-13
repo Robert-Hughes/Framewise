@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - home/end multi-line
   - multi-line selection (with mouse + keyboard)
 
   - Support single line, multi-line
