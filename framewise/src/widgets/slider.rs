@@ -36,6 +36,7 @@ pub mod raw {
         /// so it still occupies its reserved track. Used for degenerate
         /// scrollbars (thumb fills the track, nothing to scroll).
         pub disabled: bool,
+        pub keyboard_focusable: bool,
         pub layer: Layer,
     }
 
@@ -83,9 +84,9 @@ pub mod raw {
 
         // 1. Calculate Thumb Rect
         let track_rect = spec.rect;
-        // Disabled sliders stay out of the focus order entirely (no `register_keyboard`),
+        // Disabled or non-keyboard-focusable sliders stay out of the focus order entirely,
         // matching the button's disabled path.
-        let focused = if spec.disabled {
+        let focused = if spec.disabled || !spec.keyboard_focusable {
             false
         } else {
             focus_system.register_keyboard(state.focus_id, track_rect, spec.clip_rect)
@@ -374,7 +375,9 @@ pub mod raw {
             && !thumb_rect.contains(input.mouse_pos)
             && track_rect.contains(input.mouse_pos)
         {
-            focus_system.take_keyboard_focus(state.focus_id);
+            if spec.keyboard_focusable {
+                focus_system.take_keyboard_focus(state.focus_id);
+            }
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
             state.next_repeat_time = spec.time + 0.5;
@@ -394,7 +397,9 @@ pub mod raw {
             && input.mouse_pressed
             && thumb_rect.contains(input.mouse_pos)
         {
-            focus_system.take_keyboard_focus(state.focus_id);
+            if spec.keyboard_focusable {
+                focus_system.take_keyboard_focus(state.focus_id);
+            }
             state.is_dragging = true;
             state.drag_start_mouse_coord = mouse_coord;
             state.drag_start_val = state.value;
@@ -795,6 +800,7 @@ pub struct SliderSpec {
     pub style: SliderStyle,
     pub claim_scroll_at_ends: bool,
     pub disabled: bool,
+    pub keyboard_focusable: bool,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
@@ -810,6 +816,7 @@ pub struct SliderSpecBuilder {
     pub style: Option<SliderStyle>,
     pub claim_scroll_at_ends: Option<bool>,
     pub disabled: Option<bool>,
+    pub keyboard_focusable: Option<bool>,
 }
 
 impl SliderSpecBuilder {
@@ -853,6 +860,10 @@ impl SliderSpecBuilder {
         self.disabled = Some(disabled);
         self
     }
+    pub fn keyboard_focusable(mut self, keyboard_focusable: bool) -> Self {
+        self.keyboard_focusable = Some(keyboard_focusable);
+        self
+    }
 
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
@@ -876,6 +887,7 @@ impl SliderSpecBuilder {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             claim_scroll_at_ends: self.claim_scroll_at_ends.unwrap_or(true),
             disabled: self.disabled.unwrap_or(false),
+            keyboard_focusable: self.keyboard_focusable.unwrap_or(true),
         }
     }
 }
@@ -908,6 +920,7 @@ pub fn slider<T: TextSystem, S: LayoutState, CF>(
         claim_scroll_at_ends: spec.claim_scroll_at_ends,
         time: ctx.time,
         disabled: spec.disabled,
+        keyboard_focusable: spec.keyboard_focusable,
         layer: ctx.layer,
     };
 
@@ -2492,4 +2505,60 @@ mod tests {
         assert!(state.is_track_clicking);
     }
 
+    #[test]
+    fn test_non_keyboard_focusable_slider() {
+        let mut state = SliderState::default();
+        let mut spec = test_spec(0.0, 100.0, true);
+        spec.keyboard_focusable = false;
+
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+        let mut input = Input::new();
+
+        // 1. Hovering & Scroll Wheel Claim
+        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+
+        // Frame 1: Register hovers/scrolls
+        focus_system.begin_frame();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Frame 2: Check active hovers/scrolls (they are resolved on end_frame/begin_frame transition)
+        focus_system.begin_frame();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+
+        // Assert: not registered in keyboard focus order
+        assert_eq!(focus_system.current_keyboard_focus(), None);
+
+        // Assert: claims hover and scroll up/down
+        assert!(focus_system.is_hover_active(state.focus_id));
+        assert!(focus_system.is_active_scroll_up(state.focus_id));
+        assert!(focus_system.is_active_scroll_down(state.focus_id));
+        focus_system.end_frame();
+
+        // 2. Click does NOT take keyboard focus
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        raw::slider(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(focus_system.current_keyboard_focus(), None);
+    }
 }

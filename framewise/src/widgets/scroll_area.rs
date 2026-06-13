@@ -246,6 +246,7 @@ pub mod raw {
                 // thumb fills the track and nothing scrolls. Disable it so it
                 // leaves focus order and dims, while still holding its gutter.
                 disabled: max_scroll.y <= 0.0,
+                keyboard_focusable: true,
             };
 
             state.vert_slider_state.value = state.offset.y;
@@ -287,6 +288,7 @@ pub mod raw {
                 layer: token.layer,
                 // Degenerate horizontal bar (see vertical case above).
                 disabled: max_scroll.x <= 0.0,
+                keyboard_focusable: true,
             };
 
             state.horiz_slider_state.value = state.offset.x;
