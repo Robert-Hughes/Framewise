@@ -255,6 +255,30 @@ mod tests {
     }
 
     #[test]
+    fn test_sample_text_system_line_metrics() {
+        let mut sys = sys();
+        let m = sys.measure(
+            "hello\nworld",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            TextBounds::UNBOUNDED,
+        );
+        assert_eq!(m.line_count, 2);
+        assert_eq!(m.lines.len(), 2);
+
+        let l0 = m.lines[0];
+        let l1 = m.lines[1];
+
+        assert_eq!(l0.byte_start, 0);
+        assert_eq!(l0.byte_end, 6); // inclusive of '\n'
+        assert_eq!(l1.byte_start, 6);
+        assert_eq!(l1.byte_end, 11);
+
+        assert!(l0.height > 0.0);
+        assert_eq!(l0.y_top, 0.0);
+        assert_eq!(l1.y_top, l0.height);
+    }
+
+    #[test]
     fn test_word_wrap_preserves_spaces() {
         let mut sys = sys();
         let flow = TextFlow::wrapped();

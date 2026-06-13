@@ -601,12 +601,23 @@ impl SampleTextSystem {
         } else {
             Rect::new(0.0, 0.0, 0.0, 0.0)
         };
+        let lines = rec
+            .iter()
+            .map(|r| framewise::LineMetrics {
+                y_top: r.y_top,
+                height: r.height,
+                byte_start: r.byte_start,
+                byte_end: r.byte_end,
+            })
+            .collect();
+
         let metrics = framewise::TextMetrics {
             logical_size: Vec2::new(block_width.ceil(), line_count as f32 * line_height_snapped),
             ink_bounds,
             line_count: line_count as u32,
             truncated_horizontal,
             truncated_vertical,
+            lines,
         };
         (out, out_clusters, rec, metrics)
     }

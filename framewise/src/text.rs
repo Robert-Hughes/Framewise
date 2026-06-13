@@ -486,9 +486,23 @@ impl TextBounds {
     }
 }
 
-/// The measured logical geometry of a block of text, independent of where it is
+/// The measured logical geometry of a single visual line of laid-out text, independent of where it is
 /// drawn.
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LineMetrics {
+    /// Top Y offset of the line in block-local coordinates.
+    pub y_top: f32,
+    /// Height of the line.
+    pub height: f32,
+    /// Byte start index of the line in the original string.
+    pub byte_start: usize,
+    /// Byte end index of the line in the original string (exclusive).
+    pub byte_end: usize,
+}
+
+/// The measured logical geometry of a block of text, independent of where it is
+/// drawn.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextMetrics {
     /// Logical size of the laid-out block in logical pixels.
     ///
@@ -535,10 +549,13 @@ pub struct TextMetrics {
     /// `true` if whole lines were dropped because the content exceeded the
     /// available height.
     pub truncated_vertical: bool,
+
+    /// Metrics for each laid-out line.
+    pub lines: Vec<LineMetrics>,
 }
 
 /// The geometry and handle for a piece of text prepared for drawing.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextLayout {
     /// The opaque handle to give to the renderer via `DrawCmd::Text`.
     pub handle: TextHandle,

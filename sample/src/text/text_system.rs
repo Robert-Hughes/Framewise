@@ -214,7 +214,7 @@ impl TextSystem for SampleTextSystem {
         };
 
         if let Some((_, _, _, metrics)) = self.layout_cache.get(&key) {
-            return *metrics;
+            return metrics.clone();
         }
 
         // Temporarily set the weight for this font before shaping
@@ -236,7 +236,7 @@ impl TextSystem for SampleTextSystem {
             self.layout_cache.clear();
         }
         self.layout_cache
-            .insert(key, (glyphs, clusters, lines, metrics));
+            .insert(key, (glyphs, clusters, lines, metrics.clone()));
 
         metrics
     }
@@ -262,7 +262,12 @@ impl TextSystem for SampleTextSystem {
             .layout_cache
             .get(&key)
             .map(|(glyphs, clusters, lines, metrics)| {
-                (glyphs.clone(), clusters.clone(), lines.clone(), *metrics)
+                (
+                    glyphs.clone(),
+                    clusters.clone(),
+                    lines.clone(),
+                    metrics.clone(),
+                )
             });
 
         if let Some((glyphs, clusters, lines, metrics)) = cached {
@@ -336,7 +341,7 @@ impl TextSystem for SampleTextSystem {
             self.layout_cache.clear();
         }
         self.layout_cache
-            .insert(key, (glyphs, clusters, lines, metrics));
+            .insert(key, (glyphs, clusters, lines, metrics.clone()));
 
         TextLayout {
             handle: framewise::TextHandle(handle_id),

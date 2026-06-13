@@ -270,6 +270,90 @@ pub mod raw {
                             state.caret_byte = next;
                         }
                     }
+                    TextEvent::CaretUp { shift } => {
+                        if *shift {
+                            if state.selection_byte.is_none() {
+                                state.selection_byte = Some(state.caret_byte);
+                            }
+                        } else {
+                            state.selection_byte = None;
+                        }
+
+                        let text_content = if state.value.is_empty() {
+                            " "
+                        } else {
+                            &state.value
+                        };
+                        let layout_width = (spec.rect.w - 2.0 * spec.style.border_width).max(1.0);
+                        let layout = text_system.prepare(
+                            text_content,
+                            spec.style.text_style,
+                            Rect::new(0.0, 0.0, layout_width, f32::MAX),
+                        );
+                        let handle = layout.handle;
+                        let metrics = layout.metrics;
+
+                        let caret = text_system.caret_geom(handle, state.caret_byte);
+                        let current_line_idx = metrics
+                            .lines
+                            .iter()
+                            .rposition(|line| state.caret_byte >= line.byte_start)
+                            .unwrap_or(0);
+
+                        if current_line_idx > 0 {
+                            let target_line_idx = current_line_idx - 1;
+                            let target_line = &metrics.lines[target_line_idx];
+                            let pos =
+                                Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
+                            let new_caret = text_system.hit_test(handle, pos);
+                            state.caret_byte = new_caret.min(state.value.len());
+                        } else {
+                            // Already on first visual line, move to start of text
+                            state.caret_byte = 0;
+                        }
+                    }
+                    TextEvent::CaretDown { shift } => {
+                        if *shift {
+                            if state.selection_byte.is_none() {
+                                state.selection_byte = Some(state.caret_byte);
+                            }
+                        } else {
+                            state.selection_byte = None;
+                        }
+
+                        let text_content = if state.value.is_empty() {
+                            " "
+                        } else {
+                            &state.value
+                        };
+                        let layout_width = (spec.rect.w - 2.0 * spec.style.border_width).max(1.0);
+                        let layout = text_system.prepare(
+                            text_content,
+                            spec.style.text_style,
+                            Rect::new(0.0, 0.0, layout_width, f32::MAX),
+                        );
+                        let handle = layout.handle;
+                        let metrics = layout.metrics;
+
+                        let caret = text_system.caret_geom(handle, state.caret_byte);
+                        let current_line_idx = metrics
+                            .lines
+                            .iter()
+                            .rposition(|line| state.caret_byte >= line.byte_start)
+                            .unwrap_or(0);
+
+                        if current_line_idx + 1 < metrics.lines.len() {
+                            let target_line_idx = current_line_idx + 1;
+                            let target_line = &metrics.lines[target_line_idx];
+                            let pos =
+                                Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
+                            let new_caret = text_system.hit_test(handle, pos);
+                            state.caret_byte = new_caret.min(state.value.len());
+                        } else {
+                            // Already on last visual line, move to end of text
+                            state.caret_byte = state.value.len();
+                        }
+                    }
                     TextEvent::CaretHome { shift } => {
                         if *shift && state.selection_byte.is_none() {
                             state.selection_byte = Some(state.caret_byte);
@@ -2710,5 +2794,104 @@ mod tests {
             );
             assert_eq!(state.value, "a\nbc");
         }
+    }
+
+    #[test]
+    fn test_caret_up_down_navigation() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        // Initial text: three lines, each 5 characters (excluding newline) -> 8px * 5 = 40px wide per line
+        // "line1\nline2\nline3"
+        // Line 0: "line1\n" -> byte_start=0, byte_end=6
+        // Line 1: "line2\n" -> byte_start=6, byte_end=12
+        // Line 2: "line3"   -> byte_start=12, byte_end=17
+        let mut state = TextEditState::new("line1\nline2\nline3");
+        let mut input = Input::default();
+        focus_system.begin_frame();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // Initialize/prepare the layout once
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // 1. Arrow Down from Line 0 to Line 1
+        state.caret_byte = 5;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 11);
+
+        // 2. Arrow Up from Line 1 to Line 0
+        input.text_events = vec![TextEvent::CaretUp { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 5);
+
+        // 3. Boundary Condition: Arrow Up on first line
+        state.caret_byte = 2;
+        input.text_events = vec![TextEvent::CaretUp { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 0);
+
+        // 4. Boundary Condition: Arrow Down on last line
+        state.caret_byte = 14;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 17);
+
+        // 5. Shift + Arrow Down from Line 0 to Line 1 (extending selection)
+        state.caret_byte = 2;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretDown { shift: true }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.selection_byte, Some(2));
+        assert_eq!(state.caret_byte, 8);
     }
 }

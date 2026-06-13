@@ -624,6 +624,16 @@ impl ApplicationHandler for App {
                                 ctrl: self.modifiers.control_key(),
                             })
                         }
+                        Key::Named(NamedKey::ArrowUp) => {
+                            self.input.text_events.push(TextEvent::CaretUp {
+                                shift: self.modifiers.shift_key(),
+                            })
+                        }
+                        Key::Named(NamedKey::ArrowDown) => {
+                            self.input.text_events.push(TextEvent::CaretDown {
+                                shift: self.modifiers.shift_key(),
+                            })
+                        }
                         Key::Named(NamedKey::Home) => {
                             self.input.text_events.push(TextEvent::CaretHome {
                                 shift: self.modifiers.shift_key(),

@@ -477,7 +477,7 @@ mod tests {
             _style: crate::text::TextStyle,
             _bounds: crate::text::TextBounds,
         ) -> crate::text::TextMetrics {
-            self.metrics
+            self.metrics.clone()
         }
 
         fn prepare(
@@ -489,7 +489,7 @@ mod tests {
             self.prepared_rect = Some(rect);
             crate::text::TextLayout {
                 handle: TextHandle(7),
-                metrics: self.metrics,
+                metrics: self.metrics.clone(),
             }
         }
 
@@ -1308,6 +1308,7 @@ mod tests {
             line_count: 1,
             truncated_horizontal: false,
             truncated_vertical: false,
+            lines: Vec::new(),
         };
         let mut text_system = PlacementTextSys {
             metrics,

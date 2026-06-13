@@ -66,6 +66,8 @@ pub enum TextEvent {
     CaretRight { shift: bool, ctrl: bool },
     CaretHome { shift: bool },
     CaretEnd { shift: bool },
+    CaretUp { shift: bool },
+    CaretDown { shift: bool },
     SelectAll,
     Copy,
     Cut,

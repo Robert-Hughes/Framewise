@@ -11,9 +11,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
   - wrapping options for multi-line
+    - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
   - prevent \n in single line? (Including pasting etc.)
   - auto-sizing to height of text (like VS Code commit message)
   - user-sizing using drag handle
+
+  - multi-line selection (with mouse + keyboard)
+  -
 
   - scrollbar visibility
   - scrollbar styling
@@ -29,11 +33,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
   - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
+  - Ctrl+Up/Down?
   - TESTS for all this!
 
 - Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
+- DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03
