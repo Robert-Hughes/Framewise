@@ -73,6 +73,12 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> TextEditResult {
         let mut clipboard_action = None;
+        // selection_only_action tracks whether the selection or caret was changed by a bulk selection
+        // event (like double-clicking a word, triple-clicking a line, focus gain, or Ctrl-A).
+        // For these actions, we want to minimize scrolling by only adjusting the viewport
+        // as much as necessary to bring the selection range into view, rather than jumping
+        // to the caret position.
+        let mut selection_only_action = false;
 
         // Disabled: draw at reduced alpha, no interaction.
         if spec.disabled {
@@ -138,6 +144,7 @@ pub mod raw {
         if just_focused && !(contains && input.mouse_pressed) {
             state.selection_byte = Some(0);
             state.caret_byte = state.value.len();
+            selection_only_action = true;
         }
 
         // Process keyboard events if focused
@@ -257,6 +264,7 @@ pub mod raw {
                     TextEvent::SelectAll => {
                         state.selection_byte = Some(0);
                         state.caret_byte = state.value.len();
+                        selection_only_action = true;
                     }
                     TextEvent::Copy => {
                         if let Some(sel) = state.selection_byte {
@@ -441,10 +449,12 @@ pub mod raw {
                 state.caret_byte = end;
                 state.is_dragging = true;
                 state.drag_word_origin = Some((start, end));
+                selection_only_action = true;
             } else if input.mouse_click_count >= 3 {
                 // Select line
                 state.selection_byte = Some(0);
                 state.caret_byte = state.value.len();
+                selection_only_action = true;
             } else {
                 state.caret_byte = clicked_byte;
                 state.selection_byte = None;
@@ -486,16 +496,49 @@ pub mod raw {
         if state.caret_byte != old_caret || state.selection_byte != old_selection {
             state.last_caret_move_time = spec.time;
 
-            // Auto-scroll to keep caret in view
-            let caret = text_system.caret_geom(handle, state.caret_byte);
             let padding = 16.0_f32;
             let max_scroll_x = (inner_scroll_size.x - scroll_outer_rect.w).max(0.0);
-            if caret.x < state.scroll.offset.x + padding {
-                state.scroll.offset.x = (caret.x - padding).clamp(0.0, max_scroll_x);
-            } else if caret.x > state.scroll.offset.x + scroll_outer_rect.w - padding {
-                state.scroll.offset.x =
-                    (caret.x - scroll_outer_rect.w + padding).clamp(0.0, max_scroll_x);
-            }
+
+            // Determine the horizontal span of the target we want to keep in view.
+            // If this is a bulk selection action with a non-empty selection, we target
+            // the full selection span. Otherwise, we target the zero-width caret position.
+            let (sel_min_x, sel_max_x) = match (selection_only_action, state.selection_byte) {
+                (true, Some(sel)) if sel != state.caret_byte => {
+                    let start = sel.min(state.caret_byte);
+                    let end = sel.max(state.caret_byte);
+                    let start_caret = text_system.caret_geom(handle, start);
+                    let end_caret = text_system.caret_geom(handle, end);
+                    (
+                        start_caret.x.min(end_caret.x),
+                        start_caret.x.max(end_caret.x),
+                    )
+                }
+                _ => {
+                    let caret = text_system.caret_geom(handle, state.caret_byte);
+                    (caret.x, caret.x)
+                }
+            };
+
+            let target_left = sel_min_x - padding;
+            let target_right = sel_max_x - scroll_outer_rect.w + padding;
+
+            // Unified clamping logic for scrolling:
+            // - If the target span fits within the viewport (target_right <= target_left):
+            //   We clamp the current scroll to [target_right, target_left]. This ensures that the
+            //   entire target (selection or caret) is fully visible in the viewport.
+            // - If the target span is wider than the viewport (target_right > target_left):
+            //   We clamp to [target_left, target_right]. This scrolls only as far as necessary to
+            //   fill the viewport (aligning target_left or target_right depending on which direction
+            //   we are scrolling), or does not scroll at all if the viewport is already fully inside
+            //   the target range.
+            let (s_min, s_max) = if target_right <= target_left {
+                (target_right, target_left)
+            } else {
+                (target_left, target_right)
+            };
+
+            let target_scroll = state.scroll.offset.x.clamp(s_min, s_max);
+            state.scroll.offset.x = target_scroll.clamp(0.0, max_scroll_x);
         }
 
         // Selection
@@ -1991,6 +2034,115 @@ mod tests {
         );
         assert_eq!(state.caret_byte, 2);
         assert_eq!(state.scroll.offset.x, 0.0);
+    }
+
+    #[test]
+    fn test_selection_aware_auto_scrolling() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+
+        // String: "leftwordoverlappingedge middle rightwordoverlappingedge"
+        // Character counts:
+        // leftwordoverlappingedge: 23 chars (0..23)
+        // space: 1 char (23)
+        // middle: 6 chars (24..30)
+        // space: 1 char (30)
+        // rightwordoverlappingedge: 24 chars (31..55)
+        //
+        // Widths (at 8px per char):
+        // leftwordoverlappingedge: 184px (0.0..184.0)
+        // middle: 48px (192.0..240.0)
+        // rightwordoverlappingedge: 192px (248.0..440.0)
+        //
+        // Total text width: 440px
+        // Inner scroll size: width = 440 + 2 * padding(16) = 472px
+        // Viewport width: 200px (from spec())
+        // Max scroll: 472 - 200 = 272px
+        let mut state =
+            TextEditState::new("leftwordoverlappingedge middle rightwordoverlappingedge");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        // Warmup frame to establish hover
+        input.mouse_pos = Vec2::new(10.0, 15.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Test case 1: Ctrl-A (Select All) should not change the scroll state.
+        state.scroll.offset.x = 120.0;
+        input.text_events = vec![TextEvent::SelectAll];
+        input.mouse_pressed = false;
+        input.mouse_click_count = 0;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.scroll.offset.x, 120.0);
+
+        // Test case 2: Double-clicking the long word on the left should scroll the viewport left
+        // just far enough to move the end of that word to the right of the viewport.
+        state.scroll.offset.x = 120.0;
+        input.text_events = vec![];
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2;
+        input.mouse_pos = Vec2::new(
+            136.0 + spec().style.padding + spec().style.border_width - 120.0,
+            15.0,
+        );
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.selection_byte, Some(0));
+        assert_eq!(state.caret_byte, 23);
+        assert_eq!(state.scroll.offset.x, 2.0);
+
+        // Test case 3: Double-clicking the long word on the right should scroll the viewport right
+        // just far enough to align the start of the word with the left edge of the viewport.
+        state.scroll.offset.x = 120.0;
+        input.text_events = vec![];
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2;
+        input.mouse_pos = Vec2::new(
+            256.0 + spec().style.padding + spec().style.border_width - 120.0,
+            15.0,
+        );
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.selection_byte, Some(31));
+        assert_eq!(state.caret_byte, 55);
+        assert_eq!(state.scroll.offset.x, 232.0);
     }
 
     #[test]

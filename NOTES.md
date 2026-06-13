@@ -9,6 +9,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
   - Support single line, multi-line
+    - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
   - wrapping options for multi-line
   - prevent \n in single line? (Including pasting etc.)
   - auto-sizing to height of text (like VS Code commit message)
@@ -24,7 +25,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - correct offsets with error bar
   - Select all
   - quadruple click to select all lines
-  - select all or select word auto-scrolling behaviour - perhaps only scroll if the viewport could cover more of the selection
+  - with wrapping, should triple click select visible line or actual line?
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
   - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
