@@ -1635,6 +1635,72 @@ mod tests {
     }
 
     #[test]
+    fn test_double_click_after_line_end() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+
+        let mut run_double_click = |text: &str, y_pos: f32| -> (Option<usize>, usize) {
+            let mut state = TextEditState::new(text);
+            let mut input = Input::default();
+            // Click way past the end of the line (e.g. x = 100.0)
+            let x_offset = spec().style.padding + spec().style.border_width;
+            input.mouse_pos = crate::types::Vec2::new(100.0 + x_offset, y_pos);
+
+            let edit_spec = TextEditSpec {
+                newline_policy: NewlinePolicy::Allow,
+                ..spec()
+            };
+
+            // Frame 1: Hover
+            focus_system.begin_frame();
+            raw::text_edit(
+                edit_spec.clone(),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut DrawCommands::new(),
+            );
+            focus_system.end_frame();
+
+            // Frame 2: Double click
+            input.mouse_down = true;
+            input.mouse_pressed = true;
+            input.mouse_click_count = 2;
+            focus_system.begin_frame();
+            raw::text_edit(
+                edit_spec,
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut DrawCommands::new(),
+            );
+            focus_system.end_frame();
+
+            (state.selection_byte, state.caret_byte)
+        };
+
+        // Case 1: Line has trailing \n. Double-clicking after line end should select just the \n character.
+        // "hello\n" -> '\n' is at index 5.
+        // First line is "hello\n", so we click on line 0 (y = 8.0).
+        assert_eq!(run_double_click("hello\n", 8.0), (Some(5), 6));
+
+        // Case 2: Line has trailing \n and is followed by another line.
+        // "hello\nworld" -> '\n' is at index 5.
+        // First line is "hello\n", click at y = 8.0.
+        assert_eq!(run_double_click("hello\nworld", 8.0), (Some(5), 6));
+
+        // Case 3: Line has no trailing \n. Double-clicking after line end should select the trailing word.
+        // "hello" -> trailing word is "hello" (0..5).
+        assert_eq!(run_double_click("hello", 8.0), (Some(0), 5));
+
+        // Case 4: Line has no trailing \n but is preceded by a newline.
+        // "hello\nworld" -> second line is "world" (6..11), click at y = 24.0.
+        assert_eq!(run_double_click("hello\nworld", 24.0), (Some(6), 11));
+    }
+
+    #[test]
     fn test_caret_blink_reset_on_move() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
