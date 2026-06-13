@@ -354,21 +354,39 @@ pub mod raw {
                             state.caret_byte = state.value.len();
                         }
                     }
-                    TextEvent::CaretHome { shift } => {
+                    TextEvent::CaretHome { shift, ctrl } => {
                         if *shift && state.selection_byte.is_none() {
                             state.selection_byte = Some(state.caret_byte);
                         } else if !*shift {
                             state.selection_byte = None;
                         }
-                        state.caret_byte = 0;
+                        if *ctrl {
+                            state.caret_byte = 0;
+                        } else {
+                            // Line-aware: scan left for the preceding '\n' (or
+                            // the start of the string), then land just after it.
+                            let line_start = state.value[..state.caret_byte]
+                                .rfind('\n')
+                                .map_or(0, |nl| nl + 1);
+                            state.caret_byte = line_start;
+                        }
                     }
-                    TextEvent::CaretEnd { shift } => {
+                    TextEvent::CaretEnd { shift, ctrl } => {
                         if *shift && state.selection_byte.is_none() {
                             state.selection_byte = Some(state.caret_byte);
                         } else if !*shift {
                             state.selection_byte = None;
                         }
-                        state.caret_byte = state.value.len();
+                        if *ctrl {
+                            state.caret_byte = state.value.len();
+                        } else {
+                            // Line-aware: scan right for the next '\n' and land
+                            // just before it (or at the end of the string).
+                            let line_end = state.value[state.caret_byte..]
+                                .find('\n')
+                                .map_or(state.value.len(), |nl| state.caret_byte + nl);
+                            state.caret_byte = line_end;
+                        }
                     }
                     TextEvent::SelectAll => {
                         state.selection_byte = Some(0);
@@ -2893,5 +2911,277 @@ mod tests {
         );
         assert_eq!(state.selection_byte, Some(2));
         assert_eq!(state.caret_byte, 8);
+    }
+
+    // ── Home / End navigation ───────────────────────────────────────────────────
+    //
+    // Text used throughout: "line1\nline2\nline3"
+    //   Line 0: bytes  0 ..  6  ("line1\n")
+    //   Line 1: bytes  6 .. 12  ("line2\n")
+    //   Line 2: bytes 12 .. 17  ("line3")
+    //
+    // Expected behaviour
+    // ------------------
+    // Home (ctrl=false): move caret to the first byte of the *current* line.
+    // End  (ctrl=false): move caret to the last byte of the *current* line
+    //                    (i.e. just before '\n', or to value.len() on the last line).
+    // Home (ctrl=true) : move caret to byte 0 (start of the whole string).
+    // End  (ctrl=true) : move caret to value.len() (end of the whole string).
+    // Adding Shift extends the selection from the *old* caret position.
+    //
+    // NOTE: these tests are expected to FAIL with the current implementation.
+    // CaretHome / CaretEnd today always jump to 0 / value.len() irrespective of
+    // `ctrl`, and they have no line-awareness at all.
+    #[test]
+    fn test_home_end_multiline() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        let mut state = TextEditState::new("line1\nline2\nline3");
+        state.was_focused = true;
+        focus_system.begin_frame();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // Warm-up frame so the widget knows the layout.
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        let mut input = Input::default();
+
+        // ── 1. Home (ctrl=false) from middle of Line 1 → start of Line 1 ──────
+        state.caret_byte = 9; // "line2|2\n" → inside Line 1
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretHome {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 6,
+            "Home (no ctrl) from line 1 mid should move to start of line 1 (byte 6)"
+        );
+        assert_eq!(state.selection_byte, None);
+
+        // ── 2. End (ctrl=false) from middle of Line 1 → end of Line 1 ──────────
+        state.caret_byte = 9; // restore to mid-line-1
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 11,
+            "End (no ctrl) from line 1 mid should move to end of line 1 (byte 11, before \\n)"
+        );
+        assert_eq!(state.selection_byte, None);
+
+        // ── 3. Home (ctrl=false) on Line 0 already at start → stays at 0 ───────
+        state.caret_byte = 0;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretHome {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 0,
+            "Home (no ctrl) at byte 0 should stay at 0"
+        );
+
+        // ── 4. End (ctrl=false) on last line → value.len() ─────────────────────
+        state.caret_byte = 14; // inside "line3"
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 17,
+            "End (no ctrl) on last line should move to value.len() (byte 17)"
+        );
+
+        // ── 5. Shift+Home (ctrl=false) extends selection to start of line ──────
+        state.caret_byte = 9; // mid-line-1
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretHome {
+            shift: true,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.selection_byte,
+            Some(9),
+            "Shift+Home (no ctrl) should anchor selection at old caret (9)"
+        );
+        assert_eq!(
+            state.caret_byte, 6,
+            "Shift+Home (no ctrl) should move caret to start of current line (6)"
+        );
+
+        // ── 6. Shift+End (ctrl=false) extends selection to end of line ──────────
+        state.caret_byte = 9; // mid-line-1
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretEnd {
+            shift: true,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.selection_byte,
+            Some(9),
+            "Shift+End (no ctrl) should anchor selection at old caret (9)"
+        );
+        assert_eq!(
+            state.caret_byte, 11,
+            "Shift+End (no ctrl) should move caret to end of current line (11)"
+        );
+
+        // ── 7. Home (ctrl=true) from mid-string → byte 0 ───────────────────────
+        state.caret_byte = 9;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretHome {
+            shift: false,
+            ctrl: true,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 0,
+            "Home (ctrl=true) should always move to byte 0"
+        );
+        assert_eq!(state.selection_byte, None);
+
+        // ── 8. End (ctrl=true) from mid-string → value.len() ───────────────────
+        state.caret_byte = 9;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretEnd {
+            shift: false,
+            ctrl: true,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.caret_byte, 17,
+            "End (ctrl=true) should always move to value.len()"
+        );
+        assert_eq!(state.selection_byte, None);
+
+        // ── 9. Shift+Ctrl+Home extends selection to byte 0 ──────────────────────
+        state.caret_byte = 9;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretHome {
+            shift: true,
+            ctrl: true,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.selection_byte,
+            Some(9),
+            "Shift+Ctrl+Home should anchor selection at old caret (9)"
+        );
+        assert_eq!(
+            state.caret_byte, 0,
+            "Shift+Ctrl+Home should move caret to byte 0"
+        );
+
+        // ── 10. Shift+Ctrl+End extends selection to value.len() ─────────────────
+        state.caret_byte = 9;
+        state.selection_byte = None;
+        input.text_events = vec![TextEvent::CaretEnd {
+            shift: true,
+            ctrl: true,
+        }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(
+            state.selection_byte,
+            Some(9),
+            "Shift+Ctrl+End should anchor selection at old caret (9)"
+        );
+        assert_eq!(
+            state.caret_byte, 17,
+            "Shift+Ctrl+End should move caret to value.len()"
+        );
     }
 }

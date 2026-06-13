@@ -637,11 +637,13 @@ impl ApplicationHandler for App {
                         Key::Named(NamedKey::Home) => {
                             self.input.text_events.push(TextEvent::CaretHome {
                                 shift: self.modifiers.shift_key(),
+                                ctrl: self.modifiers.control_key(),
                             })
                         }
                         Key::Named(NamedKey::End) => {
                             self.input.text_events.push(TextEvent::CaretEnd {
                                 shift: self.modifiers.shift_key(),
+                                ctrl: self.modifiers.control_key(),
                             })
                         }
                         Key::Character(s) => {

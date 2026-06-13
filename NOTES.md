@@ -4,20 +4,19 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Scrollbars
-  - Update styling to match the mockup (esp. track margins, border lines). Make configurable, so can use for text edits
-
 - Text Edit
+  - home/end multi-line
+  - multi-line selection (with mouse + keyboard)
+
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
   - wrapping options for multi-line
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
-  - prevent \n in single line? (Including pasting etc.)
   - auto-sizing to height of text (like VS Code commit message)
-  - user-sizing using drag handle
+    - use existing auto-sizing layout stuff?
+    - what about width?
+  - user-sizing using drag handle (height and/or width)
 
-  - multi-line selection (with mouse + keyboard)
-  - home/end multi-line
 
   - scrollbar visibility
   - scrollbar styling
