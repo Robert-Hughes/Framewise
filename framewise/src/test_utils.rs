@@ -51,35 +51,39 @@ impl DummyTextSys {
                         byte_idx + line_len
                     };
 
-                    lines.push(LineMetrics {
-                        y_top,
-                        height: 16.0,
-                        byte_start,
-                        byte_end: byte_end_sub,
-                    });
-
                     let sub_char_count = end_idx - start_idx;
                     let line_width = sub_char_count as f32 * 8.0;
                     if line_width > max_line_width {
                         max_line_width = line_width;
                     }
 
+                    lines.push(LineMetrics {
+                        y_top,
+                        height: 16.0,
+                        logical_width: line_width,
+                        ink_width: line_width,
+                        byte_start,
+                        byte_end: byte_end_sub,
+                    });
+
                     y_top += 16.0;
                     start_idx = end_idx;
                 }
             } else {
-                lines.push(LineMetrics {
-                    y_top,
-                    height: 16.0,
-                    byte_start: byte_idx,
-                    byte_end,
-                });
-
                 let char_count = line.chars().count();
                 let line_width = char_count as f32 * 8.0;
                 if line_width > max_line_width {
                     max_line_width = line_width;
                 }
+
+                lines.push(LineMetrics {
+                    y_top,
+                    height: 16.0,
+                    logical_width: line_width,
+                    ink_width: line_width,
+                    byte_start: byte_idx,
+                    byte_end,
+                });
 
                 y_top += 16.0;
             }
@@ -91,6 +95,8 @@ impl DummyTextSys {
             lines.push(LineMetrics {
                 y_top: 0.0,
                 height: 16.0,
+                logical_width: 0.0,
+                ink_width: 0.0,
                 byte_start: 0,
                 byte_end: 0,
             });
@@ -159,6 +165,8 @@ impl TextSystem for DummyTextSys {
                     metrics.lines.last().copied().unwrap_or(LineMetrics {
                         y_top: 0.0,
                         height: 16.0,
+                        logical_width: 0.0,
+                        ink_width: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
                     })
@@ -191,6 +199,8 @@ impl TextSystem for DummyTextSys {
                     metrics.lines.last().copied().unwrap_or(LineMetrics {
                         y_top: 0.0,
                         height: 16.0,
+                        logical_width: 0.0,
+                        ink_width: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
                     })

@@ -279,6 +279,65 @@ mod tests {
     }
 
     #[test]
+    fn test_line_metrics_logical_and_ink_widths() {
+        let mut sys = sys();
+
+        // 1. Test Case: Hard-wrapping (explicit '\n')
+        let m_hard = sys.measure(
+            "hello\nworld",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            TextBounds::UNBOUNDED,
+        );
+        assert_eq!(m_hard.line_count, 2);
+        for line in &m_hard.lines {
+            assert!(line.logical_width > 0.0, "logical_width should be positive");
+            assert!(line.ink_width > 0.0, "ink_width should be positive");
+            assert!(
+                line.ink_width <= line.logical_width + 10.0,
+                "ink_width ({}) should be close to or less than logical_width ({})",
+                line.ink_width,
+                line.logical_width
+            );
+        }
+
+        // 2. Test Case: Soft-wrapping (word wrap under narrow boundaries)
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let m_soft = sys.measure(
+            "hello wrapping world",
+            TextStyle::new(FontId(0), 16.0, 400, flow),
+            TextBounds {
+                max_width: Some(120.0),
+                max_height: None,
+            },
+        );
+        assert!(
+            m_soft.line_count > 1,
+            "Should have soft-wrapped into multiple lines"
+        );
+        for line in &m_soft.lines {
+            assert!(
+                line.logical_width > 0.0,
+                "logical_width should be positive for soft wrap"
+            );
+            assert!(
+                line.ink_width > 0.0,
+                "ink_width should be positive for soft wrap"
+            );
+            assert!(
+                line.logical_width <= 120.0,
+                "logical_width ({}) should respect max_width limit (120.0)",
+                line.logical_width
+            );
+        }
+    }
+
+    #[test]
     fn test_word_wrap_preserves_spaces() {
         let mut sys = sys();
         let flow = TextFlow::wrapped();
@@ -1321,6 +1380,61 @@ mod tests {
         assert_eq!(
             caret.height, line1_height,
             "caret height at byte 4 must match line 1 height"
+        );
+    }
+
+    /// For soft-wrapped lines, test:
+    /// - Querying `caret_geom` at the visual line's `byte_end` (which equals the `byte_start`
+    ///   of the next visual line) resolves to the start of the next visual line.
+    /// - To obtain the trailing edge coordinate of the soft-wrapped line, we should use
+    ///   `line.logical_width` which represents the actual right edge.
+    #[test]
+    fn test_caret_geom_soft_wrap_boundaries() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        // "hello wrapping" will soft-wrap. "hello" (5 chars) on line 0, "wrapping" on line 1.
+        let layout = sys.prepare(
+            "hello wrapping",
+            TextStyle::new(FontId(0), 16.0, 400, flow),
+            Rect::new(0.0, 0.0, 80.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.lines.len(), 2);
+
+        let l0 = &run.lines[0];
+        let l1 = &run.lines[1];
+
+        // l0.byte_end is the index of the space or the start of "wrapping" (index 6, since "hello " is 6 chars).
+        let caret_at_boundary = sys.caret_geom(layout.handle, l0.byte_end);
+        assert_eq!(
+            caret_at_boundary.y_top, l1.y_top,
+            "caret at soft-wrap boundary index ({}) must resolve to visual line 1",
+            l0.byte_end
+        );
+        assert!(
+            caret_at_boundary.x < 5.0,
+            "caret at soft-wrap boundary index must be at the start of visual line 1 (x={})",
+            caret_at_boundary.x
+        );
+
+        // Querying immediately before the soft-wrap boundary (i.e. l0.byte_end - 1).
+        // It should stay on line 0.
+        let caret_before_boundary = sys.caret_geom(layout.handle, l0.byte_end - 1);
+        assert_eq!(
+            caret_before_boundary.y_top, l0.y_top,
+            "caret immediately before soft-wrap boundary must resolve to visual line 0"
+        );
+
+        // Verify logical_width represents the trailing edge coordinate of line 0.
+        assert!(
+            l0.logical_width > 0.0,
+            "logical_width of line 0 should be positive"
         );
     }
 

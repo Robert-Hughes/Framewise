@@ -79,6 +79,8 @@ pub struct LineRec {
     /// Byte range of the original string mapped to this line: `[byte_start, byte_end)`.
     pub byte_start: usize,
     pub byte_end: usize,
+    pub logical_width: f32,
+    pub ink_width: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

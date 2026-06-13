@@ -826,11 +826,13 @@ pub mod raw {
                             let has_newline = line.byte_end > line.byte_start
                                 && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
 
-                            let end_x = if line_sel_end == line.byte_end && has_newline {
-                                // Highlight the newline character specifically
-                                let newline_width = 8.0;
-                                let nl_caret = text_system.caret_geom(handle, line.byte_end - 1);
-                                nl_caret.x + newline_width
+                            let end_x = if line_sel_end == line.byte_end {
+                                if has_newline {
+                                    // Highlight the newline character specifically by extending 8px past the text end
+                                    line.logical_width + 8.0
+                                } else {
+                                    line.logical_width
+                                }
                             } else {
                                 text_system.caret_geom(handle, line_sel_end).x
                             };
@@ -4596,4 +4598,46 @@ mod tests {
         assert_eq!(state.caret_byte, 10);
     }
 
+    #[test]
+    fn test_text_edit_wrapping_selection_visual() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
+        state.was_focused = true;
+        state.selection_byte = Some(5);
+        state.caret_byte = 15;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
+        edit_spec.wrap = true;
+
+        let mut cmds = DrawCommands::new();
+        let input = Input::default();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Assert the selection rectangle for Line 0 (indices 5..10).
+        // In DummyTextSys:
+        // - start_x = 5 chars * 8px = 40.0px.
+        // - end_x = 10 chars * 8px = 80.0px.
+        // So the selection rect should start at x = 45.0 (40.0 + 5.0 padding) and have width = 40.0.
+        let has_correct_selection = cmds.iter().any(|cmd| {
+            if let DrawCmd::FillRect { rect, color, .. } = cmd {
+                *color == spec().style.select_color && rect.x == 45.0 && rect.w == 40.0
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_correct_selection,
+            "Selection highlight should cover the selected range [5..10] on Line 0"
+        );
+    }
 }

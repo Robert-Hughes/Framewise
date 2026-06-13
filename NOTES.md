@@ -12,8 +12,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 
   - wrapping options for multi-line
-    - we temporaroly added a "wrap" bool - mioght need adjusting. Certainly needs testing!
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
+    - End key moves caret to the line *beneath*, not end of the current (wrapped) line
 
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
@@ -47,7 +47,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
 - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
-- Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
+- Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour?
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
 - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!

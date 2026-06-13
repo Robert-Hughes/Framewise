@@ -533,6 +533,9 @@ impl SampleTextSystem {
                 }
             }
 
+            let mut line_ink_l = f32::INFINITY;
+            let mut line_ink_r = f32::NEG_INFINITY;
+
             for cluster in &line.clusters {
                 for g in &cluster.glyphs {
                     if g.raster_w == 0 && g.raster_h == 0 {
@@ -559,9 +562,18 @@ impl SampleTextSystem {
                         ink_t = ink_t.min(t);
                         ink_r = ink_r.max(r);
                         ink_b = ink_b.max(b);
+
+                        line_ink_l = line_ink_l.min(l);
+                        line_ink_r = line_ink_r.max(r);
                     }
                 }
             }
+
+            let line_ink_width = if line_ink_l.is_finite() {
+                (line_ink_r - line_ink_l).max(0.0)
+            } else {
+                0.0
+            };
 
             let logical_line_w = Self::logical_cluster_line_width(&line.clusters);
             block_width = block_width.max(logical_line_w);
@@ -585,6 +597,8 @@ impl SampleTextSystem {
             rec.push(LineRec {
                 y_top: new_y_top,
                 height: line_height_snapped,
+                logical_width: logical_line_w,
+                ink_width: line_ink_width,
                 glyph_start,
                 glyph_end: out.len(),
                 cluster_start,
@@ -606,6 +620,8 @@ impl SampleTextSystem {
             .map(|r| framewise::LineMetrics {
                 y_top: r.y_top,
                 height: r.height,
+                logical_width: r.logical_width,
+                ink_width: r.ink_width,
                 byte_start: r.byte_start,
                 byte_end: r.byte_end,
             })

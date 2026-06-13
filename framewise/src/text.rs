@@ -494,6 +494,10 @@ pub struct LineMetrics {
     pub y_top: f32,
     /// Height of the line.
     pub height: f32,
+    /// Logical width of the line.
+    pub logical_width: f32,
+    /// Ink width of the line.
+    pub ink_width: f32,
     /// Byte start index of the line in the original string.
     pub byte_start: usize,
     /// Byte end index of the line in the original string (exclusive).
@@ -536,8 +540,7 @@ pub struct TextMetrics {
     /// This may be smaller than, larger than, or offset from
     /// [`logical_size`](Self::logical_size). It may also be empty, for example
     /// for whitespace-only text. Callers that need optical centering or visual
-    /// alignment should use this field rather than assuming the logical size
-    /// describes the drawn pixels.
+    /// alignment should use `ink_bounds`.
     pub ink_bounds: Rect,
 
     /// Number of lines actually laid out (after wrapping, hard breaks, and
@@ -681,6 +684,14 @@ pub trait TextSystem {
     /// - Querying the index immediately after the `\n` (i.e. `byte_end`, which
     ///   equals the `byte_start` of the next line) places the caret at the start
     ///   of the next line.
+    ///
+    /// For soft-wrapped lines (where the visual line ends at a visual boundary rather
+    /// than a hard newline `\n` character):
+    /// - Querying `caret_geom` at the visual line's `byte_end` (which equals the `byte_start`
+    ///   of the next visual line) resolves to the start of the next line (returning `x` aligned
+    ///   to the start of the next line).
+    /// - To obtain the trailing edge coordinate of the soft-wrapped line, widgets should
+    ///   inspect the line's logical width (`line.logical_width`) instead of querying `caret_geom(line.byte_end)`.
     fn caret_geom(&self, handle: TextHandle, byte_index: usize) -> CaretGeom;
 
     /// Hit-test a point (block-local coordinates) to the nearest character
