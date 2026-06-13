@@ -5,10 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - add test for double-clicking after end of a line with a \n - should select just the \n char. If no trailing \n then the trailing word.
-  - multi-line selection (with mouse + keyboard)
-  - do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
-
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
   - wrapping options for multi-line
@@ -34,6 +30,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - caret cursor
   - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
   - Ctrl+Up/Down?
+  - newline policy reject - is this useful? What about trim after first newline?
+  - newline policy - how is enter rejected? Even for replace-with-space?
   - TESTS for all this!
 
 - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
@@ -41,6 +39,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
 - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
+- do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03
