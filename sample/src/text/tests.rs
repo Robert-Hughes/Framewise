@@ -391,9 +391,9 @@ mod tests {
             TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
-        let far = sys.hit_test(layout.handle, Vec2::new(1000.0, 5.0));
+        let far = sys.hit_test_caret(layout.handle, Vec2::new(1000.0, 5.0));
         assert_eq!(far, 3);
-        let near = sys.hit_test(layout.handle, Vec2::new(-5.0, 5.0));
+        let near = sys.hit_test_caret(layout.handle, Vec2::new(-5.0, 5.0));
         assert_eq!(near, 0);
     }
 
@@ -570,14 +570,14 @@ mod tests {
         let y = run.lines[0].y_top + 1.0;
 
         assert_eq!(
-            sys.hit_test(
+            sys.hit_test_caret(
                 layout.handle,
                 Vec2::new(cluster.x + cluster.advance * 0.25, y)
             ),
             0
         );
         assert_eq!(
-            sys.hit_test(
+            sys.hit_test_caret(
                 layout.handle,
                 Vec2::new(cluster.x + cluster.advance * 0.75, y)
             ),
@@ -1126,7 +1126,7 @@ mod tests {
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
-        let on_line2 = sys.hit_test(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
+        let on_line2 = sys.hit_test_caret(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
         assert_eq!(on_line2, 4);
     }
 
@@ -1153,7 +1153,7 @@ mod tests {
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
         // Click well to the right of "abc" on line 0, still within line 0's Y band.
-        let result = sys.hit_test(layout.handle, Vec2::new(1000.0, lh * 0.5));
+        let result = sys.hit_test_caret(layout.handle, Vec2::new(1000.0, lh * 0.5));
         // Must land on the '\n' at byte 3, not on byte 4 (start of "def").
         assert_eq!(
             result, 3,
@@ -1175,13 +1175,96 @@ mod tests {
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
         // Click anywhere on the blank line (line index 1, Y ≈ lh..2*lh).
-        let result = sys.hit_test(layout.handle, Vec2::new(100.0, lh + lh * 0.5));
+        let result = sys.hit_test_caret(layout.handle, Vec2::new(100.0, lh + lh * 0.5));
         // Byte 2 is the '\n' that forms the blank line; byte 3 would be the
         // start of the last line ("b").
         assert_eq!(
             result, 2,
             "hit_test on a blank newline-only line should return the index of \
              the '\\n' (byte 2), not byte_end (byte 3)"
+        );
+    }
+
+    #[test]
+    fn test_hit_test_cluster_edge_cases() {
+        let mut sys = sys();
+        // Text: "a b\nc"
+        // Line 0: "a b\n" (bytes 0..4, containing 'a' at 0, ' ' at 1, 'b' at 2, '\n' at 3)
+        // Line 1: "c" (byte 4)
+        let layout = sys.prepare(
+            "a b\nc",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
+
+        // Get the widths of the characters on Line 0 to determine coordinates
+        let caret0 = sys.caret_geom(layout.handle, 0); // x of 'a' left
+        let caret1 = sys.caret_geom(layout.handle, 1); // x of 'a' right / ' ' left
+        let caret2 = sys.caret_geom(layout.handle, 2); // x of ' ' right / 'b' left
+        let caret3 = sys.caret_geom(layout.handle, 3); // x of 'b' right / '\n' left
+
+        let y0 = lh * 0.5; // Line 0
+        let y1 = lh + lh * 0.5; // Line 1
+
+        // 1. Click on the left/right parts of 'a'
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret0.x + 1.0, y0)),
+            0
+        );
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret1.x - 1.0, y0)),
+            0
+        );
+
+        // 2. Click on the left/right parts of ' '
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret1.x + 1.0, y0)),
+            1
+        );
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret2.x - 1.0, y0)),
+            1
+        );
+
+        // 3. Click on the left/right parts of 'b'
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret2.x + 1.0, y0)),
+            2
+        );
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret3.x - 1.0, y0)),
+            2
+        );
+
+        // 4. Click far to the right of Line 0 (should return '\n' index)
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret3.x + 100.0, y0)),
+            3
+        );
+
+        // 5. Click on the '\n' itself (caret3.x)
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret3.x + 0.1, y0)),
+            3
+        );
+
+        // 6. Click far to the left of Line 0
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(-100.0, y0)),
+            0
+        );
+
+        // 7. Click on Line 1 ('c')
+        let caret4 = sys.caret_geom(layout.handle, 4); // 'c' left
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret4.x + 1.0, y1)),
+            4
+        );
+        // Click far to the right of Line 1 (should return 'c' index since there is no '\n')
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(caret4.x + 100.0, y1)),
+            4
         );
     }
 
@@ -1285,7 +1368,7 @@ mod tests {
         let caret = sys.caret_geom(layout.handle, 0);
         assert_eq!(caret.x, 0.0, "Caret at index 0 must be at x = 0.0");
 
-        let idx = sys.hit_test(layout.handle, Vec2::new(0.0, 5.0));
+        let idx = sys.hit_test_caret(layout.handle, Vec2::new(0.0, 5.0));
         assert_eq!(idx, 0, "Hit testing near 0.0 must return index 0");
     }
 

@@ -108,7 +108,7 @@ impl TextSystem for DummyTextSys {
         }
     }
 
-    fn hit_test(&self, _handle: TextHandle, pos: Vec2) -> usize {
+    fn hit_test_caret(&self, _handle: TextHandle, pos: Vec2) -> usize {
         if let Some((ref text, ref metrics)) = self.last_run {
             let line = metrics
                 .lines
@@ -124,7 +124,7 @@ impl TextSystem for DummyTextSys {
                     })
                 });
 
-            let col = (pos.x / 8.0).round() as usize;
+            let col = (pos.x / 8.0).max(0.0).round() as usize;
             let line_len = line.byte_end.saturating_sub(line.byte_start);
             let actual_line_text = &text[line.byte_start..line.byte_end];
             let has_newline = actual_line_text.ends_with('\n');
@@ -136,7 +136,43 @@ impl TextSystem for DummyTextSys {
             let clamped_col = col.min(max_col);
             line.byte_start + clamped_col
         } else {
-            (pos.x / 8.0).round() as usize
+            (pos.x / 8.0).max(0.0).round() as usize
+        }
+    }
+
+    fn hit_test_cluster(&self, _handle: TextHandle, pos: Vec2) -> usize {
+        if let Some((ref text, ref metrics)) = self.last_run {
+            let line = metrics
+                .lines
+                .iter()
+                .find(|l| pos.y < l.y_top + l.height)
+                .copied()
+                .unwrap_or_else(|| {
+                    metrics.lines.last().copied().unwrap_or(LineMetrics {
+                        y_top: 0.0,
+                        height: 16.0,
+                        byte_start: 0,
+                        byte_end: text.len(),
+                    })
+                });
+
+            let line_len = line.byte_end.saturating_sub(line.byte_start);
+            if line_len == 0 {
+                return line.byte_start;
+            }
+
+            let col = (pos.x / 8.0).max(0.0).floor() as usize;
+            let actual_line_text = &text[line.byte_start..line.byte_end];
+            let has_newline = actual_line_text.ends_with('\n');
+            let max_col = if has_newline {
+                line_len - 1
+            } else {
+                line_len - 1
+            };
+            let clamped_col = col.min(max_col);
+            line.byte_start + clamped_col
+        } else {
+            (pos.x / 8.0).max(0.0).floor() as usize
         }
     }
 }

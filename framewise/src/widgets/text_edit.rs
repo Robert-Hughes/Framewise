@@ -305,7 +305,7 @@ pub mod raw {
                             let target_line = &metrics.lines[target_line_idx];
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
-                            let new_caret = text_system.hit_test(handle, pos);
+                            let new_caret = text_system.hit_test_caret(handle, pos);
                             state.caret_byte = new_caret.min(state.value.len());
                         } else {
                             // Already on first visual line, move to start of text
@@ -347,7 +347,7 @@ pub mod raw {
                             let target_line = &metrics.lines[target_line_idx];
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
-                            let new_caret = text_system.hit_test(handle, pos);
+                            let new_caret = text_system.hit_test_caret(handle, pos);
                             state.caret_byte = new_caret.min(state.value.len());
                         } else {
                             // Already on last visual line, move to end of text
@@ -586,13 +586,13 @@ pub mod raw {
                 input.mouse_pos.x - text_rect.x,
                 input.mouse_pos.y - text_rect.y,
             );
-            let clicked_byte = text_system.hit_test(handle, relative_pos);
+            let clicked_byte = text_system.hit_test_caret(handle, relative_pos);
             let clicked_byte = clicked_byte.min(state.value.len());
 
             // Handling double/triple clicks
             if input.mouse_click_count == 2 {
-                let char_idx = char_index_at_pos(&state.value, text_system, handle, relative_pos);
-                let (start, end) = word_bounds(&state.value, char_idx);
+                let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
+                let (start, end) = word_bounds(&state.value, cluster_byte);
                 state.selection_byte = Some(start);
                 state.caret_byte = end;
                 state.is_dragging = true;
@@ -617,14 +617,13 @@ pub mod raw {
                     input.mouse_pos.x - text_rect.x,
                     input.mouse_pos.y - text_rect.y,
                 );
-                let current_byte = text_system.hit_test(handle, relative_pos);
+                let current_byte = text_system.hit_test_caret(handle, relative_pos);
                 let current_byte = current_byte.min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
-                    let char_idx =
-                        char_index_at_pos(&state.value, text_system, handle, relative_pos);
-                    let (cur_start, cur_end) = word_bounds(&state.value, char_idx);
-                    if char_idx < orig_start {
+                    let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
+                    let (cur_start, cur_end) = word_bounds(&state.value, cluster_byte);
+                    if cluster_byte < orig_start {
                         state.selection_byte = Some(orig_end);
                         state.caret_byte = cur_start;
                     } else {
@@ -1101,43 +1100,6 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
         }
     }
     (left, text.len())
-}
-
-pub fn char_index_at_pos<T: TextSystem>(
-    text: &str,
-    text_system: &T,
-    handle: crate::TextHandle,
-    relative_pos: Vec2,
-) -> usize {
-    if text.is_empty() {
-        return 0;
-    }
-
-    let clicked_byte = text_system.hit_test(handle, relative_pos);
-    let clicked_byte = clicked_byte.min(text.len());
-
-    let boundary_x = text_system.caret_geom(handle, clicked_byte).x;
-    if relative_pos.x < boundary_x {
-        if clicked_byte > 0 {
-            let mut prev = clicked_byte - 1;
-            while prev > 0 && !text.is_char_boundary(prev) {
-                prev -= 1;
-            }
-            prev
-        } else {
-            0
-        }
-    } else {
-        if clicked_byte < text.len() {
-            clicked_byte
-        } else {
-            let mut prev = text.len() - 1;
-            while prev > 0 && !text.is_char_boundary(prev) {
-                prev -= 1;
-            }
-            prev
-        }
-    }
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────

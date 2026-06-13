@@ -698,5 +698,23 @@ pub trait TextSystem {
     ///   beginning of the next one.
     ///
     /// The result is always a valid UTF-8 char boundary.
-    fn hit_test(&self, handle: TextHandle, pos: Vec2) -> usize;
+    fn hit_test_caret(&self, handle: TextHandle, pos: Vec2) -> usize;
+
+    /// Hit-test a point (block-local coordinates) to a shaped glyph cluster,
+    /// returning the start byte index of the hit cluster.
+    ///
+    /// The coordinates `pos` are in the logical block coordinate system used by
+    /// `prepare`. Hit testing compares against the shaped logical cluster
+    /// positions in the cached run.
+    ///
+    /// The point is resolved to a line by `y` first, then to the cluster containing `x`:
+    /// - Points above the block clamp to the first line; points below clamp to
+    ///   the last line.
+    /// - Points to the left of a line clamp to the first cluster of that line.
+    /// - Points to the right of a line clamp to the last cluster of that line.
+    /// - For multi-byte characters or complex clusters, this returns the starting
+    ///   byte index of the cluster.
+    /// - If the line ends with a hard newline (`\n`), a hit to the right of the line
+    ///   or on the newline itself must return the index of the `\n` character itself.
+    fn hit_test_cluster(&self, handle: TextHandle, pos: Vec2) -> usize;
 }

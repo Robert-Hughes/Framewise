@@ -501,7 +501,11 @@ mod tests {
             }
         }
 
-        fn hit_test(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+            0
+        }
+
+        fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {
             0
         }
     }

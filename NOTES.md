@@ -5,8 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - multi-line selection (with mouse + keyboard)
   - add test for double-clicking after end of a line with a \n - should select just the \n char. If no trailing \n then the trailing word.
+  - multi-line selection (with mouse + keyboard)
+  - do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
 
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)

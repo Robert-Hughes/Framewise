@@ -384,7 +384,7 @@ impl TextSystem for SampleTextSystem {
         }
     }
 
-    fn hit_test(&self, handle: framewise::TextHandle, pos: Vec2) -> usize {
+    fn hit_test_caret(&self, handle: framewise::TextHandle, pos: Vec2) -> usize {
         let run = &self.runs[handle.0];
 
         // Resolve the line by Y (clamp above/below to first/last).
@@ -412,6 +412,31 @@ impl TextSystem for SampleTextSystem {
             Some(last) if last.is_hard_break => last.byte_start,
             _ => line.byte_end,
         }
+    }
+
+    fn hit_test_cluster(&self, handle: framewise::TextHandle, pos: Vec2) -> usize {
+        let run = &self.runs[handle.0];
+
+        // Resolve the line by Y (clamp above/below to first/last).
+        let line = run
+            .lines
+            .iter()
+            .find(|l| pos.y < l.y_top + l.height)
+            .unwrap_or_else(|| run.lines.last().expect("at least one line"));
+
+        let clusters = &run.clusters[line.cluster_start..line.cluster_end];
+        if clusters.is_empty() {
+            return line.byte_start;
+        }
+        for cluster in clusters {
+            if pos.x < cluster.x + cluster.advance {
+                return cluster.byte_start;
+            }
+        }
+        clusters
+            .last()
+            .map(|c| c.byte_start)
+            .unwrap_or(line.byte_start)
     }
 }
 
