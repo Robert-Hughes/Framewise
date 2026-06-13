@@ -271,6 +271,10 @@ pub mod raw {
                         }
                     }
                     TextEvent::CaretUp { shift } => {
+                        let sel_byte = state.selection_byte;
+                        let has_selection =
+                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+
                         if *shift {
                             if state.selection_byte.is_none() {
                                 state.selection_byte = Some(state.caret_byte);
@@ -278,6 +282,12 @@ pub mod raw {
                         } else {
                             state.selection_byte = None;
                         }
+
+                        let start_byte = if has_selection && !*shift {
+                            state.caret_byte.min(sel_byte.unwrap())
+                        } else {
+                            state.caret_byte
+                        };
 
                         let text_content = if state.value.is_empty() {
                             " "
@@ -293,11 +303,11 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(handle, state.caret_byte);
+                        let caret = text_system.caret_geom(handle, start_byte);
                         let current_line_idx = metrics
                             .lines
                             .iter()
-                            .rposition(|line| state.caret_byte >= line.byte_start)
+                            .rposition(|line| start_byte >= line.byte_start)
                             .unwrap_or(0);
 
                         if current_line_idx > 0 {
@@ -313,6 +323,10 @@ pub mod raw {
                         }
                     }
                     TextEvent::CaretDown { shift } => {
+                        let sel_byte = state.selection_byte;
+                        let has_selection =
+                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+
                         if *shift {
                             if state.selection_byte.is_none() {
                                 state.selection_byte = Some(state.caret_byte);
@@ -320,6 +334,12 @@ pub mod raw {
                         } else {
                             state.selection_byte = None;
                         }
+
+                        let start_byte = if has_selection && !*shift {
+                            state.caret_byte.max(sel_byte.unwrap())
+                        } else {
+                            state.caret_byte
+                        };
 
                         let text_content = if state.value.is_empty() {
                             " "
@@ -335,11 +355,11 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(handle, state.caret_byte);
+                        let caret = text_system.caret_geom(handle, start_byte);
                         let current_line_idx = metrics
                             .lines
                             .iter()
-                            .rposition(|line| state.caret_byte >= line.byte_start)
+                            .rposition(|line| start_byte >= line.byte_start)
                             .unwrap_or(0);
 
                         if current_line_idx + 1 < metrics.lines.len() {
@@ -3088,6 +3108,105 @@ mod tests {
         );
         assert_eq!(state.selection_byte, Some(6));
         assert_eq!(state.caret_byte, 12);
+    }
+
+    #[test]
+    fn test_text_edit_vertical_caret_movement_with_selection() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        focus_system.begin_frame();
+
+        // 3 lines: "l0\nl1\nl2"
+        // Line 0: "l0\n" (bytes 0..3)
+        // Line 1: "l1\n" (bytes 3..6)
+        // Line 2: "l2"   (bytes 6..8)
+        let mut state = TextEditState::new("l0\nl1\nl2");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // 1. CaretUp (shift=false): selection from 1 to 7.
+        // Left/start boundary is 1 (Line 0).
+        // CaretUp without shift collapses selection and moves one line up from start boundary (1).
+        // Since 1 is on Line 0 (first visual line), it should move to the start of text (0).
+        state.selection_byte = Some(1);
+        state.caret_byte = 7;
+        input.text_events = vec![TextEvent::CaretUp { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 0);
+
+        // 2. CaretUp (shift=false): selection from 4 to 7.
+        // Left/start boundary is 4 (Line 1).
+        // CaretUp without shift collapses selection and moves one line up from start boundary (4).
+        // Since 4 is on Line 1, moving up should place it on Line 0.
+        // The column for byte 4 (on Line 1) is 4 - 3 = 1 character from start, so x = 8.0.
+        // On Line 0, x = 8.0 corresponds to byte index 1.
+        state.selection_byte = Some(4);
+        state.caret_byte = 7;
+        input.text_events = vec![TextEvent::CaretUp { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 1);
+
+        // 3. CaretDown (shift=false): selection from 1 to 4.
+        // Right/end boundary is 4 (Line 1).
+        // CaretDown without shift collapses selection and moves one line down from end boundary (4).
+        // Since 4 is on Line 1, moving down should place it on Line 2.
+        // The column for byte 4 (on Line 1) is 4 - 3 = 1, so x = 8.0.
+        // On Line 2, x = 8.0 corresponds to byte index 7.
+        state.selection_byte = Some(4);
+        state.caret_byte = 1;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 7);
+
+        // 4. CaretDown (shift=false): selection from 4 to 7.
+        // Right/end boundary is 7 (Line 2).
+        // CaretDown without shift collapses selection and moves one line down from end boundary (7).
+        // Since 7 is on Line 2 (last visual line), it should move to the end of text (8).
+        state.selection_byte = Some(7);
+        state.caret_byte = 4;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.selection_byte, None);
+        assert_eq!(state.caret_byte, 8);
     }
 
     #[test]

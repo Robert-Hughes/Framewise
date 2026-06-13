@@ -8,9 +8,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
 
-- caret moving vertically auto-scroll. Tests added, need fix implemenetation
-- multi-line selection, then press up/down - should be anchored to the end, just like in x
-- page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area
+- select text, then press down, seems to move down more than expected with newlines at the end of lines selected etc. try to tidy up. Existing test= test_text_edit_vertical_caret_movement_with_selection  may need tweaking.
+- page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
+  - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
 
 -Layout width mismatch: In CaretUp and CaretDown event handling, a new layout is prepared using the widget's physical border width (spec.rect.w - 2.0 * spec.style.border_width). However, during the draw phase, the text is measured using max_width: None and prepared using metrics.logical_size.x.max(scroll_outer_rect.w). This discrepancy causes layout and caret mismatch if spec.error is true (which subtracts error stripe width) or when there is long text.
 
