@@ -402,6 +402,27 @@ pub mod raw {
                         }
                         if *ctrl {
                             state.caret_byte = 0;
+                        } else if spec.wrap {
+                            let text_content = if state.value.is_empty() {
+                                " "
+                            } else {
+                                &state.value
+                            };
+                            let (_, layout_width, layout_height, _) =
+                                edit_layout_size(text_content, &spec, text_style, text_system);
+                            let layout = text_system.prepare(
+                                text_content,
+                                text_style,
+                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                            );
+                            let metrics = layout.metrics;
+                            let current_line_idx = metrics
+                                .lines
+                                .iter()
+                                .rposition(|line| state.caret_byte >= line.byte_start)
+                                .unwrap_or(0);
+                            let line = &metrics.lines[current_line_idx];
+                            state.caret_byte = line.byte_start;
                         } else {
                             // Line-aware: scan left for the preceding '\n' (or
                             // the start of the string), then land just after it.
@@ -419,6 +440,34 @@ pub mod raw {
                         }
                         if *ctrl {
                             state.caret_byte = state.value.len();
+                        } else if spec.wrap {
+                            let text_content = if state.value.is_empty() {
+                                " "
+                            } else {
+                                &state.value
+                            };
+                            let (_, layout_width, layout_height, _) =
+                                edit_layout_size(text_content, &spec, text_style, text_system);
+                            let layout = text_system.prepare(
+                                text_content,
+                                text_style,
+                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                            );
+                            let metrics = layout.metrics;
+                            let current_line_idx = metrics
+                                .lines
+                                .iter()
+                                .rposition(|line| state.caret_byte >= line.byte_start)
+                                .unwrap_or(0);
+                            let line = &metrics.lines[current_line_idx];
+                            let has_newline = line.byte_end > line.byte_start
+                                && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
+                            let line_end = if has_newline {
+                                line.byte_end - 1
+                            } else {
+                                line.byte_end
+                            };
+                            state.caret_byte = line_end;
                         } else {
                             // Line-aware: scan right for the next '\n' and land
                             // just before it (or at the end of the string).
@@ -4489,4 +4538,62 @@ mod tests {
             panic!("DummyTextSys did not record last prepared layout run");
         }
     }
+
+    #[test]
+    fn test_text_edit_wrapping_home_end() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        state.was_focused = true;
+
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
+        edit_spec.wrap = true;
+
+        // Visual Line 0: "abcdefghij" (index 0..10)
+        // Visual Line 1: "klmnopqrst" (index 10..20)
+
+        // Test Home
+        state.caret_byte = 15; // caret is on 'p' (Line 1)
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretHome {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(state.caret_byte, 10);
+
+        // Test End
+        state.caret_byte = 3; // caret is on 'd' (Line 0)
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(state.caret_byte, 10);
+    }
+
 }
