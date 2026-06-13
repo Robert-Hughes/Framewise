@@ -99,7 +99,7 @@ use framewise::widgets::switch::{
 use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
 #[cfg(feature = "text_edit")]
 #[allow(unused_imports)]
-use framewise::widgets::text_edit::{text_edit, TextEditSpecBuilder, TextEditState};
+use framewise::widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState};
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
 use framewise::widgets::tooltip::{tooltip, TooltipSpecBuilder, TooltipVariant};
@@ -1958,7 +1958,7 @@ fn section_02_text_inputs<CF>(
         let _info = {
             let state = &mut state.te_multiline;
             let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
-            let spec_builder = TextEditSpecBuilder::new();
+            let spec_builder = TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Allow);
             text_edit(&mut b, spec_builder, layout_params, state)
         };
         b.finish();
