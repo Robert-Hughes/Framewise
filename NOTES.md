@@ -12,8 +12,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 
   - vertical alignment
+    - demo page
+  - horizontal alignment?
+    - demo page
   - wrapping options for multi-line
-    - Stop using TextStyle as API - construct this internally and provide our own simpler wrapping flag
     - we temporaroly added a "wrap" bool - mioght need adjusting. Certainly needs testing!
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
 
@@ -23,7 +25,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - user-sizing using drag handle (height and/or width)
 
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
-  - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties
+    - newline policy, wrap, alignment (vertical and horizontal)
+    - add to demo page?
+  - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
 
   - scrollbar visibility

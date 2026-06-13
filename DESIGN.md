@@ -659,6 +659,12 @@ Framewise has several alignment concepts that sound similar but operate at diffe
 2. **Layout `Align`** positions a child widget inside the available parent layout space on one axis. It is parent-to-child widget placement, used through types such as `Placement` and `Placement2D`. It moves the widget's resolved `Rect`.
 3. **Widget text/content placement** positions the prepared text block inside the widget's own content rect. It is local to widgets such as labels and buttons. It does not move the widget in its parent, and it should not be implemented by changing `TextFlow::line_align`.
 
+*Note on `TextEdit`*: The editable text input widget (`TextEdit`) makes use of two of these layers:
+- It uses **Widget text/content placement** (specifically a `vertical_align: Align` property) to vertically align the entire prepared text block (top, center, or bottom) inside the viewport when the content fits.
+- It uses **`TextFlow::line_align`** (specifically a `line_align: TextLineAlign` property forwarded to `TextStyle`) to horizontally align individual lines (left, center, or right) inside the text layout.
+Because all editing logic, caret rendering, selection highlight bounds, and hit-testing in `TextEdit` are evaluated using block-local coordinates relative to the text block's origin, these two layers of alignment are handled completely naturally without any additional logic in the widget's interaction code.
+
+
 The proposed label/button property should therefore be named for content placement rather than plain alignment, for example:
 
 ```rust

@@ -2,8 +2,10 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    layout::{IntrinsicSize, LayoutState},
-    text::{FontId, LineHeight, TextBounds, TextFlow, TextMetrics, TextStyle, TextSystem},
+    layout::{Align, IntrinsicSize, LayoutState},
+    text::{
+        FontId, LineHeight, TextBounds, TextFlow, TextLineAlign, TextMetrics, TextStyle, TextSystem,
+    },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::scroll_area::ScrollState,
@@ -28,12 +30,15 @@ pub mod raw {
         pub layer: Layer,
         pub newline_policy: super::NewlinePolicy,
         pub wrap: bool,
+        pub vertical_align: Align,
+        pub line_align: TextLineAlign,
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditCalcIntrinsicSizeSpec {
         pub style: super::TextEditStyle,
         pub wrap: bool,
+        pub line_align: TextLineAlign,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -57,7 +62,7 @@ pub mod raw {
         };
         let metrics = text_system.measure(
             text,
-            to_text_style(spec.style, spec.wrap),
+            to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
         );
         let inset = (spec.style.border_width + spec.style.padding) * 2.0;
@@ -79,7 +84,7 @@ pub mod raw {
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> TextEditResult {
-        let text_style = to_text_style(spec.style, spec.wrap);
+        let text_style = to_text_style(spec.style, spec.wrap, spec.line_align);
         let processed = spec.newline_policy.process(&state.value);
         if let std::borrow::Cow::Owned(s) = processed {
             state.value = s;
@@ -119,7 +124,13 @@ pub mod raw {
                         max_height: Some(content_rect.h),
                     },
                 );
-                let ty = content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0;
+                let ty = match spec.vertical_align {
+                    Align::Start => content_rect.y,
+                    Align::Center => {
+                        content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0
+                    }
+                    Align::End => content_rect.y + content_rect.h - metrics.logical_size.y,
+                };
                 let text_rect = Rect::new(content_rect.x, ty, content_rect.w, content_rect.h);
                 let layout = text_system.prepare(&state.value, text_style, text_rect);
                 cmds.push(DrawCmd::Text {
@@ -586,7 +597,17 @@ pub mod raw {
 
         let text_x = scroll_outer_rect.x + spec.style.padding - scroll_result.offset.x;
         let text_y = if metrics.logical_size.y + 2.0 * spec.style.padding <= scroll_outer_rect.h {
-            scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0
+            match spec.vertical_align {
+                Align::Start => scroll_outer_rect.y + spec.style.padding,
+                Align::Center => {
+                    scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0
+                }
+                Align::End => {
+                    scroll_outer_rect.y + scroll_outer_rect.h
+                        - spec.style.padding
+                        - metrics.logical_size.y
+                }
+            }
         } else {
             scroll_outer_rect.y + spec.style.padding - scroll_result.offset.y
         };
@@ -929,16 +950,22 @@ impl TextEditStyle {
     }
 }
 
-pub(crate) fn to_text_style(style: TextEditStyle, wrap: bool) -> TextStyle {
+pub(crate) fn to_text_style(
+    style: TextEditStyle,
+    wrap: bool,
+    line_align: TextLineAlign,
+) -> TextStyle {
+    let mut flow = if wrap {
+        TextFlow::wrapped()
+    } else {
+        TextFlow::single_line()
+    };
+    flow.line_align = line_align;
     TextStyle {
         font: style.font,
         size: style.size,
         weight: style.weight,
-        flow: if wrap {
-            TextFlow::wrapped()
-        } else {
-            TextFlow::single_line()
-        },
+        flow,
         italic: style.italic,
         letter_spacing: style.letter_spacing,
         line_height: style.line_height,
@@ -1034,6 +1061,8 @@ pub struct TextEditSpec {
     pub disabled: bool,
     pub newline_policy: NewlinePolicy,
     pub wrap: bool,
+    pub vertical_align: Align,
+    pub line_align: TextLineAlign,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
@@ -1045,6 +1074,8 @@ pub struct TextEditSpecBuilder {
     pub disabled: Option<bool>,
     pub newline_policy: Option<NewlinePolicy>,
     pub wrap: Option<bool>,
+    pub vertical_align: Option<Align>,
+    pub line_align: Option<TextLineAlign>,
 }
 
 impl TextEditSpecBuilder {
@@ -1072,6 +1103,14 @@ impl TextEditSpecBuilder {
         self.wrap = Some(wrap);
         self
     }
+    pub fn vertical_align(mut self, vertical_align: Align) -> Self {
+        self.vertical_align = Some(vertical_align);
+        self
+    }
+    pub fn line_align(mut self, line_align: TextLineAlign) -> Self {
+        self.line_align = Some(line_align);
+        self
+    }
 
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
@@ -1093,6 +1132,8 @@ impl TextEditSpecBuilder {
                 .newline_policy
                 .unwrap_or(NewlinePolicy::ReplaceWithSpace),
             wrap: self.wrap.unwrap_or(false),
+            vertical_align: self.vertical_align.unwrap_or(Align::Center),
+            line_align: self.line_align.unwrap_or(TextLineAlign::Start),
         }
     }
 }
@@ -1220,6 +1261,7 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
     let calc_spec = raw::TextEditCalcIntrinsicSizeSpec {
         style: spec.style,
         wrap: spec.wrap,
+        line_align: spec.line_align,
     };
     let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
@@ -1233,6 +1275,8 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
         layer: ctx.layer,
         newline_policy: spec.newline_policy,
         wrap: spec.wrap,
+        vertical_align: spec.vertical_align,
+        line_align: spec.line_align,
     };
     let result = raw::text_edit(
         raw_spec,
@@ -1296,6 +1340,8 @@ mod tests {
             layer: Layer::default(),
             newline_policy: NewlinePolicy::ReplaceWithSpace,
             wrap: false,
+            vertical_align: Align::Center,
+            line_align: TextLineAlign::Start,
         }
     }
 
@@ -4083,5 +4129,154 @@ mod tests {
             state.caret_byte, 0,
             "CaretUp should move caret to index 0 under correct layout width"
         );
+    }
+
+    #[test]
+    fn test_text_edit_alignment_combinations() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let input = Input::default();
+
+        // 1. Top-Left (Start, Start)
+        {
+            let mut state = TextEditState::new("hello");
+            let mut cmds = DrawCommands::new();
+            let edit_spec = TextEditSpec {
+                vertical_align: Align::Start,
+                line_align: TextLineAlign::Start,
+                ..spec()
+            };
+            raw::text_edit(
+                edit_spec,
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+
+            // Inset by border (1.0) and padding (4.0).
+            // scroll_outer_rect = (1.0, 1.0, 198.0, 28.0).
+            // Align::Start text_y = scroll_outer_rect.y + padding = 1.0 + 4.0 = 5.0.
+            let has_text = cmds.iter().any(|cmd| {
+                if let DrawCmd::Text { rect, .. } = cmd {
+                    rect.y == 5.0
+                } else {
+                    false
+                }
+            });
+            assert!(has_text, "Align::Start text Y should be 5.0");
+        }
+
+        // 2. Center-Center (Center, Center)
+        {
+            let mut state = TextEditState::new("hello");
+            let mut cmds = DrawCommands::new();
+            let edit_spec = TextEditSpec {
+                vertical_align: Align::Center,
+                line_align: TextLineAlign::Center,
+                ..spec()
+            };
+            raw::text_edit(
+                edit_spec,
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+
+            // Align::Center text_y = scroll_outer_rect.y + (28.0 - 16.0)/2.0 = 1.0 + 6.0 = 7.0.
+            let has_text = cmds.iter().any(|cmd| {
+                if let DrawCmd::Text { rect, .. } = cmd {
+                    rect.y == 7.0
+                } else {
+                    false
+                }
+            });
+            assert!(has_text, "Align::Center text Y should be 7.0");
+        }
+
+        // 3. Bottom-Right (End, End)
+        {
+            let mut state = TextEditState::new("hello");
+            let mut cmds = DrawCommands::new();
+            let edit_spec = TextEditSpec {
+                vertical_align: Align::End,
+                line_align: TextLineAlign::End,
+                ..spec()
+            };
+            raw::text_edit(
+                edit_spec,
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+
+            // Align::End text_y = scroll_outer_rect.y + scroll_outer_rect.h - padding - logical_size.y
+            // = 1.0 + 28.0 - 4.0 - 16.0 = 9.0.
+            let has_text = cmds.iter().any(|cmd| {
+                if let DrawCmd::Text { rect, .. } = cmd {
+                    rect.y == 9.0
+                } else {
+                    false
+                }
+            });
+            assert!(has_text, "Align::End text Y should be 9.0");
+        }
+
+        // 4. Hit-testing: verify that clicking on aligned text maps to correct caret index
+        // Let's test bottom-aligned text (vertical_align = Align::End).
+        // Since Y is 9.0, clicking at Y = 17.0 (middle of the line) should hit-test correctly.
+        {
+            let mut state = TextEditState::new("hello");
+            let mut cmds = DrawCommands::new();
+            let edit_spec = TextEditSpec {
+                vertical_align: Align::End,
+                line_align: TextLineAlign::Start,
+                ..spec()
+            };
+
+            let mut click_input = Input::default();
+            // Text is placed at x = 5.0 (scroll_outer_rect.x + padding = 1.0 + 4.0).
+            // Character width in DummyTextSys is 8.0px.
+            // Click on 'l' (index 3). x offset should be around 5.0 + 3 * 8.0 = 29.0.
+            // Let's click at x = 31.0 (between 29.0 and 37.0).
+            // Click Y should be in the line: text Y is 9.0, height is 16.0, so middle is 17.0.
+            click_input.mouse_pos = Vec2::new(31.0, 17.0);
+
+            // Frame 1: Warmup to claim hover
+            focus_system.begin_frame();
+            raw::text_edit(
+                edit_spec.clone(),
+                &mut state,
+                &click_input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+            focus_system.end_frame();
+
+            // Frame 2: Mouse click
+            click_input.mouse_pressed = true;
+            click_input.mouse_down = true;
+            focus_system.begin_frame();
+            raw::text_edit(
+                edit_spec,
+                &mut state,
+                &click_input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+            focus_system.end_frame();
+
+            assert_eq!(
+                state.caret_byte, 3,
+                "Hit testing should resolve correctly to index 3"
+            );
+        }
     }
 }
