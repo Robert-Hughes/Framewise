@@ -647,6 +647,11 @@ pub trait TextSystem {
     /// layout or clip extent, and its origin is the block origin used for
     /// rendering.
     ///
+    /// The screen position (`rect.x`, `rect.y`) must be known at this stage because
+    /// modern text shapers and font rasterizers use the absolute physical screen coordinates
+    /// to apply subpixel offsets/positioning. This ensures crisp glyph rasterization at
+    /// fractional pixel boundaries and prevents blurriness.
+    ///
     /// The text system may produce ink that extends outside this rect. A caller
     /// that needs hard containment must apply clipping or provide padding.
     ///

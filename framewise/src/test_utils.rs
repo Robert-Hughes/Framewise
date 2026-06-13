@@ -1,5 +1,6 @@
 use crate::text::{
-    CaretGeom, LineMetrics, TextBounds, TextHandle, TextLayout, TextMetrics, TextSystem,
+    CaretGeom, LineMetrics, OverflowX, TextBounds, TextHandle, TextLayout, TextMetrics, TextStyle,
+    TextSystem,
 };
 use crate::types::{Rect, Vec2};
 
@@ -13,10 +14,21 @@ pub struct DummyTextSys {
 pub const DummyTextSys: DummyTextSys = DummyTextSys { last_run: None };
 
 impl DummyTextSys {
-    fn metrics(text: &str) -> TextMetrics {
+    fn metrics(text: &str, style: TextStyle, max_width: Option<f32>) -> TextMetrics {
         let mut lines = Vec::new();
         let mut y_top = 0.0;
-        let mut max_width = 0.0;
+        let mut max_line_width = 0.0;
+
+        let wrap = matches!(
+            style.flow.overflow_x,
+            OverflowX::WrapWord { .. } | OverflowX::WrapCluster { .. }
+        );
+
+        let max_chars = if let Some(w) = max_width {
+            ((w / 8.0).floor() as usize).max(1)
+        } else {
+            usize::MAX
+        };
 
         let mut byte_idx = 0;
         let mut lines_iter = text.split('\n').peekable();
@@ -25,20 +37,53 @@ impl DummyTextSys {
             let has_next = lines_iter.peek().is_some();
             let byte_end = byte_idx + line_len + if has_next { 1 } else { 0 };
 
-            lines.push(LineMetrics {
-                y_top,
-                height: 16.0,
-                byte_start: byte_idx,
-                byte_end,
-            });
+            if wrap && line.chars().count() > max_chars {
+                // Soft wrap this line at character boundary
+                let char_indices: Vec<(usize, char)> = line.char_indices().collect();
+                let mut start_idx = 0;
+                while start_idx < char_indices.len() {
+                    let end_idx = (start_idx + max_chars).min(char_indices.len());
 
-            let char_count = line.chars().count();
-            let line_width = char_count as f32 * 8.0;
-            if line_width > max_width {
-                max_width = line_width;
+                    let byte_start = byte_idx + char_indices[start_idx].0;
+                    let byte_end_sub = if end_idx < char_indices.len() {
+                        byte_idx + char_indices[end_idx].0
+                    } else {
+                        byte_idx + line_len
+                    };
+
+                    lines.push(LineMetrics {
+                        y_top,
+                        height: 16.0,
+                        byte_start,
+                        byte_end: byte_end_sub,
+                    });
+
+                    let sub_char_count = end_idx - start_idx;
+                    let line_width = sub_char_count as f32 * 8.0;
+                    if line_width > max_line_width {
+                        max_line_width = line_width;
+                    }
+
+                    y_top += 16.0;
+                    start_idx = end_idx;
+                }
+            } else {
+                lines.push(LineMetrics {
+                    y_top,
+                    height: 16.0,
+                    byte_start: byte_idx,
+                    byte_end,
+                });
+
+                let char_count = line.chars().count();
+                let line_width = char_count as f32 * 8.0;
+                if line_width > max_line_width {
+                    max_line_width = line_width;
+                }
+
+                y_top += 16.0;
             }
 
-            y_top += 16.0;
             byte_idx = byte_end;
         }
 
@@ -53,8 +98,8 @@ impl DummyTextSys {
 
         let line_count = lines.len();
         TextMetrics {
-            logical_size: Vec2::new(max_width, line_count as f32 * 16.0),
-            ink_bounds: Rect::new(0.0, 0.0, max_width, line_count as f32 * 16.0),
+            logical_size: Vec2::new(max_line_width, line_count as f32 * 16.0),
+            ink_bounds: Rect::new(0.0, 0.0, max_line_width, line_count as f32 * 16.0),
             line_count: line_count as u32,
             truncated_horizontal: false,
             truncated_vertical: false,
@@ -64,17 +109,12 @@ impl DummyTextSys {
 }
 
 impl TextSystem for DummyTextSys {
-    fn measure(
-        &mut self,
-        text: &str,
-        _style: crate::text::TextStyle,
-        _bounds: TextBounds,
-    ) -> TextMetrics {
-        Self::metrics(text)
+    fn measure(&mut self, text: &str, style: TextStyle, bounds: TextBounds) -> TextMetrics {
+        Self::metrics(text, style, bounds.max_width)
     }
 
-    fn prepare(&mut self, text: &str, _style: crate::text::TextStyle, _rect: Rect) -> TextLayout {
-        let metrics = Self::metrics(text);
+    fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout {
+        let metrics = Self::metrics(text, style, Some(rect.w));
         self.last_run = Some((text.to_string(), metrics.clone()));
         TextLayout {
             handle: TextHandle(0),

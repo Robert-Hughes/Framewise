@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     layout::{IntrinsicSize, LayoutState},
-    text::{TextBounds, TextFlow, TextStyle, TextSystem},
+    text::{TextBounds, TextFlow, TextMetrics, TextStyle, TextSystem},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::scroll_area::ScrollState,
@@ -294,11 +294,12 @@ pub mod raw {
                         } else {
                             &state.value
                         };
-                        let layout_width = (spec.rect.w - 2.0 * spec.style.border_width).max(1.0);
+                        let (_, layout_width, layout_height, _) =
+                            edit_layout_size(text_content, &spec, text_system);
                         let layout = text_system.prepare(
                             text_content,
                             spec.style.text_style,
-                            Rect::new(0.0, 0.0, layout_width, f32::MAX),
+                            Rect::new(0.0, 0.0, layout_width, layout_height),
                         );
                         let handle = layout.handle;
                         let metrics = layout.metrics;
@@ -346,11 +347,12 @@ pub mod raw {
                         } else {
                             &state.value
                         };
-                        let layout_width = (spec.rect.w - 2.0 * spec.style.border_width).max(1.0);
+                        let (_, layout_width, layout_height, _) =
+                            edit_layout_size(text_content, &spec, text_system);
                         let layout = text_system.prepare(
                             text_content,
                             spec.style.text_style,
-                            Rect::new(0.0, 0.0, layout_width, f32::MAX),
+                            Rect::new(0.0, 0.0, layout_width, layout_height),
                         );
                         let handle = layout.handle;
                         let metrics = layout.metrics;
@@ -472,12 +474,13 @@ pub mod raw {
             }
         }
 
-        let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
-        if spec.error {
-            // shift content right to clear the 4px error stripe
-            scroll_outer_rect.x += spec.style.error_stripe_width;
-            scroll_outer_rect.w -= spec.style.error_stripe_width;
-        }
+        let text_content = if state.value.is_empty() {
+            " "
+        } else {
+            &state.value
+        };
+        let (metrics, layout_width, layout_height, scroll_outer_rect) =
+            edit_layout_size(text_content, &spec, text_system);
 
         // Drawing Background
         let bg_color = if spec.error {
@@ -528,19 +531,6 @@ pub mod raw {
 
         // Prepare text after content bounds are known so hit testing and caret
         // geometry use the same logical text block that will be drawn.
-        let text_content = if state.value.is_empty() {
-            " "
-        } else {
-            &state.value
-        };
-        let metrics = text_system.measure(
-            text_content,
-            spec.style.text_style,
-            TextBounds {
-                max_width: None,
-                max_height: None, //TODO: what about for single line?
-            },
-        );
         let inner_scroll_size = Vec2::new(
             metrics.logical_size.x + 2.0 * spec.style.padding,
             metrics.logical_size.y + 2.0 * spec.style.padding,
@@ -593,12 +583,7 @@ pub mod raw {
         } else {
             scroll_outer_rect.y + spec.style.padding - scroll_result.offset.y
         };
-        let text_rect = Rect::new(
-            text_x,
-            text_y,
-            metrics.logical_size.x.max(scroll_outer_rect.w),
-            metrics.logical_size.y.max(scroll_outer_rect.h),
-        );
+        let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
         let layout = text_system.prepare(text_content, spec.style.text_style, text_rect);
         let handle = layout.handle;
 
@@ -857,6 +842,29 @@ pub mod raw {
                 clicked: input.mouse_clicked && contains,
             },
         }
+    }
+
+    fn edit_layout_size<T: TextSystem>(
+        text_content: &str,
+        spec: &TextEditSpec,
+        text_system: &mut T,
+    ) -> (TextMetrics, f32, f32, Rect) {
+        let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
+        if spec.error {
+            scroll_outer_rect.x += spec.style.error_stripe_width;
+            scroll_outer_rect.w -= spec.style.error_stripe_width;
+        }
+        let metrics = text_system.measure(
+            text_content,
+            spec.style.text_style,
+            TextBounds {
+                max_width: None,
+                max_height: None,
+            },
+        );
+        let layout_width = metrics.logical_size.x.max(scroll_outer_rect.w);
+        let layout_height = metrics.logical_size.y.max(scroll_outer_rect.h);
+        (metrics, layout_width, layout_height, scroll_outer_rect)
     }
 }
 
@@ -3954,6 +3962,65 @@ mod tests {
                 },
                 DrawCmd::PopClip,
             ])
+        );
+    }
+
+    #[test]
+    fn test_text_edit_caret_up_down_width_mismatch() {
+        // This test verifies that CaretUp and CaretDown navigation use the correct layout width.
+        // Under the layout width mismatch bug, CaretUp and CaretDown events prepare their text layout
+        // using the widget's physical border width (spec.rect.w - 2.0 * spec.style.border_width),
+        // ignoring any error stripe subtraction or dynamic maximum logical size boundaries used
+        // during the draw/render phase.
+        // This mismatch leads to incorrect wrapping or line calculations during navigation, causing
+        // the caret to jump unexpectedly or land on wrong characters compared to what is rendered.
+
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghij");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+
+        // Configure style to enable wrapping
+        let mut spec_error = spec();
+        spec_error.rect = Rect::new(0.0, 0.0, 52.0, 100.0); // 50px width content boundary + 2px borders
+        spec_error.style.border_width = 1.0;
+        spec_error.style.padding = 0.0;
+        spec_error.style.text_style.flow = TextFlow::wrapped();
+        spec_error.error = true;
+        spec_error.style.error_stripe_width = 4.0;
+
+        // With spec.error = true and spec.rect.w = 52.0:
+        // - Correct layout width is metrics.logical_size.x.max(scroll_outer_rect.w)
+        //   where logical_size.x = 80.0, scroll_outer_rect.w = 46.0.
+        //   So correct width is 80.0. All 10 characters fit on 1 line (max_chars = 10).
+        // - Buggy event handler layout width is 50.0. Fits 6 characters per line.
+        //   Visual lines under buggy handler: Line 0: "abcdef" (bytes 0..6), Line 1: "ghij" (bytes 6..10).
+
+        // --- Test CaretUp Mismatch ---
+        // Start caret at index 8 ('i'). Since the actual layout has 80.0 width, it is unwrapped,
+        // so CaretUp should think it's on Line 0 and move it to index 0.
+        // Due to the bug (layout width 50.0), CaretUp thinks index 8 is on Line 1,
+        // and moves it up to the same column on Line 0, resulting in index 2.
+        state.caret_byte = 8;
+        state.was_focused = true;
+        focus_system.begin_frame();
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretUp { shift: false });
+
+        raw::text_edit(
+            spec_error,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+
+        assert_eq!(
+            state.caret_byte, 0,
+            "CaretUp should move caret to index 0 under correct layout width"
         );
     }
 }
