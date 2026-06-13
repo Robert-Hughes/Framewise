@@ -95,7 +95,7 @@ pub mod raw {
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> ButtonResult {
-        // Disabled: register for layout but skip all interaction.
+        // Disabled: register_keyboard for layout but skip all interaction.
         if spec.disabled {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
@@ -848,7 +848,7 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         // Frame 2: Press Enter
@@ -1137,7 +1137,7 @@ mod tests {
         let state = ButtonState::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
         let mut state = state;
         focus_system.begin_frame();

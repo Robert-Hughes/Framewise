@@ -83,12 +83,12 @@ pub mod raw {
 
         // 1. Calculate Thumb Rect
         let track_rect = spec.rect;
-        // Disabled sliders stay out of the focus order entirely (no `register`),
+        // Disabled sliders stay out of the focus order entirely (no `register_keyboard`),
         // matching the button's disabled path.
         let focused = if spec.disabled {
             false
         } else {
-            focus_system.register(state.focus_id, track_rect, spec.clip_rect)
+            focus_system.register_keyboard(state.focus_id, track_rect, spec.clip_rect)
         };
 
         if !spec.disabled && track_rect.contains(input.mouse_pos) && is_visible {
@@ -374,7 +374,7 @@ pub mod raw {
             && !thumb_rect.contains(input.mouse_pos)
             && track_rect.contains(input.mouse_pos)
         {
-            focus_system.take_focus(state.focus_id);
+            focus_system.take_keyboard_focus(state.focus_id);
             state.is_track_clicking = true;
             state.track_click_start_coord = mouse_coord;
             state.next_repeat_time = spec.time + 0.5;
@@ -394,7 +394,7 @@ pub mod raw {
             && input.mouse_pressed
             && thumb_rect.contains(input.mouse_pos)
         {
-            focus_system.take_focus(state.focus_id);
+            focus_system.take_keyboard_focus(state.focus_id);
             state.is_dragging = true;
             state.drag_start_mouse_coord = mouse_coord;
             state.drag_start_val = state.value;
@@ -516,7 +516,7 @@ pub mod raw {
             }
 
             // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
-            focus_system.handle_traversal(
+            focus_system.handle_keyboard_traversal(
                 focused,
                 input,
                 crate::focus::FocusTraversalKeys::tab_only(),
@@ -979,9 +979,9 @@ mod tests {
         let mut focus_system = FocusSystem::new();
 
         // Must be focused to receive keyboard events
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
-        // Frame 1: register claims
+        // Frame 1: register_keyboard claims
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::slider(
@@ -1218,7 +1218,7 @@ mod tests {
         let mut input = Input::new();
         let mut focus_system = FocusSystem::new();
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
         // Up decrements
         input.key_pressed_up = true;
@@ -1232,7 +1232,7 @@ mod tests {
         );
         assert_eq!(state.value, 45.0);
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Up arrow must not move focus away from slider"
         );
@@ -1249,7 +1249,7 @@ mod tests {
         );
         assert_eq!(state.value, 50.0);
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Down arrow must not move focus away from slider"
         );
@@ -1266,7 +1266,7 @@ mod tests {
         );
         assert_eq!(state.value, 45.0);
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Left arrow must not move focus away from slider"
         );
@@ -1283,7 +1283,7 @@ mod tests {
         );
         assert_eq!(state.value, 50.0);
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Right arrow must not move focus away from slider"
         );
@@ -1297,7 +1297,7 @@ mod tests {
         };
         let mut horiz_state = SliderState::default();
         horiz_state.value = 50.0;
-        focus_system.take_focus(horiz_state.focus_id);
+        focus_system.take_keyboard_focus(horiz_state.focus_id);
 
         input.key_pressed_left = true;
         raw::slider(
@@ -1330,7 +1330,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
-        focus_system.take_focus(state_a.focus_id);
+        focus_system.take_keyboard_focus(state_a.focus_id);
 
         // Frame 1: Tab on focused slider_a — should shift focus to slider_b
         focus_system.begin_frame();
@@ -1371,7 +1371,7 @@ mod tests {
         );
         focus_system.end_frame();
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state_b.focus_id),
             "Tab should move focus from slider_a to slider_b"
         );
@@ -1415,7 +1415,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Clicking slider must request focus"
         );
@@ -1441,7 +1441,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away slider must not take focus"
         );
@@ -1760,6 +1760,7 @@ mod tests {
             claim_scroll_at_ends: claim_at_ends,
             time: 0.0,
             disabled: false,
+            keyboard_focusable: true,
             layer: Layer::default(),
         }
     }
@@ -2028,7 +2029,7 @@ mod tests {
         assert!(!state.is_dragging, "disabled slider must not start a drag");
         assert!(!state.is_track_clicking);
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "disabled slider must not take focus"
         );
@@ -2293,7 +2294,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
         let input = Input::new();
         focus_system.begin_frame();
@@ -2490,4 +2491,5 @@ mod tests {
         assert_eq!(state.value, 60.0, "should not jump back on itself");
         assert!(state.is_track_clicking);
     }
+
 }

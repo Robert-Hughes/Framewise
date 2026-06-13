@@ -111,7 +111,7 @@ pub mod raw {
             };
         }
 
-        let focused = focus_system.register(state.focus_id, spec.rect, spec.clip_rect);
+        let focused = focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect);
         let just_focused = focused && !state.was_focused;
 
         let old_caret = state.caret_byte;
@@ -300,7 +300,7 @@ pub mod raw {
 
         // Mouse interaction
         if contains && input.mouse_pressed {
-            focus_system.take_focus(state.focus_id);
+            focus_system.take_keyboard_focus(state.focus_id);
 
             let relative_pos = Vec2::new(
                 input.mouse_pos.x - text_rect.x,
@@ -474,7 +474,11 @@ pub mod raw {
         }
 
         // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
-        focus_system.handle_traversal(focused, input, crate::focus::FocusTraversalKeys::tab_only());
+        focus_system.handle_keyboard_traversal(
+            focused,
+            input,
+            crate::focus::FocusTraversalKeys::tab_only(),
+        );
 
         state.was_focused = focused || (contains && input.mouse_pressed);
 
@@ -895,7 +899,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("");
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         let mut input = Input::default();
@@ -952,7 +956,7 @@ mod tests {
         let mut state = TextEditState::new("hello");
         state.caret_byte = 3;
         state.was_focused = true;
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         let mut input = Input::default();
@@ -990,7 +994,7 @@ mod tests {
         let mut state = TextEditState::new("hello world");
         state.caret_byte = 8; // "hello wo|rld"
         state.was_focused = true;
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         let mut input = Input::default();
@@ -1028,7 +1032,7 @@ mod tests {
         let mut state = TextEditState::new("hello");
         state.caret_byte = 1;
         state.was_focused = true;
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         let mut input = Input::default();
@@ -1228,7 +1232,7 @@ mod tests {
         state.caret_byte = 5;
         state.was_focused = true;
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         let mut input = Input::default();
@@ -1353,7 +1357,7 @@ mod tests {
 
         let input = Input::default();
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         raw::text_edit(
@@ -1461,7 +1465,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Clicking text edit must request focus"
         );
@@ -1496,7 +1500,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away text edit must not take focus"
         );
@@ -1508,7 +1512,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         state.selection_byte = Some(6);
@@ -1607,7 +1611,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
         focus_system.begin_frame();
 
@@ -1661,7 +1665,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
         focus_system.begin_frame();
 

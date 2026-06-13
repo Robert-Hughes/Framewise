@@ -1044,7 +1044,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for _ in 0..2 {
             focus_system.begin_frame();
@@ -1117,7 +1117,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         // 2D: vertical scrollbar visible (steals width) AND horizontal scrollbar visible (steals height).
         // content_bounds = (0,0,190,190). PgDn step must be 190, not bounds.h=200.
@@ -1189,7 +1189,7 @@ mod tests {
         let mut btn_state = crate::widgets::button::ButtonState::default();
         let mut text_system = DummyTextSys;
 
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         let mut cmds = DrawCommands::new();
         for _ in 0..2 {
@@ -1610,7 +1610,7 @@ mod tests {
         let bar_id = vert_bar_frame(&mut state, &input, &mut focus_system, 100.0);
 
         assert_ne!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(bar_id),
             "degenerate (disabled) scrollbar must not take focus on click"
         );
@@ -1637,7 +1637,7 @@ mod tests {
         let bar_id = vert_bar_frame(&mut state, &input, &mut focus_system, 1000.0);
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(bar_id),
             "live scrollbar must take focus when its thumb is clicked"
         );
@@ -2085,7 +2085,7 @@ mod tests {
 
         let btn_visible_id = btn_visible_state.focus_id;
 
-        focus_system.take_focus(btn_start_state.focus_id);
+        focus_system.take_keyboard_focus(btn_start_state.focus_id);
 
         // Scroll area: y=0..100, content 300px tall — overflows without scrolling.
         // needs_v=true (Auto), needs_h=false (None) → content_bounds = (0,0,188,100).
@@ -2200,7 +2200,7 @@ mod tests {
         }
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(btn_visible_id),
             "Up from btn_start must skip the clipped widget and land on btn_visible"
         );
@@ -2225,7 +2225,7 @@ mod tests {
 
         let btn_partial_id = btn_partial_state.focus_id;
 
-        focus_system.take_focus(btn_start_state.focus_id);
+        focus_system.take_keyboard_focus(btn_start_state.focus_id);
 
         // Scroll area: y=0..100, content 300px tall → clip = (0,0,188,100).
         let scroll_bounds = Rect::new(0.0, 0.0, 200.0, 100.0);
@@ -2319,7 +2319,7 @@ mod tests {
         }
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(btn_partial_id),
             "Up from btn_start must reach the partially-visible widget"
         );
@@ -2409,7 +2409,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.vert_slider_state.focus_id),
             "Clicking scrollbar slider must request focus"
         );
@@ -2496,7 +2496,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away scrollbar must not take focus"
         );
@@ -2542,7 +2542,7 @@ mod tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        focus_system.take_focus(state.vert_slider_state.focus_id);
+        focus_system.take_keyboard_focus(state.vert_slider_state.focus_id);
 
         // End → offset jumps to max.
         let mut input = Input::new();
@@ -3002,7 +3002,7 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3114,7 +3114,7 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3263,7 +3263,7 @@ mod nested_bubbling_tests {
         );
         focus_system.end_frame();
 
-        focus_system.take_focus(inner_state.vert_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.vert_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3392,7 +3392,7 @@ mod nested_bubbling_tests {
         );
         focus_system.end_frame();
 
-        focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.horiz_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3706,7 +3706,7 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3859,7 +3859,7 @@ mod nested_bubbling_tests {
         );
         focus_system.end_frame();
 
-        focus_system.take_focus(inner_state.vert_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.vert_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -4264,7 +4264,7 @@ mod nested_bubbling_tests {
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -4461,7 +4461,7 @@ mod nested_bubbling_tests {
         );
         focus_system.end_frame();
 
-        focus_system.take_focus(inner_state.vert_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.vert_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -4902,7 +4902,7 @@ mod nested_bubbling_tests {
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -5097,7 +5097,7 @@ mod nested_bubbling_tests {
         );
         focus_system.end_frame();
 
-        focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.horiz_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -5784,7 +5784,7 @@ mod nested_bubbling_tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        focus_system.take_focus(inner_state.vert_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.vert_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -5919,7 +5919,7 @@ mod nested_bubbling_tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        focus_system.take_focus(inner_state.horiz_slider_state.focus_id);
+        focus_system.take_keyboard_focus(inner_state.horiz_slider_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -6016,7 +6016,7 @@ mod nested_bubbling_tests {
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        focus_system.take_focus(btn_state.focus_id);
+        focus_system.take_keyboard_focus(btn_state.focus_id);
 
         for frame in 0..3 {
             focus_system.begin_frame();

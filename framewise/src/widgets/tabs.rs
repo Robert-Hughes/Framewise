@@ -77,7 +77,7 @@ pub mod raw {
         let (focused, clicked) = if spec.disabled {
             (false, false)
         } else {
-            crate::focus::handle_widget_focus(
+            crate::focus::handle_widget_keyboard_focus(
                 state.focus_id,
                 Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
                 spec.clip_rect,
@@ -465,7 +465,7 @@ mod tests {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
         let mut text_system = DummyTextSys;
         let items = ["Tab1", "Tab2"];
@@ -559,7 +559,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Clicking tabs must request focus"
         );
@@ -597,7 +597,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away tabs widget must not take focus"
         );
@@ -612,7 +612,7 @@ mod tests {
         let items = ["Tab1", "Tab2"];
 
         // Focus the widget
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
         // Frame 1: Press Arrow Right -> changes active index to 1
         input.key_pressed_right = true;

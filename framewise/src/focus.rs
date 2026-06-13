@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Specifies which keys a widget makes available for focus traversal.
 ///
-/// A widget passes this to [`FocusSystem::handle_traversal`] to indicate which
+/// A widget passes this to [`FocusSystem::handle_keyboard_traversal`] to indicate which
 /// keys it does NOT consume itself and therefore should trigger focus movement.
 /// Keys set to `true` will be used for traversal; keys set to `false` are left
 /// for the widget to handle (or ignored).
@@ -99,11 +99,11 @@ pub enum FocusDirection {
 /// Tracks keyboard focus and Tab-traversal order across frames.
 #[derive(Debug, Clone)]
 pub struct FocusSystem {
-    focused_id: Option<FocusId>,
-    current_frame_order: Vec<FocusId>,
-    current_frame_rects: HashMap<FocusId, Rect>,
-    pending_shift: Option<FocusDirection>,
-    custom_order: HashMap<FocusId, FocusId>, // map id -> next id
+    focused_keyboard_id: Option<FocusId>,
+    keyboard_frame_order: Vec<FocusId>,
+    keyboard_frame_rects: HashMap<FocusId, Rect>,
+    pending_keyboard_shift: Option<FocusDirection>,
+    custom_keyboard_order: HashMap<FocusId, FocusId>, // map id -> next id
     /// Winner of the upward-scroll hover claim from the previous frame.
     active_scroll_up_id: Option<FocusId>,
     /// Winner of the downward-scroll hover claim from the previous frame.
@@ -148,11 +148,11 @@ impl Default for FocusSystem {
 impl FocusSystem {
     pub fn new() -> Self {
         Self {
-            focused_id: None,
-            current_frame_order: Vec::new(),
-            current_frame_rects: HashMap::new(),
-            pending_shift: None,
-            custom_order: HashMap::new(),
+            focused_keyboard_id: None,
+            keyboard_frame_order: Vec::new(),
+            keyboard_frame_rects: HashMap::new(),
+            pending_keyboard_shift: None,
+            custom_keyboard_order: HashMap::new(),
             active_scroll_up_id: None,
             active_scroll_down_id: None,
             active_scroll_left_id: None,
@@ -180,9 +180,12 @@ impl FocusSystem {
 
     /// Creates a new `FocusSystem` with pre-initialized hover and focus state.
     /// Useful for unit testing or rendering isolated mock widget states.
-    pub fn new_mocked(focused_id: Option<FocusId>, active_hover_id: Option<FocusId>) -> Self {
+    pub fn new_mocked(
+        focused_keyboard_id: Option<FocusId>,
+        active_hover_id: Option<FocusId>,
+    ) -> Self {
         Self {
-            focused_id,
+            focused_keyboard_id,
             active_hover_id,
             ..Self::new()
         }
@@ -200,7 +203,7 @@ impl FocusSystem {
     /// Register a widget in the current frame's focus order.
     /// `rect` is the widget's bounding box in window space; it is used for
     /// spatial arrow-key navigation. Returns true if this widget currently has focus.
-    pub fn register(&mut self, id: FocusId, rect: Rect, clip_rect: ClipRect) -> bool {
+    pub fn register_keyboard(&mut self, id: FocusId, rect: Rect, clip_rect: ClipRect) -> bool {
         #[cfg(debug_assertions)]
         {
             if !self.seen_ids.insert(id) && !cfg!(test) {
@@ -208,7 +211,7 @@ impl FocusSystem {
             }
         }
 
-        self.current_frame_order.push(id);
+        self.keyboard_frame_order.push(id);
 
         // Only insert into the spatial map if at least one pixel of the widget
         // is inside the clip rect. Fully-clipped widgets are excluded from
@@ -218,24 +221,24 @@ impl FocusSystem {
             i.w > 0.0 && i.h > 0.0
         });
         if spatially_visible {
-            self.current_frame_rects.insert(id, rect);
+            self.keyboard_frame_rects.insert(id, rect);
         }
 
-        let has_focus = self.focused_id == Some(id);
-        if has_focus {
+        let has_keyboard_focus = self.focused_keyboard_id == Some(id);
+        if has_keyboard_focus {
             self.focused_scroll_path = self.keyboard_scroll_scopes.clone();
         }
-        has_focus
+        has_keyboard_focus
     }
 
     /// Explicitly take focus (e.g. when a widget is clicked).
-    pub fn take_focus(&mut self, id: FocusId) {
-        self.focused_id = Some(id);
+    pub fn take_keyboard_focus(&mut self, id: FocusId) {
+        self.focused_keyboard_id = Some(id);
     }
 
     /// Request focus to shift on the next frame.
-    pub fn request_shift(&mut self, direction: FocusDirection) {
-        self.pending_shift = Some(direction);
+    pub fn request_keyboard_shift(&mut self, direction: FocusDirection) {
+        self.pending_keyboard_shift = Some(direction);
     }
 
     /// Override the next focus target for a specific widget (linear Next only).
@@ -243,20 +246,20 @@ impl FocusSystem {
     /// TODO: consider extending this to support directional overrides, e.g.
     /// `override_direction(from, FocusDirection::Right, to)` for cases where
     /// the spatial algorithm produces wrong results in a specific layout.
-    pub fn override_next(&mut self, from: FocusId, to: FocusId) {
-        self.custom_order.insert(from, to);
+    pub fn override_keyboard_next(&mut self, from: FocusId, to: FocusId) {
+        self.custom_keyboard_order.insert(from, to);
     }
 
     /// Returns true if there is an active text input or something similar that
     /// should consume keyboard events natively instead of triggering Tab navigation.
     /// (For future use, returning false for now).
-    pub fn has_focus(&self) -> bool {
-        self.focused_id.is_some()
+    pub fn has_keyboard_focus(&self) -> bool {
+        self.focused_keyboard_id.is_some()
     }
 
     /// Returns the [`FocusId`] of the currently focused widget, if any.
-    pub fn current_focus(&self) -> Option<FocusId> {
-        self.focused_id
+    pub fn current_keyboard_focus(&self) -> Option<FocusId> {
+        self.focused_keyboard_id
     }
 
     /// Requests a focus shift based on which keys are pressed, filtered by
@@ -267,28 +270,33 @@ impl FocusSystem {
     /// Tab uses linear (registration-order) traversal. Arrow keys use spatial
     /// navigation (nearest widget in that direction), falling back to linear if
     /// no spatial target exists in the pressed direction.
-    pub fn handle_traversal(&mut self, focused: bool, input: &Input, keys: FocusTraversalKeys) {
+    pub fn handle_keyboard_traversal(
+        &mut self,
+        focused: bool,
+        input: &Input,
+        keys: FocusTraversalKeys,
+    ) {
         if !focused {
             return;
         }
         // Tab is always linear — check it first and return early.
         if keys.tab && input.key_pressed_tab {
             if input.modifier_shift {
-                self.request_shift(FocusDirection::Prev);
+                self.request_keyboard_shift(FocusDirection::Prev);
             } else {
-                self.request_shift(FocusDirection::Next);
+                self.request_keyboard_shift(FocusDirection::Next);
             }
             return;
         }
         // Arrow keys use spatial navigation.
         if keys.up && input.key_pressed_up {
-            self.request_shift(FocusDirection::Up);
+            self.request_keyboard_shift(FocusDirection::Up);
         } else if keys.down && input.key_pressed_down {
-            self.request_shift(FocusDirection::Down);
+            self.request_keyboard_shift(FocusDirection::Down);
         } else if keys.left && input.key_pressed_left {
-            self.request_shift(FocusDirection::Left);
+            self.request_keyboard_shift(FocusDirection::Left);
         } else if keys.right && input.key_pressed_right {
-            self.request_shift(FocusDirection::Right);
+            self.request_keyboard_shift(FocusDirection::Right);
         }
     }
 
@@ -435,35 +443,35 @@ impl FocusSystem {
         self.active_pgup_horiz_id = self.next_pgup_horiz_id.take();
         self.active_pgdn_horiz_id = self.next_pgdn_horiz_id.take();
 
-        if let Some(direction) = self.pending_shift.take() {
-            if !self.current_frame_order.is_empty() {
-                let new_focus = match self.focused_id {
+        if let Some(direction) = self.pending_keyboard_shift.take() {
+            if !self.keyboard_frame_order.is_empty() {
+                let new_focus = match self.focused_keyboard_id {
                     Some(current) => resolve_shift(
                         current,
                         direction,
-                        &self.current_frame_order,
-                        &self.current_frame_rects,
-                        &self.custom_order,
+                        &self.keyboard_frame_order,
+                        &self.keyboard_frame_rects,
+                        &self.custom_keyboard_order,
                     ),
                     None => {
                         // Nothing focused yet — start at the first widget.
-                        Some(self.current_frame_order[0])
+                        Some(self.keyboard_frame_order[0])
                     }
                 };
-                self.focused_id = new_focus;
+                self.focused_keyboard_id = new_focus;
             } else {
-                self.focused_id = None;
+                self.focused_keyboard_id = None;
             }
         }
 
-        self.current_frame_order.clear();
-        self.current_frame_rects.clear();
+        self.keyboard_frame_order.clear();
+        self.keyboard_frame_rects.clear();
     }
 }
 
 /// A standardized helper to handle basic click-to-focus and traversal logic for simple widgets.
 /// Returns a tuple of `(is_focused, was_clicked)`.
-pub fn handle_widget_focus(
+pub fn handle_widget_keyboard_focus(
     focus_id: FocusId,
     rect: Rect,
     clip_rect: ClipRect,
@@ -477,7 +485,7 @@ pub fn handle_widget_focus(
     }
 
     // 1. Register with the central FocusSystem
-    let focused = focus_system.register(focus_id, rect, clip_rect);
+    let focused = focus_system.register_keyboard(focus_id, rect, clip_rect);
 
     // 2. Perform clip-safe hover/press hit testing
     let is_visible = clip_rect.is_none_or(|clip| clip.contains(input.mouse_pos));
@@ -486,11 +494,11 @@ pub fn handle_widget_focus(
 
     // 3. Take focus on mouse press
     if clicked {
-        focus_system.take_focus(focus_id);
+        focus_system.take_keyboard_focus(focus_id);
     }
 
     // 4. Handle keyboard focus shifts
-    focus_system.handle_traversal(focused, input, keys);
+    focus_system.handle_keyboard_traversal(focused, input, keys);
 
     (focused, clicked)
 }
@@ -502,11 +510,11 @@ fn resolve_shift(
     direction: FocusDirection,
     order: &[FocusId],
     rects: &HashMap<FocusId, Rect>,
-    custom_order: &HashMap<FocusId, FocusId>,
+    custom_keyboard_order: &HashMap<FocusId, FocusId>,
 ) -> Option<FocusId> {
     match direction {
         FocusDirection::Next | FocusDirection::Prev => {
-            resolve_linear(current, direction, order, custom_order)
+            resolve_linear(current, direction, order, custom_keyboard_order)
         }
         FocusDirection::Up
         | FocusDirection::Down
@@ -518,7 +526,7 @@ fn resolve_shift(
                     FocusDirection::Up | FocusDirection::Left => FocusDirection::Prev,
                     _ => FocusDirection::Next,
                 };
-                resolve_linear(current, fallback, order, custom_order)
+                resolve_linear(current, fallback, order, custom_keyboard_order)
             })
         }
     }
@@ -528,7 +536,7 @@ fn resolve_linear(
     current: FocusId,
     direction: FocusDirection,
     order: &[FocusId],
-    custom_order: &HashMap<FocusId, FocusId>,
+    custom_keyboard_order: &HashMap<FocusId, FocusId>,
 ) -> Option<FocusId> {
     let idx = match order.iter().position(|&id| id == current) {
         Some(i) => i,
@@ -536,7 +544,7 @@ fn resolve_linear(
     };
     match direction {
         FocusDirection::Next => {
-            if let Some(&next_id) = custom_order.get(&current) {
+            if let Some(&next_id) = custom_keyboard_order.get(&current) {
                 Some(next_id)
             } else {
                 Some(order[(idx + 1) % order.len()])
@@ -637,42 +645,42 @@ mod tests {
 
         // Frame 1
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0), None));
-        assert!(!sys.register(id2, r(0.0, 50.0), None));
-        assert!(!sys.register(id3, r(0.0, 100.0), None));
+        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
+        assert!(!sys.register_keyboard(id2, r(0.0, 50.0), None));
+        assert!(!sys.register_keyboard(id3, r(0.0, 100.0), None));
 
-        sys.take_focus(id2);
+        sys.take_keyboard_focus(id2);
         sys.end_frame();
 
         // Frame 2
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
         assert!(
-            sys.register(id2, r(0.0, 50.0), None),
+            sys.register_keyboard(id2, r(0.0, 50.0), None),
             "id2 should have focus"
         );
-        assert!(!sys.register(id3, r(0.0, 100.0), None));
+        assert!(!sys.register_keyboard(id3, r(0.0, 100.0), None));
 
-        sys.request_shift(FocusDirection::Next);
+        sys.request_keyboard_shift(FocusDirection::Next);
         sys.end_frame();
 
         // Frame 3
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0), None));
-        assert!(!sys.register(id2, r(0.0, 50.0), None));
+        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
+        assert!(!sys.register_keyboard(id2, r(0.0, 50.0), None));
         assert!(
-            sys.register(id3, r(0.0, 100.0), None),
+            sys.register_keyboard(id3, r(0.0, 100.0), None),
             "id3 should have focus after Next from id2"
         );
 
-        sys.request_shift(FocusDirection::Prev);
+        sys.request_keyboard_shift(FocusDirection::Prev);
         sys.end_frame();
 
         // Frame 4
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0), None));
+        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
         assert!(
-            sys.register(id2, r(0.0, 50.0), None),
+            sys.register_keyboard(id2, r(0.0, 50.0), None),
             "id2 should have focus after Prev from id3"
         );
     }
@@ -684,26 +692,26 @@ mod tests {
         let id2 = FocusId::new();
         let id3 = FocusId::new();
 
-        sys.override_next(id1, id3);
-        sys.take_focus(id1);
+        sys.override_keyboard_next(id1, id3);
+        sys.take_keyboard_focus(id1);
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0), None);
-        sys.register(id2, r(0.0, 50.0), None);
-        sys.register(id3, r(0.0, 100.0), None);
-        sys.request_shift(FocusDirection::Next);
+        sys.register_keyboard(id1, r(0.0, 0.0), None);
+        sys.register_keyboard(id2, r(0.0, 50.0), None);
+        sys.register_keyboard(id3, r(0.0, 100.0), None);
+        sys.request_keyboard_shift(FocusDirection::Next);
         sys.end_frame();
 
         sys.begin_frame();
-        assert!(!sys.register(id1, r(0.0, 0.0), None));
-        assert!(!sys.register(id2, r(0.0, 50.0), None));
+        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
+        assert!(!sys.register_keyboard(id2, r(0.0, 50.0), None));
         assert!(
-            sys.register(id3, r(0.0, 100.0), None),
+            sys.register_keyboard(id3, r(0.0, 100.0), None),
             "Focus should jump to id3 via custom override"
         );
     }
 
-    // ── handle_traversal tests ─────────────────────────────────────────────────
+    // ── handle_keyboard_traversal tests ─────────────────────────────────────────────────
 
     /// Run one key press through a two-widget system and return which widget
     /// has focus in the next frame. id1 is at (0,0), id2 is at (0,50).
@@ -714,17 +722,17 @@ mod tests {
         let mut sys = FocusSystem::new();
         let id1 = FocusId::new();
         let id2 = FocusId::new();
-        sys.take_focus(id1);
+        sys.take_keyboard_focus(id1);
 
         sys.begin_frame();
-        let focused1 = sys.register(id1, r(0.0, 0.0), None);
-        sys.handle_traversal(focused1, &input, keys);
-        sys.register(id2, r(0.0, 50.0), None);
+        let focused1 = sys.register_keyboard(id1, r(0.0, 0.0), None);
+        sys.handle_keyboard_traversal(focused1, &input, keys);
+        sys.register_keyboard(id2, r(0.0, 50.0), None);
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0), None);
-        let has2 = sys.register(id2, r(0.0, 50.0), None);
+        let has1 = sys.register_keyboard(id1, r(0.0, 0.0), None);
+        let has2 = sys.register_keyboard(id2, r(0.0, 50.0), None);
         sys.end_frame();
         (has1, has2)
     }
@@ -743,21 +751,21 @@ mod tests {
         let mut sys = FocusSystem::new();
         let id1 = FocusId::new();
         let id2 = FocusId::new();
-        sys.take_focus(id2);
+        sys.take_keyboard_focus(id2);
 
         let mut input = crate::input::Input::default();
         input.key_pressed_tab = true;
         input.modifier_shift = true;
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0), None);
-        let focused2 = sys.register(id2, r(0.0, 50.0), None);
-        sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
+        sys.register_keyboard(id1, r(0.0, 0.0), None);
+        let focused2 = sys.register_keyboard(id2, r(0.0, 50.0), None);
+        sys.handle_keyboard_traversal(focused2, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0), None);
-        let has2 = sys.register(id2, r(0.0, 50.0), None);
+        let has1 = sys.register_keyboard(id1, r(0.0, 0.0), None);
+        let has2 = sys.register_keyboard(id2, r(0.0, 50.0), None);
         sys.end_frame();
         assert!(has1, "id1 should gain focus after Shift+Tab from id2");
         assert!(!has2);
@@ -848,20 +856,20 @@ mod tests {
         let mut sys = FocusSystem::new();
         let id1 = FocusId::new();
         let id2 = FocusId::new();
-        sys.take_focus(id1);
+        sys.take_keyboard_focus(id1);
 
         let mut input = crate::input::Input::default();
         input.key_pressed_right = true;
 
         sys.begin_frame();
-        sys.register(id1, r(0.0, 0.0), None);
-        let focused2 = sys.register(id2, r(0.0, 50.0), None);
-        sys.handle_traversal(focused2, &input, FocusTraversalKeys::all());
+        sys.register_keyboard(id1, r(0.0, 0.0), None);
+        let focused2 = sys.register_keyboard(id2, r(0.0, 50.0), None);
+        sys.handle_keyboard_traversal(focused2, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let has1 = sys.register(id1, r(0.0, 0.0), None);
-        sys.register(id2, r(0.0, 50.0), None);
+        let has1 = sys.register_keyboard(id1, r(0.0, 0.0), None);
+        sys.register_keyboard(id2, r(0.0, 50.0), None);
         sys.end_frame();
         assert!(has1, "Unfocused widget must not trigger traversal");
     }
@@ -870,9 +878,9 @@ mod tests {
     fn test_current_focus_returns_focused_id() {
         let mut sys = FocusSystem::new();
         let id = FocusId::new();
-        assert_eq!(sys.current_focus(), None);
-        sys.take_focus(id);
-        assert_eq!(sys.current_focus(), Some(id));
+        assert_eq!(sys.current_keyboard_focus(), None);
+        sys.take_keyboard_focus(id);
+        assert_eq!(sys.current_keyboard_focus(), Some(id));
     }
 
     // ── Spatial navigation tests ───────────────────────────────────────────────
@@ -884,16 +892,16 @@ mod tests {
         key_fn: impl Fn(&mut crate::input::Input),
     ) -> FocusId {
         let mut sys = FocusSystem::new();
-        sys.take_focus(rects[focused_idx].0);
+        sys.take_keyboard_focus(rects[focused_idx].0);
 
-        // Frame 1: register all, fire key on focused widget
+        // Frame 1: register_keyboard all, fire key on focused widget
         sys.begin_frame();
         let mut input = crate::input::Input::default();
         key_fn(&mut input);
         for (i, &(id, rect)) in rects.iter().enumerate() {
-            let focused = sys.register(id, rect, None);
+            let focused = sys.register_keyboard(id, rect, None);
             if i == focused_idx {
-                sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
+                sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
             }
         }
         sys.end_frame();
@@ -902,7 +910,7 @@ mod tests {
         sys.begin_frame();
         let mut focus_result = rects[focused_idx].0; // default: unchanged
         for &(id, rect) in rects {
-            if sys.register(id, rect, None) {
+            if sys.register_keyboard(id, rect, None) {
                 focus_result = id;
             }
         }
@@ -1078,17 +1086,17 @@ mod tests {
     fn test_spatial_single_widget_stays_focused() {
         let id = FocusId::new();
         let mut sys = FocusSystem::new();
-        sys.take_focus(id);
+        sys.take_keyboard_focus(id);
 
         sys.begin_frame();
         let mut input = crate::input::Input::default();
         input.key_pressed_down = true;
-        let focused = sys.register(id, r(0.0, 0.0), None);
-        sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
+        let focused = sys.register_keyboard(id, r(0.0, 0.0), None);
+        sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
         sys.end_frame();
 
         sys.begin_frame();
-        let still_focused = sys.register(id, r(0.0, 0.0), None);
+        let still_focused = sys.register_keyboard(id, r(0.0, 0.0), None);
         sys.end_frame();
         assert!(
             still_focused,
@@ -1108,22 +1116,22 @@ mod tests {
         let clip = Rect::new(0.0, 0.0, 80.0, 40.0); // clip only covers y=0..40
 
         let mut sys = FocusSystem::new();
-        sys.take_focus(id_focus);
+        sys.take_keyboard_focus(id_focus);
 
         sys.begin_frame();
         let mut input = crate::input::Input::default();
         input.key_pressed_down = true;
-        let focused = sys.register(id_focus, r(0.0, 0.0), None); // y=0, inside clip
-        sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
+        let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None); // y=0, inside clip
+        sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
         // id_clipped: rect at y=50 is fully outside clip y=0..40 → excluded from spatial map
-        sys.register(id_clipped, r(0.0, 50.0), Some(clip));
-        sys.register(id_visible, r(0.0, 100.0), None);
+        sys.register_keyboard(id_clipped, r(0.0, 50.0), Some(clip));
+        sys.register_keyboard(id_visible, r(0.0, 100.0), None);
         sys.end_frame();
 
         sys.begin_frame();
-        sys.register(id_focus, r(0.0, 0.0), None);
-        sys.register(id_clipped, r(0.0, 50.0), Some(clip));
-        let got_visible = sys.register(id_visible, r(0.0, 100.0), None);
+        sys.register_keyboard(id_focus, r(0.0, 0.0), None);
+        sys.register_keyboard(id_clipped, r(0.0, 50.0), Some(clip));
+        let got_visible = sys.register_keyboard(id_visible, r(0.0, 100.0), None);
         sys.end_frame();
 
         assert!(
@@ -1143,19 +1151,19 @@ mod tests {
         let rect_partial = Rect::new(0.0, 50.0, 80.0, 30.0);
 
         let mut sys = FocusSystem::new();
-        sys.take_focus(id_focus);
+        sys.take_keyboard_focus(id_focus);
 
         sys.begin_frame();
         let mut input = crate::input::Input::default();
         input.key_pressed_down = true;
-        let focused = sys.register(id_focus, r(0.0, 0.0), None);
-        sys.handle_traversal(focused, &input, FocusTraversalKeys::all());
-        sys.register(id_partial, rect_partial, Some(clip));
+        let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None);
+        sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
+        sys.register_keyboard(id_partial, rect_partial, Some(clip));
         sys.end_frame();
 
         sys.begin_frame();
-        sys.register(id_focus, r(0.0, 0.0), None);
-        let got_partial = sys.register(id_partial, rect_partial, Some(clip));
+        sys.register_keyboard(id_focus, r(0.0, 0.0), None);
+        let got_partial = sys.register_keyboard(id_partial, rect_partial, Some(clip));
         sys.end_frame();
 
         assert!(
@@ -1195,7 +1203,7 @@ mod tests {
         input.mouse_pressed = true;
 
         sys.begin_frame();
-        let (focused, clicked) = handle_widget_focus(
+        let (focused, clicked) = handle_widget_keyboard_focus(
             id,
             Rect::new(0.0, 0.0, 20.0, 20.0),
             None,
@@ -1208,7 +1216,7 @@ mod tests {
 
         assert!(!focused);
         assert!(!clicked);
-        assert_eq!(sys.current_focus(), None);
+        assert_eq!(sys.current_keyboard_focus(), None);
     }
 
     #[test]
@@ -1220,7 +1228,7 @@ mod tests {
 
         // Hovered but not pressed
         sys.begin_frame();
-        let (focused1, clicked1) = handle_widget_focus(
+        let (focused1, clicked1) = handle_widget_keyboard_focus(
             id,
             Rect::new(0.0, 0.0, 20.0, 20.0),
             None,
@@ -1232,12 +1240,12 @@ mod tests {
         sys.end_frame();
         assert!(!focused1);
         assert!(!clicked1);
-        assert_eq!(sys.current_focus(), None);
+        assert_eq!(sys.current_keyboard_focus(), None);
 
         // Hovered and pressed
         input.mouse_pressed = true;
         sys.begin_frame();
-        let (focused2, clicked2) = handle_widget_focus(
+        let (focused2, clicked2) = handle_widget_keyboard_focus(
             id,
             Rect::new(0.0, 0.0, 20.0, 20.0),
             None,
@@ -1249,20 +1257,20 @@ mod tests {
         sys.end_frame();
         assert!(!focused2); // not registered focused in the frame it *takes* focus
         assert!(clicked2);
-        assert_eq!(sys.current_focus(), Some(id));
+        assert_eq!(sys.current_keyboard_focus(), Some(id));
     }
 
     #[test]
     fn test_handle_widget_focus_handles_traversal() {
         let id = FocusId::new();
         let mut sys = FocusSystem::new();
-        sys.take_focus(id);
+        sys.take_keyboard_focus(id);
 
         let mut input = crate::input::Input::default();
         input.key_pressed_tab = true;
 
         sys.begin_frame();
-        let (focused, clicked) = handle_widget_focus(
+        let (focused, clicked) = handle_widget_keyboard_focus(
             id,
             Rect::new(0.0, 0.0, 20.0, 20.0),
             None,
@@ -1274,7 +1282,7 @@ mod tests {
 
         assert!(focused);
         assert!(!clicked);
-        assert_eq!(sys.pending_shift, Some(FocusDirection::Next));
+        assert_eq!(sys.pending_keyboard_shift, Some(FocusDirection::Next));
 
         sys.end_frame();
     }

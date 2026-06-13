@@ -396,7 +396,7 @@ pub fn assert_mouse_press_takes_focus<State>(
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(result.pressed, "Widget should be pressed after mouse down");
     assert_eq!(
-        focus_system.current_focus(),
+        focus_system.current_keyboard_focus(),
         Some(focus_id),
         "Mouse press inside widget should request focus"
     );
@@ -421,7 +421,7 @@ pub fn assert_clipped_mouse_press_does_not_take_focus<State>(
     assert!(!result.pressed, "Clipped widget should not be pressed");
     assert!(!result.clicked, "Clipped widget should not be clicked");
     assert_eq!(
-        focus_system.current_focus(),
+        focus_system.current_keyboard_focus(),
         None,
         "Mouse press on clipped-away widget should not request focus"
     );
@@ -450,7 +450,7 @@ pub fn assert_disabled_ignores_press_interaction<State>(
         "Disabled widget should not click on mouse press"
     );
     assert_eq!(
-        focus_system.current_focus(),
+        focus_system.current_keyboard_focus(),
         None,
         "Disabled widget should not take focus on mouse press"
     );
@@ -472,7 +472,7 @@ pub fn assert_disabled_ignores_press_interaction<State>(
         "Disabled widget should not click on mouse release"
     );
 
-    focus_system.take_focus(focus_id);
+    focus_system.take_keyboard_focus(focus_id);
     let enter = Input {
         key_pressed_enter: true,
         ..Default::default()
@@ -509,7 +509,7 @@ pub fn assert_spacebar_click<State>(
     let mut input = Input::default();
     let mut cmds = DrawCommands::new();
 
-    focus_system.take_focus(focus_id);
+    focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
 
     input.key_down_space = true;
@@ -542,7 +542,7 @@ pub fn assert_spacebar_loses_focus_does_not_click<State>(
     let mut input = Input::default();
     let mut cmds = DrawCommands::new();
 
-    focus_system.take_focus(focus_id);
+    focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
 
     input.key_down_space = true;
@@ -554,7 +554,7 @@ pub fn assert_spacebar_loses_focus_does_not_click<State>(
     );
 
     input.key_pressed_space = false;
-    focus_system.take_focus(FocusId::new());
+    focus_system.take_keyboard_focus(FocusId::new());
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(
         !result.pressed,
@@ -595,7 +595,7 @@ fn assert_focus_moves<StateA, StateB>(
     let mut input = Input::default();
     configure_input(&mut input);
     let mut cmds = DrawCommands::new();
-    focus_system.take_focus(initial_focus);
+    focus_system.take_keyboard_focus(initial_focus);
 
     run_focus_frame(
         state_a,
@@ -614,7 +614,7 @@ fn assert_focus_moves<StateA, StateB>(
         &mut run,
     );
 
-    assert_eq!(focus_system.current_focus(), Some(expected_focus));
+    assert_eq!(focus_system.current_keyboard_focus(), Some(expected_focus));
 }
 
 fn run_focus_frame<StateA, StateB>(

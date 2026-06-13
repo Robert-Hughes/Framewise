@@ -65,7 +65,7 @@ pub mod raw {
         let (focused, clicked) = if spec.disabled {
             (false, false)
         } else {
-            crate::focus::handle_widget_focus(
+            crate::focus::handle_widget_keyboard_focus(
                 state.focus_id,
                 spec.rect,
                 spec.clip_rect,
@@ -438,7 +438,7 @@ mod tests {
     fn test_chip_visual_focused() {
         let state = ChipState::default();
         let mut focus_system = FocusSystem::new();
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
         let mut text_system = DummyTextSys;
         let spec = ChipSpec {
@@ -529,7 +529,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Clicking chip must request focus"
         );
@@ -567,7 +567,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away chip must not take focus"
         );
@@ -581,7 +581,7 @@ mod tests {
         let mut text_system = DummyTextSys;
 
         // Frame 1: Focus chip
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::chip(

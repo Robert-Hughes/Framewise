@@ -127,7 +127,7 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
+        dummy_focus_sys.take_keyboard_focus(state.focus_id);
     }
 
     let dummy_input = Input::default();
@@ -168,7 +168,7 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
+        dummy_focus_sys.take_keyboard_focus(state.focus_id);
     }
 
     let dummy_input = Input::default();
@@ -207,7 +207,7 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
+        dummy_focus_sys.take_keyboard_focus(state.focus_id);
     }
 
     let dummy_input = Input::default();
@@ -248,7 +248,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
 
     let mut dummy_focus_sys = FocusSystem::new();
     if is_focused {
-        dummy_focus_sys.take_focus(state.focus_id);
+        dummy_focus_sys.take_keyboard_focus(state.focus_id);
     }
 
     let dummy_input = Input::default();

@@ -36,7 +36,7 @@ pub fn handle_press_interaction(
         };
     }
 
-    let focused = focus_system.register(spec.focus_id, spec.rect, spec.clip_rect);
+    let focused = focus_system.register_keyboard(spec.focus_id, spec.rect, spec.clip_rect);
 
     let is_visible = spec
         .clip_rect
@@ -50,7 +50,7 @@ pub fn handle_press_interaction(
 
     if contains && is_hover_active && input.mouse_pressed {
         *is_active = true;
-        focus_system.take_focus(spec.focus_id);
+        focus_system.take_keyboard_focus(spec.focus_id);
     }
 
     let hovered = contains && is_hover_active && (!input.mouse_down || *is_active);
@@ -76,7 +76,7 @@ pub fn handle_press_interaction(
 
     let pressed = (*is_active && hovered && input.mouse_down) || *space_is_active;
 
-    focus_system.handle_traversal(focused, input, spec.traversal_keys);
+    focus_system.handle_keyboard_traversal(focused, input, spec.traversal_keys);
 
     PressInteraction {
         input: InputInfo {

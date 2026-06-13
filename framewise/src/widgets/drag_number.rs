@@ -74,7 +74,7 @@ pub mod raw {
         let (focused, clicked) = if spec.disabled {
             (false, false)
         } else {
-            crate::focus::handle_widget_focus(
+            crate::focus::handle_widget_keyboard_focus(
                 state.focus_id,
                 spec.rect,
                 spec.clip_rect,
@@ -107,7 +107,7 @@ pub mod raw {
                 state.is_dragging = true;
                 state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
-                focus_system.take_focus(state.focus_id);
+                focus_system.take_keyboard_focus(state.focus_id);
             }
 
             if state.is_dragging {
@@ -689,7 +689,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             Some(state.focus_id),
             "Clicking drag number must request focus"
         );
@@ -732,7 +732,7 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            focus_system.current_focus(),
+            focus_system.current_keyboard_focus(),
             None,
             "Clicking a clipped-away drag number must not take focus"
         );
@@ -749,7 +749,7 @@ mod tests {
         let mut text_system = DummyTextSys;
 
         // Focus the widget
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
 
         // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
         input.key_pressed_right = true;

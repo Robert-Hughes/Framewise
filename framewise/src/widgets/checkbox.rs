@@ -1138,7 +1138,7 @@ mod tests {
     fn test_checkbox_visual_focused() {
         let state = CheckboxState::default();
         let mut focus_system = FocusSystem::new();
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
         let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
         let s = spec.style;
@@ -1320,7 +1320,7 @@ mod tests {
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         raw::checkbox(spec(), &mut state, &input, &mut focus_system, &mut cmds);
-        focus_system.take_focus(state.focus_id);
+        focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         input.key_pressed_enter = true;
