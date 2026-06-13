@@ -2013,4 +2013,64 @@ mod tests {
         assert!((caret_large.y_top - large_lh).abs() < 0.1);
         assert!((caret_small.y_top - small_lh).abs() < 0.1);
     }
+
+    #[test]
+    fn test_newline_wrapping_collapse() {
+        let mut sys = sys();
+        let flow_word = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let flow_cluster = TextFlow {
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+
+        let rect = Rect::new(0.0, 0.0, 200.0, 200.0);
+        let style_word = TextStyle::new(FontId(1), 16.0, 400, flow_word);
+        let style_cluster = TextStyle::new(FontId(1), 16.0, 400, flow_cluster);
+
+        // 1. Double newlines (WrapWord)
+        let layout = sys.prepare("hello\n\nworld", style_word, rect);
+        assert_eq!(
+            layout.metrics.line_count, 3,
+            "Double newlines should produce 3 lines under WrapWord"
+        );
+
+        // 2. Trailing newline (WrapWord)
+        let layout = sys.prepare("hello\n", style_word, rect);
+        assert_eq!(
+            layout.metrics.line_count, 2,
+            "Trailing newline should produce 2 lines under WrapWord"
+        );
+
+        // 3. Multiple trailing newlines (WrapWord)
+        let layout = sys.prepare("hello\n\n", style_word, rect);
+        assert_eq!(
+            layout.metrics.line_count, 3,
+            "Multiple trailing newlines should produce 3 lines under WrapWord"
+        );
+
+        // 4. Double newlines (WrapCluster)
+        let layout = sys.prepare("hello\n\nworld", style_cluster, rect);
+        assert_eq!(
+            layout.metrics.line_count, 3,
+            "Double newlines should produce 3 lines under WrapCluster"
+        );
+
+        // 5. Trailing newline (WrapCluster)
+        let layout = sys.prepare("hello\n", style_cluster, rect);
+        assert_eq!(
+            layout.metrics.line_count, 2,
+            "Trailing newline should produce 2 lines under WrapCluster"
+        );
+    }
 }

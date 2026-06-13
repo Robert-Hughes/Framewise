@@ -673,9 +673,9 @@ impl SampleTextSystem {
         w: f32,
         fallback: WrapClusterFallback,
     ) -> Vec<Vec<OwnedCluster>> {
-        let mut lines = Vec::new();
+        let mut lines: Vec<Vec<OwnedCluster>> = Vec::new();
         if clusters.is_empty() {
-            return lines;
+            return vec![Vec::new()];
         }
         let mut current_line = Vec::new();
         let mut current_line_start_x = clusters[0].x;
@@ -765,7 +765,7 @@ impl SampleTextSystem {
         fallback: WrapWordFallback,
     ) -> Vec<Vec<OwnedCluster>> {
         if clusters.is_empty() {
-            return Vec::new();
+            return vec![Vec::new()];
         }
 
         struct Seg {
@@ -827,7 +827,7 @@ impl SampleTextSystem {
 
         for seg in segments {
             if seg.is_space {
-                if !current_line.is_empty() {
+                if !current_line.is_empty() || seg.clusters.iter().any(|c| c.is_hard_break) {
                     for mut cluster in seg.clusters {
                         cluster.shift_x(current_logical_w);
                         current_line.push(cluster);
