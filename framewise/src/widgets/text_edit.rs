@@ -788,7 +788,9 @@ pub mod raw {
         }
 
         // Caret
-        if focused && state.selection_byte.is_none_or(|s| s == state.caret_byte) {
+        // The caret is drawn even when there is an active selection so the user knows which end
+        // of the selection will be extended when pressing Shift+arrow.
+        if focused {
             let time_since_move = spec.time - state.last_caret_move_time;
             // Solid for 0.5s after moving, then blink at 1Hz (0.5s on, 0.5s off)
             let blink_on = if time_since_move < 0.5 {
@@ -2262,6 +2264,12 @@ mod tests {
                     rect: Rect::new(5.0, 7.0, 198.0, 28.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(45.0, 7.0, 1.0, 16.0),
+                    color: spec().style.caret_color,
                     z: 0,
                 },
                 DrawCmd::PopClip,
@@ -3881,6 +3889,12 @@ mod tests {
                     handle: crate::text::TextHandle(0),
                     z: 0,
                 },
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(29.0, 50.0, 1.0, 16.0),
+                    color: spec().style.caret_color,
+                    z: 0,
+                },
                 DrawCmd::PopClip,
             ])
         );
@@ -3958,6 +3972,12 @@ mod tests {
                     rect: Rect::new(5.0, 26.0, 198.0, 98.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(21.0, 58.0, 1.0, 16.0),
+                    color: spec().style.caret_color,
                     z: 0,
                 },
                 DrawCmd::PopClip,

@@ -32,7 +32,7 @@ pub fn draw_text_edit_demo(
     state: &mut TextEditDemoState,
     focus_system: &mut FocusSystem,
     input: &Input,
-    _time: f64,
+    time: f64,
     win_size: (f32, f32),
     text_system: &mut SampleTextSystem,
     debug_layout: bool,
@@ -49,6 +49,7 @@ pub fn draw_text_edit_demo(
         Rect::new(0.0, 0.0, win_w, win_h),
         &mut cmds,
     );
+    root_ctx.time = time;
 
     let crate::demo_page::DemoPageResult { mut ctx } = crate::demo_page::begin_demo_page(
         &mut root_ctx,

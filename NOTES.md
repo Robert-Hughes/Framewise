@@ -9,7 +9,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
 
 - select text, then press down, seems to move down more than expected with newlines at the end of lines selected etc. try to tidy up. Existing test= test_text_edit_vertical_caret_movement_with_selection  may need tweaking.
-- show caret when there is selection, as you want to know which end will be modified if you presss Shift+arrow
 - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
   - check Antigravity conversation
   - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
