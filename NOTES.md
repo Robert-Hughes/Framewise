@@ -28,8 +28,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - with selection, arrow keys should be relative to either end? (1D + 2D?)
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
-  - styling to match mockup page (background colour, borders, focus outline etc.)
+  - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
   - TESTS for all this!
+
+- Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
+- Slider styling - two modes/enum variants for scrollbar vs. regular?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03

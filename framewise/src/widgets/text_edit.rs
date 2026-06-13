@@ -6,10 +6,16 @@ use crate::{
     text::{TextBounds, TextFlow, TextStyle, TextSystem},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
+    widgets::scroll_area::ScrollState,
 };
 
 pub mod raw {
     use super::*;
+    use crate::widgets::{
+        scroll_area::raw::{begin_scroll_area, end_scroll_area, ScrollAreaSpec},
+        scroll_area::{ScrollAxis, ScrollExtent, ScrollLen},
+        ScrollbarVisibility, SliderStyle,
+    };
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditSpec {
@@ -70,6 +76,7 @@ pub mod raw {
 
         // Disabled: draw at reduced alpha, no interaction.
         if spec.disabled {
+            //TODO: update this to match new layout? Perhaps remove this separate branch entirely?
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             // Transparent bg per mockup, just border.
@@ -270,12 +277,58 @@ pub mod raw {
             state.caret_byte = 0; // fallback
         }
 
-        let inset = spec.style.border_width + spec.style.padding;
-        let mut content_rect = spec.rect.inset(inset);
+        let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
         if spec.error {
             // shift content right to clear the 4px error stripe
-            content_rect.x += spec.style.error_stripe_width;
-            content_rect.w -= spec.style.error_stripe_width;
+            scroll_outer_rect.x += spec.style.error_stripe_width;
+            scroll_outer_rect.w -= spec.style.error_stripe_width;
+        }
+
+        // Drawing Background
+        let bg_color = if spec.error {
+            spec.style.error_background
+        } else {
+            spec.style.background
+        };
+        cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
+            rect: spec.rect,
+            color: bg_color,
+            z: spec.layer.get_z(),
+        });
+
+        // Error: 4px rust left stripe
+        if spec.error {
+            let stripe = Rect::new(
+                spec.rect.x,
+                spec.rect.y,
+                spec.style.error_stripe_width,
+                spec.rect.h,
+            );
+            cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
+                rect: stripe,
+                color: spec.style.error_border,
+                z: spec.layer.get_z(),
+            });
+        }
+
+        // Border
+        if spec.style.border_width > 0.0 {
+            let b_color = if spec.error {
+                spec.style.error_border
+            } else if focused {
+                spec.style.focus
+            } else {
+                spec.style.border
+            };
+            cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: spec.rect,
+                color: b_color,
+                width: spec.style.border_width,
+                z: spec.layer.get_z(),
+            });
         }
 
         // Prepare text after content bounds are known so hit testing and caret
@@ -289,12 +342,64 @@ pub mod raw {
             text_content,
             spec.style.text_style,
             TextBounds {
-                max_width: Some(content_rect.w),
-                max_height: Some(content_rect.h),
+                max_width: None,
+                max_height: None, //TODO: what about for single line?
             },
         );
-        let text_y = content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0;
-        let text_rect = Rect::new(content_rect.x, text_y, content_rect.w, content_rect.h);
+        let inner_scroll_size = Vec2::new(
+            metrics.logical_size.x + 2.0 * spec.style.padding,
+            metrics.logical_size.y + 2.0 * spec.style.padding,
+        ); // Include padding on either side of text
+
+        let scroll_spec = raw::ScrollAreaSpec {
+            rect: scroll_outer_rect,
+            horizontal: ScrollAxis {
+                extent: ScrollExtent::Exact(ScrollLen::Px(inner_scroll_size.x)),
+                vis: ScrollbarVisibility::Auto,
+            },
+            vertical: ScrollAxis {
+                extent: ScrollExtent::Exact(ScrollLen::Px(inner_scroll_size.y)),
+                vis: ScrollbarVisibility::Auto,
+            },
+            clip_rect: spec.clip_rect,
+            time: spec.time,
+            scrollbar_width: 5.0,
+            scrollbar_style: SliderStyle {
+                track_color: Color::linear_rgba(
+                    spec.style.border.r,
+                    spec.style.border.g,
+                    spec.style.border.b,
+                    0.04,
+                ),
+                track_border_color: Some(spec.style.border),
+                thumb_color: spec.style.border,
+                thumb_border_color: Color::TRANSPARENT,
+                thumb_border_width: 0.0,
+                thumb_hover_color: spec.style.focus,
+                thumb_drag_color: spec.style.focus,
+                focus: spec.style.focus,
+                focus_width: 1.0,
+                focus_offset: 1.0,
+                thickness: 0.0,
+                thumb_size: 0.0,
+                scrollbar_mode: true,
+                disabled_alpha: 0.4,
+                scrollbar_thumb_margin: 0.0,
+            },
+            layer: spec.layer,
+            keyboard_focusable: false,
+        };
+        let scroll_result =
+            raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
+
+        let text_x = scroll_outer_rect.x + spec.style.padding - scroll_result.offset.x;
+        let text_y = scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0; //TODO: multi-line
+        let text_rect = Rect::new(
+            text_x,
+            text_y,
+            metrics.logical_size.x.max(scroll_outer_rect.w),
+            scroll_outer_rect.h,
+        );
         let layout = text_system.prepare(text_content, spec.style.text_style, text_rect);
         let handle = layout.handle;
 
@@ -360,53 +465,17 @@ pub mod raw {
 
         if state.caret_byte != old_caret || state.selection_byte != old_selection {
             state.last_caret_move_time = spec.time;
-        }
 
-        // Drawing Background
-        let bg_color = if spec.error {
-            spec.style.error_background
-        } else {
-            spec.style.background
-        };
-        cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
-            rect: spec.rect,
-            color: bg_color,
-            z: spec.layer.get_z(),
-        });
-
-        // Error: 4px rust left stripe
-        if spec.error {
-            let stripe = Rect::new(
-                spec.rect.x,
-                spec.rect.y,
-                spec.style.error_stripe_width,
-                spec.rect.h,
-            );
-            cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
-                rect: stripe,
-                color: spec.style.error_border,
-                z: spec.layer.get_z(),
-            });
-        }
-
-        // Border
-        if spec.style.border_width > 0.0 {
-            let b_color = if spec.error {
-                spec.style.error_border
-            } else if focused {
-                spec.style.focus
-            } else {
-                spec.style.border
-            };
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: spec.rect,
-                color: b_color,
-                width: spec.style.border_width,
-                z: spec.layer.get_z(),
-            });
+            // Auto-scroll to keep caret in view
+            let caret = text_system.caret_geom(handle, state.caret_byte);
+            let padding = 16.0_f32;
+            let max_scroll_x = (inner_scroll_size.x - scroll_outer_rect.w).max(0.0);
+            if caret.x < state.scroll.offset.x + padding {
+                state.scroll.offset.x = (caret.x - padding).clamp(0.0, max_scroll_x);
+            } else if caret.x > state.scroll.offset.x + scroll_outer_rect.w - padding {
+                state.scroll.offset.x =
+                    (caret.x - scroll_outer_rect.w + padding).clamp(0.0, max_scroll_x);
+            }
         }
 
         // Selection
@@ -473,6 +542,15 @@ pub mod raw {
             }
         }
 
+        end_scroll_area(
+            scroll_result.token,
+            inner_scroll_size,
+            &mut state.scroll,
+            input,
+            focus_system,
+            cmds,
+        );
+
         // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
         focus_system.handle_keyboard_traversal(
             focused,
@@ -483,7 +561,7 @@ pub mod raw {
         state.was_focused = focused || (contains && input.mouse_pressed);
 
         TextEditResult {
-            content_bounds: content_rect,
+            content_bounds: scroll_outer_rect,
             clipboard_action,
             focused,
             input: InputInfo {
@@ -553,6 +631,7 @@ pub struct TextEditState {
     pub drag_word_origin: Option<(usize, usize)>,
     pub last_caret_move_time: f64,
     pub was_focused: bool,
+    pub scroll: ScrollState,
 }
 
 impl TextEditState {
@@ -560,6 +639,7 @@ impl TextEditState {
         Self {
             value: initial_text.to_string(),
             caret_byte: initial_text.len(),
+            scroll: ScrollState::default(),
             ..Default::default()
         }
     }
@@ -1596,12 +1676,16 @@ mod tests {
                     width: spec().style.border_width,
                     z: 0,
                 },
+                DrawCmd::PushClip {
+                    rect: Rect::new(1.0, 1.0, 198.0, 28.0),
+                },
                 DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
                     z: 0,
                 },
+                DrawCmd::PopClip,
             ])
         );
     }
@@ -1644,8 +1728,11 @@ mod tests {
                     width: spec().style.border_width,
                     z: 0,
                 },
+                DrawCmd::PushClip {
+                    rect: Rect::new(1.0, 1.0, 198.0, 28.0),
+                },
                 DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
                     z: 0,
@@ -1656,6 +1743,7 @@ mod tests {
                     color: spec().style.caret_color,
                     z: 0,
                 },
+                DrawCmd::PopClip,
             ])
         );
     }
@@ -1700,6 +1788,9 @@ mod tests {
                     width: spec().style.border_width,
                     z: 0,
                 },
+                DrawCmd::PushClip {
+                    rect: Rect::new(1.0, 1.0, 198.0, 28.0),
+                },
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(5.0, 7.0, 40.0, 16.0),
@@ -1707,11 +1798,12 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 190.0, 20.0),
+                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
                     z: 0,
                 },
+                DrawCmd::PopClip,
             ])
         );
     }
@@ -1757,12 +1849,16 @@ mod tests {
                     width: spec().style.border_width,
                     z: 0,
                 },
+                DrawCmd::PushClip {
+                    rect: Rect::new(5.0, 1.0, 194.0, 28.0),
+                },
                 DrawCmd::Text {
-                    rect: Rect::new(9.0, 7.0, 186.0, 20.0),
+                    rect: Rect::new(9.0, 7.0, 194.0, 28.0),
                     color: spec().style.text_color,
                     handle: crate::text::TextHandle(0),
                     z: 0,
                 },
+                DrawCmd::PopClip,
             ])
         );
     }
@@ -1792,5 +1888,187 @@ mod tests {
             &mut te_state,
         );
         assert_eq!(result.layout.bounds, custom_rect);
+    }
+
+    #[test]
+    fn test_text_edit_caret_auto_scrolling() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        focus_system.begin_frame();
+
+        // 36 characters. Width = 36 * 8 = 288. Inner scroll width = 288 + 8 = 296.
+        // Viewport width = 200 - 2 = 198.
+        // Max scroll = 296 - 198 = 98.
+        let mut state = TextEditState::new("hello world how are you today doing");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        // 1. Caret at start (0): scroll should be 0.0
+        state.caret_byte = 0;
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.scroll.offset.x, 0.0);
+
+        // 2. Caret moves from 23 to 24 (x = 192): exceeds right threshold (198 - 16 = 182)
+        // Expected scroll = 192 - 198 + 16 = 10.0
+        state.caret_byte = 23;
+        input.text_events = vec![TextEvent::CaretRight {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 24);
+        assert_eq!(state.scroll.offset.x, 10.0);
+
+        // 3. Caret moves from 34 to 35 (x = 280): exceeds right threshold
+        // Expected scroll = 280 - 198 + 16 = 98.0, clamped to max_scroll (90.0)
+        state.caret_byte = 34;
+        input.text_events = vec![TextEvent::CaretRight {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 35);
+        assert_eq!(state.scroll.offset.x, 90.0);
+
+        // 4. Move caret left from 3 to 2 (x = 16): below left threshold (98.0 + 16 = 114)
+        // Expected scroll = 16 - 16 = 0.0
+        state.caret_byte = 3;
+        input.text_events = vec![TextEvent::CaretLeft {
+            shift: false,
+            ctrl: false,
+        }];
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.caret_byte, 2);
+        assert_eq!(state.scroll.offset.x, 0.0);
+    }
+
+    #[test]
+    fn test_text_edit_scroll_coordinate_translation() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello world how are you today doing");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+        state.was_focused = true;
+
+        // Manually inject a scroll offset of 50.0
+        state.scroll.offset.x = 50.0;
+        // Selection from index 0 to 5
+        state.selection_byte = Some(0);
+        state.caret_byte = 5;
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Find and check the coordinates of Text, Caret FillRect, and Selection FillRect
+        let mut found_text = false;
+        let mut found_selection = false;
+
+        for cmd in cmds.iter() {
+            match cmd {
+                DrawCmd::Text { rect, .. } => {
+                    // Originally, text_x was: outer_rect.x + padding = 1.0 + 4.0 = 5.0
+                    // Scrolled left by 50.0 -> 5.0 - 50.0 = -45.0
+                    assert_eq!(rect.x, -45.0);
+                    found_text = true;
+                }
+                DrawCmd::FillRect { rect, color, .. } => {
+                    if *color == spec().style.select_color {
+                        // Selection starts at 0 (x = 0) and ends at 5 (x = 40)
+                        // Selection rect.x: text_rect.x + start = -45.0 + 0 = -45.0
+                        assert_eq!(rect.x, -45.0);
+                        assert_eq!(rect.w, 40.0);
+                        found_selection = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        assert!(found_text);
+        assert!(found_selection);
+    }
+
+    #[test]
+    fn test_text_edit_click_with_scroll_offset() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello world how are you today doing");
+
+        // Manually inject a scroll offset of 50.0
+        state.scroll.offset.x = 50.0;
+
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(45.0, 15.0);
+
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse pressed
+        focus_system.begin_frame();
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Caret should have jumped to 11
+        assert_eq!(state.caret_byte, 11);
     }
 }
