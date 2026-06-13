@@ -1130,6 +1130,117 @@ mod tests {
         assert_eq!(on_line2, 4);
     }
 
+    // ── Newline-character semantics ──────────────────────────────────────────
+    //
+    // The following tests assert the contract stated in the TextSystem trait
+    // doc-comments.  Some are expected to fail until the implementations are
+    // brought in line with the spec.
+
+    /// Clicking far to the right of a `\n`-terminated line must keep the caret
+    /// on *that* line, not jump to the start of the next line.
+    ///
+    /// Contract (from `TextSystem::hit_test`):
+    ///   "If the line ends with a hard newline, the result must be the index of
+    ///    the `\n` character itself (i.e. `byte_end - 1`), not `byte_end`."
+    #[test]
+    fn hit_test_right_of_newline_line_stays_on_same_line() {
+        let mut sys = sys();
+        // "abc\ndef" — line 0 occupies bytes 0..4 (includes the '\n' at byte 3).
+        let layout = sys.prepare(
+            "abc\ndef",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
+        // Click well to the right of "abc" on line 0, still within line 0's Y band.
+        let result = sys.hit_test(layout.handle, Vec2::new(1000.0, lh * 0.5));
+        // Must land on the '\n' at byte 3, not on byte 4 (start of "def").
+        assert_eq!(
+            result, 3,
+            "hit_test far right of a newline-terminated line should return the \
+             index of the '\\n' (byte 3), not byte_end (byte 4)"
+        );
+    }
+
+    /// Clicking to the right of a blank line (a line that contains only `\n`)
+    /// must keep the caret on that blank line, not jump to the next line.
+    #[test]
+    fn hit_test_right_of_blank_newline_line_stays_on_same_line() {
+        let mut sys = sys();
+        // "a\n\nb" — line 1 is a blank line whose only content is '\n' at byte 2.
+        let layout = sys.prepare(
+            "a\n\nb",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
+        // Click anywhere on the blank line (line index 1, Y ≈ lh..2*lh).
+        let result = sys.hit_test(layout.handle, Vec2::new(100.0, lh + lh * 0.5));
+        // Byte 2 is the '\n' that forms the blank line; byte 3 would be the
+        // start of the last line ("b").
+        assert_eq!(
+            result, 2,
+            "hit_test on a blank newline-only line should return the index of \
+             the '\\n' (byte 2), not byte_end (byte 3)"
+        );
+    }
+
+    /// `caret_geom` at the index of the `\n` character must return a caret on
+    /// the *same* line as the preceding text, not the next line.
+    #[test]
+    fn caret_geom_at_newline_index_stays_on_same_line() {
+        let mut sys = sys();
+        // "abc\ndef" — '\n' is at byte 3, on line 0.
+        let layout = sys.prepare(
+            "abc\ndef",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let line0_y_top = run.lines[0].y_top;
+        let line0_height = run.lines[0].height;
+
+        let caret = sys.caret_geom(layout.handle, 3); // index of '\n'
+        assert_eq!(
+            caret.y_top, line0_y_top,
+            "caret at the '\\n' index (byte 3) must sit on line 0 (y_top={line0_y_top}), \
+             not line 1"
+        );
+        assert_eq!(
+            caret.height, line0_height,
+            "caret height at the '\\n' index must match line 0 height"
+        );
+    }
+
+    /// `caret_geom` at `byte_end` of a newline-terminated line (i.e. the index
+    /// immediately *after* the `\n`) must return a caret on the *next* line.
+    #[test]
+    fn caret_geom_after_newline_index_is_on_next_line() {
+        let mut sys = sys();
+        // "abc\ndef" — byte_end of line 0 is 4 (one past the '\n'), which is
+        // also byte_start of line 1.
+        let layout = sys.prepare(
+            "abc\ndef",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let line1_y_top = run.lines[1].y_top;
+        let line1_height = run.lines[1].height;
+
+        // byte 4 == byte_end of line 0 == byte_start of line 1.
+        let caret = sys.caret_geom(layout.handle, 4);
+        assert_eq!(
+            caret.y_top, line1_y_top,
+            "caret at byte 4 (byte_end of the '\\n' line) must sit on line 1 \
+             (y_top={line1_y_top})"
+        );
+        assert_eq!(
+            caret.height, line1_height,
+            "caret height at byte 4 must match line 1 height"
+        );
+    }
+
     #[test]
     fn test_ink_bounds_match_rasterized_glyph_extents() {
         let mut sys = sys();

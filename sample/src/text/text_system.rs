@@ -404,7 +404,14 @@ impl TextSystem for SampleTextSystem {
                 return cluster.byte_start;
             }
         }
-        line.byte_end
+        // The point is to the right of every cluster.  If the line ends with a
+        // hard newline, clamp to the '\n' index (last cluster's byte_start)
+        // rather than byte_end (one past it), so that clicking in the right
+        // margin never jumps the caret to the next line.
+        match clusters.last() {
+            Some(last) if last.is_hard_break => last.byte_start,
+            _ => line.byte_end,
+        }
     }
 }
 

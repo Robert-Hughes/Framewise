@@ -17,7 +17,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - user-sizing using drag handle
 
   - multi-line selection (with mouse + keyboard)
-  -
+  - home/end multi-line
 
   - scrollbar visibility
   - scrollbar styling
