@@ -25,7 +25,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Select all
   - quadruple click to select all lines
   - select all or select word auto-scrolling behaviour - perhaps only scroll if the viewport could cover more of the selection
-  - with selection, arrow keys should be relative to either end? (1D + 2D?)
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
   - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
