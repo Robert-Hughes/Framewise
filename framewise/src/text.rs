@@ -497,6 +497,10 @@ pub struct LineMetrics {
     /// Byte start index of the line in the original string.
     pub byte_start: usize,
     /// Byte end index of the line in the original string (exclusive).
+    ///
+    /// If the line ends with a hard newline (`\n`), this is the byte index
+    /// immediately *after* the `\n` character, so the range `byte_start..byte_end`
+    /// includes the newline.
     pub byte_end: usize,
 }
 
@@ -664,6 +668,14 @@ pub trait TextSystem {
     /// An index at or past the end returns the caret after the final cluster. If
     /// the cluster at that index was dropped by overflow, the caret clamps to the
     /// nearest laid-out boundary.
+    ///
+    /// For lines that end with a hard newline (`\n`):
+    /// - Querying the index of the `\n` character itself (i.e. `byte_end - 1` for
+    ///   that line) places the caret at the trailing edge of the last visible
+    ///   character on that line.
+    /// - Querying the index immediately after the `\n` (i.e. `byte_end`, which
+    ///   equals the `byte_start` of the next line) places the caret at the start
+    ///   of the next line.
     fn caret_geom(&self, handle: TextHandle, byte_index: usize) -> CaretGeom;
 
     /// Hit-test a point (block-local coordinates) to the nearest character
@@ -674,8 +686,17 @@ pub trait TextSystem {
     /// positions in the cached run.
     ///
     /// The point is resolved to a line by `y` first, then to the nearest gap
-    /// between clusters by `x`. Points above/below the block clamp to the first/last
-    /// line; points left/right of a line clamp to that line's start/end. The
-    /// result is always a valid char boundary.
+    /// between clusters by `x`:
+    /// - Points above the block clamp to the first line; points below clamp to
+    ///   the last line.
+    /// - Points to the left of a line clamp to that line's `byte_start`.
+    /// - Points to the right of a line clamp to the end of the *visible* content
+    ///   on that line.  If the line ends with a hard newline (`\n`), the result
+    ///   must be the index of the `\n` character itself (i.e. `byte_end - 1` for
+    ///   that line), **not** `byte_end`.  This ensures that clicking in the right
+    ///   margin keeps the caret on the clicked line rather than jumping to the
+    ///   beginning of the next one.
+    ///
+    /// The result is always a valid UTF-8 char boundary.
     fn hit_test(&self, handle: TextHandle, pos: Vec2) -> usize;
 }
