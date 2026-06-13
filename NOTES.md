@@ -11,10 +11,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
 
 
-  - vertical alignment
-    - demo page
-  - horizontal alignment?
-    - demo page
   - wrapping options for multi-line
     - we temporaroly added a "wrap" bool - mioght need adjusting. Certainly needs testing!
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines

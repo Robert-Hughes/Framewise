@@ -874,7 +874,7 @@ pub mod raw {
         }
     }
 
-    fn edit_layout_size<T: TextSystem>(
+    pub(super) fn edit_layout_size<T: TextSystem>(
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
@@ -885,15 +885,49 @@ pub mod raw {
             scroll_outer_rect.x += spec.style.error_stripe_width;
             scroll_outer_rect.w -= spec.style.error_stripe_width;
         }
-        let metrics = text_system.measure(
+
+        let max_width = if spec.wrap {
+            Some((scroll_outer_rect.w - 2.0 * spec.style.padding).max(0.0))
+        } else {
+            None
+        };
+
+        let mut metrics = text_system.measure(
             text_content,
             text_style,
             TextBounds {
-                max_width: None,
+                max_width,
                 max_height: None,
             },
         );
-        let layout_width = metrics.logical_size.x.max(scroll_outer_rect.w);
+
+        let mut final_max_width = max_width;
+
+        if spec.wrap {
+            // If the wrapped height exceeds the viewport height, a vertical scrollbar
+            // will be shown. The vertical scrollbar steals width (5.0px in our scroll spec),
+            // so we re-measure the text with a narrower width.
+            let content_h = metrics.logical_size.y + 2.0 * spec.style.padding;
+            if content_h > scroll_outer_rect.h {
+                let max_width_narrow =
+                    Some(((scroll_outer_rect.w - 2.0 * spec.style.padding) - 5.0).max(0.0));
+                final_max_width = max_width_narrow;
+                metrics = text_system.measure(
+                    text_content,
+                    text_style,
+                    TextBounds {
+                        max_width: max_width_narrow,
+                        max_height: None,
+                    },
+                );
+            }
+        }
+
+        let layout_width = if spec.wrap {
+            final_max_width.unwrap_or(0.0)
+        } else {
+            metrics.logical_size.x.max(scroll_outer_rect.w)
+        };
         let layout_height = metrics.logical_size.y.max(scroll_outer_rect.h);
         (metrics, layout_width, layout_height, scroll_outer_rect)
     }
@@ -4099,16 +4133,20 @@ mod tests {
 
         // With spec.error = true and spec.rect.w = 52.0:
         // - Correct layout width is metrics.logical_size.x.max(scroll_outer_rect.w)
-        //   where logical_size.x = 80.0, scroll_outer_rect.w = 46.0.
-        //   So correct width is 80.0. All 10 characters fit on 1 line (max_chars = 10).
-        // - Buggy event handler layout width is 50.0. Fits 6 characters per line.
+        //   where logical_size.x = 40.0, scroll_outer_rect.w = 46.0 (since it wraps at 46.0px max_width).
+        //   So correct width is 46.0.
+        // - Line 0: "abcde" (bytes 0..5), Line 1: "fghij" (bytes 5..10).
+        // - Start caret at index 8 ('i', Line 1). CaretUp should move to index 3 ('d', Line 0).
+        // - Buggy event handler layout width is 50.0 (ignoring error stripe). Fits 6 characters per line.
         //   Visual lines under buggy handler: Line 0: "abcdef" (bytes 0..6), Line 1: "ghij" (bytes 6..10).
+        //   Under the buggy handler, CaretUp thinks index 8 is column 2 on Line 1, moving it up to
+        //   index 2 on Line 0.
 
         // --- Test CaretUp Mismatch ---
-        // Start caret at index 8 ('i'). Since the actual layout has 80.0 width, it is unwrapped,
-        // so CaretUp should think it's on Line 0 and move it to index 0.
-        // Due to the bug (layout width 50.0), CaretUp thinks index 8 is on Line 1,
-        // and moves it up to the same column on Line 0, resulting in index 2.
+        // Start caret at index 8 ('i'). Since the correct layout has 46.0 width, it wraps as
+        // "abcde" and "fghij", so CaretUp should move it to index 3.
+        // Due to the bug (layout width 50.0), CaretUp thinks index 8 is on Line 1 of the 50.0 layout,
+        // and moves it up to index 2.
         state.caret_byte = 8;
         state.was_focused = true;
         focus_system.begin_frame();
@@ -4126,8 +4164,8 @@ mod tests {
         );
 
         assert_eq!(
-            state.caret_byte, 0,
-            "CaretUp should move caret to index 0 under correct layout width"
+            state.caret_byte, 3,
+            "CaretUp should move caret to index 3 under correct wrapped layout width"
         );
     }
 
@@ -4277,6 +4315,178 @@ mod tests {
                 state.caret_byte, 3,
                 "Hit testing should resolve correctly to index 3"
             );
+        }
+    }
+
+    #[test]
+    fn test_edit_layout_size_wrapping() {
+        let mut text_system = DummyTextSys;
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
+        edit_spec.wrap = true;
+        edit_spec.style.border_width = 1.0;
+        edit_spec.style.padding = 4.0;
+
+        // scroll_outer_rect: x=1.0, y=1.0, w=98.0, h=28.0.
+        // available text width without scrollbar = 98.0 - 2 * 4.0 = 90.0.
+        // In characters: 90.0 / 8.0 = 11.25 -> 11 characters.
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+
+        // Case A: Short text that does not overflow height.
+        // "abcdefghijk" -> 11 chars. Should fit on 1 line.
+        // Height = 16.0. Height + padding = 24.0 <= 28.0 (viewport h).
+        // No vertical scrollbar width deduction should happen.
+        let (metrics, layout_width, layout_height, _) =
+            super::raw::edit_layout_size("abcdefghijk", &edit_spec, text_style, &mut text_system);
+        assert_eq!(metrics.line_count, 1);
+        assert_eq!(layout_width, 90.0);
+        assert_eq!(layout_height, 28.0);
+
+        // Case B: Long text that wraps and overflows height.
+        // "abcdefghijklmnopqrst" -> 20 chars.
+        // Initial available width = 90.0. Max chars = 11.
+        // Visual lines: 11 chars + 9 chars.
+        // Height = 32.0. Height + padding = 40.0 > 28.0 (viewport h).
+        // Scrollbar will appear and steal 5px.
+        // New available width = 85.0. Max chars = 10.
+        // Final visual lines: 10 chars ("abcdefghij") + 10 chars ("klmnopqrst").
+        // Both lines should have 10 chars.
+        let (metrics, layout_width, _layout_height, _) = super::raw::edit_layout_size(
+            "abcdefghijklmnopqrst",
+            &edit_spec,
+            text_style,
+            &mut text_system,
+        );
+        assert_eq!(metrics.line_count, 2);
+        assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
+        assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);
+        assert_eq!(layout_width, 85.0);
+    }
+
+    #[test]
+    fn test_text_edit_visual_vertical_scrollbar() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("one\ntwo\nthree\nfour\nfive"); // 5 lines, height 80px
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // height 40px -> viewport h = 38px
+        edit_spec.newline_policy = NewlinePolicy::Allow;
+
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Find if a vertical scrollbar track/thumb was drawn.
+        // Slider/scrollbar drawing uses FillRect for track/thumb, and since the viewport height
+        // is 38px, and text height is 80px + padding = 88px, it overflows.
+        // Specifically, let's assert that content bounds width in PushClip is shrunk to 193.0 (200 - 2 border - 5 scrollbar).
+        let has_shrunk_clip = cmds.iter().any(|cmd| {
+            if let DrawCmd::PushClip { rect } = cmd {
+                rect.w == 193.0
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_shrunk_clip,
+            "The clip rect width should be shrunk to 193.0 to accommodate the vertical scrollbar"
+        );
+
+        // The vertical track has width 5.0 and is placed at x = 194.0
+        let has_vertical_track = cmds.iter().any(|cmd| {
+            if let DrawCmd::FillRect { rect, .. } = cmd {
+                rect.x == 194.0 && rect.w == 5.0
+            } else {
+                false
+            }
+        });
+        assert!(has_vertical_track, "Should render vertical scrollbar track");
+    }
+
+    #[test]
+    fn test_text_edit_visual_horizontal_scrollbar() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrstuvwxyz0123"); // 30 chars = 240px wide
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // width 200px -> viewport w = 198px
+
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Since horizontal scrollbar is triggered, the content height is shrunk by 5px (from 38px to 33px)
+        let has_shrunk_clip = cmds.iter().any(|cmd| {
+            if let DrawCmd::PushClip { rect } = cmd {
+                rect.h == 33.0
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_shrunk_clip,
+            "The clip rect height should be shrunk to 33.0 to accommodate the horizontal scrollbar"
+        );
+
+        // The horizontal track has height 5.0 and is placed at y = 34.0
+        let has_horizontal_track = cmds.iter().any(|cmd| {
+            if let DrawCmd::FillRect { rect, .. } = cmd {
+                rect.y == 34.0 && rect.h == 5.0
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_horizontal_track,
+            "Should render horizontal scrollbar track"
+        );
+    }
+
+    #[test]
+    fn test_text_edit_wrapping() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // available width = 90px without scrollbar (11 chars)
+        edit_spec.wrap = true;
+
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Verify that the text was prepared with the narrower max_width (85px)
+        // so that it fits 10 characters per line.
+        if let Some((text, metrics)) = text_system.last_run {
+            assert_eq!(text, "abcdefghijklmnopqrst");
+            assert_eq!(metrics.line_count, 2);
+            assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
+            assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);
+        } else {
+            panic!("DummyTextSys did not record last prepared layout run");
         }
     }
 }

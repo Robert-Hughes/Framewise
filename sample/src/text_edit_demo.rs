@@ -2,12 +2,13 @@ use crate::text::SampleTextSystem;
 use framewise::{
     focus::FocusSystem,
     input::Input,
-    layouts::linear::{ColumnLayout, ColumnLayoutParams},
+    layouts::linear::{ColumnLayout, ColumnLayoutParams, RowLayout, RowLayoutParams},
     theme::Theme,
     types::Rect,
     widget::WidgetContext,
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
     widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState},
+    Align, TextLineAlign,
 };
 
 pub struct TextEditDemoState {
@@ -15,6 +16,8 @@ pub struct TextEditDemoState {
     pub te_allow: TextEditState,
     pub te_replace: TextEditState,
     pub te_reject: TextEditState,
+    pub te_wrap: TextEditState,
+    pub te_aligns: [[TextEditState; 3]; 3],
 }
 
 impl Default for TextEditDemoState {
@@ -24,6 +27,24 @@ impl Default for TextEditDemoState {
             te_allow: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
             te_replace: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
             te_reject: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
+            te_wrap: TextEditState::new("This is a wrapping text edit widget. Try typing a very long sentence here to see how word wrapping wraps the characters/words to the next line dynamically inside the widget's box! You can also resize the window or click anywhere in the text edit to place the cursor and test vertical navigation across wrapped lines."),
+            te_aligns: [
+                [
+                    TextEditState::new("Top\nLeft"),
+                    TextEditState::new("Top\nCenter"),
+                    TextEditState::new("Top\nRight"),
+                ],
+                [
+                    TextEditState::new("Middle\nLeft"),
+                    TextEditState::new("Middle\nCenter"),
+                    TextEditState::new("Middle\nRight"),
+                ],
+                [
+                    TextEditState::new("Bottom\nLeft"),
+                    TextEditState::new("Bottom\nCenter"),
+                    TextEditState::new("Bottom\nRight"),
+                ],
+            ],
         }
     }
 }
@@ -170,6 +191,88 @@ pub fn draw_text_edit_demo(
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_reject,
         );
+    }
+    ctx.spacer(24.0);
+
+    // ── 4. Wrapping ──────────────────────────────────────────────────────────────
+    {
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("4. Wrapping (NewlinePolicy::Allow + wrap(true))")
+                .style(section_header_style),
+            ColumnLayoutParams::auto(),
+        );
+        ctx.spacer(4.0);
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("Enables word wrapping on the text edit. Long lines wrap to the next line automatically.")
+                .style(desc_style),
+            ColumnLayoutParams::auto(),
+        );
+        ctx.spacer(10.0);
+
+        text_edit(
+            &mut ctx,
+            TextEditSpecBuilder::new()
+                .newline_policy(NewlinePolicy::Allow)
+                .wrap(true),
+            ColumnLayoutParams::fixed(400.0, 100.0),
+            &mut state.te_wrap,
+        );
+    }
+    ctx.spacer(24.0);
+
+    // ── 5. Alignment Combinations ──────────────────────────────────────────────
+    {
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("5. Alignment Combinations (3x3 Grid)")
+                .style(section_header_style),
+            ColumnLayoutParams::auto(),
+        );
+        ctx.spacer(4.0);
+        label(
+            &mut ctx,
+            LabelSpecBuilder::new()
+                .text("Demonstrates the 9 combinations of vertical alignment (Top, Middle, Bottom) and horizontal line alignment (Left, Center, Right).")
+                .style(desc_style),
+            ColumnLayoutParams::auto(),
+        );
+        ctx.spacer(10.0);
+
+        let vertical_options = [Align::Start, Align::Center, Align::End];
+        let horizontal_options = [
+            TextLineAlign::Start,
+            TextLineAlign::Center,
+            TextLineAlign::End,
+        ];
+
+        for (r, &vertical_align) in vertical_options.iter().enumerate() {
+            let mut row =
+                ctx.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(80.0), RowLayout);
+
+            for (c, &line_align) in horizontal_options.iter().enumerate() {
+                if c > 0 {
+                    row.spacer(12.0);
+                }
+
+                text_edit(
+                    &mut row,
+                    TextEditSpecBuilder::new()
+                        .vertical_align(vertical_align)
+                        .line_align(line_align)
+                        .newline_policy(NewlinePolicy::Allow)
+                        .wrap(true),
+                    RowLayoutParams::fixed(130.0, 80.0),
+                    &mut state.te_aligns[r][c],
+                );
+            }
+            row.finish();
+            ctx.spacer(12.0);
+        }
     }
 
     ctx.finish();
