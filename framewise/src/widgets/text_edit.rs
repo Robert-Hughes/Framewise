@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     layout::{IntrinsicSize, LayoutState},
-    text::{TextBounds, TextFlow, TextMetrics, TextStyle, TextSystem},
+    text::{FontId, LineHeight, TextBounds, TextFlow, TextMetrics, TextStyle, TextSystem},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::scroll_area::ScrollState,
@@ -27,11 +27,13 @@ pub mod raw {
         pub time: f64,
         pub layer: Layer,
         pub newline_policy: super::NewlinePolicy,
+        pub wrap: bool,
     }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditCalcIntrinsicSizeSpec {
         pub style: super::TextEditStyle,
+        pub wrap: bool,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -53,7 +55,11 @@ pub mod raw {
         } else {
             &state.value
         };
-        let metrics = text_system.measure(text, spec.style.text_style, TextBounds::UNBOUNDED);
+        let metrics = text_system.measure(
+            text,
+            to_text_style(spec.style, spec.wrap),
+            TextBounds::UNBOUNDED,
+        );
         let inset = (spec.style.border_width + spec.style.padding) * 2.0;
         IntrinsicSize::preferred(Vec2::new(
             metrics.logical_size.x + inset,
@@ -73,6 +79,7 @@ pub mod raw {
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> TextEditResult {
+        let text_style = to_text_style(spec.style, spec.wrap);
         let processed = spec.newline_policy.process(&state.value);
         if let std::borrow::Cow::Owned(s) = processed {
             state.value = s;
@@ -106,7 +113,7 @@ pub mod raw {
             if !state.value.is_empty() {
                 let metrics = text_system.measure(
                     &state.value,
-                    spec.style.text_style,
+                    text_style,
                     TextBounds {
                         max_width: Some(content_rect.w),
                         max_height: Some(content_rect.h),
@@ -114,7 +121,7 @@ pub mod raw {
                 );
                 let ty = content_rect.y + (content_rect.h - metrics.logical_size.y) / 2.0;
                 let text_rect = Rect::new(content_rect.x, ty, content_rect.w, content_rect.h);
-                let layout = text_system.prepare(&state.value, spec.style.text_style, text_rect);
+                let layout = text_system.prepare(&state.value, text_style, text_rect);
                 cmds.push(DrawCmd::Text {
                     rect: text_rect,
                     color: tint(spec.style.text_color),
@@ -295,10 +302,10 @@ pub mod raw {
                             &state.value
                         };
                         let (_, layout_width, layout_height, _) =
-                            edit_layout_size(text_content, &spec, text_system);
+                            edit_layout_size(text_content, &spec, text_style, text_system);
                         let layout = text_system.prepare(
                             text_content,
-                            spec.style.text_style,
+                            text_style,
                             Rect::new(0.0, 0.0, layout_width, layout_height),
                         );
                         let handle = layout.handle;
@@ -348,10 +355,10 @@ pub mod raw {
                             &state.value
                         };
                         let (_, layout_width, layout_height, _) =
-                            edit_layout_size(text_content, &spec, text_system);
+                            edit_layout_size(text_content, &spec, text_style, text_system);
                         let layout = text_system.prepare(
                             text_content,
-                            spec.style.text_style,
+                            text_style,
                             Rect::new(0.0, 0.0, layout_width, layout_height),
                         );
                         let handle = layout.handle;
@@ -480,7 +487,7 @@ pub mod raw {
             &state.value
         };
         let (metrics, layout_width, layout_height, scroll_outer_rect) =
-            edit_layout_size(text_content, &spec, text_system);
+            edit_layout_size(text_content, &spec, text_style, text_system);
 
         // Drawing Background
         let bg_color = if spec.error {
@@ -584,7 +591,7 @@ pub mod raw {
             scroll_outer_rect.y + spec.style.padding - scroll_result.offset.y
         };
         let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
-        let layout = text_system.prepare(text_content, spec.style.text_style, text_rect);
+        let layout = text_system.prepare(text_content, text_style, text_rect);
         let handle = layout.handle;
 
         // Mouse interaction
@@ -849,6 +856,7 @@ pub mod raw {
     fn edit_layout_size<T: TextSystem>(
         text_content: &str,
         spec: &TextEditSpec,
+        text_style: TextStyle,
         text_system: &mut T,
     ) -> (TextMetrics, f32, f32, Rect) {
         let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
@@ -858,7 +866,7 @@ pub mod raw {
         }
         let metrics = text_system.measure(
             text_content,
-            spec.style.text_style,
+            text_style,
             TextBounds {
                 max_width: None,
                 max_height: None,
@@ -883,7 +891,12 @@ pub struct TextEditStyle {
     pub error_stripe_width: f32,
     pub min_height: f32,
     pub padding: f32,
-    pub text_style: TextStyle,
+    pub font: FontId,
+    pub size: f32,
+    pub weight: u16,
+    pub italic: bool,
+    pub letter_spacing: f32,
+    pub line_height: LineHeight,
     pub text_color: Color,
     pub caret_color: Color,
     pub select_color: Color,
@@ -902,17 +915,33 @@ impl TextEditStyle {
             border_width: theme.border,
             min_height: theme.h_md,
             padding: 4.0,
-            text_style: TextStyle::new(
-                theme.mono_font,
-                theme.text_mono,
-                theme.sans_weight_regular,
-                TextFlow::single_line(),
-            ),
+            font: theme.mono_font,
+            size: theme.text_mono,
+            weight: theme.sans_weight_regular,
+            italic: false,
+            letter_spacing: 0.0,
+            line_height: LineHeight::Normal,
             text_color: theme.ink,
             caret_color: theme.rust,
             select_color: theme.rust_soft,
             disabled_alpha: 0.55,
         }
+    }
+}
+
+pub(crate) fn to_text_style(style: TextEditStyle, wrap: bool) -> TextStyle {
+    TextStyle {
+        font: style.font,
+        size: style.size,
+        weight: style.weight,
+        flow: if wrap {
+            TextFlow::wrapped()
+        } else {
+            TextFlow::single_line()
+        },
+        italic: style.italic,
+        letter_spacing: style.letter_spacing,
+        line_height: style.line_height,
     }
 }
 
@@ -1004,6 +1033,7 @@ pub struct TextEditSpec {
     pub error: bool,
     pub disabled: bool,
     pub newline_policy: NewlinePolicy,
+    pub wrap: bool,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
@@ -1014,6 +1044,7 @@ pub struct TextEditSpecBuilder {
     pub error: Option<bool>,
     pub disabled: Option<bool>,
     pub newline_policy: Option<NewlinePolicy>,
+    pub wrap: Option<bool>,
 }
 
 impl TextEditSpecBuilder {
@@ -1037,6 +1068,10 @@ impl TextEditSpecBuilder {
         self.newline_policy = Some(newline_policy);
         self
     }
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = Some(wrap);
+        self
+    }
 
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
@@ -1057,6 +1092,7 @@ impl TextEditSpecBuilder {
             newline_policy: self
                 .newline_policy
                 .unwrap_or(NewlinePolicy::ReplaceWithSpace),
+            wrap: self.wrap.unwrap_or(false),
         }
     }
 }
@@ -1181,7 +1217,10 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
     state: &mut TextEditState,
 ) -> TextEditResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TextEditCalcIntrinsicSizeSpec { style: spec.style };
+    let calc_spec = raw::TextEditCalcIntrinsicSizeSpec {
+        style: spec.style,
+        wrap: spec.wrap,
+    };
     let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_system);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::TextEditSpec {
@@ -1193,6 +1232,7 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
         time: ctx.time,
         layer: ctx.layer,
         newline_policy: spec.newline_policy,
+        wrap: spec.wrap,
     };
     let result = raw::text_edit(
         raw_spec,
@@ -1226,12 +1266,12 @@ mod tests {
         let builder = builder.defaults_from_theme(&theme);
         assert!(builder.style.is_some());
         assert_eq!(
-            builder.style.unwrap().text_style.font,
-            TextEditStyle::from_theme(&theme).text_style.font
+            builder.style.unwrap().font,
+            TextEditStyle::from_theme(&theme).font
         );
         assert_eq!(
-            builder.style.unwrap().text_style.size,
-            TextEditStyle::from_theme(&theme).text_style.size
+            builder.style.unwrap().size,
+            TextEditStyle::from_theme(&theme).size
         );
     }
 
@@ -1239,10 +1279,10 @@ mod tests {
     fn test_builder_defaults_from_theme_preserves_explicit_style() {
         let theme = crate::theme::Theme::framewise();
         let mut custom_style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
-        custom_style.text_style.size = 99.0;
+        custom_style.size = 99.0;
         let builder = TextEditSpecBuilder::new().style(custom_style);
         let builder = builder.defaults_from_theme(&theme);
-        assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+        assert_eq!(builder.style.unwrap().size, 99.0);
     }
 
     fn spec() -> TextEditSpec {
@@ -1255,6 +1295,7 @@ mod tests {
             time: 0.0,
             layer: Layer::default(),
             newline_policy: NewlinePolicy::ReplaceWithSpace,
+            wrap: false,
         }
     }
 
@@ -4006,7 +4047,7 @@ mod tests {
         spec_error.rect = Rect::new(0.0, 0.0, 52.0, 100.0); // 50px width content boundary + 2px borders
         spec_error.style.border_width = 1.0;
         spec_error.style.padding = 0.0;
-        spec_error.style.text_style.flow = TextFlow::wrapped();
+        spec_error.wrap = true;
         spec_error.error = true;
         spec_error.style.error_stripe_width = 4.0;
 

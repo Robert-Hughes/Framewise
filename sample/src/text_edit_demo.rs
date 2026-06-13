@@ -21,9 +21,9 @@ impl Default for TextEditDemoState {
     fn default() -> Self {
         Self {
             page: crate::demo_page::DemoPageState::default(),
-            te_allow: TextEditState::new("one\ntwo\nthree"),
-            te_replace: TextEditState::new("one\ntwo\nthree"),
-            te_reject: TextEditState::new("one\ntwo\nthree"),
+            te_allow: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
+            te_replace: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
+            te_reject: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
         }
     }
 }

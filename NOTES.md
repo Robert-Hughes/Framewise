@@ -5,24 +5,25 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - Support single line, multi-line
-    - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
 
-- select text, then press down, seems to move down more than expected with newlines at the end of lines selected etc. try to tidy up. Existing test= test_text_edit_vertical_caret_movement_with_selection  may need tweaking.
 - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
   - check Antigravity conversation
   - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
 
 
+  - vertical alignment
   - wrapping options for multi-line
     - Stop using TextStyle as API - construct this internally and provide our own simpler wrapping flag
+    - we temporaroly added a "wrap" bool - mioght need adjusting. Certainly needs testing!
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
+
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
     - what about width?
   - user-sizing using drag handle (height and/or width)
-  - vertical alignment
+
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
+  - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties
 
 
   - scrollbar visibility
@@ -34,7 +35,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - tab focus behaviour with scrollbars
   - correct offsets with error bar
   - Select all
-  - quadruple click to select all lines
+  - quadruple click to select all lines, triple click should just be current line
   - with wrapping, should triple click select visible line or actual line?
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
@@ -45,6 +46,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - TESTS for all this!
 
 - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
+- Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
 - Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
