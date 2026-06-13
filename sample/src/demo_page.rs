@@ -64,6 +64,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
         scrollbar_width: spec.scrollbar_width,
         scrollbar_style: spec.scrollbar_style,
         layer: parent_ctx.layer,
+        keyboard_focusable: true,
     };
 
     let framewise::widgets::scroll_area::raw::ScrollAreaResult {
