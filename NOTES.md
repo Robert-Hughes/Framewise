@@ -33,6 +33,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
+- Copy/paste integration with the system (apparently not working!)
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03

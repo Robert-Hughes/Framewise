@@ -17,6 +17,8 @@ mod scroll_demo;
 #[cfg(feature = "page_spec")]
 mod spec_page;
 mod text;
+#[cfg(feature = "page_text_edit")]
+mod text_edit_demo;
 
 use framewise::input::Input;
 use framewise::types::Vec2;
@@ -45,6 +47,8 @@ enum AppPage {
     #[cfg(feature = "page_layout_demo")]
     LayoutDemo,
     ScrollDemo,
+    #[cfg(feature = "page_text_edit")]
+    TextEditDemo,
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -113,6 +117,8 @@ struct App {
     layout_demo_state: layout_demo::LayoutDemoState,
     #[cfg(feature = "page_label_demo")]
     label_page_state: label_page::LabelPageState,
+    #[cfg(feature = "page_text_edit")]
+    text_edit_demo_state: text_edit_demo::TextEditDemoState,
     is_first_frame: bool,
 }
 
@@ -155,6 +161,8 @@ impl App {
             layout_demo_state: layout_demo::LayoutDemoState::default(),
             #[cfg(feature = "page_label_demo")]
             label_page_state: label_page::LabelPageState::default(),
+            #[cfg(feature = "page_text_edit")]
+            text_edit_demo_state: text_edit_demo::TextEditDemoState::default(),
             is_first_frame: true,
         }
     }
@@ -313,6 +321,24 @@ impl App {
                 }
                 Self::draw_missing_feature_page(win_size, text_system)
             }
+            AppPage::TextEditDemo => {
+                #[cfg(feature = "page_text_edit")]
+                {
+                    self.focus_system.begin_frame();
+                    let cmds = text_edit_demo::draw_text_edit_demo(
+                        &mut self.text_edit_demo_state,
+                        &mut self.focus_system,
+                        &self.input,
+                        time,
+                        win_size,
+                        text_system,
+                        self.debug_layout,
+                    );
+                    self.focus_system.end_frame();
+                    return cmds;
+                }
+                Self::draw_missing_feature_page(win_size, text_system)
+            }
         }
     }
 }
@@ -449,7 +475,7 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                // F1 = WidgetSpec, F2 = LabelDemo, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F6 = ScrollDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
+                // F1 = WidgetSpec, F2 = LabelDemo, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F6 = ScrollDemo, F7 = TextEditDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
                 if event.state == ElementState::Pressed {
                     match event.physical_key {
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F1) => {
@@ -472,6 +498,10 @@ impl ApplicationHandler for App {
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F6) => {
                             self.active_page = AppPage::ScrollDemo;
+                        }
+                        #[cfg(feature = "page_text_edit")]
+                        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F7) => {
+                            self.active_page = AppPage::TextEditDemo;
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F11) => {
                             self.vsync = !self.vsync;
