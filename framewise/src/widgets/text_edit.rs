@@ -568,12 +568,13 @@ pub mod raw {
             raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
 
         let text_x = scroll_outer_rect.x + spec.style.padding - scroll_result.offset.x;
-        let text_y = scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0; //TODO: multi-line
+        let text_y = scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0
+            - scroll_result.offset.y;
         let text_rect = Rect::new(
             text_x,
             text_y,
             metrics.logical_size.x.max(scroll_outer_rect.w),
-            scroll_outer_rect.h,
+            metrics.logical_size.y.max(scroll_outer_rect.h),
         );
         let layout = text_system.prepare(text_content, spec.style.text_style, text_rect);
         let handle = layout.handle;
@@ -2515,6 +2516,7 @@ mod tests {
                     // Originally, text_x was: outer_rect.x + padding = 1.0 + 4.0 = 5.0
                     // Scrolled left by 50.0 -> 5.0 - 50.0 = -45.0
                     assert_eq!(rect.x, -45.0);
+                    assert_eq!(rect.w, 280.0);
                     found_text = true;
                 }
                 DrawCmd::FillRect { rect, color, .. } => {
@@ -2575,6 +2577,125 @@ mod tests {
 
         // Caret should have jumped to 11
         assert_eq!(state.caret_byte, 11);
+    }
+
+    #[test]
+    fn test_text_edit_vertical_scroll_coordinate_translation() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("line1\nline2\nline3\nline4");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+        state.was_focused = true;
+
+        let edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // Manually inject a vertical scroll offset of 20.0
+        state.scroll.offset.y = 20.0;
+        // Selection on the first line (index 0 to 5)
+        state.selection_byte = Some(0);
+        state.caret_byte = 5;
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Find and check the coordinates of Text, Caret FillRect, and Selection FillRect
+        let mut found_text = false;
+        let mut found_selection = false;
+
+        for cmd in cmds.iter() {
+            match cmd {
+                DrawCmd::Text { rect, .. } => {
+                    // scroll_outer_rect.y = border_width = 1.0
+                    // scroll_outer_rect.h = 28.0
+                    // logical height = 64.0
+                    // center offset = (28.0 - 64.0) / 2.0 = -18.0
+                    // scrolled up by 20.0 -> 1.0 - 18.0 - 20.0 = -37.0
+                    assert_eq!(rect.y, -37.0);
+                    assert_eq!(rect.h, 64.0);
+                    found_text = true;
+                }
+                DrawCmd::FillRect { rect, color, .. } => {
+                    if *color == spec().style.select_color {
+                        // Selection starts at 0 (y_top = 0.0)
+                        // Selection rect.y: text_rect.y + start_caret.y_top = -37.0 + 0.0 = -37.0
+                        assert_eq!(rect.y, -37.0);
+                        assert_eq!(rect.h, 16.0); // line height = 16.0
+                        found_selection = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        assert!(found_text);
+        assert!(found_selection);
+    }
+
+    #[test]
+    fn test_text_edit_vertical_click_with_scroll_offset() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("line1\nline2\nline3\nline4\nline5\nline6");
+
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 50.0),
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // Manually inject a vertical scroll offset of 20.0
+        state.scroll.offset.y = 20.0;
+
+        let mut input = Input::default();
+        // border = 1.0, padding = 4.0, offset.x = 0.0 => text_x = 5.0.
+        // Clicking at x = 5.0, y = 10.0.
+        // scroll_outer_rect.h = 48.0, metrics.logical_size.y = 96.0.
+        // text_y = 1.0 + (48.0 - 96.0)/2.0 - 20.0 = -43.0.
+        // relative_pos.y = 10.0 - (-43.0) = 53.0, which lands on Line 3 ("line4\n", starts at 18)
+        input.mouse_pos = Vec2::new(5.0, 10.0);
+
+        // Frame 1: Warmup to establish hover claim
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        // Frame 2: Mouse pressed
+        focus_system.begin_frame();
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Caret should have jumped to 18 (start of "line4\n")
+        assert_eq!(state.caret_byte, 18);
     }
 
     #[test]

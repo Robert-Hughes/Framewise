@@ -8,11 +8,14 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
   - wrapping options for multi-line
+    - Stop using TextStyle as API - construct this internally and provide our own simpler wrapping flag
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
     - what about width?
   - user-sizing using drag handle (height and/or width)
+  - vertical alignment
+  - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
 
 
   - scrollbar visibility
