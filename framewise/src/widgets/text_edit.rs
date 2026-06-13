@@ -591,7 +591,8 @@ pub mod raw {
 
             // Handling double/triple clicks
             if input.mouse_click_count == 2 {
-                let (start, end) = word_bounds(&state.value, clicked_byte);
+                let char_idx = char_index_at_pos(&state.value, text_system, handle, relative_pos);
+                let (start, end) = word_bounds(&state.value, char_idx);
                 state.selection_byte = Some(start);
                 state.caret_byte = end;
                 state.is_dragging = true;
@@ -620,8 +621,10 @@ pub mod raw {
                 let current_byte = current_byte.min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
-                    let (cur_start, cur_end) = word_bounds(&state.value, current_byte);
-                    if current_byte < orig_start {
+                    let char_idx =
+                        char_index_at_pos(&state.value, text_system, handle, relative_pos);
+                    let (cur_start, cur_end) = word_bounds(&state.value, char_idx);
+                    if char_idx < orig_start {
                         state.selection_byte = Some(orig_end);
                         state.caret_byte = cur_start;
                     } else {
@@ -1100,6 +1103,43 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
     (left, text.len())
 }
 
+pub fn char_index_at_pos<T: TextSystem>(
+    text: &str,
+    text_system: &T,
+    handle: crate::TextHandle,
+    relative_pos: Vec2,
+) -> usize {
+    if text.is_empty() {
+        return 0;
+    }
+
+    let clicked_byte = text_system.hit_test(handle, relative_pos);
+    let clicked_byte = clicked_byte.min(text.len());
+
+    let boundary_x = text_system.caret_geom(handle, clicked_byte).x;
+    if relative_pos.x < boundary_x {
+        if clicked_byte > 0 {
+            let mut prev = clicked_byte - 1;
+            while prev > 0 && !text.is_char_boundary(prev) {
+                prev -= 1;
+            }
+            prev
+        } else {
+            0
+        }
+    } else {
+        if clicked_byte < text.len() {
+            clicked_byte
+        } else {
+            let mut prev = text.len() - 1;
+            while prev > 0 && !text.is_char_boundary(prev) {
+                prev -= 1;
+            }
+            prev
+        }
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level text edit widget function using WidgetContext.
@@ -1569,6 +1609,67 @@ mod tests {
         // Should select "hello rust", so from 10 to 0
         assert_eq!(state.selection_byte, Some(10)); // original end
         assert_eq!(state.caret_byte, 0); // start of "hello"
+    }
+
+    #[test]
+    fn test_double_click_symmetry() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+
+        let mut run_double_click = |x_within_text: f32| -> (Option<usize>, usize) {
+            let mut state = TextEditState::new("a b");
+            let mut input = Input::default();
+            let x_offset = spec().style.padding + spec().style.border_width;
+            input.mouse_pos = crate::types::Vec2::new(x_within_text + x_offset, 8.0);
+
+            // Frame 1: Hover
+            focus_system.begin_frame();
+            raw::text_edit(
+                spec(),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut DrawCommands::new(),
+            );
+            focus_system.end_frame();
+
+            // Frame 2: Double click
+            input.mouse_down = true;
+            input.mouse_pressed = true;
+            input.mouse_click_count = 2;
+            focus_system.begin_frame();
+            raw::text_edit(
+                spec(),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut DrawCommands::new(),
+            );
+            focus_system.end_frame();
+
+            (state.selection_byte, state.caret_byte)
+        };
+
+        // Click at various positions in "a b"
+        // 1. In 'a' [0.0, 8.0) -> should select "a" (0..1)
+        // Left extreme: 1.0
+        assert_eq!(run_double_click(1.0), (Some(0), 1));
+        // Right extreme: 7.0
+        assert_eq!(run_double_click(7.0), (Some(0), 1));
+
+        // 2. In ' ' [8.0, 16.0) -> should select " " (1..2)
+        // Left half: 9.0
+        assert_eq!(run_double_click(9.0), (Some(1), 2));
+        // Right half: 15.0
+        assert_eq!(run_double_click(15.0), (Some(1), 2));
+
+        // 3. In 'b' [16.0, 24.0) -> should select "b" (2..3)
+        // Left extreme: 17.0
+        assert_eq!(run_double_click(17.0), (Some(2), 3));
+        // Right extreme: 23.0
+        assert_eq!(run_double_click(23.0), (Some(2), 3));
     }
 
     #[test]

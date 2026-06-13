@@ -6,6 +6,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
   - multi-line selection (with mouse + keyboard)
+  - add test for double-clicking after end of a line with a \n - should select just the \n char. If no trailing \n then the trailing word.
 
   - Support single line, multi-line
     - for multi-line, go through all the existing 1D behaviours and see if they should apply 2D as well (e.g. caret movement semantics)
@@ -34,6 +35,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Ctrl+Up/Down?
   - TESTS for all this!
 
+- Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
 - Consistency for styling of lines - rather than separate width and colour, have a enum which is None or width+colour?
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
