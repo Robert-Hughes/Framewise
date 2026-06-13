@@ -2073,4 +2073,244 @@ mod tests {
             "Trailing newline should produce 2 lines under WrapCluster"
         );
     }
+
+    fn wrap_word_preserving_whitespace_flow() -> TextFlow {
+        TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        }
+    }
+
+    fn wrap_cluster_preserving_whitespace_flow() -> TextFlow {
+        TextFlow {
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        }
+    }
+
+    fn line_width(sys: &mut SampleTextSystem, text: &str, style: TextStyle) -> f32 {
+        sys.measure(text, style, TextBounds::UNBOUNDED).lines[0].logical_width
+    }
+
+    fn assert_close(actual: f32, expected: f32, label: &str) {
+        assert!(
+            (actual - expected).abs() < 0.5,
+            "{label}: expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn soft_wrap_boundary_space_collapses_between_words() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare(
+            "hello world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello world");
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(run.lines[0].logical_width, hello_w, "collapsed line width");
+        assert_close(
+            layout.metrics.lines[0].logical_width,
+            hello_w,
+            "collapsed line metrics width",
+        );
+    }
+
+    #[test]
+    fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let layout = sys.prepare(
+            "hello world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+
+        let caret_at_space = sys.caret_geom(layout.handle, 5);
+        assert_eq!(caret_at_space.y_top, run.lines[0].y_top);
+        assert_close(caret_at_space.x, hello_w, "caret at collapsed space");
+
+        let caret_after_space = sys.caret_geom(layout.handle, 6);
+        assert_eq!(caret_after_space.y_top, run.lines[1].y_top);
+        assert_close(caret_after_space.x, 0.0, "caret after collapsed space");
+
+        let line0_mid_y = run.lines[0].y_top + run.lines[0].height * 0.5;
+        assert_eq!(
+            sys.hit_test_caret(layout.handle, Vec2::new(1000.0, line0_mid_y)),
+            5,
+            "hit-testing past a collapsed soft-wrap boundary space should stay on that space"
+        );
+        assert_eq!(
+            sys.hit_test_cluster(layout.handle, Vec2::new(1000.0, line0_mid_y)),
+            5,
+            "cluster hit-testing past a collapsed soft-wrap boundary space should return it"
+        );
+    }
+
+    #[test]
+    fn only_the_single_boundary_space_collapses() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let space_w = line_width(&mut sys, " ", style);
+
+        let layout = sys.prepare(
+            "hello  world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        assert_eq!(layout.metrics.line_count, 3);
+        assert_eq!(visible(&sys, layout.handle), "hello  world");
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
+        assert_eq!((run.lines[2].byte_start, run.lines[2].byte_end), (7, 12));
+        assert_close(run.lines[0].logical_width, hello_w, "first line width");
+        assert_close(run.lines[1].logical_width, space_w, "second line width");
+    }
+
+    #[test]
+    fn trailing_boundary_space_collapses_without_creating_a_blank_line() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), "hello ");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "trailing collapsed width",
+        );
+    }
+
+    #[test]
+    fn trailing_spaces_after_the_boundary_space_are_preserved() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let space_w = line_width(&mut sys, " ", style);
+
+        let layout = sys.prepare("hello  ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello  ");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
+        assert_close(run.lines[0].logical_width, hello_w, "first line width");
+        assert_close(run.lines[1].logical_width, space_w, "second line width");
+    }
+
+    #[test]
+    fn leading_spaces_are_preserved_and_only_overflowing_spaces_collapse() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let five_spaces_w = line_width(&mut sys, "     ", style);
+
+        let layout = sys.prepare(
+            "     hello",
+            style,
+            Rect::new(0.0, 0.0, five_spaces_w + 0.1, 200.0),
+        );
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "     hello");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 5));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (5, 10));
+        assert_close(
+            run.lines[0].logical_width,
+            five_spaces_w,
+            "five spaces width",
+        );
+
+        let layout = sys.prepare(
+            "      hello",
+            style,
+            Rect::new(0.0, 0.0, five_spaces_w + 0.1, 200.0),
+        );
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "      hello");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(
+            run.lines[0].logical_width,
+            five_spaces_w,
+            "sixth leading space collapses at boundary",
+        );
+    }
+
+    #[test]
+    fn wrap_cluster_collapses_soft_wrap_boundary_space() {
+        let mut sys = sys();
+        let style = TextStyle::new(
+            FontId(0),
+            16.0,
+            400,
+            wrap_cluster_preserving_whitespace_flow(),
+        );
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare(
+            "hello world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello world");
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "WrapCluster collapsed line width",
+        );
+    }
+
+    #[test]
+    fn wrap_cluster_trailing_boundary_space_does_not_create_blank_line() {
+        let mut sys = sys();
+        let style = TextStyle::new(
+            FontId(0),
+            16.0,
+            400,
+            wrap_cluster_preserving_whitespace_flow(),
+        );
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), "hello ");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "WrapCluster trailing collapsed width",
+        );
+    }
 }

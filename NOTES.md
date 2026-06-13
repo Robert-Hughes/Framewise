@@ -14,6 +14,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - wrapping options for multi-line
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
     - End key moves caret to the line *beneath*, not end of the current (wrapped) line
+    - text_edit should have visual affordance for selected collapsed trailing spaces (test visual appearance like we do for hard breaks)
 
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?

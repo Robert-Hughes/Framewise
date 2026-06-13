@@ -594,6 +594,32 @@ pub struct CaretGeom {
 /// lines actually break, how the ellipsis is fitted, how glyphs are positioned)
 /// and hands geometry back. Framewise never inspects glyphs.
 ///
+/// ### Character Preservation Contract
+///
+/// A text system must account for every source character in its layout, source
+/// byte ranges, caret positions, hit-testing, and selection geometry. Characters
+/// may be omitted from emitted geometry only when the selected overflow policy
+/// explicitly truncates content, such as `Drop`, ellipsis fitting, or a `Drop`
+/// fallback.
+///
+/// ### Newlines and Empty Lines
+///
+/// - Every hard newline (`\n`) must start a new visual line.
+/// - Empty lines (such as a line consisting only of `\n`, or a trailing newline at
+///   the end of the text) must produce a corresponding `LineMetrics` entry and
+///   contribute to the vertical layout height.
+///
+/// ### Whitespace Wrapping
+///
+/// Preserved whitespace characters are individually wrap-capable. When such a
+/// whitespace character is the overflowing unit that causes a soft wrap, that
+/// one character is assigned to the end of the previous visual line with zero
+/// visual advance. It remains part of the line's byte range and caret/selection
+/// model, like a hard newline, but is excluded from `logical_width`. Adjacent
+/// whitespace remains preserved and participates in wrapping normally.
+///
+/// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
+///
 /// ### Logical Bounds and Ink Bounds
 ///
 /// The bounds passed into this trait are **logical layout bounds**. They constrain

@@ -20,6 +20,7 @@ struct OwnedCluster {
     advance: f32,
     is_hard_break: bool,
     is_whitespace: bool,
+    is_soft_wrap_boundary: bool,
     glyphs: Vec<GlyphPosition>,
 }
 
@@ -226,6 +227,7 @@ impl SampleTextSystem {
                         advance: cluster_advance,
                         is_hard_break: false,
                         is_whitespace,
+                        is_soft_wrap_boundary: false,
                         glyphs,
                     });
                 });
@@ -272,6 +274,7 @@ impl SampleTextSystem {
                     advance: 0.0,
                     is_hard_break: true,
                     is_whitespace: true,
+                    is_soft_wrap_boundary: false,
                     glyphs: vec![newline_glyph],
                 });
             }
@@ -592,6 +595,7 @@ impl SampleTextSystem {
                     advance: cluster.advance,
                     is_hard_break: cluster.is_hard_break,
                     is_whitespace: cluster.is_whitespace,
+                    is_soft_wrap_boundary: cluster.is_soft_wrap_boundary,
                 });
             }
             rec.push(LineRec {
@@ -710,6 +714,22 @@ impl SampleTextSystem {
                 moved.shift_x(rel_start_x - moved.x);
                 current_line.push(moved);
             } else {
+                if cluster.is_whitespace && !current_line.is_empty() {
+                    let next_line_start_x = cluster.x + cluster.advance;
+                    let mut moved = cluster;
+                    moved.shift_x(rel_start_x - moved.x);
+                    moved.advance = 0.0;
+                    moved.is_soft_wrap_boundary = true;
+                    for glyph in &mut moved.glyphs {
+                        glyph.advance = 0.0;
+                    }
+                    current_line.push(moved);
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_line_start_x = next_line_start_x;
+                    continue;
+                }
+
                 if current_line.is_empty() {
                     match fallback {
                         WrapClusterFallback::Keep => {
@@ -777,10 +797,12 @@ impl SampleTextSystem {
         let mut segments: Vec<Seg> = Vec::new();
         for cluster in clusters {
             let is_space = cluster.is_whitespace || cluster.is_hard_break;
-            if let Some(last) = segments.last_mut() {
-                if last.is_space == is_space {
-                    last.clusters.push(cluster);
-                    continue;
+            if !is_space {
+                if let Some(last) = segments.last_mut() {
+                    if !last.is_space {
+                        last.clusters.push(cluster);
+                        continue;
+                    }
                 }
             }
             segments.push(Seg {
@@ -826,78 +848,94 @@ impl SampleTextSystem {
         let mut current_logical_w = 0.0;
 
         for seg in segments {
-            if seg.is_space {
-                if !current_line.is_empty() || seg.clusters.iter().any(|c| c.is_hard_break) {
-                    for mut cluster in seg.clusters {
-                        cluster.shift_x(current_logical_w);
-                        current_line.push(cluster);
-                    }
-                    current_logical_w += seg.logical_w;
-                }
-            } else {
-                let word_logical_w = seg.logical_w;
-                if current_logical_w + word_logical_w <= w {
-                    for mut cluster in seg.clusters {
-                        cluster.shift_x(current_logical_w);
-                        current_line.push(cluster);
-                    }
-                    current_logical_w += word_logical_w;
-                } else {
-                    if !current_line.is_empty() {
-                        lines.push(current_line);
-                        current_line = Vec::new();
-                        current_logical_w = 0.0;
-                    }
+            let seg_logical_w = seg.logical_w;
+            let is_hard_break = seg.clusters.iter().any(|c| c.is_hard_break);
 
-                    if word_logical_w <= w {
-                        for mut cluster in seg.clusters {
-                            cluster.shift_x(current_logical_w);
-                            current_line.push(cluster);
+            if is_hard_break || current_logical_w + seg_logical_w <= w {
+                for mut cluster in seg.clusters {
+                    cluster.shift_x(current_logical_w);
+                    current_line.push(cluster);
+                }
+                current_logical_w += seg_logical_w;
+            } else {
+                if seg.is_space && !current_line.is_empty() {
+                    for mut cluster in seg.clusters {
+                        cluster.shift_x(current_logical_w);
+                        cluster.advance = 0.0;
+                        cluster.is_soft_wrap_boundary = true;
+                        for glyph in &mut cluster.glyphs {
+                            glyph.advance = 0.0;
                         }
-                        current_logical_w += word_logical_w;
-                    } else {
-                        match &fallback {
-                            WrapWordFallback::WrapCluster { fallback: gf } => {
-                                let seg_len = seg.clusters.len();
-                                let wrapped = Self::wrap_clusters(seg.clusters, w, *gf);
-                                let mut wrapped_count = 0;
-                                if !wrapped.is_empty() {
-                                    lines.extend(wrapped[..wrapped.len() - 1].to_vec());
-                                    current_line = wrapped.last().unwrap().clone();
-                                    current_logical_w = current_line
-                                        .iter()
-                                        .map(OwnedCluster::end_x)
-                                        .fold(0.0, f32::max);
-                                    wrapped_count = wrapped.iter().map(|line| line.len()).sum();
-                                }
-                                if *gf == WrapClusterFallback::Drop && wrapped_count < seg_len {
+                        current_line.push(cluster);
+                    }
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_logical_w = 0.0;
+                    continue;
+                }
+
+                if !current_line.is_empty() {
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_logical_w = 0.0;
+                }
+
+                if seg_logical_w <= w {
+                    for mut cluster in seg.clusters {
+                        cluster.shift_x(current_logical_w);
+                        current_line.push(cluster);
+                    }
+                    current_logical_w += seg_logical_w;
+                } else if seg.is_space {
+                    // Space segment doesn't fit even on empty line. Just push it.
+                    for mut cluster in seg.clusters {
+                        cluster.shift_x(current_logical_w);
+                        current_line.push(cluster);
+                    }
+                    current_logical_w += seg_logical_w;
+                } else {
+                    // Word segment doesn't fit even on empty line. Use fallback.
+                    match &fallback {
+                        WrapWordFallback::WrapCluster { fallback: gf } => {
+                            let seg_len = seg.clusters.len();
+                            let wrapped = Self::wrap_clusters(seg.clusters, w, *gf);
+                            let mut wrapped_count = 0;
+                            if !wrapped.is_empty() {
+                                lines.extend(wrapped[..wrapped.len() - 1].to_vec());
+                                current_line = wrapped.last().unwrap().clone();
+                                current_logical_w = current_line
+                                    .iter()
+                                    .map(OwnedCluster::end_x)
+                                    .fold(0.0, f32::max);
+                                wrapped_count = wrapped.iter().map(|line| line.len()).sum();
+                            }
+                            if *gf == WrapClusterFallback::Drop && wrapped_count < seg_len {
+                                break;
+                            }
+                        }
+                        WrapWordFallback::Drop => {
+                            for cluster in seg.clusters {
+                                if cluster.end_x() <= w {
+                                    current_line.push(cluster);
+                                } else {
                                     break;
                                 }
                             }
-                            WrapWordFallback::Drop => {
-                                for cluster in seg.clusters {
-                                    if cluster.end_x() <= w {
-                                        current_line.push(cluster);
-                                    } else {
-                                        break;
-                                    }
+                            lines.push(current_line);
+                            current_line = Vec::new();
+                            break;
+                        }
+                        WrapWordFallback::Keep => {
+                            for cluster in seg.clusters {
+                                let end_x = cluster.end_x();
+                                current_line.push(cluster);
+                                if end_x > w {
+                                    break;
                                 }
-                                lines.push(current_line);
-                                current_line = Vec::new();
-                                break;
                             }
-                            WrapWordFallback::Keep => {
-                                for cluster in seg.clusters {
-                                    let end_x = cluster.end_x();
-                                    current_line.push(cluster);
-                                    if end_x > w {
-                                        break;
-                                    }
-                                }
-                                lines.push(current_line);
-                                current_line = Vec::new();
-                                break;
-                            }
+                            lines.push(current_line);
+                            current_line = Vec::new();
+                            break;
                         }
                     }
                 }
@@ -927,6 +965,7 @@ impl SampleTextSystem {
             advance: ell_w,
             is_hard_break: false,
             is_whitespace: false,
+            is_soft_wrap_boundary: false,
             glyphs: ell_glyphs,
         };
 

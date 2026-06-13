@@ -61,6 +61,8 @@ pub struct TextCluster {
     pub is_hard_break: bool,
     /// True for Unicode whitespace clusters.
     pub is_whitespace: bool,
+    /// True for a preserved whitespace cluster collapsed at a soft-wrap boundary.
+    pub is_soft_wrap_boundary: bool,
 }
 
 /// One laid-out line within a prepared run, in block-local coordinates.

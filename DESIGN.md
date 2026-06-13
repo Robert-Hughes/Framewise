@@ -28,6 +28,125 @@ In short: if a value changes because the user clicked or typed, it belongs in `*
 
 ---
 
+## Text Wrapping And Whitespace
+
+Soft-wrapping whitespace has no single obvious answer. CSS has several
+different whitespace modes, and native UI frameworks do not all agree on how
+preserved spaces should behave at line edges. Some systems collapse whitespace
+for prose, some preserve it for editable or preformatted text, some hang
+trailing spaces at the end of a line, and some allow spaces to wrap onto lines
+by themselves.
+
+Framewise adopts one fixed whitespace policy for text wrapping. The goal is to
+keep the model simple and predictable while avoiding the most awkward visual
+result in the common case.
+
+The rule is:
+
+```text
+- Every source whitespace character is preserved and accounted for.
+- Whitespace characters are individually wrappable.
+- Exception: when a preserved whitespace character is the overflowing unit that
+  causes a soft wrap, that one whitespace character is assigned to the end of
+  the previous visual line with zero visual advance.
+- Only that one soft-wrap boundary whitespace character is collapsed. Adjacent
+  whitespace remains preserved and participates in wrapping normally.
+```
+
+This exception exists to avoid turning ordinary single-space prose into a blank
+line. Without it, `"hello world"` wrapped to five columns would produce a visual
+line containing only the separating space:
+
+```text
+Width = 5
+. = visible space
+
+Without the boundary-space exception:
+
++-------------+
+| hello       |
+| .           |
+| world       |
++-------------+
+```
+
+With Framewise's policy, the separating space is still present in the source
+mapping, caret model, selection model, and byte ranges, but it does not consume
+visible width:
+
+```text
+Width = 5
+~ = logically present soft-wrap boundary space with zero visual advance
+
++-------------+
+| hello~      |
+| world       |
++-------------+
+```
+
+This is deliberately similar to how hard newlines work. A `'\n'` is a real
+source character with caret and selection positions, but it has no ordinary
+visible glyph advance. Text editing already has to reason about such characters,
+so soft-wrap boundary spaces use the same kind of model instead of introducing a
+separate "dropped whitespace" concept.
+
+The collapsed boundary space is excluded from the line's logical width. It
+remains part of the relevant line's source byte range and must remain reachable
+through caret movement, hit-testing, and selection. A text editor may draw an
+explicit selection affordance for it, just as it may draw one for a selected
+newline.
+
+Examples:
+
+```text
+Legend:
+. = visible space
+~ = logically present, visually collapsed soft-wrap boundary space
+Width = 5 columns
+
++----------------+-------------------------------+
+| Input          | Wrapped output                |
++----------------+-------------------------------+
+| hello world    | hello~                        |
+|                | world                         |
++----------------+-------------------------------+
+| hello  world   | hello~                        |
+|                | .                             |
+|                | world                         |
++----------------+-------------------------------+
+| hello   world  | hello~                        |
+|                | ..                            |
+|                | world                         |
++----------------+-------------------------------+
+| hello.         | hello~                        |
++----------------+-------------------------------+
+| hello..        | hello~                        |
+|                | .                             |
++----------------+-------------------------------+
+| .....hello     | .....                         |
+|                | hello                         |
++----------------+-------------------------------+
+| ......hello    | .....~                        |
+|                | hello                         |
++----------------+-------------------------------+
+| hello\nworld   | hello                         |
+|                | world                         |
++----------------+-------------------------------+
+| hello\n\nworld | hello                         |
+|                | <blank>                       |
+|                | world                         |
++----------------+-------------------------------+
+```
+
+The multiple-space cases are intentionally not hidden. If an author enters
+multiple spaces between words, Framewise preserves that fact and lets the layout
+show it. The single-space exception is only for the whitespace character that
+causes a soft wrap, so the normal well-authored prose case avoids a blank
+space-only line without turning Framewise into a whitespace-collapsing text
+engine.
+
+---
+
 ## Widget Consistency
 
 All widget files must be consistent with each other. A reader browsing from one widget to another should never have to ask "why does widget X do it like this but widget Y does it like that?"
@@ -825,4 +944,3 @@ For high-performance rendering of lines, circles, and rectangles without the vis
   - **Rectangle (Fill/Stroke)**: Evaluates a signed box distance function.
 - **Coverage Blending**: Coverage is calculated as a float value from `0.0` (fully outside) to `1.0` (fully inside). Pixels with zero coverage are discarded (`discard`), while others modulate the color's alpha value for smooth hardware-accelerated alpha blending.
 - **Depth Testing**: AA shapes write depth values mapping to a 32-bit depth buffer using the `GreaterEqual` comparison function, ensuring seamless depth-based layering alongside opaque quads and text.
-
