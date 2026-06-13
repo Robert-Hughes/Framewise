@@ -692,6 +692,39 @@ pub mod raw {
 
             let target_scroll = state.scroll.offset.x.clamp(s_min, s_max);
             state.scroll.offset.x = target_scroll.clamp(0.0, max_scroll_x);
+
+            let max_scroll_y = (inner_scroll_size.y - scroll_outer_rect.h).max(0.0);
+
+            // Determine the vertical span of the target we want to keep in view.
+            let (sel_min_y, sel_max_y) = match (selection_only_action, state.selection_byte) {
+                (true, Some(sel)) if sel != state.caret_byte => {
+                    let start = sel.min(state.caret_byte);
+                    let end = sel.max(state.caret_byte);
+                    let start_caret = text_system.caret_geom(handle, start);
+                    let end_caret = text_system.caret_geom(handle, end);
+                    (
+                        start_caret.y_top.min(end_caret.y_top),
+                        (start_caret.y_top + start_caret.height)
+                            .max(end_caret.y_top + end_caret.height),
+                    )
+                }
+                _ => {
+                    let caret = text_system.caret_geom(handle, state.caret_byte);
+                    (caret.y_top, caret.y_top + caret.height)
+                }
+            };
+
+            let target_top = sel_min_y - padding;
+            let target_bottom = sel_max_y - scroll_outer_rect.h + padding;
+
+            let (s_min_y, s_max_y) = if target_bottom <= target_top {
+                (target_bottom, target_top)
+            } else {
+                (target_top, target_bottom)
+            };
+
+            let target_scroll_y = state.scroll.offset.y.clamp(s_min_y, s_max_y);
+            state.scroll.offset.y = target_scroll_y.clamp(0.0, max_scroll_y);
         }
 
         // Selection
@@ -2726,6 +2759,177 @@ mod tests {
 
         // Caret should have jumped to 18 (start of "line4\n")
         assert_eq!(state.caret_byte, 18);
+    }
+
+    #[test]
+    fn test_text_edit_vertical_caret_auto_scrolling() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        focus_system.begin_frame();
+
+        // 10 lines of 16px: total height = 160px. Padding = 4px. Inner scroll height = 160 + 8 = 168px.
+        // Viewport height = 60 - 2 = 58px.
+        // Max scroll = 168 - 58 = 110px.
+        let mut state = TextEditState::new("l0\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 60.0),
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // 1. Caret at start (Line 0, index 0): scroll should be 0.0
+        state.caret_byte = 0;
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.scroll.offset.y, 0.0);
+
+        // 2. Caret moves down from Line 2 to Line 3 (index 9, y_top = 48.0, height = 16.0): exceeds bottom threshold (58 - 16 = 42)
+        // Expected scroll = 64 - 58 + 16 = 22.0
+        state.caret_byte = 6;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.scroll.offset.y, 22.0);
+
+        // 3. Caret moves down to Line 9 (index 27, y_top = 144.0, height = 16.0): exceeds bottom threshold
+        // Expected scroll = 160 - 58 + 16 = 118.0, clamped to max_scroll (110.0)
+        state.caret_byte = 27;
+        input.text_events = vec![TextEvent::CaretDown { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.scroll.offset.y, 110.0);
+
+        // 4. Caret moves up from Line 2 to Line 1 (index 3, y_top = 16.0, height = 16.0): below top threshold
+        // Expected scroll = 16 - 16 = 0.0
+        state.caret_byte = 6;
+        input.text_events = vec![TextEvent::CaretUp { shift: false }];
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(state.scroll.offset.y, 0.0);
+    }
+
+    #[test]
+    fn test_text_edit_vertical_selection_aware_auto_scrolling() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+
+        // 10 lines of 16px: total height = 160px.
+        // Viewport height = 58px. Max scroll = 110px.
+        let mut state = TextEditState::new("l0\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 60.0),
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+
+        // Warmup frame
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // Test case 1: Ctrl-A (Select All) should not change the vertical scroll state.
+        state.scroll.offset.y = 50.0;
+        input.text_events = vec![TextEvent::SelectAll];
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.scroll.offset.y, 50.0);
+
+        // Test case 2: Double-clicking word on Line 1 (starts at byte index 3, y_top = 16.0)
+        // when scroll.y = 20.0.
+        // text_y = 5.0 - 20.0 = -15.0.
+        // relative_pos.y = 24.0, mouse_pos.y = 24.0 - 15.0 = 9.0 (inside viewport).
+        state.scroll.offset.y = 20.0;
+        input.text_events = vec![];
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2;
+        input.mouse_pos = Vec2::new(5.0, 9.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.selection_byte, Some(3));
+        assert_eq!(state.caret_byte, 5);
+        assert_eq!(state.scroll.offset.y, 0.0);
+
+        // Test case 3: Double-clicking word on Line 9 (starts at byte index 27, y_top = 144.0)
+        // when scroll.y = 100.0.
+        // text_y = 5.0 - 100.0 = -95.0.
+        // relative_pos.y = 152.0, mouse_pos.y = 152.0 - 95.0 = 57.0 (inside viewport).
+        state.scroll.offset.y = 100.0;
+        input.text_events = vec![];
+        input.mouse_pressed = true;
+        input.mouse_click_count = 2;
+        input.mouse_pos = Vec2::new(5.0, 57.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(state.selection_byte, Some(27));
+        assert_eq!(state.caret_byte, 29);
+        assert_eq!(state.scroll.offset.y, 110.0);
     }
 
     #[test]
