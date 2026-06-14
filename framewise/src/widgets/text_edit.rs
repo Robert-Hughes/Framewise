@@ -191,11 +191,13 @@ pub mod raw {
 
         let old_caret = state.caret;
         let old_selection = state.selection_anchor;
-        let mut caret_override = None;
+        let mut caret = state.caret;
+        let mut caret_needs_layout_sync = false;
 
         if just_focused && !(contains && input.mouse_pressed) {
             selection_byte = Some(0);
             caret_byte = state.value.len();
+            caret_needs_layout_sync = true;
             selection_only_action = true;
         }
 
@@ -228,7 +230,7 @@ pub mod raw {
                             };
                             state.value.insert(caret_byte, char_to_insert);
                             caret_byte += char_to_insert.len_utf8();
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                             if is_newline {
                                 newline_inserted = true;
                             }
@@ -241,12 +243,12 @@ pub mod raw {
                                 &mut caret_byte,
                                 &mut selection_byte,
                             );
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if *ctrl {
                             let prev = find_word_boundary(&state.value, caret_byte, false);
                             state.value.replace_range(prev..caret_byte, "");
                             caret_byte = prev;
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
                             // Find previous char boundary
                             let mut prev = caret_byte - 1;
@@ -255,7 +257,7 @@ pub mod raw {
                             }
                             state.value.remove(prev);
                             caret_byte = prev;
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         }
                     }
                     TextEvent::Delete { ctrl } => {
@@ -265,14 +267,14 @@ pub mod raw {
                                 &mut caret_byte,
                                 &mut selection_byte,
                             );
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if *ctrl {
                             let next = find_word_boundary(&state.value, caret_byte, true);
                             state.value.replace_range(caret_byte..next, "");
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
                             state.value.remove(caret_byte);
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         }
                     }
                     TextEvent::CaretLeft { shift, ctrl } => {
@@ -294,22 +296,23 @@ pub mod raw {
                                 caret_byte
                             };
                             caret_byte = find_word_boundary(&state.value, start_byte, false);
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if has_selection && !*shift {
                             caret_byte = caret_byte.min(sel_byte.unwrap());
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
                             if let Some(position) = visually_previous_caret(
                                 text_system,
                                 initial_handle,
                                 &state.value,
-                                state.caret,
+                                caret,
                                 caret_byte,
                             ) {
-                                caret_override = Some(position);
+                                caret = position;
+                                caret_needs_layout_sync = false;
                             } else {
                                 caret_byte = previous_char_boundary(&state.value, caret_byte);
-                                caret_override = None;
+                                caret_needs_layout_sync = true;
                             }
                         }
                     }
@@ -332,21 +335,19 @@ pub mod raw {
                                 caret_byte
                             };
                             caret_byte = find_word_boundary(&state.value, start_byte, true);
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if has_selection && !*shift {
                             caret_byte = caret_byte.max(sel_byte.unwrap());
-                            caret_override = None;
+                            caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
-                            if let Some(position) = visually_next_caret(
-                                text_system,
-                                initial_handle,
-                                state.caret,
-                                caret_byte,
-                            ) {
-                                caret_override = Some(position);
+                            if let Some(position) =
+                                visually_next_caret(text_system, initial_handle, caret, caret_byte)
+                            {
+                                caret = position;
+                                caret_needs_layout_sync = false;
                             } else {
                                 caret_byte = next_char_boundary(&state.value, caret_byte);
-                                caret_override = None;
+                                caret_needs_layout_sync = true;
                             }
                         }
                     }
@@ -383,10 +384,12 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(
-                            handle,
-                            text_system.caret_position_at_insertion_byte(handle, start_byte),
-                        );
+                        let visual_position = if start_byte == caret_byte {
+                            caret
+                        } else {
+                            text_system.caret_position_at_insertion_byte(handle, start_byte)
+                        };
+                        let caret_geom = text_system.caret_geom(handle, visual_position);
                         let current_line_idx = metrics
                             .lines
                             .iter()
@@ -396,15 +399,20 @@ pub mod raw {
                         if current_line_idx > 0 {
                             let target_line_idx = current_line_idx - 1;
                             let target_line = &metrics.lines[target_line_idx];
-                            let pos =
-                                Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
+                            let pos = Vec2::new(
+                                caret_geom.x,
+                                target_line.y_top + target_line.height * 0.5,
+                            );
                             let new_caret = text_system.hit_test_caret(handle, pos);
                             caret_byte = text_system
                                 .caret_insertion_byte(handle, new_caret)
                                 .min(state.value.len());
+                            caret = new_caret;
+                            caret_needs_layout_sync = false;
                         } else {
                             // Already on first visual line, move to start of text
                             caret_byte = 0;
+                            caret_needs_layout_sync = true;
                         }
                     }
                     TextEvent::CaretDown { shift } => {
@@ -440,10 +448,12 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(
-                            handle,
-                            text_system.caret_position_at_insertion_byte(handle, start_byte),
-                        );
+                        let visual_position = if start_byte == caret_byte {
+                            caret
+                        } else {
+                            text_system.caret_position_at_insertion_byte(handle, start_byte)
+                        };
+                        let caret_geom = text_system.caret_geom(handle, visual_position);
                         let current_line_idx = metrics
                             .lines
                             .iter()
@@ -453,15 +463,20 @@ pub mod raw {
                         if current_line_idx + 1 < metrics.lines.len() {
                             let target_line_idx = current_line_idx + 1;
                             let target_line = &metrics.lines[target_line_idx];
-                            let pos =
-                                Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
+                            let pos = Vec2::new(
+                                caret_geom.x,
+                                target_line.y_top + target_line.height * 0.5,
+                            );
                             let new_caret = text_system.hit_test_caret(handle, pos);
                             caret_byte = text_system
                                 .caret_insertion_byte(handle, new_caret)
                                 .min(state.value.len());
+                            caret = new_caret;
+                            caret_needs_layout_sync = false;
                         } else {
                             // Already on last visual line, move to end of text
                             caret_byte = state.value.len();
+                            caret_needs_layout_sync = true;
                         }
                     }
                     TextEvent::CaretHome { shift, ctrl } => {
@@ -500,6 +515,7 @@ pub mod raw {
                                 state.value[..caret_byte].rfind('\n').map_or(0, |nl| nl + 1);
                             caret_byte = line_start;
                         }
+                        caret_needs_layout_sync = true;
                     }
                     TextEvent::CaretEnd { shift, ctrl } => {
                         if *shift && selection_byte.is_none() {
@@ -545,10 +561,12 @@ pub mod raw {
                                 .map_or(state.value.len(), |nl| caret_byte + nl);
                             caret_byte = line_end;
                         }
+                        caret_needs_layout_sync = true;
                     }
                     TextEvent::SelectAll => {
                         selection_byte = Some(0);
                         caret_byte = state.value.len();
+                        caret_needs_layout_sync = true;
                         selection_only_action = true;
                     }
                     TextEvent::Copy => {
@@ -574,6 +592,7 @@ pub mod raw {
                                     &mut caret_byte,
                                     &mut selection_byte,
                                 );
+                                caret_needs_layout_sync = true;
                             }
                         }
                     }
@@ -582,6 +601,7 @@ pub mod raw {
                         remove_selection(&mut state.value, &mut caret_byte, &mut selection_byte);
                         state.value.insert_str(caret_byte, &processed);
                         caret_byte += processed.len();
+                        caret_needs_layout_sync = true;
                     }
                 }
             }
@@ -593,15 +613,18 @@ pub mod raw {
                 remove_selection(&mut state.value, &mut caret_byte, &mut selection_byte);
                 state.value.insert(caret_byte, '\n');
                 caret_byte += 1;
+                caret_needs_layout_sync = true;
             }
         }
 
         // Safety checks
         if caret_byte > state.value.len() {
             caret_byte = state.value.len();
+            caret_needs_layout_sync = true;
         }
         if !state.value.is_char_boundary(caret_byte) {
             caret_byte = 0; // fallback
+            caret_needs_layout_sync = true;
         }
         if let Some(sel) = selection_byte {
             if sel > state.value.len() {
@@ -755,6 +778,7 @@ pub mod raw {
                 let (start, end) = word_bounds(&state.value, cluster_byte);
                 selection_byte = Some(start);
                 caret_byte = end;
+                caret_needs_layout_sync = true;
                 state.is_dragging = true;
                 state.drag_word_origin = Some((start, end));
                 selection_only_action = true;
@@ -762,10 +786,12 @@ pub mod raw {
                 // Select line
                 selection_byte = Some(0);
                 caret_byte = state.value.len();
+                caret_needs_layout_sync = true;
                 selection_only_action = true;
             } else {
                 caret_byte = clicked_byte;
-                caret_override = Some(clicked_caret);
+                caret = clicked_caret;
+                caret_needs_layout_sync = false;
                 selection_byte = None;
                 state.is_dragging = true;
                 state.drag_word_origin = None;
@@ -792,12 +818,14 @@ pub mod raw {
                         selection_byte = Some(orig_start);
                         caret_byte = cur_end;
                     }
+                    caret_needs_layout_sync = true;
                 } else {
                     if selection_byte.is_none() && current_byte != caret_byte {
                         selection_byte = Some(caret_byte);
                     }
                     caret_byte = current_byte;
-                    caret_override = Some(current_caret);
+                    caret = current_caret;
+                    caret_needs_layout_sync = false;
                 }
             } else {
                 state.is_dragging = false;
@@ -805,8 +833,10 @@ pub mod raw {
             }
         }
 
-        state.caret = caret_override
-            .unwrap_or_else(|| text_system.caret_position_at_insertion_byte(handle, caret_byte));
+        if caret_needs_layout_sync {
+            caret = text_system.caret_position_at_insertion_byte(handle, caret_byte);
+        }
+        state.caret = caret;
         state.selection_anchor = selection_byte
             .map(|selection| text_system.caret_position_at_insertion_byte(handle, selection));
 
@@ -2098,6 +2128,68 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
+        assert_eq!(
+            state.caret,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 0
+            }
+        );
+        assert_eq!(caret_byte(&state), 1);
+    }
+
+    #[test]
+    fn test_mouse_release_preserves_visual_side_at_shared_insertion() {
+        let mut text_system = VisualBoundaryTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("ab");
+        let mut input = Input::default();
+        input.mouse_pos = Vec2::new(100.0, 8.0);
+
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 0
+            }
+        );
+        assert_eq!(caret_byte(&state), 1);
+
+        input.mouse_down = false;
+        input.mouse_pressed = false;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
         assert_eq!(
             state.caret,
             CaretPosition::AfterCluster {

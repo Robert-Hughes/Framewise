@@ -4,15 +4,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- soft-wrap middle of word, need caret position at end of prev line
-  - CaretPosition refactoring
-  - Update text_edit to use new API
-  - Finish going through ChatGPT big design message. Test coverage is mentioned, might overlap with existing.
-  - Update DESIGN.md as appropriate
-
 - Clarify what happens in a series of whitespace that gets wrapped - only one space should get visually collapsed, even though two will meet the criteria!
 
 - "wrap first, fallback second" < check this is consistent for whitespace chars that are wrapped too, as we treat these as word-like/cluster-like (docs and tests)
+
 - selection highlighting is borked for non-left-aligned text
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
 
@@ -24,7 +19,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - text_edit should have visual affordance for selected collapsed trailing spaces (test visual appearance like we do for hard breaks)
     - adding spaces to the start of wrapped lines is weird (appends to prev line instead?)
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
-    - End key moves caret to the line *beneath*, not end of the current (wrapped) line
+    - End key moves caret to the line *beneath*, not end of the current (wrapped) line. Should use the new caret begin/end semenatic? Make sure is correct for wrapped words and collapsed trailing spaces etc.
 
   - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
     - check Antigravity conversation
