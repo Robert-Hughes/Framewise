@@ -61,10 +61,18 @@ Whitespace is not grouped into runs. Each whitespace cluster is its own
 breakable word-like segment. This means whitespace follows the same overflow
 hierarchy as other segments: if it fits, it is admitted; if it does not fit on a
 non-empty line, it may cause a soft wrap; if it cannot fit even on an empty
-line, the `WrapWordFallback` chain applies. The one exception is the Framewise
-soft-wrap boundary rule: when a whitespace cluster itself overflows a non-empty
-line, that single whitespace cluster is attached to the previous visual line
-with zero advance rather than producing a whitespace-only line.
+line, the `WrapWordFallback` chain applies.
+
+The one exception is the Framewise soft-wrap boundary rule: when a whitespace
+cluster itself overflows a non-empty line, that single whitespace cluster is
+attached to the previous visual line with zero advance rather than producing a
+whitespace-only line. The same collapse applies when a fitted whitespace cluster
+is immediately followed by a segment or cluster that causes the soft wrap and
+the line already contains non-whitespace content before that whitespace.
+Adjacent whitespace remains preserved and participates in wrapping normally; a
+soft wrap collapses only the single boundary whitespace character for that wrap.
+Fallback is still evaluated after wrapping: a whitespace cluster on an empty
+line uses the selected fallback only if it still cannot fit there.
 
 `OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on
 clusters. Ellipsis fitting trims whole clusters before appending the shaped

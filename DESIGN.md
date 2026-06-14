@@ -63,6 +63,9 @@ The rule is:
   sees the caret move to the next line ready to type. For labels, a trailing space taking up
   a whole extra line like this might be unwanted, but then there shouldn't be a trailing space!
 - Adjacent whitespace remains preserved and participates in wrapping normally.
+  A soft wrap collapses only the single boundary whitespace character for that
+  wrap; later adjacent whitespace is not collapsed unless it independently
+  becomes the boundary character of a later soft wrap.
 ```
 
 This exception exists to avoid turning ordinary single-space prose into a blank
@@ -118,11 +121,13 @@ draw an explicit selection affordance for it, just as it may draw one for a
 selected newline.
 
 At the end of the text, collapsed soft-wrap boundary whitespace also creates a
-following empty visual line. This is intentional even though the trailing space
-has no visual advance: the empty line is the visible caret, hit-testing,
-selection, and editor-feedback position after the whitespace. A terminal run of
-collapsed soft-wrap whitespace creates one following empty line, not one empty
-line per whitespace character.
+following empty visual line when that boundary whitespace is the final source
+character. This is intentional even though the trailing space has no visual
+advance: the empty line is the visible caret, hit-testing, selection, and
+editor-feedback position after the whitespace. In an adjacent terminal run,
+only the one whitespace character that caused the soft wrap is collapsed; later
+whitespace remains preserved and visible on the following line unless it causes
+another soft wrap.
 
 Examples:
 
@@ -149,8 +154,8 @@ Width = 5 columns
 | hello.         | hello~                        |
 |                | <blank>                       |
 +----------------+-------------------------------+
-| hello..        | hello~~                       |
-|                | <blank>                       |
+| hello..        | hello~                        |
+|                | .                             |
 +----------------+-------------------------------+
 | .....hello     | .....                         |
 |                | hello                         |

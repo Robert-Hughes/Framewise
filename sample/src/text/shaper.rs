@@ -398,7 +398,10 @@ impl SampleTextSystem {
                 final_sublines.push(seg);
             }
 
-            Self::normalize_terminal_soft_wrap_whitespace(&mut final_sublines, line.byte_end);
+            Self::append_empty_after_terminal_soft_wrap_boundary(
+                &mut final_sublines,
+                line.byte_end,
+            );
 
             let mut sub_infos = Vec::new();
             let mut previous_end = line.byte_start;
@@ -793,56 +796,6 @@ impl SampleTextSystem {
             lines.push(current_line);
         }
         lines
-    }
-
-    fn normalize_terminal_soft_wrap_whitespace(
-        lines: &mut Vec<Vec<OwnedCluster>>,
-        source_byte_end: usize,
-    ) {
-        if lines.len() < 2 {
-            Self::append_empty_after_terminal_soft_wrap_boundary(lines, source_byte_end);
-            return;
-        }
-
-        let mut trailing_whitespace = Vec::new();
-        while lines.len() > 1 {
-            let Some(last) = lines.last() else {
-                break;
-            };
-            let is_trailing_whitespace = !last.is_empty()
-                && last
-                    .iter()
-                    .all(|cluster| cluster.is_whitespace && !cluster.is_hard_break);
-            let previous_ends_with_boundary = lines
-                .get(lines.len() - 2)
-                .and_then(|line| line.last())
-                .is_some_and(|cluster| cluster.is_soft_wrap_boundary);
-
-            if !is_trailing_whitespace || !previous_ends_with_boundary {
-                break;
-            }
-
-            let popped = lines.pop().expect("last line exists");
-            trailing_whitespace.push(popped);
-        }
-
-        if !trailing_whitespace.is_empty() {
-            let target_line = lines.last_mut().expect("at least one line remains");
-            let boundary_x = target_line
-                .last()
-                .map(|cluster| cluster.x)
-                .unwrap_or_default();
-
-            for mut line in trailing_whitespace.into_iter().rev() {
-                for mut cluster in line.drain(..) {
-                    cluster.shift_x(boundary_x - cluster.x);
-                    cluster.collapse_soft_wrap_boundary();
-                    target_line.push(cluster);
-                }
-            }
-        }
-
-        Self::append_empty_after_terminal_soft_wrap_boundary(lines, source_byte_end);
     }
 
     fn append_empty_after_terminal_soft_wrap_boundary(

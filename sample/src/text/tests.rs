@@ -2501,26 +2501,24 @@ mod tests {
     }
 
     #[test]
-    fn terminal_trailing_spaces_create_one_empty_line() {
+    fn terminal_trailing_spaces_collapse_only_the_boundary_space() {
         let mut sys = sys();
         let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
         let hello_w = line_width(&mut sys, "hello", style);
+        let space_w = line_width(&mut sys, " ", style);
 
         let layout = sys.prepare("hello  ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
         assert_eq!(layout.metrics.line_count, 2);
         assert_eq!(visible(&sys, layout.handle), "hello  ");
         let run = &sys.runs[layout.handle.0];
-        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 7));
-        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (7, 7));
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
         assert_close(run.lines[0].logical_width, hello_w, "first line width");
-        assert_eq!(run.lines[1].logical_width, 0.0);
+        assert_close(run.lines[1].logical_width, space_w, "second line width");
         assert_eq!(run.lines[1].ink_width, 0.0);
 
-        let trailing_clusters =
-            &run.clusters[run.lines[0].cluster_end - 2..run.lines[0].cluster_end];
-        assert!(trailing_clusters
-            .iter()
-            .all(|cluster| cluster.is_soft_wrap_boundary));
+        assert!(run.clusters[run.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+        assert!(!run.clusters[run.lines[1].cluster_start].is_soft_wrap_boundary);
     }
 
     #[test]
@@ -2733,6 +2731,62 @@ mod tests {
             space_w,
             "kept overwide whitespace width",
         );
+    }
+
+    #[test]
+    fn whitespace_that_wraps_from_non_empty_line_does_not_use_wrap_word_keep_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello ");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "wrapped whitespace collapses instead of overflowing",
+        );
+        assert!(run.clusters[run.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    }
+
+    #[test]
+    fn whitespace_that_wraps_from_non_empty_line_does_not_use_wrap_cluster_keep_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let hello_w = line_width(&mut sys, "hello", style);
+
+        let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello ");
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "wrapped whitespace collapses instead of overflowing",
+        );
+        assert!(run.clusters[run.lines[0].cluster_end - 1].is_soft_wrap_boundary);
     }
 
     #[test]

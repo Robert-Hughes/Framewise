@@ -4,10 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Clarify what happens in a series of whitespace that gets wrapped - only one space should get visually collapsed, even though two will meet the criteria!
-
-- "wrap first, fallback second" < check this is consistent for whitespace chars that are wrapped too, as we treat these as word-like/cluster-like (docs and tests)
-
 - selection highlighting is borked for non-left-aligned text
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
 
@@ -36,6 +32,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - add to demo page?
   - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
+
+  - the ASCII art tables of wrapping examples (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
 
   - scrollbar visibility
   - scrollbar styling
@@ -81,7 +79,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
       If you do not add these, TextEdit will continue walking UTF-8 char boundaries, which is already not ideal for shaped clusters.
 
+- Weird behaviour of ligatures(?) with equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 
+- Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03

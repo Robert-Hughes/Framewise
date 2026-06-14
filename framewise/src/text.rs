@@ -234,11 +234,13 @@ pub enum OverflowX {
     /// what happens.
     ///
     /// Preserved whitespace participates in this hierarchy as single-cluster
-    /// word-like units. A whitespace cluster may fit on the current line, move
-    /// to the next line, or, if it cannot fit on an empty line, follow
-    /// `fallback`. When whitespace itself is the unit that overflows a
-    /// non-empty line, the `TextSystem` whitespace wrapping contract below
-    /// applies.
+    /// word-like units, using the same fallback sequence as any other word-like
+    /// unit. The only whitespace-specific behavior is the soft-wrap boundary
+    /// collapse described in the `TextSystem` contract below: when whitespace
+    /// itself overflows after other clusters have already been admitted to the
+    /// current visual line, or when whitespace is immediately before the unit
+    /// that overflows, that boundary whitespace may be retained on the previous
+    /// line with zero advance.
     WrapWord { fallback: WrapWordFallback },
 
     /// Wrap at cluster boundaries.
@@ -707,20 +709,32 @@ pub struct CaretGeom {
 ///
 /// Preserved whitespace characters are individually wrap-capable. Under word
 /// wrapping, each whitespace cluster is treated as a single-cluster word-like
-/// unit for overflow and fallback purposes: if it cannot fit on an empty line,
-/// the selected `WrapWordFallback`/`WrapClusterFallback` policy applies.
+/// unit for overflow and fallback purposes. Under cluster wrapping, whitespace
+/// is an ordinary cluster for wrapping and fallback purposes.
 ///
-/// When soft wrapping a non-empty line, exactly one preserved whitespace
-/// character is collapsed if either that whitespace character is the
-/// overflowing unit that causes the soft wrap, or the overflowing unit
-/// immediately follows that whitespace character on a line that already
-/// contains non-whitespace content before the whitespace. The collapsed
-/// whitespace is kept in the previous visual line's byte range and
-/// caret/selection model, like a hard newline, but is assigned zero visual
+/// Whitespace does not have a separate fallback chain. It follows the selected
+/// [`OverflowX`] policy normally. The special case is only how a whitespace
+/// cluster is represented when it becomes a soft-wrap boundary after other
+/// clusters have already been admitted to the current visual line: instead of
+/// producing a whitespace-only visual line, that single boundary character is
+/// kept on the previous line with zero advance.
+///
+/// At a soft-wrap boundary, exactly one preserved whitespace character is
+/// collapsed if either that whitespace character is the overflowing unit, or
+/// the overflowing unit immediately follows that whitespace character and the
+/// line already contains non-whitespace content before the whitespace. The
+/// non-whitespace requirement preserves leading indentation: leading whitespace
+/// at the start of a visual line remains visible unless one of those whitespace
+/// characters independently becomes the boundary character of a later soft
+/// wrap.
+///
+/// The collapsed whitespace is kept in the previous visual line's byte range
+/// and caret/selection model, like a hard newline, but is assigned zero visual
 /// advance and excluded from that line's `logical_width`. Adjacent whitespace
-/// remains preserved and participates in wrapping normally, except that a
-/// terminal run of collapsed soft-wrap whitespace creates one following empty
-/// visual line rather than one empty line per whitespace character.
+/// remains preserved and participates in wrapping normally. A soft wrap
+/// collapses only the single boundary whitespace character for that wrap; later
+/// adjacent whitespace is not collapsed unless it independently becomes the
+/// boundary character of a later soft wrap.
 ///
 /// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
 ///
