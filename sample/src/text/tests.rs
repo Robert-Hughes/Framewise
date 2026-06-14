@@ -2189,6 +2189,18 @@ mod tests {
         }
     }
 
+    fn wrap_word_preserving_whitespace_end_flow() -> TextFlow {
+        TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::End,
+        }
+    }
+
     fn line_width(sys: &mut SampleTextSystem, text: &str, style: TextStyle) -> f32 {
         sys.measure(text, style, TextBounds::UNBOUNDED).lines[0].logical_width
     }
@@ -2222,6 +2234,68 @@ mod tests {
             layout.metrics.lines[0].logical_width,
             hello_w,
             "collapsed line metrics width",
+        );
+    }
+
+    #[test]
+    fn soft_wrap_collapses_fitted_boundary_space_before_next_word() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let hello_space_w = line_width(&mut sys, "hello ", style);
+        let wrap_w = hello_space_w + 0.1;
+
+        let layout = sys.prepare("hello world", style, Rect::new(0.0, 0.0, wrap_w, 200.0));
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello world");
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "fitted boundary space collapsed line width",
+        );
+        assert_close(
+            layout.metrics.lines[0].logical_width,
+            hello_w,
+            "fitted boundary space collapsed line metrics width",
+        );
+    }
+
+    #[test]
+    fn right_aligned_soft_wrap_excludes_fitted_boundary_space_from_line_width() {
+        let mut sys = sys();
+        let style = TextStyle::new(
+            FontId(0),
+            16.0,
+            400,
+            wrap_word_preserving_whitespace_end_flow(),
+        );
+        let hello_w = line_width(&mut sys, "hello", style);
+        let hello_space_w = line_width(&mut sys, "hello ", style);
+        let wrap_w = hello_space_w + 0.1;
+
+        let layout = sys.prepare("hello world", style, Rect::new(0.0, 0.0, wrap_w, 200.0));
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello world");
+
+        let run = &sys.runs[layout.handle.0];
+        let line0 = &run.lines[0];
+        assert_eq!((line0.byte_start, line0.byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(
+            line0.logical_width,
+            hello_w,
+            "right-aligned line width excludes fitted boundary space",
+        );
+
+        let first_glyph_x = run.glyphs[line0.glyph_start].x;
+        assert_close(
+            first_glyph_x,
+            wrap_w - hello_w,
+            "right-aligned first glyph x",
         );
     }
 
@@ -2381,6 +2455,33 @@ mod tests {
             run.lines[0].logical_width,
             hello_w,
             "WrapCluster collapsed line width",
+        );
+    }
+
+    #[test]
+    fn wrap_cluster_collapses_fitted_boundary_space_before_next_cluster() {
+        let mut sys = sys();
+        let style = TextStyle::new(
+            FontId(0),
+            16.0,
+            400,
+            wrap_cluster_preserving_whitespace_flow(),
+        );
+        let hello_w = line_width(&mut sys, "hello", style);
+        let hello_space_w = line_width(&mut sys, "hello ", style);
+        let wrap_w = hello_space_w + 0.1;
+
+        let layout = sys.prepare("hello world", style, Rect::new(0.0, 0.0, wrap_w, 200.0));
+        assert_eq!(layout.metrics.line_count, 2);
+        assert_eq!(visible(&sys, layout.handle), "hello world");
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_close(
+            run.lines[0].logical_width,
+            hello_w,
+            "WrapCluster fitted boundary space collapsed line width",
         );
     }
 

@@ -653,12 +653,15 @@ pub struct CaretGeom {
 /// unit for overflow and fallback purposes: if it cannot fit on an empty line,
 /// the selected `WrapWordFallback`/`WrapClusterFallback` policy applies.
 ///
-/// When such a whitespace character is the overflowing unit that causes a soft
-/// wrap from a non-empty line, that one character is assigned to the end of the
-/// previous visual line with zero visual advance. It remains part of the line's
-/// byte range and caret/selection model, like a hard newline, but is excluded
-/// from `logical_width`. Adjacent whitespace remains preserved and participates
-/// in wrapping normally.
+/// When soft wrapping a non-empty line, exactly one preserved whitespace
+/// character is collapsed if either that whitespace character is the
+/// overflowing unit that causes the soft wrap, or the overflowing unit
+/// immediately follows that whitespace character on a line that already
+/// contains non-whitespace content before the whitespace. The collapsed
+/// whitespace is kept in the previous visual line's byte range and
+/// caret/selection model, like a hard newline, but is assigned zero visual
+/// advance and excluded from that line's `logical_width`. Adjacent whitespace
+/// remains preserved and participates in wrapping normally.
 ///
 /// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
 ///

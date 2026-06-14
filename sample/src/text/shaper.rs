@@ -35,6 +35,14 @@ impl OwnedCluster {
             g.x += dx;
         }
     }
+
+    fn collapse_soft_wrap_boundary(&mut self) {
+        self.advance = 0.0;
+        self.is_soft_wrap_boundary = true;
+        for glyph in &mut self.glyphs {
+            glyph.advance = 0.0;
+        }
+    }
 }
 
 impl SampleTextSystem {
@@ -669,7 +677,11 @@ impl SampleTextSystem {
     }
 
     fn logical_cluster_line_start(clusters: &[OwnedCluster]) -> f32 {
-        clusters.iter().map(|cluster| cluster.x).fold(0.0, f32::min)
+        clusters
+            .iter()
+            .map(|cluster| cluster.x)
+            .reduce(f32::min)
+            .unwrap_or(0.0)
     }
 
     fn wrap_clusters(
@@ -718,11 +730,7 @@ impl SampleTextSystem {
                     let next_line_start_x = cluster.x + cluster.advance;
                     let mut moved = cluster;
                     moved.shift_x(rel_start_x - moved.x);
-                    moved.advance = 0.0;
-                    moved.is_soft_wrap_boundary = true;
-                    for glyph in &mut moved.glyphs {
-                        glyph.advance = 0.0;
-                    }
+                    moved.collapse_soft_wrap_boundary();
                     current_line.push(moved);
                     lines.push(current_line);
                     current_line = Vec::new();
@@ -745,6 +753,7 @@ impl SampleTextSystem {
                         }
                     }
                 } else {
+                    Self::collapse_trailing_soft_wrap_space(&mut current_line);
                     lines.push(current_line);
                     current_line = Vec::new();
                     current_line_start_x = cluster.x;
@@ -777,6 +786,22 @@ impl SampleTextSystem {
             lines.push(current_line);
         }
         lines
+    }
+
+    fn collapse_trailing_soft_wrap_space(clusters: &mut [OwnedCluster]) {
+        let has_non_whitespace_content = clusters
+            .iter()
+            .rev()
+            .skip(1)
+            .any(|cluster| !cluster.is_whitespace && !cluster.is_hard_break);
+        if has_non_whitespace_content {
+            if let Some(cluster) = clusters
+                .last_mut()
+                .filter(|cluster| cluster.is_whitespace && !cluster.is_hard_break)
+            {
+                cluster.collapse_soft_wrap_boundary();
+            }
+        }
     }
 
     fn wrap_clusters_at_words(
@@ -861,11 +886,7 @@ impl SampleTextSystem {
                 if seg.is_space && !current_line.is_empty() {
                     for mut cluster in seg.clusters {
                         cluster.shift_x(current_logical_w);
-                        cluster.advance = 0.0;
-                        cluster.is_soft_wrap_boundary = true;
-                        for glyph in &mut cluster.glyphs {
-                            glyph.advance = 0.0;
-                        }
+                        cluster.collapse_soft_wrap_boundary();
                         current_line.push(cluster);
                     }
                     lines.push(current_line);
@@ -875,6 +896,7 @@ impl SampleTextSystem {
                 }
 
                 if !current_line.is_empty() {
+                    Self::collapse_trailing_soft_wrap_space(&mut current_line);
                     lines.push(current_line);
                     current_line = Vec::new();
                     current_logical_w = 0.0;

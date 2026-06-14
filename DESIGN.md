@@ -46,11 +46,16 @@ The rule is:
 ```text
 - Every source whitespace character is preserved and accounted for.
 - Whitespace characters are individually wrappable.
-- Exception: when a preserved whitespace character is the overflowing unit that
-  causes a soft wrap, that one whitespace character is assigned to the end of
-  the previous visual line with zero visual advance.
-- Only that one soft-wrap boundary whitespace character is collapsed. Adjacent
-  whitespace remains preserved and participates in wrapping normally.
+- When soft wrapping a non-empty line, collapse exactly one preserved whitespace
+  character if either:
+  - that whitespace character is the overflowing unit that causes the soft wrap,
+    or
+  - the overflowing unit immediately follows that whitespace character, and the
+    line already contains non-whitespace content before that whitespace.
+- The collapsed whitespace character is kept in the previous visual line's byte
+  range and caret/selection model, but assigned zero visual advance and excluded
+  from that line's `logical_width`.
+- Adjacent whitespace remains preserved and participates in wrapping normally.
 ```
 
 This exception exists to avoid turning ordinary single-space prose into a blank
@@ -84,6 +89,15 @@ Width = 5
 +-------------+
 ```
 
+The same rule also applies when the separating space itself fits, but the next
+word causes the soft wrap. A trailing space at the end of a left-aligned line can
+look innocuous because it appears after the visible text. For right-aligned text,
+the same logical trailing space moves the line's anchor: it is the mirror image
+of a leading space on a left-aligned line. In both cases, the visible word is
+offset by whitespace that the reader does not perceive as part of the line. A
+soft-wrap boundary space is therefore excluded from `logical_width` whether it
+was the overflowing unit or the unit immediately before the overflow.
+
 This is deliberately similar to how hard newlines work. A `'\n'` is a real
 source character with caret and selection positions, but it has no ordinary
 visible glyph advance. Text editing already has to reason about such characters,
@@ -91,10 +105,10 @@ so soft-wrap boundary spaces use the same kind of model instead of introducing a
 separate "dropped whitespace" concept.
 
 The collapsed boundary space is excluded from the line's logical width. It
-remains part of the relevant line's source byte range and must remain reachable
-through caret movement, hit-testing, and selection. A text editor may draw an
-explicit selection affordance for it, just as it may draw one for a selected
-newline.
+remains part of the previous visual line's source byte range and must remain
+reachable through caret movement, hit-testing, and selection. A text editor may
+draw an explicit selection affordance for it, just as it may draw one for a
+selected newline.
 
 Examples:
 
@@ -138,12 +152,34 @@ Width = 5 columns
 +----------------+-------------------------------+
 ```
 
+The same boundary-space collapse applies when the space fits but the following
+unit does not:
+
+```text
+Legend:
+. = visible space
+~ = logically present, visually collapsed soft-wrap boundary space
+Width = 6 columns
+
++----------------+-------------------------------+
+| Input          | Wrapped output                |
++----------------+-------------------------------+
+| hello world    | hello~                        |
+|                | world                         |
++----------------+-------------------------------+
+| hello  world   | hello.~                       |
+|                | world                         |
++----------------+-------------------------------+
+```
+
 The multiple-space cases are intentionally not hidden. If an author enters
 multiple spaces between words, Framewise preserves that fact and lets the layout
 show it. The single-space exception is only for the whitespace character that
-causes a soft wrap, so the normal well-authored prose case avoids a blank
-space-only line without turning Framewise into a whitespace-collapsing text
-engine.
+causes a soft wrap, or for the whitespace character immediately before the unit
+that causes a soft wrap when the line already contains non-whitespace content,
+so the normal well-authored prose case avoids a blank space-only line or a
+visually trailing wrap space without turning Framewise into a
+whitespace-collapsing text engine.
 
 ---
 
