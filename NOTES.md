@@ -6,8 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
 
-  - adding spaces to the start of wrapped lines is weird (appends to prev line instead?)
-
   - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
     - check Antigravity conversation
     - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
@@ -35,8 +33,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - tab focus behaviour with scrollbars
   - correct offsets with error bar
   - Select all
-  - quadruple click to select all lines, triple click should just be current line
-  - with wrapping, should triple click select visible line or actual line?
   - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
   - caret cursor
   - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
@@ -362,6 +358,10 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Emojis and multi-character clusters etc.
 - IME support
 - Undo and redo? (Or built into larger app-wide system?)
+- adding spaces to the start of wrapped lines is confusing (appends to prev line instead, no visual indication). This is standard wrapped editor behaviour, but maybe we can do better?
+  - would be nice to snap the cursor to the end of the prev line, but we can't do that in a faithful way because the previous line ends in the 'visually collapsed' space that's wrapping!
+
+
 
 ## Splitters
 

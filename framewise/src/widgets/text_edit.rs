@@ -24,6 +24,7 @@ pub mod raw {
     pub struct TextEditSpec {
         pub rect: Rect,
         pub style: super::TextEditStyle,
+        pub placeholder: Option<String>,
         pub clip_rect: ClipRect,
         pub error: bool,
         pub disabled: bool,
@@ -125,9 +126,14 @@ pub mod raw {
             }
             let inset = spec.style.border_width + spec.style.padding;
             let content_rect = spec.rect.inset(inset);
-            if !state.value.is_empty() {
+            let disabled_text = if state.value.is_empty() {
+                spec.placeholder.as_deref()
+            } else {
+                Some(state.value.as_str())
+            };
+            if let Some(text) = disabled_text {
                 let metrics = text_system.measure(
-                    &state.value,
+                    text,
                     text_style,
                     TextBounds {
                         max_width: Some(content_rect.w),
@@ -142,10 +148,15 @@ pub mod raw {
                     Align::End => content_rect.y + content_rect.h - metrics.logical_size.y,
                 };
                 let text_rect = Rect::new(content_rect.x, ty, content_rect.w, content_rect.h);
-                let layout = text_system.prepare(&state.value, text_style, text_rect);
+                let layout = text_system.prepare(text, text_style, text_rect);
+                let color = if state.value.is_empty() {
+                    spec.style.placeholder_color
+                } else {
+                    spec.style.text_color
+                };
                 cmds.push(DrawCmd::Text {
                     rect: text_rect,
-                    color: tint(spec.style.text_color),
+                    color: tint(color),
                     handle: layout.handle,
                     z: spec.layer.get_z(),
                 });
@@ -686,6 +697,8 @@ pub mod raw {
         // Drawing Background
         let bg_color = if spec.error {
             spec.style.error_background
+        } else if contains {
+            spec.style.background_hovered
         } else {
             spec.style.background
         };
@@ -713,7 +726,12 @@ pub mod raw {
         }
 
         // Border
-        if spec.style.border_width > 0.0 {
+        let border_width = if focused && !spec.error {
+            spec.style.focus_width
+        } else {
+            spec.style.border_width
+        };
+        if border_width > 0.0 {
             let b_color = if spec.error {
                 spec.style.error_border
             } else if focused {
@@ -725,7 +743,7 @@ pub mod raw {
                 anti_alias: false,
                 rect: spec.rect,
                 color: b_color,
-                width: spec.style.border_width,
+                width: border_width,
                 z: spec.layer.get_z(),
             });
         }
@@ -1064,6 +1082,16 @@ pub mod raw {
                 handle,
                 z: spec.layer.get_z(),
             });
+        } else if !focused {
+            if let Some(placeholder) = spec.placeholder.as_deref() {
+                let placeholder_layout = text_system.prepare(placeholder, text_style, text_rect);
+                cmds.push(DrawCmd::Text {
+                    rect: text_rect,
+                    color: spec.style.placeholder_color,
+                    handle: placeholder_layout.handle,
+                    z: spec.layer.get_z(),
+                });
+            }
         }
 
         // Caret
@@ -1083,7 +1111,7 @@ pub mod raw {
                 let caret_rect = Rect::new(
                     text_rect.x + caret.x,
                     text_rect.y + caret.y_top,
-                    1.0,
+                    spec.style.caret_width,
                     caret.height,
                 );
                 cmds.push(DrawCmd::FillRect {
@@ -1202,10 +1230,12 @@ pub mod raw {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextEditStyle {
     pub background: Color,
+    pub background_hovered: Color,
     pub error_background: Color,
     pub border: Color,
     pub focus: Color,
     pub border_width: f32,
+    pub focus_width: f32,
     pub error_border: Color,
     pub error_stripe_width: f32,
     pub min_height: f32,
@@ -1217,7 +1247,9 @@ pub struct TextEditStyle {
     pub letter_spacing: f32,
     pub line_height: LineHeight,
     pub text_color: Color,
+    pub placeholder_color: Color,
     pub caret_color: Color,
+    pub caret_width: f32,
     pub select_color: Color,
     pub disabled_alpha: f32,
 }
@@ -1226,12 +1258,14 @@ impl TextEditStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             background: theme.paper_elev,
+            background_hovered: Color::WHITE,
             error_background: theme.rust_soft,
             border: theme.ink,
             focus: theme.rust,
             error_border: theme.rust,
             error_stripe_width: 4.0,
             border_width: theme.border,
+            focus_width: theme.focus_width,
             min_height: theme.h_md,
             padding: 4.0,
             font: theme.mono_font,
@@ -1241,7 +1275,9 @@ impl TextEditStyle {
             letter_spacing: 0.0,
             line_height: LineHeight::Normal,
             text_color: theme.ink,
+            placeholder_color: theme.muted,
             caret_color: theme.rust,
+            caret_width: 2.0,
             select_color: theme.rust_soft,
             disabled_alpha: 0.55,
         }
@@ -1397,6 +1433,7 @@ impl NewlinePolicy {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextEditSpec {
     pub style: TextEditStyle,
+    pub placeholder: Option<String>,
     pub error: bool,
     pub disabled: bool,
     pub newline_policy: NewlinePolicy,
@@ -1410,6 +1447,7 @@ pub struct TextEditSpec {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TextEditSpecBuilder {
     pub style: Option<TextEditStyle>,
+    pub placeholder: Option<Option<String>>,
     pub error: Option<bool>,
     pub disabled: Option<bool>,
     pub newline_policy: Option<NewlinePolicy>,
@@ -1425,6 +1463,10 @@ impl TextEditSpecBuilder {
 
     pub fn style(mut self, style: TextEditStyle) -> Self {
         self.style = Some(style);
+        self
+    }
+    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = Some(Some(placeholder.into()));
         self
     }
     pub fn error(mut self, error: bool) -> Self {
@@ -1466,6 +1508,7 @@ impl TextEditSpecBuilder {
             style: self
                 .style
                 .expect("style not set — call .style() or defaults_from_theme()"),
+            placeholder: self.placeholder.unwrap_or(None),
             error: self.error.unwrap_or(false),
             disabled: self.disabled.unwrap_or(false),
             newline_policy: self
@@ -1624,6 +1667,7 @@ pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
     let raw_spec = raw::TextEditSpec {
         rect,
         style: spec.style,
+        placeholder: spec.placeholder,
         clip_rect: ctx.clip_rect,
         error: spec.error,
         disabled: spec.disabled,
@@ -1692,6 +1736,7 @@ mod tests {
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
             style: TextEditStyle::from_theme(&crate::theme::Theme::framewise()),
+            placeholder: None,
             clip_rect: None,
             error: false,
             disabled: false,
@@ -3325,6 +3370,81 @@ mod tests {
     }
 
     #[test]
+    fn test_text_edit_visual_hover_background() {
+        let mut text_system = DummyTextSys;
+        let mut state = TextEditState::new("hello");
+        let input = Input {
+            mouse_pos: Vec2::new(100.0, 15.0),
+            ..Input::default()
+        };
+        let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+        let mut cmds = DrawCommands::new();
+
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert!(matches!(
+            cmds.iter().next(),
+            Some(DrawCmd::FillRect { color, .. }) if *color == spec().style.background_hovered
+        ));
+    }
+
+    #[test]
+    fn test_text_edit_visual_placeholder() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::default();
+        let mut cmds = DrawCommands::new();
+
+        raw::text_edit(
+            TextEditSpec {
+                placeholder: Some("frame_buffer".to_string()),
+                ..spec()
+            },
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert!(cmds.iter().any(|cmd| matches!(
+            cmd,
+            DrawCmd::Text { color, .. } if *color == spec().style.placeholder_color
+        )));
+
+        let mut focus_system = FocusSystem::new();
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+        state.was_focused = true;
+        let mut focused_cmds = DrawCommands::new();
+
+        raw::text_edit(
+            TextEditSpec {
+                placeholder: Some("frame_buffer".to_string()),
+                ..spec()
+            },
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut focused_cmds,
+        );
+
+        assert!(!focused_cmds.iter().any(|cmd| matches!(
+            cmd,
+            DrawCmd::Text { color, .. } if *color == spec().style.placeholder_color
+        )));
+    }
+
+    #[test]
     fn test_text_edit_visual_focused_caret() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
@@ -3359,7 +3479,7 @@ mod tests {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.focus,
-                    width: spec().style.border_width,
+                    width: spec().style.focus_width,
                     z: 0,
                 },
                 DrawCmd::PushClip {
@@ -3373,7 +3493,7 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     anti_alias: false,
-                    rect: Rect::new(45.0, 7.0, 1.0, 16.0),
+                    rect: Rect::new(45.0, 7.0, spec().style.caret_width, 16.0),
                     color: spec().style.caret_color,
                     z: 0,
                 },
@@ -3419,7 +3539,7 @@ mod tests {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                     color: spec().style.focus,
-                    width: spec().style.border_width,
+                    width: spec().style.focus_width,
                     z: 0,
                 },
                 DrawCmd::PushClip {
@@ -3439,7 +3559,7 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     anti_alias: false,
-                    rect: Rect::new(45.0, 7.0, 1.0, 16.0),
+                    rect: Rect::new(45.0, 7.0, spec().style.caret_width, 16.0),
                     color: spec().style.caret_color,
                     z: 0,
                 },
@@ -5091,7 +5211,7 @@ mod tests {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                     color: spec().style.focus,
-                    width: spec().style.border_width,
+                    width: spec().style.focus_width,
                     z: 0,
                 },
                 DrawCmd::PushClip {
@@ -5119,7 +5239,7 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     anti_alias: false,
-                    rect: Rect::new(29.0, 50.0, 1.0, 16.0),
+                    rect: Rect::new(29.0, 50.0, spec().style.caret_width, 16.0),
                     color: spec().style.caret_color,
                     z: 0,
                 },
@@ -5217,7 +5337,7 @@ mod tests {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                     color: spec().style.focus,
-                    width: spec().style.border_width,
+                    width: spec().style.focus_width,
                     z: 0,
                 },
                 DrawCmd::PushClip {
@@ -5252,7 +5372,7 @@ mod tests {
                 },
                 DrawCmd::FillRect {
                     anti_alias: false,
-                    rect: Rect::new(21.0, 58.0, 1.0, 16.0),
+                    rect: Rect::new(21.0, 58.0, spec().style.caret_width, 16.0),
                     color: spec().style.caret_color,
                     z: 0,
                 },

@@ -99,7 +99,9 @@ use framewise::widgets::switch::{
 use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
 #[cfg(feature = "text_edit")]
 #[allow(unused_imports)]
-use framewise::widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState};
+use framewise::widgets::text_edit::{
+    text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState, TextEditStyle,
+};
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
 use framewise::widgets::tooltip::{tooltip, TooltipSpecBuilder, TooltipVariant};
@@ -392,6 +394,54 @@ fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
         framewise::ContentPlacement::Align(Align::Center),
     );
     style
+}
+
+#[cfg(feature = "text_edit")]
+fn draw_text_edit_fake_state<T: TextSystem, LS: LayoutState, CF>(
+    b: &mut WidgetContext<T, LS, CF>,
+    layout_params: LS::Params,
+    value: &str,
+    placeholder: Option<&str>,
+    hovered: bool,
+    focused: bool,
+) {
+    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+    let mut state = TextEditState::new(value);
+    let style = TextEditStyle::from_theme(&b.theme);
+
+    let fake_input = if hovered {
+        Input {
+            mouse_pos: rect.center(),
+            ..Input::default()
+        }
+    } else {
+        Input::default()
+    };
+    let mock_focus = if focused { Some(state.focus_id) } else { None };
+    let mock_hover = if hovered { Some(state.focus_id) } else { None };
+    let mut dummy_focus_sys = FocusSystem::new_mocked(mock_focus, mock_hover);
+
+    framewise::widgets::text_edit::raw::text_edit(
+        framewise::widgets::text_edit::raw::TextEditSpec {
+            rect,
+            style,
+            placeholder: placeholder.map(str::to_string),
+            clip_rect: b.clip_rect,
+            error: false,
+            disabled: false,
+            time: 0.0,
+            layer: b.layer,
+            newline_policy: NewlinePolicy::ReplaceWithSpace,
+            wrap: false,
+            vertical_align: Align::Center,
+            line_align: TextLineAlign::Start,
+        },
+        &mut state,
+        &fake_input,
+        &mut dummy_focus_sys,
+        b.text_system,
+        b.cmds,
+    );
 }
 
 // ── Page state ────────────────────────────────────────────────────────────────
@@ -1769,13 +1819,27 @@ fn section_02_text_inputs<CF>(
         let lx = 0.0;
         let col_labels = ["DEFAULT", "HOVER", "FOCUSED", "ERROR", "DISABLED"];
         let row_labels = ["empty", "filled"];
-        let cell_w = 160.0_f32;
-        let label_w = 60.0_f32;
+        let cell_w = 220.0_f32;
+        let label_w = 110.0_f32;
+        let col_gap = 18.0_f32;
+        let placeholder = "frame_buffer";
 
         for (ci, col) in col_labels.iter().enumerate() {
+            if (1..=2).contains(&ci) {
+                let r = b.layout(
+                    Rect::new(
+                        label_w + ci as f32 * (cell_w + col_gap),
+                        y - 14.0,
+                        44.0,
+                        12.0,
+                    ),
+                    IntrinsicSize::UNKNOWN,
+                );
+                static_badge(&mut b, r);
+            }
             {
                 let layout_params =
-                    Rect::new(label_w + ci as f32 * (cell_w + 8.0), y, cell_w, 16.0);
+                    Rect::new(label_w + ci as f32 * (cell_w + col_gap), y, cell_w, 16.0);
                 let color = b.theme.muted;
                 let spec_builder = LabelSpecBuilder::new().text(col).style(LabelStyle {
                     text_style: b.theme.overline_text_style(10.0),
@@ -1805,17 +1869,44 @@ fn section_02_text_inputs<CF>(
                 let idx = ri * 5 + ci;
                 let error = ci == 3;
                 let disabled = ci == 4;
-                let _info = {
-                    let state = &mut state.te_matrix[idx];
-                    let layout_params = Rect::new(
-                        label_w + ci as f32 * (cell_w + 8.0),
-                        y,
-                        cell_w,
-                        b.theme.h_md,
-                    );
-                    let spec_builder = TextEditSpecBuilder::new().error(error).disabled(disabled);
-                    text_edit(&mut b, spec_builder, layout_params, state)
-                };
+                let layout_params = Rect::new(
+                    label_w + ci as f32 * (cell_w + col_gap),
+                    y,
+                    cell_w,
+                    b.theme.h_md,
+                );
+                match ci {
+                    1 => {
+                        let value = state.te_matrix[idx].value.clone();
+                        draw_text_edit_fake_state(
+                            &mut b,
+                            layout_params,
+                            &value,
+                            Some(placeholder),
+                            true,
+                            false,
+                        );
+                    }
+                    2 => {
+                        let value = state.te_matrix[idx].value.clone();
+                        draw_text_edit_fake_state(
+                            &mut b,
+                            layout_params,
+                            &value,
+                            Some(placeholder),
+                            false,
+                            true,
+                        );
+                    }
+                    _ => {
+                        let state = &mut state.te_matrix[idx];
+                        let spec_builder = TextEditSpecBuilder::new()
+                            .placeholder(placeholder)
+                            .error(error)
+                            .disabled(disabled);
+                        let _info = text_edit(&mut b, spec_builder, layout_params, state);
+                    }
+                }
             }
             y += b.theme.h_md + 8.0;
         }
