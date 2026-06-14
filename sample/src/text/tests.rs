@@ -2144,6 +2144,21 @@ mod tests {
             layout.metrics.line_count, 2,
             "Trailing newline should produce 2 lines under WrapWord"
         );
+        assert_eq!(layout.metrics.lines.len(), 2);
+        assert_eq!(
+            (
+                layout.metrics.lines[0].byte_start,
+                layout.metrics.lines[0].byte_end
+            ),
+            (0, 6)
+        );
+        assert_eq!(
+            (
+                layout.metrics.lines[1].byte_start,
+                layout.metrics.lines[1].byte_end
+            ),
+            ("hello\n".len(), "hello\n".len())
+        );
 
         // 3. Multiple trailing newlines (WrapWord)
         let layout = sys.prepare("hello\n\n", style_word, rect);
@@ -2356,38 +2371,48 @@ mod tests {
     }
 
     #[test]
-    fn trailing_boundary_space_collapses_without_creating_a_blank_line() {
+    fn trailing_boundary_space_creates_empty_line_under_word_wrap() {
         let mut sys = sys();
         let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
         let hello_w = line_width(&mut sys, "hello", style);
 
         let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
-        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(layout.metrics.line_count, 2);
         assert_eq!(visible(&sys, layout.handle), "hello ");
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
         assert_close(
             run.lines[0].logical_width,
             hello_w,
             "trailing collapsed width",
         );
+        assert_eq!(run.lines[1].logical_width, 0.0);
+        assert_eq!(run.lines[1].ink_width, 0.0);
+        assert!(run.clusters[run.lines[0].cluster_end - 1].is_soft_wrap_boundary);
     }
 
     #[test]
-    fn trailing_spaces_after_the_boundary_space_are_preserved() {
+    fn terminal_trailing_spaces_create_one_empty_line() {
         let mut sys = sys();
         let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
         let hello_w = line_width(&mut sys, "hello", style);
-        let space_w = line_width(&mut sys, " ", style);
 
         let layout = sys.prepare("hello  ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
         assert_eq!(layout.metrics.line_count, 2);
         assert_eq!(visible(&sys, layout.handle), "hello  ");
         let run = &sys.runs[layout.handle.0];
-        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
-        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 7));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (7, 7));
         assert_close(run.lines[0].logical_width, hello_w, "first line width");
-        assert_close(run.lines[1].logical_width, space_w, "second line width");
+        assert_eq!(run.lines[1].logical_width, 0.0);
+        assert_eq!(run.lines[1].ink_width, 0.0);
+
+        let trailing_clusters =
+            &run.clusters[run.lines[0].cluster_end - 2..run.lines[0].cluster_end];
+        assert!(trailing_clusters
+            .iter()
+            .all(|cluster| cluster.is_soft_wrap_boundary));
     }
 
     #[test]
@@ -2486,7 +2511,7 @@ mod tests {
     }
 
     #[test]
-    fn wrap_cluster_trailing_boundary_space_does_not_create_blank_line() {
+    fn wrap_cluster_trailing_boundary_space_creates_empty_line() {
         let mut sys = sys();
         let style = TextStyle::new(
             FontId(0),
@@ -2497,15 +2522,19 @@ mod tests {
         let hello_w = line_width(&mut sys, "hello", style);
 
         let layout = sys.prepare("hello ", style, Rect::new(0.0, 0.0, hello_w + 0.1, 200.0));
-        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(layout.metrics.line_count, 2);
         assert_eq!(visible(&sys, layout.handle), "hello ");
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
         assert_close(
             run.lines[0].logical_width,
             hello_w,
             "WrapCluster trailing collapsed width",
         );
+        assert_eq!(run.lines[1].logical_width, 0.0);
+        assert_eq!(run.lines[1].ink_width, 0.0);
+        assert!(run.clusters[run.lines[0].cluster_end - 1].is_soft_wrap_boundary);
     }
 
     #[test]

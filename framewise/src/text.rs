@@ -525,6 +525,13 @@ impl TextBounds {
 
 /// The measured logical geometry of a single visual line of laid-out text, independent of where it is
 /// drawn.
+///
+/// Hard trailing newlines create a following empty visual line with a zero-length
+/// byte range at the end of the text. Preserved whitespace at the end of the
+/// text does the same when it overflows and is collapsed at a soft-wrap
+/// boundary: the collapsed whitespace remains part of the previous visual
+/// line's byte range, while the following empty line exists for caret
+/// positioning, hit-testing, selection, and editor feedback.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineMetrics {
     /// Top Y offset of the line in block-local coordinates.
@@ -645,6 +652,11 @@ pub struct CaretGeom {
 /// - Empty lines (such as a line consisting only of `\n`, or a trailing newline at
 ///   the end of the text) must produce a corresponding `LineMetrics` entry and
 ///   contribute to the vertical layout height.
+/// - If preserved whitespace at the end of the text overflows and is collapsed at
+///   a soft-wrap boundary, the layout must still create a following empty visual
+///   line. This mirrors the behavior of a trailing hard newline: the boundary
+///   character belongs to the previous line, while the caret position after it is
+///   on the next empty line.
 ///
 /// ### Whitespace Wrapping
 ///
@@ -661,7 +673,9 @@ pub struct CaretGeom {
 /// whitespace is kept in the previous visual line's byte range and
 /// caret/selection model, like a hard newline, but is assigned zero visual
 /// advance and excluded from that line's `logical_width`. Adjacent whitespace
-/// remains preserved and participates in wrapping normally.
+/// remains preserved and participates in wrapping normally, except that a
+/// terminal run of collapsed soft-wrap whitespace creates one following empty
+/// visual line rather than one empty line per whitespace character.
 ///
 /// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
 ///

@@ -55,6 +55,13 @@ The rule is:
 - The collapsed whitespace character is kept in the previous visual line's byte
   range and caret/selection model, but assigned zero visual advance and excluded
   from that line's `logical_width`.
+- If preserved whitespace at the end of the text overflows and is collapsed at
+  a soft-wrap boundary, the layout still creates one following empty visual line.
+  This mirrors a trailing hard newline: the boundary whitespace belongs to the
+  previous visual line, while the caret position after it is on the next empty
+  line. This makes it friendly to text editors, where the user adding a terminal space
+  sees the caret move to the next line ready to type. For labels, a trailing space taking up
+  a whole extra line like this might be unwanted, but then there shouldn't be a trailing space!
 - Adjacent whitespace remains preserved and participates in wrapping normally.
 ```
 
@@ -110,6 +117,13 @@ reachable through caret movement, hit-testing, and selection. A text editor may
 draw an explicit selection affordance for it, just as it may draw one for a
 selected newline.
 
+At the end of the text, collapsed soft-wrap boundary whitespace also creates a
+following empty visual line. This is intentional even though the trailing space
+has no visual advance: the empty line is the visible caret, hit-testing,
+selection, and editor-feedback position after the whitespace. A terminal run of
+collapsed soft-wrap whitespace creates one following empty line, not one empty
+line per whitespace character.
+
 Examples:
 
 ```text
@@ -133,9 +147,10 @@ Width = 5 columns
 |                | world                         |
 +----------------+-------------------------------+
 | hello.         | hello~                        |
+|                | <blank>                       |
 +----------------+-------------------------------+
-| hello..        | hello~                        |
-|                | .                             |
+| hello..        | hello~~                       |
+|                | <blank>                       |
 +----------------+-------------------------------+
 | .....hello     | .....                         |
 |                | hello                         |
