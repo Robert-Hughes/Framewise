@@ -52,10 +52,19 @@ debug output can still map back to the source string.
 - if it still does not fit on an empty line, `WrapClusterFallback` chooses
   whether to keep the whole cluster overflowing or drop the whole cluster.
 
-`OverflowX::WrapWord` groups clusters into word and whitespace runs. Unicode
-whitespace should create word wrapping opportunities; this includes tabs, not
-only ASCII spaces. Future work may use the full Unicode line breaking algorithm
-for CJK and punctuation-sensitive breaks.
+`OverflowX::WrapWord` groups contiguous non-whitespace clusters into word
+segments. Unicode whitespace creates word wrapping opportunities; this includes
+tabs, not only ASCII spaces. Future work may use the full Unicode line breaking
+algorithm for CJK and punctuation-sensitive breaks.
+
+Whitespace is not grouped into runs. Each whitespace cluster is its own
+breakable word-like segment. This means whitespace follows the same overflow
+hierarchy as other segments: if it fits, it is admitted; if it does not fit on a
+non-empty line, it may cause a soft wrap; if it cannot fit even on an empty
+line, the `WrapWordFallback` chain applies. The one exception is the Framewise
+soft-wrap boundary rule: when a whitespace cluster itself overflows a non-empty
+line, that single whitespace cluster is attached to the previous visual line
+with zero advance rather than producing a whitespace-only line.
 
 `OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on
 clusters. Ellipsis fitting trims whole clusters before appending the shaped

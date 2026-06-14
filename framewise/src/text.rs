@@ -232,6 +232,13 @@ pub enum OverflowX {
     /// If the next word cannot fit on the current line, it is moved to a new
     /// line. If that word still cannot fit on an empty line, `fallback` decides
     /// what happens.
+    ///
+    /// Preserved whitespace participates in this hierarchy as single-cluster
+    /// word-like units. A whitespace cluster may fit on the current line, move
+    /// to the next line, or, if it cannot fit on an empty line, follow
+    /// `fallback`. When whitespace itself is the unit that overflows a
+    /// non-empty line, the `TextSystem` whitespace wrapping contract below
+    /// applies.
     WrapWord { fallback: WrapWordFallback },
 
     /// Wrap at cluster boundaries.
@@ -611,12 +618,17 @@ pub struct CaretGeom {
 ///
 /// ### Whitespace Wrapping
 ///
-/// Preserved whitespace characters are individually wrap-capable. When such a
-/// whitespace character is the overflowing unit that causes a soft wrap, that
-/// one character is assigned to the end of the previous visual line with zero
-/// visual advance. It remains part of the line's byte range and caret/selection
-/// model, like a hard newline, but is excluded from `logical_width`. Adjacent
-/// whitespace remains preserved and participates in wrapping normally.
+/// Preserved whitespace characters are individually wrap-capable. Under word
+/// wrapping, each whitespace cluster is treated as a single-cluster word-like
+/// unit for overflow and fallback purposes: if it cannot fit on an empty line,
+/// the selected `WrapWordFallback`/`WrapClusterFallback` policy applies.
+///
+/// When such a whitespace character is the overflowing unit that causes a soft
+/// wrap from a non-empty line, that one character is assigned to the end of the
+/// previous visual line with zero visual advance. It remains part of the line's
+/// byte range and caret/selection model, like a hard newline, but is excluded
+/// from `logical_width`. Adjacent whitespace remains preserved and participates
+/// in wrapping normally.
 ///
 /// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
 ///

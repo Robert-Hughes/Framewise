@@ -2313,4 +2313,94 @@ mod tests {
             "WrapCluster trailing collapsed width",
         );
     }
+
+    #[test]
+    fn overwide_whitespace_on_empty_line_uses_wrap_word_cluster_drop_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Drop,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+
+        let layout = sys.prepare(" ", style, Rect::new(0.0, 0.0, 1.0, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), "");
+        assert_eq!(layout.metrics.lines[0].logical_width, 0.0);
+    }
+
+    #[test]
+    fn overwide_whitespace_on_empty_line_uses_wrap_word_cluster_keep_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Keep,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let space_w = line_width(&mut sys, " ", style);
+
+        let layout = sys.prepare(" ", style, Rect::new(0.0, 0.0, 1.0, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), " ");
+        assert_close(
+            layout.metrics.lines[0].logical_width,
+            space_w,
+            "kept overwide whitespace width",
+        );
+    }
+
+    #[test]
+    fn overwide_whitespace_on_empty_line_uses_wrap_word_drop_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Drop,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+
+        let layout = sys.prepare(" ", style, Rect::new(0.0, 0.0, 1.0, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), "");
+        assert_eq!(layout.metrics.lines[0].logical_width, 0.0);
+    }
+
+    #[test]
+    fn overwide_whitespace_on_empty_line_uses_wrap_word_keep_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let space_w = line_width(&mut sys, " ", style);
+
+        let layout = sys.prepare(" ", style, Rect::new(0.0, 0.0, 1.0, 200.0));
+
+        assert_eq!(layout.metrics.line_count, 1);
+        assert_eq!(visible(&sys, layout.handle), " ");
+        assert_close(
+            layout.metrics.lines[0].logical_width,
+            space_w,
+            "kept overwide whitespace width",
+        );
+    }
 }

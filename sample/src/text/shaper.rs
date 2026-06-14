@@ -886,15 +886,8 @@ impl SampleTextSystem {
                         current_line.push(cluster);
                     }
                     current_logical_w += seg_logical_w;
-                } else if seg.is_space {
-                    // Space segment doesn't fit even on empty line. Just push it.
-                    for mut cluster in seg.clusters {
-                        cluster.shift_x(current_logical_w);
-                        current_line.push(cluster);
-                    }
-                    current_logical_w += seg_logical_w;
                 } else {
-                    // Word segment doesn't fit even on empty line. Use fallback.
+                    // Segment doesn't fit even on an empty line. Use fallback.
                     match &fallback {
                         WrapWordFallback::WrapCluster { fallback: gf } => {
                             let seg_len = seg.clusters.len();
