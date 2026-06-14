@@ -460,8 +460,8 @@ mod tests {
     use super::*;
 
     use crate::test_utils::DummyTextSys;
-    use crate::text::FontId;
     use crate::text::TextHandle;
+    use crate::text::{CaretPosition, FontId};
     use crate::theme;
     use crate::types::Vec2;
 
@@ -493,7 +493,11 @@ mod tests {
             }
         }
 
-        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+        fn caret_geom(
+            &self,
+            _handle: TextHandle,
+            _position: CaretPosition,
+        ) -> crate::text::CaretGeom {
             crate::text::CaretGeom {
                 x: 0.0,
                 y_top: 0.0,
@@ -501,8 +505,20 @@ mod tests {
             }
         }
 
-        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> CaretPosition {
+            CaretPosition::EmptyText
+        }
+
+        fn caret_insertion_byte(&self, _handle: TextHandle, _position: CaretPosition) -> usize {
             0
+        }
+
+        fn caret_position_at_insertion_byte(
+            &self,
+            _handle: TextHandle,
+            _byte_index: usize,
+        ) -> CaretPosition {
+            CaretPosition::EmptyText
         }
 
         fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {

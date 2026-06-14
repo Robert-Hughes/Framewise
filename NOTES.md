@@ -4,10 +4,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- trailing space at end of string which causes wrap and is visually collapsed should still create a new, empty line?
-  - otherwise dodgy for text editing - press space at end of last line and nothing happens!
-  - hard breaks work well for this - how is this handled for them? We wanted soft-breaks to be treated similarly. Caret positiong, hit-testing etc.?
 - soft-wrap middle of word, need caret position at end of prev line
+  - CaretPosition refactoring
+  - Update text_edit to use new API
+  - Finish going through ChatGPT big design message. Test coverage is mentioned, might overlap with existing.
+  - Update DESIGN.md as appropriate
 
 - "wrap first, fallback second" < check this is consistent for whitespace chars that are wrapped too, as we treat these as word-like/cluster-like (docs and tests)
 - selection highlighting is borked for non-left-aligned text

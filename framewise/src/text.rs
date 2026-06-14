@@ -546,9 +546,21 @@ pub struct LineMetrics {
     pub byte_start: usize,
     /// Byte end index of the line in the original string (exclusive).
     ///
+    /// `byte_start..byte_end` is the source range represented by this visual
+    /// line. A line's `byte_end` is not, by itself, a complete caret position:
+    /// at soft-wrap boundaries, the previous line's end and the next line's
+    /// start may share an insertion boundary while corresponding to different
+    /// [`CaretPosition`] values.
+    ///
     /// If the line ends with a hard newline (`\n`), this is the byte index
     /// immediately *after* the `\n` character, so the range `byte_start..byte_end`
     /// includes the newline.
+    ///
+    /// If the line ends with collapsed soft-wrap boundary whitespace, that
+    /// whitespace remains included in this line's byte range even though it has
+    /// zero visual advance and is excluded from `logical_width`. If that
+    /// collapsed boundary whitespace is terminal, the following empty visual
+    /// line has `byte_start == byte_end == text.len()`.
     pub byte_end: usize,
 }
 
@@ -616,12 +628,45 @@ pub struct TextLayout {
     pub metrics: TextMetrics,
 }
 
-/// The geometry of a text caret at a given byte position, in block-local
-/// coordinates (origin at the block's top-left, y increasing downward).
+/// A visual caret anchor in prepared text.
+///
+/// This is deliberately richer than an insertion byte index. At hard line
+/// breaks and soft-wrap boundaries, two visually distinct caret positions can
+/// map to the same source insertion boundary: the trailing edge of the previous
+/// visual line and the leading edge of the following visual line. A byte-only
+/// API cannot preserve that distinction during hit-testing, caret movement, or
+/// editor feedback.
+///
+/// `cluster_byte_index` identifies the cluster being anchored to. It is not
+/// necessarily the same thing as the insertion byte index:
+///
+/// - [`BeforeCluster`](Self::BeforeCluster) inserts at the anchored cluster's
+///   `byte_start`.
+/// - [`AfterCluster`](Self::AfterCluster) inserts at the anchored cluster's
+///   `byte_end`.
+///
+/// Use [`TextSystem::caret_insertion_byte`] to convert a prepared visual caret
+/// position into an insertion byte index for editing operations. Use
+/// [`TextSystem::caret_position_at_insertion_byte`] to choose a canonical visual
+/// anchor for a programmatic byte position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CaretPosition {
+    /// The caret is anchored to the leading visual edge of the cluster that
+    /// starts at `cluster_byte_index`.
+    BeforeCluster { cluster_byte_index: usize },
+    /// The caret is anchored to the trailing visual edge of the cluster that
+    /// starts at `cluster_byte_index`.
+    AfterCluster { cluster_byte_index: usize },
+    /// The prepared text contains no clusters. The caret sits at the start of
+    /// the single empty visual line.
+    EmptyText,
+}
+
+/// The geometry of a visual caret anchor, in block-local coordinates (origin at
+/// the block's top-left, y increasing downward).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CaretGeom {
-    /// X offset of the caret (the leading edge of the cluster at the queried byte,
-    /// or the trailing edge of the last cluster when the byte is at end-of-text).
+    /// X offset of the caret.
     pub x: f32,
     /// Y offset of the top of the line the caret sits on.
     pub y_top: f32,
@@ -750,37 +795,37 @@ pub trait TextSystem {
     /// The handle is valid until the next frame reset (see [`TextHandle`]).
     fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout;
 
-    /// Caret geometry for the character boundary at `byte_index`, in block-local
-    /// coordinates. See [`CaretGeom`].
+    /// Caret geometry for a prepared visual caret position.
     ///
     /// Caret positions are in the same logical block coordinate system used by
     /// `prepare`. They should follow shaped advances and line metrics, not the
     /// tight ink box of the surrounding text.
     ///
-    /// `byte_index` must fall on a UTF-8 char boundary of the prepared string.
-    /// An index at or past the end returns the caret after the final cluster. If
-    /// the cluster at that index was dropped by overflow, the caret clamps to the
-    /// nearest laid-out boundary.
+    /// - `BeforeCluster { cluster_byte_index }` returns the leading visual edge
+    ///   of the anchored cluster.
+    /// - `AfterCluster { cluster_byte_index }` returns the trailing visual edge
+    ///   of the anchored cluster.
+    /// - `EmptyText` returns the start of the single empty line.
     ///
-    /// For lines that end with a hard newline (`\n`):
-    /// - Querying the index of the `\n` character itself (i.e. `byte_end - 1` for
-    ///   that line) places the caret at the trailing edge of the last visible
-    ///   character on that line.
-    /// - Querying the index immediately after the `\n` (i.e. `byte_end`, which
-    ///   equals the `byte_start` of the next line) places the caret at the start
-    ///   of the next line.
+    /// Hard newline clusters have newline-specific visual anchors:
     ///
-    /// For soft-wrapped lines (where the visual line ends at a visual boundary rather
-    /// than a hard newline `\n` character):
-    /// - Querying `caret_geom` at the visual line's `byte_end` (which equals the `byte_start`
-    ///   of the next visual line) resolves to the start of the next line (returning `x` aligned
-    ///   to the start of the next line).
-    /// - To obtain the trailing edge coordinate of the soft-wrapped line, widgets should
-    ///   inspect the line's logical width (`line.logical_width`) instead of querying `caret_geom(line.byte_end)`.
-    fn caret_geom(&self, handle: TextHandle, byte_index: usize) -> CaretGeom;
+    /// - `BeforeCluster` for the newline is the trailing text position before
+    ///   the newline, on the previous visual line.
+    /// - `AfterCluster` for the newline is the start of the following visual
+    ///   line.
+    ///
+    /// Collapsed soft-wrap-boundary whitespace has the same shape:
+    ///
+    /// - `BeforeCluster` for the boundary whitespace is the end of the previous
+    ///   visual line, with the boundary whitespace retained in that line's byte
+    ///   range and caret/selection model.
+    /// - `AfterCluster` for the boundary whitespace is the start of the
+    ///   following visual line. If the boundary whitespace is terminal, this is
+    ///   the following empty visual line created for editor feedback.
+    fn caret_geom(&self, handle: TextHandle, position: CaretPosition) -> CaretGeom;
 
     /// Hit-test a point (block-local coordinates) to the nearest character
-    /// boundary, returning a byte index into the prepared string.
+    /// boundary, returning a visual caret anchor.
     ///
     /// The coordinates `pos` are in the logical block coordinate system used by
     /// `prepare`. Hit testing should compare against the shaped logical cluster
@@ -790,16 +835,41 @@ pub trait TextSystem {
     /// between clusters by `x`:
     /// - Points above the block clamp to the first line; points below clamp to
     ///   the last line.
-    /// - Points to the left of a line clamp to that line's `byte_start`.
+    /// - Points to the left of a non-empty line return `BeforeCluster` for that
+    ///   line's first cluster.
     /// - Points to the right of a line clamp to the end of the *visible* content
-    ///   on that line.  If the line ends with a hard newline (`\n`), the result
-    ///   must be the index of the `\n` character itself (i.e. `byte_end - 1` for
-    ///   that line), **not** `byte_end`.  This ensures that clicking in the right
-    ///   margin keeps the caret on the clicked line rather than jumping to the
-    ///   beginning of the next one.
+    ///   on that line. If the line ends with a hard newline or collapsed
+    ///   soft-wrap boundary, this returns a caret anchored to that boundary
+    ///   cluster so the visual line is preserved.
+    /// - Points on an empty line return the visual position for that empty line:
+    ///   `EmptyText` for empty input, or `AfterCluster` for the previous hard
+    ///   newline / terminal collapsed soft-wrap boundary when the empty line
+    ///   exists because of such a boundary.
     ///
-    /// The result is always a valid UTF-8 char boundary.
-    fn hit_test_caret(&self, handle: TextHandle, pos: Vec2) -> usize;
+    /// The returned cluster anchor can be converted to an insertion byte index
+    /// with [`TextSystem::caret_insertion_byte`].
+    fn hit_test_caret(&self, handle: TextHandle, pos: Vec2) -> CaretPosition;
+
+    /// Convert a prepared visual caret position into the insertion byte index
+    /// used by text editing operations.
+    ///
+    /// `BeforeCluster` returns the anchored cluster's `byte_start`;
+    /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
+    fn caret_insertion_byte(&self, handle: TextHandle, position: CaretPosition) -> usize;
+
+    /// Choose a canonical visual caret anchor for a programmatic insertion byte
+    /// index.
+    ///
+    /// This is intended for non-hit-tested movement such as "go to byte 0",
+    /// "go to end", or adapting existing byte-oriented editor state. It should
+    /// return `BeforeCluster` for the first cluster at or after the byte, and
+    /// `AfterCluster` for the last cluster when the byte is at or beyond the
+    /// prepared text's end. Empty prepared text returns `EmptyText`.
+    fn caret_position_at_insertion_byte(
+        &self,
+        handle: TextHandle,
+        byte_index: usize,
+    ) -> CaretPosition;
 
     /// Hit-test a point (block-local coordinates) to a shaped glyph cluster,
     /// returning the start byte index of the hit cluster.

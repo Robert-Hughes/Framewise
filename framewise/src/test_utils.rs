@@ -1,6 +1,6 @@
 use crate::text::{
-    CaretGeom, LineMetrics, OverflowX, TextBounds, TextHandle, TextLayout, TextMetrics, TextStyle,
-    TextSystem,
+    CaretGeom, CaretPosition, LineMetrics, OverflowX, TextBounds, TextHandle, TextLayout,
+    TextMetrics, TextStyle, TextSystem,
 };
 use crate::types::{Rect, Vec2};
 
@@ -128,7 +128,8 @@ impl TextSystem for DummyTextSys {
         }
     }
 
-    fn caret_geom(&self, _handle: TextHandle, byte_index: usize) -> CaretGeom {
+    fn caret_geom(&self, _handle: TextHandle, position: CaretPosition) -> CaretGeom {
+        let byte_index = self.caret_insertion_byte(TextHandle(0), position);
         if let Some((ref _text, ref metrics)) = self.last_run {
             let line = metrics
                 .lines
@@ -154,7 +155,7 @@ impl TextSystem for DummyTextSys {
         }
     }
 
-    fn hit_test_caret(&self, _handle: TextHandle, pos: Vec2) -> usize {
+    fn hit_test_caret(&self, _handle: TextHandle, pos: Vec2) -> CaretPosition {
         if let Some((ref text, ref metrics)) = self.last_run {
             let line = metrics
                 .lines
@@ -182,9 +183,43 @@ impl TextSystem for DummyTextSys {
                 line_len
             };
             let clamped_col = col.min(max_col);
-            line.byte_start + clamped_col
+            self.caret_position_at_insertion_byte(TextHandle(0), line.byte_start + clamped_col)
         } else {
-            (pos.x / 8.0).max(0.0).round() as usize
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: (pos.x / 8.0).max(0.0).round() as usize,
+            }
+        }
+    }
+
+    fn caret_insertion_byte(&self, _handle: TextHandle, position: CaretPosition) -> usize {
+        match position {
+            CaretPosition::BeforeCluster { cluster_byte_index }
+            | CaretPosition::AfterCluster { cluster_byte_index } => {
+                let after_offset =
+                    usize::from(matches!(position, CaretPosition::AfterCluster { .. }));
+                cluster_byte_index + after_offset
+            }
+            CaretPosition::EmptyText => 0,
+        }
+    }
+
+    fn caret_position_at_insertion_byte(
+        &self,
+        _handle: TextHandle,
+        byte_index: usize,
+    ) -> CaretPosition {
+        if let Some((ref text, _)) = self.last_run {
+            if text.is_empty() {
+                return CaretPosition::EmptyText;
+            }
+            if byte_index >= text.len() {
+                return CaretPosition::AfterCluster {
+                    cluster_byte_index: text.len().saturating_sub(1),
+                };
+            }
+        }
+        CaretPosition::BeforeCluster {
+            cluster_byte_index: byte_index,
         }
     }
 

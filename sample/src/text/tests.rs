@@ -3,9 +3,9 @@ mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::widgets::label::{raw as raw_label, LabelStyle};
     use framewise::{
-        Color, DrawCommands, EllipsisFallback, FontId, Layer, LineHeight, OverflowX, OverflowY,
-        Rect, TextBounds, TextContentPlacement, TextFlow, TextHandle, TextLineAlign, TextStyle,
-        TextSystem, Vec2, WrapClusterFallback, WrapWordFallback,
+        CaretGeom, CaretPosition, Color, DrawCommands, EllipsisFallback, FontId, Layer, LineHeight,
+        OverflowX, OverflowY, Rect, TextBounds, TextContentPlacement, TextFlow, TextHandle,
+        TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback, WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
@@ -50,6 +50,20 @@ mod tests {
             &mut cmds,
         );
         visual_lines(&sys, TextHandle(sys.runs.len() - 1))
+    }
+
+    fn caret_geom_at_byte(
+        sys: &SampleTextSystem,
+        handle: TextHandle,
+        byte_index: usize,
+    ) -> CaretGeom {
+        let position = sys.caret_position_at_insertion_byte(handle, byte_index);
+        sys.caret_geom(handle, position)
+    }
+
+    fn hit_test_caret_byte(sys: &SampleTextSystem, handle: TextHandle, pos: Vec2) -> usize {
+        let position = sys.hit_test_caret(handle, pos);
+        sys.caret_insertion_byte(handle, position)
     }
 
     fn logical_glyph_end(g: &crate::text::types::GlyphPosition) -> f32 {
@@ -472,8 +486,8 @@ mod tests {
             TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
-        let c0 = sys.caret_geom(layout.handle, 0);
-        let c3 = sys.caret_geom(layout.handle, 3);
+        let c0 = caret_geom_at_byte(&sys, layout.handle, 0);
+        let c3 = caret_geom_at_byte(&sys, layout.handle, 3);
         assert!(c3.x > c0.x);
         assert_eq!(c0.y_top, c3.y_top);
     }
@@ -486,9 +500,9 @@ mod tests {
             TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 40.0),
         );
-        let far = sys.hit_test_caret(layout.handle, Vec2::new(1000.0, 5.0));
+        let far = hit_test_caret_byte(&sys, layout.handle, Vec2::new(1000.0, 5.0));
         assert_eq!(far, 3);
-        let near = sys.hit_test_caret(layout.handle, Vec2::new(-5.0, 5.0));
+        let near = hit_test_caret_byte(&sys, layout.handle, Vec2::new(-5.0, 5.0));
         assert_eq!(near, 0);
     }
 
@@ -647,8 +661,14 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         let first_cluster_x = run.clusters[0].x;
 
-        assert_eq!(sys.caret_geom(layout.handle, 1).x, first_cluster_x);
-        assert_eq!(sys.caret_geom(layout.handle, 2).x, first_cluster_x);
+        assert_eq!(
+            caret_geom_at_byte(&sys, layout.handle, 1).x,
+            first_cluster_x
+        );
+        assert_eq!(
+            caret_geom_at_byte(&sys, layout.handle, 2).x,
+            first_cluster_x
+        );
     }
 
     #[test]
@@ -665,14 +685,16 @@ mod tests {
         let y = run.lines[0].y_top + 1.0;
 
         assert_eq!(
-            sys.hit_test_caret(
+            hit_test_caret_byte(
+                &sys,
                 layout.handle,
                 Vec2::new(cluster.x + cluster.advance * 0.25, y)
             ),
             0
         );
         assert_eq!(
-            sys.hit_test_caret(
+            hit_test_caret_byte(
+                &sys,
                 layout.handle,
                 Vec2::new(cluster.x + cluster.advance * 0.75, y)
             ),
@@ -944,7 +966,7 @@ mod tests {
         );
 
         let expected_advance = shaped_advance(text, size, FontId(1), 400);
-        let caret = sys.caret_geom(layout.handle, text.len());
+        let caret = caret_geom_at_byte(&sys, layout.handle, text.len());
 
         assert!(
             (caret.x - expected_advance).abs() < 0.25,
@@ -1122,7 +1144,7 @@ mod tests {
             TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
-        let c_line2 = sys.caret_geom(layout.handle, 4);
+        let c_line2 = caret_geom_at_byte(&sys, layout.handle, 4);
         assert!(
             c_line2.y_top > 1.0,
             "second-line caret should sit below the first"
@@ -1221,7 +1243,7 @@ mod tests {
             Rect::new(0.0, 0.0, 200.0, 100.0),
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
-        let on_line2 = sys.hit_test_caret(layout.handle, Vec2::new(0.0, lh + lh * 0.5));
+        let on_line2 = hit_test_caret_byte(&sys, layout.handle, Vec2::new(0.0, lh + lh * 0.5));
         assert_eq!(on_line2, 4);
     }
 
@@ -1248,7 +1270,7 @@ mod tests {
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
         // Click well to the right of "abc" on line 0, still within line 0's Y band.
-        let result = sys.hit_test_caret(layout.handle, Vec2::new(1000.0, lh * 0.5));
+        let result = hit_test_caret_byte(&sys, layout.handle, Vec2::new(1000.0, lh * 0.5));
         // Must land on the '\n' at byte 3, not on byte 4 (start of "def").
         assert_eq!(
             result, 3,
@@ -1270,7 +1292,7 @@ mod tests {
         );
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
         // Click anywhere on the blank line (line index 1, Y ≈ lh..2*lh).
-        let result = sys.hit_test_caret(layout.handle, Vec2::new(100.0, lh + lh * 0.5));
+        let result = hit_test_caret_byte(&sys, layout.handle, Vec2::new(100.0, lh + lh * 0.5));
         // Byte 2 is the '\n' that forms the blank line; byte 3 would be the
         // start of the last line ("b").
         assert_eq!(
@@ -1294,10 +1316,10 @@ mod tests {
         let lh = sys.line_height(16.0, FontId(0), LineHeight::Normal);
 
         // Get the widths of the characters on Line 0 to determine coordinates
-        let caret0 = sys.caret_geom(layout.handle, 0); // x of 'a' left
-        let caret1 = sys.caret_geom(layout.handle, 1); // x of 'a' right / ' ' left
-        let caret2 = sys.caret_geom(layout.handle, 2); // x of ' ' right / 'b' left
-        let caret3 = sys.caret_geom(layout.handle, 3); // x of 'b' right / '\n' left
+        let caret0 = caret_geom_at_byte(&sys, layout.handle, 0); // x of 'a' left
+        let caret1 = caret_geom_at_byte(&sys, layout.handle, 1); // x of 'a' right / ' ' left
+        let caret2 = caret_geom_at_byte(&sys, layout.handle, 2); // x of ' ' right / 'b' left
+        let caret3 = caret_geom_at_byte(&sys, layout.handle, 3); // x of 'b' right / '\n' left
 
         let y0 = lh * 0.5; // Line 0
         let y1 = lh + lh * 0.5; // Line 1
@@ -1351,7 +1373,7 @@ mod tests {
         );
 
         // 7. Click on Line 1 ('c')
-        let caret4 = sys.caret_geom(layout.handle, 4); // 'c' left
+        let caret4 = caret_geom_at_byte(&sys, layout.handle, 4); // 'c' left
         assert_eq!(
             sys.hit_test_cluster(layout.handle, Vec2::new(caret4.x + 1.0, y1)),
             4
@@ -1378,7 +1400,7 @@ mod tests {
         let line0_y_top = run.lines[0].y_top;
         let line0_height = run.lines[0].height;
 
-        let caret = sys.caret_geom(layout.handle, 3); // index of '\n'
+        let caret = caret_geom_at_byte(&sys, layout.handle, 3); // index of '\n'
         assert_eq!(
             caret.y_top, line0_y_top,
             "caret at the '\\n' index (byte 3) must sit on line 0 (y_top={line0_y_top}), \
@@ -1407,7 +1429,7 @@ mod tests {
         let line1_height = run.lines[1].height;
 
         // byte 4 == byte_end of line 0 == byte_start of line 1.
-        let caret = sys.caret_geom(layout.handle, 4);
+        let caret = caret_geom_at_byte(&sys, layout.handle, 4);
         assert_eq!(
             caret.y_top, line1_y_top,
             "caret at byte 4 (byte_end of the '\\n' line) must sit on line 1 \
@@ -1416,6 +1438,52 @@ mod tests {
         assert_eq!(
             caret.height, line1_height,
             "caret height at byte 4 must match line 1 height"
+        );
+    }
+
+    #[test]
+    fn caret_position_distinguishes_before_and_after_newline_cluster() {
+        let mut sys = sys();
+        let layout = sys.prepare(
+            "abc\ndef",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let newline_byte = 3;
+
+        let before_newline = sys.caret_geom(
+            layout.handle,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: newline_byte,
+            },
+        );
+        let after_newline = sys.caret_geom(
+            layout.handle,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: newline_byte,
+            },
+        );
+
+        assert_eq!(before_newline.y_top, run.lines[0].y_top);
+        assert_eq!(after_newline.y_top, run.lines[1].y_top);
+        assert_eq!(
+            sys.caret_insertion_byte(
+                layout.handle,
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: newline_byte,
+                },
+            ),
+            newline_byte
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(
+                layout.handle,
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: newline_byte,
+                },
+            ),
+            newline_byte + 1
         );
     }
 
@@ -1447,7 +1515,7 @@ mod tests {
         let l1 = &run.lines[1];
 
         // l0.byte_end is the index of the space or the start of "wrapping" (index 6, since "hello " is 6 chars).
-        let caret_at_boundary = sys.caret_geom(layout.handle, l0.byte_end);
+        let caret_at_boundary = caret_geom_at_byte(&sys, layout.handle, l0.byte_end);
         assert_eq!(
             caret_at_boundary.y_top, l1.y_top,
             "caret at soft-wrap boundary index ({}) must resolve to visual line 1",
@@ -1461,7 +1529,7 @@ mod tests {
 
         // Querying immediately before the soft-wrap boundary (i.e. l0.byte_end - 1).
         // It should stay on line 0.
-        let caret_before_boundary = sys.caret_geom(layout.handle, l0.byte_end - 1);
+        let caret_before_boundary = caret_geom_at_byte(&sys, layout.handle, l0.byte_end - 1);
         assert_eq!(
             caret_before_boundary.y_top, l0.y_top,
             "caret immediately before soft-wrap boundary must resolve to visual line 0"
@@ -1471,6 +1539,46 @@ mod tests {
         assert!(
             l0.logical_width > 0.0,
             "logical_width of line 0 should be positive"
+        );
+    }
+
+    #[test]
+    fn caret_position_distinguishes_soft_wrap_boundary_space_sides() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let layout = sys.prepare(
+            "hello world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let space_byte = 5;
+
+        let before_space = sys.caret_geom(
+            layout.handle,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: space_byte,
+            },
+        );
+        let after_space = sys.caret_geom(
+            layout.handle,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: space_byte,
+            },
+        );
+
+        assert_eq!(before_space.y_top, run.lines[0].y_top);
+        assert_eq!(after_space.y_top, run.lines[1].y_top);
+        assert_close(before_space.x, hello_w, "before collapsed boundary space");
+        assert_close(after_space.x, 0.0, "after collapsed boundary space");
+
+        let line0_mid_y = run.lines[0].y_top + run.lines[0].height * 0.5;
+        assert_eq!(
+            sys.hit_test_caret(layout.handle, Vec2::new(1000.0, line0_mid_y)),
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: space_byte
+            }
         );
     }
 
@@ -1515,10 +1623,10 @@ mod tests {
             "ink bounds width should match rasterized glyph extents"
         );
 
-        let caret = sys.caret_geom(layout.handle, 0);
+        let caret = caret_geom_at_byte(&sys, layout.handle, 0);
         assert_eq!(caret.x, 0.0, "Caret at index 0 must be at x = 0.0");
 
-        let idx = sys.hit_test_caret(layout.handle, Vec2::new(0.0, 5.0));
+        let idx = hit_test_caret_byte(&sys, layout.handle, Vec2::new(0.0, 5.0));
         assert_eq!(idx, 0, "Hit testing near 0.0 must return index 0");
     }
 
@@ -2098,9 +2206,9 @@ mod tests {
         assert!(height_small < height_normal);
 
         // Verify caret y_top reflects line height change
-        let caret_normal = sys.caret_geom(layout_normal.handle, 6); // start of "World"
-        let caret_large = sys.caret_geom(layout_large.handle, 6);
-        let caret_small = sys.caret_geom(layout_small.handle, 6);
+        let caret_normal = caret_geom_at_byte(&sys, layout_normal.handle, 6); // start of "World"
+        let caret_large = caret_geom_at_byte(&sys, layout_large.handle, 6);
+        let caret_small = caret_geom_at_byte(&sys, layout_small.handle, 6);
 
         assert!((caret_normal.y_top - normal_lh).abs() < 0.1);
         assert!((caret_large.y_top - large_lh).abs() < 0.1);
@@ -2326,17 +2434,17 @@ mod tests {
         );
         let run = &sys.runs[layout.handle.0];
 
-        let caret_at_space = sys.caret_geom(layout.handle, 5);
+        let caret_at_space = caret_geom_at_byte(&sys, layout.handle, 5);
         assert_eq!(caret_at_space.y_top, run.lines[0].y_top);
         assert_close(caret_at_space.x, hello_w, "caret at collapsed space");
 
-        let caret_after_space = sys.caret_geom(layout.handle, 6);
+        let caret_after_space = caret_geom_at_byte(&sys, layout.handle, 6);
         assert_eq!(caret_after_space.y_top, run.lines[1].y_top);
         assert_close(caret_after_space.x, 0.0, "caret after collapsed space");
 
         let line0_mid_y = run.lines[0].y_top + run.lines[0].height * 0.5;
         assert_eq!(
-            sys.hit_test_caret(layout.handle, Vec2::new(1000.0, line0_mid_y)),
+            hit_test_caret_byte(&sys, layout.handle, Vec2::new(1000.0, line0_mid_y)),
             5,
             "hit-testing past a collapsed soft-wrap boundary space should stay on that space"
         );

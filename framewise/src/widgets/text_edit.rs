@@ -322,7 +322,10 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(handle, start_byte);
+                        let caret = text_system.caret_geom(
+                            handle,
+                            text_system.caret_position_at_insertion_byte(handle, start_byte),
+                        );
                         let current_line_idx = metrics
                             .lines
                             .iter()
@@ -335,7 +338,9 @@ pub mod raw {
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
                             let new_caret = text_system.hit_test_caret(handle, pos);
-                            state.caret_byte = new_caret.min(state.value.len());
+                            state.caret_byte = text_system
+                                .caret_insertion_byte(handle, new_caret)
+                                .min(state.value.len());
                         } else {
                             // Already on first visual line, move to start of text
                             state.caret_byte = 0;
@@ -375,7 +380,10 @@ pub mod raw {
                         let handle = layout.handle;
                         let metrics = layout.metrics;
 
-                        let caret = text_system.caret_geom(handle, start_byte);
+                        let caret = text_system.caret_geom(
+                            handle,
+                            text_system.caret_position_at_insertion_byte(handle, start_byte),
+                        );
                         let current_line_idx = metrics
                             .lines
                             .iter()
@@ -388,7 +396,9 @@ pub mod raw {
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
                             let new_caret = text_system.hit_test_caret(handle, pos);
-                            state.caret_byte = new_caret.min(state.value.len());
+                            state.caret_byte = text_system
+                                .caret_insertion_byte(handle, new_caret)
+                                .min(state.value.len());
                         } else {
                             // Already on last visual line, move to end of text
                             state.caret_byte = state.value.len();
@@ -672,7 +682,8 @@ pub mod raw {
                 input.mouse_pos.x - text_rect.x,
                 input.mouse_pos.y - text_rect.y,
             );
-            let clicked_byte = text_system.hit_test_caret(handle, relative_pos);
+            let clicked_caret = text_system.hit_test_caret(handle, relative_pos);
+            let clicked_byte = text_system.caret_insertion_byte(handle, clicked_caret);
             let clicked_byte = clicked_byte.min(state.value.len());
 
             // Handling double/triple clicks
@@ -703,7 +714,8 @@ pub mod raw {
                     input.mouse_pos.x - text_rect.x,
                     input.mouse_pos.y - text_rect.y,
                 );
-                let current_byte = text_system.hit_test_caret(handle, relative_pos);
+                let current_caret = text_system.hit_test_caret(handle, relative_pos);
+                let current_byte = text_system.caret_insertion_byte(handle, current_caret);
                 let current_byte = current_byte.min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
@@ -741,15 +753,24 @@ pub mod raw {
                 (true, Some(sel)) if sel != state.caret_byte => {
                     let start = sel.min(state.caret_byte);
                     let end = sel.max(state.caret_byte);
-                    let start_caret = text_system.caret_geom(handle, start);
-                    let end_caret = text_system.caret_geom(handle, end);
+                    let start_caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, start),
+                    );
+                    let end_caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, end),
+                    );
                     (
                         start_caret.x.min(end_caret.x),
                         start_caret.x.max(end_caret.x),
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(handle, state.caret_byte);
+                    let caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
+                    );
                     (caret.x, caret.x)
                 }
             };
@@ -782,8 +803,14 @@ pub mod raw {
                 (true, Some(sel)) if sel != state.caret_byte => {
                     let start = sel.min(state.caret_byte);
                     let end = sel.max(state.caret_byte);
-                    let start_caret = text_system.caret_geom(handle, start);
-                    let end_caret = text_system.caret_geom(handle, end);
+                    let start_caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, start),
+                    );
+                    let end_caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, end),
+                    );
                     (
                         start_caret.y_top.min(end_caret.y_top),
                         (start_caret.y_top + start_caret.height)
@@ -791,7 +818,10 @@ pub mod raw {
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(handle, state.caret_byte);
+                    let caret = text_system.caret_geom(
+                        handle,
+                        text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
+                    );
                     (caret.y_top, caret.y_top + caret.height)
                 }
             };
@@ -821,7 +851,11 @@ pub mod raw {
                         let line_sel_end = end.min(line.byte_end);
 
                         if line_sel_start < line_sel_end {
-                            let start_caret = text_system.caret_geom(handle, line_sel_start);
+                            let start_caret = text_system.caret_geom(
+                                handle,
+                                text_system
+                                    .caret_position_at_insertion_byte(handle, line_sel_start),
+                            );
 
                             let has_newline = line.byte_end > line.byte_start
                                 && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
@@ -834,7 +868,13 @@ pub mod raw {
                                     line.logical_width
                                 }
                             } else {
-                                text_system.caret_geom(handle, line_sel_end).x
+                                text_system
+                                    .caret_geom(
+                                        handle,
+                                        text_system
+                                            .caret_position_at_insertion_byte(handle, line_sel_end),
+                                    )
+                                    .x
                             };
 
                             let sel_rect = Rect::new(
@@ -879,7 +919,10 @@ pub mod raw {
             };
 
             if blink_on {
-                let caret = text_system.caret_geom(handle, state.caret_byte);
+                let caret = text_system.caret_geom(
+                    handle,
+                    text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
+                );
                 let caret_rect = Rect::new(
                     text_rect.x + caret.x,
                     text_rect.y + caret.y_top,

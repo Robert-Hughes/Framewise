@@ -34,8 +34,8 @@
 
 use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec, TextCluster};
 use framewise::{
-    CaretGeom, FontId, LineHeight, Rect, TextBounds, TextFlow, TextLayout, TextMetrics, TextSystem,
-    Vec2,
+    CaretGeom, CaretPosition, FontId, LineHeight, Rect, TextBounds, TextFlow, TextLayout,
+    TextMetrics, TextSystem, Vec2,
 };
 use std::collections::HashMap;
 
@@ -349,68 +349,134 @@ impl TextSystem for SampleTextSystem {
         }
     }
 
-    fn caret_geom(&self, handle: framewise::TextHandle, byte_index: usize) -> CaretGeom {
+    fn caret_geom(&self, handle: framewise::TextHandle, position: CaretPosition) -> CaretGeom {
         let run = &self.runs[handle.0];
-
-        // Find the line the byte falls on (last line whose start is <= byte).
-        let line = run
-            .lines
-            .iter()
-            .rev()
-            .find(|l| byte_index >= l.byte_start)
-            .or_else(|| run.lines.first())
-            .expect("a prepared run always has at least one line");
-
-        // X within the line: leading edge of the cluster at/after byte_index,
-        // else the trailing edge of the last cluster on the line.
-        let clusters = &run.clusters[line.cluster_start..line.cluster_end];
-        let x = if byte_index >= line.byte_end {
-            clusters
-                .last()
-                .map(|cluster| cluster.x + cluster.advance)
-                .unwrap_or_else(|| line_start_x(clusters))
-        } else {
-            clusters
-                .iter()
-                .find(|cluster| byte_index <= cluster.byte_start || byte_index < cluster.byte_end)
-                .map(|cluster| cluster.x)
-                .unwrap_or_else(|| line_start_x(clusters))
+        let Some((cluster_idx, cluster)) = find_caret_cluster(run, position) else {
+            let line = run
+                .lines
+                .first()
+                .expect("a prepared run always has at least one line");
+            return CaretGeom {
+                x: 0.0,
+                y_top: line.y_top,
+                height: line.height,
+            };
         };
 
-        CaretGeom {
-            x,
-            y_top: line.y_top,
-            height: line.height,
-        }
+        let line_idx = line_index_for_cluster(run, cluster_idx).unwrap_or(0);
+        let line = &run.lines[line_idx];
+        let (x, y_top, height) = match position {
+            CaretPosition::BeforeCluster { .. } => (cluster.x, line.y_top, line.height),
+            CaretPosition::AfterCluster { .. }
+                if cluster.is_hard_break || cluster.is_soft_wrap_boundary =>
+            {
+                let next_line = run.lines.get(line_idx + 1).unwrap_or(line);
+                let next_clusters = &run.clusters[next_line.cluster_start..next_line.cluster_end];
+                (
+                    line_start_x(next_clusters),
+                    next_line.y_top,
+                    next_line.height,
+                )
+            }
+            CaretPosition::AfterCluster { .. } => {
+                (cluster.x + cluster.advance, line.y_top, line.height)
+            }
+            CaretPosition::EmptyText => unreachable!("handled by missing-cluster branch"),
+        };
+
+        CaretGeom { x, y_top, height }
     }
 
-    fn hit_test_caret(&self, handle: framewise::TextHandle, pos: Vec2) -> usize {
+    fn hit_test_caret(&self, handle: framewise::TextHandle, pos: Vec2) -> CaretPosition {
         let run = &self.runs[handle.0];
 
         // Resolve the line by Y (clamp above/below to first/last).
-        let line = run
+        let line_idx = run
             .lines
             .iter()
-            .find(|l| pos.y < l.y_top + l.height)
-            .unwrap_or_else(|| run.lines.last().expect("at least one line"));
+            .position(|l| pos.y < l.y_top + l.height)
+            .unwrap_or_else(|| run.lines.len().saturating_sub(1));
+        let line = &run.lines[line_idx];
 
         let clusters = &run.clusters[line.cluster_start..line.cluster_end];
         if clusters.is_empty() {
-            return line.byte_start;
+            return empty_line_caret_position(run, line_idx);
         }
         for cluster in clusters {
             let mid = cluster.x + cluster.advance * 0.5;
             if pos.x < mid {
-                return cluster.byte_start;
+                return CaretPosition::BeforeCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
             }
         }
         // The point is to the right of every cluster. If the line ends with a
         // hard newline or collapsed soft-wrap boundary space, clamp to that
-        // source character rather than byte_end (one past it), so clicking in
-        // the right margin never jumps the caret to the next line.
+        // source character so clicking in the right margin never jumps the
+        // visual caret anchor to the next line.
         match clusters.last() {
-            Some(last) if last.is_hard_break || last.is_soft_wrap_boundary => last.byte_start,
-            _ => line.byte_end,
+            Some(last) if last.is_hard_break || last.is_soft_wrap_boundary => {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: last.byte_start,
+                }
+            }
+            Some(last) => CaretPosition::AfterCluster {
+                cluster_byte_index: last.byte_start,
+            },
+            None => empty_line_caret_position(run, line_idx),
+        }
+    }
+
+    fn caret_insertion_byte(
+        &self,
+        handle: framewise::TextHandle,
+        position: CaretPosition,
+    ) -> usize {
+        let run = &self.runs[handle.0];
+        match find_caret_cluster(run, position) {
+            Some((_, cluster)) => match position {
+                CaretPosition::BeforeCluster { .. } => cluster.byte_start,
+                CaretPosition::AfterCluster { .. } => cluster.byte_end,
+                CaretPosition::EmptyText => 0,
+            },
+            None => 0,
+        }
+    }
+
+    fn caret_position_at_insertion_byte(
+        &self,
+        handle: framewise::TextHandle,
+        byte_index: usize,
+    ) -> CaretPosition {
+        let run = &self.runs[handle.0];
+        if run.clusters.is_empty() {
+            return CaretPosition::EmptyText;
+        }
+
+        for (idx, cluster) in run.clusters.iter().enumerate() {
+            if byte_index <= cluster.byte_start || byte_index < cluster.byte_end {
+                return CaretPosition::BeforeCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
+            }
+
+            if byte_index == cluster.byte_end {
+                if let Some(next) = run.clusters.get(idx + 1) {
+                    if next.byte_start == byte_index {
+                        return CaretPosition::BeforeCluster {
+                            cluster_byte_index: next.byte_start,
+                        };
+                    }
+                }
+                return CaretPosition::AfterCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
+            }
+        }
+
+        let last = run.clusters.last().expect("clusters is non-empty");
+        CaretPosition::AfterCluster {
+            cluster_byte_index: last.byte_start,
         }
     }
 
@@ -442,4 +508,52 @@ impl TextSystem for SampleTextSystem {
 
 fn line_start_x(clusters: &[crate::text::types::TextCluster]) -> f32 {
     clusters.first().map(|cluster| cluster.x).unwrap_or(0.0)
+}
+
+fn find_caret_cluster(
+    run: &CachedLayout,
+    position: CaretPosition,
+) -> Option<(usize, &TextCluster)> {
+    let cluster_byte_index = match position {
+        CaretPosition::BeforeCluster { cluster_byte_index }
+        | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,
+        CaretPosition::EmptyText => return None,
+    };
+
+    run.clusters
+        .iter()
+        .enumerate()
+        .find(|(_, cluster)| cluster.byte_start == cluster_byte_index)
+        .or_else(|| {
+            run.clusters.iter().enumerate().find(|(_, cluster)| {
+                cluster_byte_index <= cluster.byte_start || cluster_byte_index < cluster.byte_end
+            })
+        })
+        .or_else(|| run.clusters.iter().enumerate().next_back())
+}
+
+fn line_index_for_cluster(run: &CachedLayout, cluster_idx: usize) -> Option<usize> {
+    run.lines
+        .iter()
+        .position(|line| cluster_idx >= line.cluster_start && cluster_idx < line.cluster_end)
+}
+
+fn empty_line_caret_position(run: &CachedLayout, line_idx: usize) -> CaretPosition {
+    if run.clusters.is_empty() {
+        return CaretPosition::EmptyText;
+    }
+
+    run.lines
+        .get(..line_idx)
+        .and_then(|lines| {
+            lines
+                .iter()
+                .rev()
+                .find(|line| line.cluster_end > line.cluster_start)
+        })
+        .and_then(|line| run.clusters.get(line.cluster_end - 1))
+        .map(|cluster| CaretPosition::AfterCluster {
+            cluster_byte_index: cluster.byte_start,
+        })
+        .unwrap_or(CaretPosition::EmptyText)
 }

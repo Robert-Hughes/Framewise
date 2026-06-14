@@ -219,7 +219,11 @@ mod tests {
     use super::raw::LabelSpec;
     use super::*;
     use crate::{
-        test_utils::DummyTextSys, text::FontId, text::TextHandle, theme, types::Vec2, Input,
+        test_utils::DummyTextSys,
+        text::{CaretPosition, FontId, TextHandle},
+        theme,
+        types::Vec2,
+        Input,
     };
 
     struct RecordingTextSys {
@@ -254,7 +258,11 @@ mod tests {
             }
         }
 
-        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+        fn caret_geom(
+            &self,
+            _handle: TextHandle,
+            _position: CaretPosition,
+        ) -> crate::text::CaretGeom {
             crate::text::CaretGeom {
                 x: 0.0,
                 y_top: 0.0,
@@ -262,8 +270,20 @@ mod tests {
             }
         }
 
-        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> CaretPosition {
+            CaretPosition::EmptyText
+        }
+
+        fn caret_insertion_byte(&self, _handle: TextHandle, _position: CaretPosition) -> usize {
             0
+        }
+
+        fn caret_position_at_insertion_byte(
+            &self,
+            _handle: TextHandle,
+            _byte_index: usize,
+        ) -> CaretPosition {
+            CaretPosition::EmptyText
         }
 
         fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {
@@ -308,7 +328,11 @@ mod tests {
             }
         }
 
-        fn caret_geom(&self, _handle: TextHandle, _byte_index: usize) -> crate::text::CaretGeom {
+        fn caret_geom(
+            &self,
+            _handle: TextHandle,
+            _position: CaretPosition,
+        ) -> crate::text::CaretGeom {
             crate::text::CaretGeom {
                 x: 0.0,
                 y_top: 0.0,
@@ -316,8 +340,20 @@ mod tests {
             }
         }
 
-        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> usize {
+        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> CaretPosition {
+            CaretPosition::EmptyText
+        }
+
+        fn caret_insertion_byte(&self, _handle: TextHandle, _position: CaretPosition) -> usize {
             0
+        }
+
+        fn caret_position_at_insertion_byte(
+            &self,
+            _handle: TextHandle,
+            _byte_index: usize,
+        ) -> CaretPosition {
+            CaretPosition::EmptyText
         }
 
         fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {
