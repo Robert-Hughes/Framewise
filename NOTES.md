@@ -4,8 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- add golden comparisons for all the sample app pages, not just the spec page?
-
 - Text Edit
 
   - wrapping options for multi-line

@@ -50,6 +50,15 @@ pub mod raw {
         pub clipboard_action: Option<ClipboardAction>,
     }
 
+    fn visual_line_index_at_y(metrics: &TextMetrics, y: f32) -> usize {
+        metrics
+            .lines
+            .iter()
+            .position(|line| y >= line.y_top && y < line.y_top + line.height)
+            .or_else(|| metrics.lines.iter().rposition(|line| y >= line.y_top))
+            .unwrap_or(0)
+    }
+
     /// Measure a text edit's intrinsic size from its current state and measurement spec.
     pub fn calc_text_edit_intrinsic_size<T: TextSystem>(
         spec: &TextEditCalcIntrinsicSizeSpec,
@@ -475,6 +484,7 @@ pub mod raw {
                         }
                         if *ctrl {
                             caret_byte = 0;
+                            caret_needs_layout_sync = true;
                         } else if spec.wrap {
                             let text_content = if state.value.is_empty() {
                                 " "
@@ -488,22 +498,32 @@ pub mod raw {
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
                             );
+                            let handle = layout.handle;
                             let metrics = layout.metrics;
-                            let current_line_idx = metrics
-                                .lines
-                                .iter()
-                                .rposition(|line| caret_byte >= line.byte_start)
-                                .unwrap_or(0);
+                            let visual_caret = if caret_needs_layout_sync {
+                                text_system.caret_position_at_insertion_byte(handle, caret_byte)
+                            } else {
+                                caret
+                            };
+                            let caret_geom = text_system.caret_geom(handle, visual_caret);
+                            let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
+                            let current_line_idx = visual_line_index_at_y(&metrics, caret_mid_y);
                             let line = &metrics.lines[current_line_idx];
-                            caret_byte = line.byte_start;
+                            let line_mid_y = line.y_top + line.height * 0.5;
+                            caret = text_system
+                                .hit_test_caret(handle, Vec2::new(line.logical_x, line_mid_y));
+                            caret_byte = text_system
+                                .caret_insertion_byte(handle, caret)
+                                .min(state.value.len());
+                            caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan left for the preceding '\n' (or
                             // the start of the string), then land just after it.
                             let line_start =
                                 state.value[..caret_byte].rfind('\n').map_or(0, |nl| nl + 1);
                             caret_byte = line_start;
+                            caret_needs_layout_sync = true;
                         }
-                        caret_needs_layout_sync = true;
                     }
                     TextEvent::CaretEnd { shift, ctrl } => {
                         if *shift && selection_byte.is_none() {
@@ -513,6 +533,7 @@ pub mod raw {
                         }
                         if *ctrl {
                             caret_byte = state.value.len();
+                            caret_needs_layout_sync = true;
                         } else if spec.wrap {
                             let text_content = if state.value.is_empty() {
                                 " "
@@ -526,21 +547,49 @@ pub mod raw {
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
                             );
+                            let handle = layout.handle;
                             let metrics = layout.metrics;
-                            let current_line_idx = metrics
-                                .lines
-                                .iter()
-                                .rposition(|line| caret_byte >= line.byte_start)
-                                .unwrap_or(0);
+                            let visual_caret = if caret_needs_layout_sync {
+                                text_system.caret_position_at_insertion_byte(handle, caret_byte)
+                            } else {
+                                caret
+                            };
+                            let caret_geom = text_system.caret_geom(handle, visual_caret);
+                            let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
+                            let current_line_idx = visual_line_index_at_y(&metrics, caret_mid_y);
                             let line = &metrics.lines[current_line_idx];
                             let has_newline = line.byte_end > line.byte_start
                                 && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
-                            let line_end = if has_newline {
-                                line.byte_end - 1
+                            let line_mid_y = line.y_top + line.height * 0.5;
+                            let end_cluster = text_system.hit_test_cluster(
+                                handle,
+                                Vec2::new(line.logical_x + line.logical_width + 1.0, line_mid_y),
+                            );
+                            caret = if has_newline {
+                                CaretPosition::BeforeCluster {
+                                    cluster_byte_index: end_cluster,
+                                }
                             } else {
-                                line.byte_end
+                                let line_end_caret = CaretPosition::AfterCluster {
+                                    cluster_byte_index: end_cluster,
+                                };
+                                let line_end_geom = text_system.caret_geom(handle, line_end_caret);
+                                let line_end_idx = visual_line_index_at_y(
+                                    &metrics,
+                                    line_end_geom.y_top + line_end_geom.height * 0.5,
+                                );
+                                if line_end_idx == current_line_idx {
+                                    line_end_caret
+                                } else {
+                                    CaretPosition::BeforeCluster {
+                                        cluster_byte_index: end_cluster,
+                                    }
+                                }
                             };
-                            caret_byte = line_end;
+                            caret_byte = text_system
+                                .caret_insertion_byte(handle, caret)
+                                .min(state.value.len());
+                            caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan right for the next '\n' and land
                             // just before it (or at the end of the string).
@@ -548,8 +597,8 @@ pub mod raw {
                                 .find('\n')
                                 .map_or(state.value.len(), |nl| caret_byte + nl);
                             caret_byte = line_end;
+                            caret_needs_layout_sync = true;
                         }
-                        caret_needs_layout_sync = true;
                     }
                     TextEvent::SelectAll => {
                         selection_byte = Some(0);
@@ -5430,6 +5479,189 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(caret_byte(&state), 10);
+    }
+
+    #[test]
+    fn test_text_edit_wrapping_home_end_preserves_visual_line_side() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        state.was_focused = true;
+
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
+        edit_spec.wrap = true;
+
+        // Visual Line 0: "abcdefghij" (bytes 0..10)
+        // Visual Line 1: "klmnopqrst" (bytes 10..20)
+        //
+        // The insertion byte at the wrap boundary is ambiguous:
+        // - AfterCluster(9) is the end of visual line 0.
+        // - BeforeCluster(10) is the start of visual line 1.
+
+        state.caret = CaretPosition::AfterCluster {
+            cluster_byte_index: 9,
+        };
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretHome {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 0
+            },
+            "Home from the end anchor of visual line 0 should stay on visual line 0"
+        );
+
+        state.caret = CaretPosition::BeforeCluster {
+            cluster_byte_index: 10,
+        };
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 19
+            },
+            "End from the start anchor of visual line 1 should stay on visual line 1"
+        );
+    }
+
+    #[test]
+    fn test_text_edit_wrapping_home_end_targets_visual_line_anchors() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        state.was_focused = true;
+
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
+        edit_spec.wrap = true;
+
+        state.caret = CaretPosition::BeforeCluster {
+            cluster_byte_index: 3,
+        };
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 9
+            },
+            "End on visual line 0 should use the line-end anchor, not the next line start"
+        );
+
+        state.caret = CaretPosition::BeforeCluster {
+            cluster_byte_index: 15,
+        };
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretHome {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 10
+            },
+            "Home on visual line 1 should use the line-start anchor"
+        );
+    }
+
+    #[test]
+    fn test_text_edit_wrapping_end_stays_before_collapsed_boundary_space() {
+        let mut text_system = CollapsedTrailingSpaceTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("a b");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        state.was_focused = true;
+
+        let mut edit_spec = spec();
+        edit_spec.wrap = true;
+
+        state.caret = CaretPosition::BeforeCluster {
+            cluster_byte_index: 0,
+        };
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretEnd {
+            shift: false,
+            ctrl: false,
+        });
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 1
+            },
+            "End on a line ending with collapsed soft-wrap whitespace should stay on that visual line"
+        );
     }
 
     #[test]

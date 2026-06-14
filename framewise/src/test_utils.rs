@@ -159,12 +159,24 @@ impl TextSystem for DummyTextSys {
 
     fn caret_geom(&self, _handle: TextHandle, position: CaretPosition) -> CaretGeom {
         let byte_index = self.caret_insertion_byte(TextHandle(0), position);
+        let anchor_byte = match position {
+            CaretPosition::BeforeCluster { cluster_byte_index }
+            | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,
+            CaretPosition::EmptyText => 0,
+        };
         if let Some((ref _text, ref metrics)) = self.last_run {
             let line = metrics
                 .lines
                 .iter()
                 .rev()
-                .find(|l| byte_index >= l.byte_start)
+                .find(|l| anchor_byte >= l.byte_start && anchor_byte < l.byte_end)
+                .or_else(|| {
+                    metrics
+                        .lines
+                        .iter()
+                        .rev()
+                        .find(|l| byte_index >= l.byte_start)
+                })
                 .or_else(|| metrics.lines.first());
             let (x, y_top, height) = if let Some(line) = line {
                 let col = byte_index.saturating_sub(line.byte_start);
@@ -318,7 +330,6 @@ impl TextSystem for DummyTextSys {
 
             let pos_x = pos.x - line.logical_x;
             let col = (pos_x / 8.0).max(0.0).floor() as usize;
-            let actual_line_text = &text[line.byte_start..line.byte_end];
             let max_col = line_len.saturating_sub(1);
             let clamped_col = col.min(max_col);
             line.byte_start + clamped_col

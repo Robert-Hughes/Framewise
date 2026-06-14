@@ -3028,10 +3028,10 @@ mod tests {
         let text = "hello";
         let width = 200.0;
 
-        for (align, expected_logical_x) in [
-            (TextLineAlign::Start, 0.0),
-            (TextLineAlign::Center, 80.0), // (200 - hello_width) * 0.5 where hello_width is ~40.0
-            (TextLineAlign::End, 160.0),   // 200 - hello_width
+        for align in [
+            TextLineAlign::Start,
+            TextLineAlign::Center,
+            TextLineAlign::End,
         ] {
             let flow = TextFlow {
                 overflow_x: OverflowX::Keep,
