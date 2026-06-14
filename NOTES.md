@@ -13,6 +13,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
     - End key moves caret to the line *beneath*, not end of the current (wrapped) line. Should use the new caret begin/end semenatic? Make sure is correct for wrapped words and collapsed trailing spaces etc.
 
+    - double-click and drag select text currently clamps to word - nice! Test this behaviour so we don't lose it
+      - same thing for triple-click for lines?
+
   - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
     - check Antigravity conversation
     - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
@@ -29,7 +32,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
 
-  - the ASCII art tables of wrapping examples (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
+  - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
 
   - scrollbar visibility
   - scrollbar styling

@@ -150,252 +150,413 @@ pub fn draw_scroll_demo(
     let _ = clipboard;
     let win_w = win_size.0;
     let win_h = win_size.1;
+    let is_unbounded = win_h.is_infinite();
     let pad = 20.0;
 
     let mut cmds = framewise::DrawCommands::new();
+    let space = if is_unbounded {
+        framewise::LayoutSpace::unbounded_height(pad, pad, win_w - 2.0 * pad)
+    } else {
+        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad).into()
+    };
+
     let mut ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
         framewise::layouts::ColumnLayout,
-        Rect::new(pad, pad, win_w - 2.0 * pad, win_h - 2.0 * pad),
+        space,
         &mut cmds,
     );
     ctx.time = time;
 
-    let crate::demo_page::DemoPageNoScrollResult { ctx: mut main_row } =
-        crate::demo_page::begin_demo_page_no_scroll(
+    {
+        let mut outer = crate::demo_page::begin_demo_page_no_scroll(
             &mut ctx,
             "Scroll Demo",
             debug_layout,
+            is_unbounded,
             framewise::layouts::RowLayout,
         );
 
-    // Main container splitting into Sidebar (Left) and Content (Right)
+        draw_scroll_demo_content(&mut outer.ctx, state, is_unbounded);
+        outer.ctx.finish();
+    }
+
+    ctx.finish();
+    cmds
+}
+
+pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
+    main_row: &'b mut WidgetContext<
+        'a,
+        SampleTextSystem,
+        framewise::layouts::OffsetState<framewise::RowState>,
+        CF,
+    >,
+    state: &mut ScrollDemoState,
+    is_unbounded: bool,
+) {
+    // -- SIDEBAR (Left Column) --
     {
-        // -- SIDEBAR (Left Column) --
+        let mut sidebar_col = {
+            let layout_params = if is_unbounded {
+                RowLayoutParams::auto().fixed_x(200.0)
+            } else {
+                RowLayoutParams::auto().fixed_x(200.0).fill_y()
+            };
+            let layout = framewise::layouts::ColumnLayout;
+            main_row.child_with_layout(layout_params, layout)
+        };
+        let mut button_style =
+            framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
+        button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
+        button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
+        button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
+
+        let mut sidebar_scroll = begin_scroll_area(
+            &mut sidebar_col,
+            ScrollAreaSpecBuilder::new()
+                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::fixed(400.0),
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                })
+                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                }),
+            if is_unbounded {
+                ColumnLayoutParams::auto().fill_x().fixed_y(1300.0)
+            } else {
+                ColumnLayoutParams::auto().fill_x().fill_y()
+            },
+            &mut state.sidebar_scroll,
+            framewise::layouts::ColumnLayout,
+        )
+        .ctx;
+
+        for i in 0..20 {
+            let shade = (i % 2) as f32 * 0.15;
+            button_style.background =
+                Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
+            let btn = {
+                let state = &mut state.sidebar_btns[i].state;
+                let layout_params = ColumnLayoutParams::fixed(180.0, 32.0).align_x(Align::Center);
+                let text = format!("Menu Item {}", i + 1);
+                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                button(&mut sidebar_scroll, spec_builder, layout_params, state)
+            };
+            let clicked = btn.input.clicked;
+            if clicked {
+                state.sidebar_btns[i].clicks += 1;
+            }
+            sidebar_scroll.spacer(8.0);
+        }
+        sidebar_scroll.finish();
+
+        sidebar_col.finish()
+    };
+
+    main_row.spacer(10.0);
+
+    // -- MAIN CONTENT (Right Column) --
+    {
+        let content_scroll_res = begin_scroll_area(
+            main_row,
+            ScrollAreaSpecBuilder::new().vertical(framewise::widgets::scroll_area::ScrollAxis {
+                extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+            }),
+            if is_unbounded {
+                RowLayoutParams::auto().fill_x().fixed_y(1300.0)
+            } else {
+                RowLayoutParams::auto().fill_x().fill_y()
+            },
+            &mut state.right_panel_scroll,
+            framewise::layouts::ColumnLayout,
+        );
+        let mut content_col = content_scroll_res.ctx;
+        let inner_w = content_scroll_res.layout.content_bounds.w;
+
+        // Top Header Row - Centered vertically (cross axis)
         {
-            let mut sidebar_col = {
-                let layout_params = RowLayoutParams::auto().fixed_x(200.0).fill_y();
-                let layout = framewise::layouts::ColumnLayout;
-                main_row.child_with_layout(layout_params, layout)
+            let mut header_row = {
+                let layout_params = ColumnLayoutParams::fixed(inner_w, 40.0);
+                let layout = framewise::layouts::RowLayout;
+                content_col.child_with_layout(layout_params, layout)
             };
             let mut button_style =
-                framewise::widgets::button::ButtonStyle::secondary_from_theme(&sidebar_col.theme);
-            button_style.background = Color::from_srgb_f32(0.60, 0.10, 0.80, 1.0);
-            button_style.hovered = Color::from_srgb_f32(0.70, 0.20, 0.90, 1.0);
-            button_style.pressed = Color::from_srgb_f32(0.50, 0.05, 0.70, 1.0);
+                framewise::widgets::button::ButtonStyle::secondary_from_theme(&header_row.theme);
+            button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
+            button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
+            button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
 
-            let mut sidebar_scroll = begin_scroll_area(
-                &mut sidebar_col,
-                ScrollAreaSpecBuilder::new()
-                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::fixed(400.0),
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                    })
-                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                    }),
-                ColumnLayoutParams::auto().fill_x().fill_y(),
-                &mut state.sidebar_scroll,
-                framewise::layouts::ColumnLayout,
-            )
-            .ctx;
+            let _btn1 = {
+                let btn_state = &mut state.top_btn1.state;
+                let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
+                let text = "Profile";
+                let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                button(&mut header_row, spec_builder, layout_params, btn_state)
+            };
 
-            for i in 0..20 {
-                let shade = (i % 2) as f32 * 0.15;
-                button_style.background =
-                    Color::from_srgb_f32(0.60 + shade, 0.10 + shade, 0.80 + shade, 1.0);
-                let btn = {
-                    let state = &mut state.sidebar_btns[i].state;
-                    let layout_params =
-                        ColumnLayoutParams::fixed(180.0, 32.0).align_x(Align::Center);
-                    let text = format!("Menu Item {}", i + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut sidebar_scroll, spec_builder, layout_params, state)
-                };
-                let clicked = btn.input.clicked;
-                if clicked {
-                    state.sidebar_btns[i].clicks += 1;
-                }
-                sidebar_scroll.spacer(8.0);
-            }
-            sidebar_scroll.finish();
+            header_row.spacer(10.0);
 
-            sidebar_col.finish()
+            let _btn2 = {
+                let btn_state = &mut state.top_btn2.state;
+                let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
+                let text = "Settings";
+                let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
+                button(&mut header_row, spec_builder, layout_params, btn_state)
+            };
+
+            header_row.finish()
         };
 
-        main_row.spacer(10.0);
+        content_col.spacer(15.0);
 
-        // -- MAIN CONTENT (Right Column) --
+        // Nested Grid Area (4 Rows of 4 Buttons)
         {
-            let content_scroll_res = begin_scroll_area(
-                &mut main_row,
-                ScrollAreaSpecBuilder::new().vertical(
-                    framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                    },
-                ),
-                RowLayoutParams::auto().fill_x().fill_y(),
-                &mut state.right_panel_scroll,
-                framewise::layouts::ColumnLayout,
-            );
-            let mut content_col = content_scroll_res.ctx;
-            let inner_w = content_scroll_res.layout.content_bounds.w;
-
-            // Top Header Row - Centered vertically (cross axis)
-            {
-                let mut header_row = {
-                    let layout_params = ColumnLayoutParams::fixed(inner_w, 40.0);
-                    let layout = framewise::layouts::RowLayout;
-                    content_col.child_with_layout(layout_params, layout)
-                };
-                let mut button_style =
-                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                        &header_row.theme,
-                    );
-                button_style.background = Color::from_srgb_f32(0.90, 0.40, 0.10, 1.0);
-                button_style.hovered = Color::from_srgb_f32(1.00, 0.50, 0.20, 1.0);
-                button_style.pressed = Color::from_srgb_f32(0.80, 0.30, 0.00, 1.0);
-
-                let _btn1 = {
-                    let btn_state = &mut state.top_btn1.state;
-                    let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
-                    let text = "Profile";
-                    let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
-                    button(&mut header_row, spec_builder, layout_params, btn_state)
-                };
-
-                header_row.spacer(10.0);
-
-                let _btn2 = {
-                    let btn_state = &mut state.top_btn2.state;
-                    let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
-                    let text = "Settings";
-                    let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
-                    button(&mut header_row, spec_builder, layout_params, btn_state)
-                };
-
-                header_row.finish()
+            let mut grid_col = {
+                let layout_params = ColumnLayoutParams::fixed(inner_w, 200.0);
+                let layout = framewise::layouts::ColumnLayout;
+                content_col.child_with_layout(layout_params, layout)
             };
+            let mut button_style =
+                framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
+            button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
+            button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
+            button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
 
-            content_col.spacer(15.0);
-
-            // Nested Grid Area (4 Rows of 4 Buttons)
-            {
-                let mut grid_col = {
-                    let layout_params = ColumnLayoutParams::fixed(inner_w, 200.0);
-                    let layout = framewise::layouts::ColumnLayout;
-                    content_col.child_with_layout(layout_params, layout)
-                };
-                let mut button_style =
-                    framewise::widgets::button::ButtonStyle::secondary_from_theme(&grid_col.theme);
-                button_style.background = Color::from_srgb_f32(0.00, 0.60, 0.70, 1.0);
-                button_style.hovered = Color::from_srgb_f32(0.10, 0.70, 0.80, 1.0);
-                button_style.pressed = Color::from_srgb_f32(0.00, 0.50, 0.60, 1.0);
-
-                for row in 0..4 {
-                    {
-                        let mut grid_row = {
-                            let layout_params = ColumnLayoutParams::fixed(inner_w, 32.0);
-                            let layout = framewise::layouts::RowLayout;
-                            grid_col.child_with_layout(layout_params, layout)
-                        };
-                        for col in 0..4 {
-                            let idx = row * 4 + col;
-                            let shade = ((row + col) % 2) as f32 * 0.15;
-                            button_style.background =
-                                Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
-                            let _btn = {
-                                let btn_state = &mut state.grid_btns[idx].state;
-                                let layout_params = RowLayoutParams::fixed(120.0, 32.0);
-                                let text = format!("Grid [{},{}]", row, col);
-                                let spec_builder =
-                                    ButtonSpecBuilder::new().text(&text).style(button_style);
-                                button(&mut grid_row, spec_builder, layout_params, btn_state)
-                            };
-                            grid_row.spacer(10.0);
-                        }
-                        grid_row.finish()
-                    };
-                    grid_col.spacer(10.0);
-                }
-                grid_col.finish()
-            };
-
-            content_col.spacer(15.0);
-
-            // Standalone Slider Demo
-            {
-                let mut slider_row = {
-                    let layout_params = ColumnLayoutParams::fixed(inner_w, 100.0);
-                    let layout = framewise::layouts::RowLayout;
-                    content_col.child_with_layout(layout_params, layout)
-                };
-
+            for row in 0..4 {
                 {
-                    let slider_state: &mut SliderState = &mut state.standalone_slider_state;
-                    let step = 20.0;
-                    let layout_params = RowLayoutParams::fixed(30.0, 100.0).align_y(Align::Center);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .orientation(SliderOrientation::Vertical)
-                        .page_step(step)
-                        .step(step);
-                    slider(&mut slider_row, spec_builder, layout_params, slider_state);
+                    let mut grid_row = {
+                        let layout_params = ColumnLayoutParams::fixed(inner_w, 32.0);
+                        let layout = framewise::layouts::RowLayout;
+                        grid_col.child_with_layout(layout_params, layout)
+                    };
+                    for col in 0..4 {
+                        let idx = row * 4 + col;
+                        let shade = ((row + col) % 2) as f32 * 0.15;
+                        button_style.background =
+                            Color::from_srgb_f32(0.00 + shade, 0.60 + shade, 0.70 + shade, 1.0);
+                        let _btn = {
+                            let btn_state = &mut state.grid_btns[idx].state;
+                            let layout_params = RowLayoutParams::fixed(120.0, 32.0);
+                            let text = format!("Grid [{},{}]", row, col);
+                            let spec_builder =
+                                ButtonSpecBuilder::new().text(&text).style(button_style);
+                            button(&mut grid_row, spec_builder, layout_params, btn_state)
+                        };
+                        grid_row.spacer(10.0);
+                    }
+                    grid_row.finish()
                 };
+                grid_col.spacer(10.0);
+            }
+            grid_col.finish()
+        };
 
-                slider_row.finish()
+        content_col.spacer(15.0);
+
+        // Standalone Slider Demo
+        {
+            let mut slider_row = {
+                let layout_params = ColumnLayoutParams::fixed(inner_w, 100.0);
+                let layout = framewise::layouts::RowLayout;
+                content_col.child_with_layout(layout_params, layout)
             };
 
-            // Main Scroll Area - Centered feed buttons (cross axis)
-            let mut main_scroll = begin_scroll_area(
-                &mut content_col,
+            {
+                let slider_state: &mut SliderState = &mut state.standalone_slider_state;
+                let step = 20.0;
+                let layout_params = RowLayoutParams::fixed(30.0, 100.0).align_y(Align::Center);
+                let spec_builder = SliderSpecBuilder::new()
+                    .orientation(SliderOrientation::Vertical)
+                    .page_step(step)
+                    .step(step);
+                slider(&mut slider_row, spec_builder, layout_params, slider_state);
+            };
+
+            slider_row.finish()
+        };
+
+        // Main Scroll Area - Centered feed buttons (cross axis)
+        let mut main_scroll = begin_scroll_area(
+            &mut content_col,
+            ScrollAreaSpecBuilder::new().vertical(framewise::widgets::scroll_area::ScrollAxis {
+                extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+            }),
+            ColumnLayoutParams::fixed(inner_w, 250.0),
+            &mut state.main_scroll,
+            framewise::layouts::ColumnLayout,
+        )
+        .ctx;
+        let mut button_style =
+            framewise::widgets::button::ButtonStyle::secondary_from_theme(&main_scroll.theme);
+        button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
+        button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
+        button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
+
+        for i in 0..30 {
+            let shade = (i % 2) as f32 * 0.15;
+            button_style.background =
+                Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
+            let btn = {
+                let btn_state = &mut state.main_btns[i].state;
+                let layout_params = ColumnLayoutParams::fixed(350.0, 50.0).align_x(Align::Center); // Narrower width centered in scroll area
+                let text = format!("Feed Item #{} - Very Important Notification", i + 1);
+                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                button(&mut main_scroll, spec_builder, layout_params, btn_state)
+            };
+            let clicked = btn.input.clicked;
+            if clicked {
+                state.main_btns[i].clicks += 1;
+            }
+            main_scroll.spacer(10.0);
+        }
+        main_scroll.finish();
+
+        content_col.spacer(15.0);
+
+        // Nested Scroll Area Demo
+        let row_h = 160.0;
+        let mut outer_scroll = begin_scroll_area(
+            &mut content_col,
+            ScrollAreaSpecBuilder::new()
+                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                })
+                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                }),
+            ColumnLayoutParams::fixed(inner_w, 300.0),
+            &mut state.nested_outer_scroll,
+            framewise::layouts::ColumnLayout,
+        )
+        .ctx;
+
+        for i in 0..3 {
+            let row_state = &mut state.nested_rows[i];
+
+            let mut row_builder = {
+                let layout_params = ColumnLayoutParams::fixed(800.0, row_h);
+                let layout = framewise::layouts::RowLayout;
+                outer_scroll.child_with_layout(layout_params, layout)
+            };
+            let (base_r, base_g, base_b) = match i {
+                0 => (0.40, 0.80, 0.10),
+                1 => (0.90, 0.20, 0.60),
+                _ => (0.10, 0.50, 0.90),
+            };
+            let mut button_style =
+                framewise::widgets::button::ButtonStyle::secondary_from_theme(&row_builder.theme);
+            button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
+            button_style.hovered =
+                Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
+            button_style.pressed =
+                Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
+
+            // Left button
+            let btn1 = {
+                let btn_state = &mut row_state.btn1.state;
+                let layout_params = RowLayoutParams::fixed(80.0, row_h);
+                let text = format!("R{} A", i + 1);
+                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                button(&mut row_builder, spec_builder, layout_params, btn_state)
+            };
+            let clicked1 = btn1.input.clicked;
+            if clicked1 {
+                row_state.btn1.clicks += 1;
+            }
+
+            row_builder.spacer(10.0);
+
+            // 1. Vertical Inner scroll area
+            let mut inner_scroll = begin_scroll_area(
+                &mut row_builder,
                 ScrollAreaSpecBuilder::new().vertical(
                     framewise::widgets::scroll_area::ScrollAxis {
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     },
                 ),
-                ColumnLayoutParams::fixed(inner_w, 250.0),
-                &mut state.main_scroll,
+                RowLayoutParams::fixed(120.0, row_h),
+                &mut row_state.inner_scroll,
                 framewise::layouts::ColumnLayout,
             )
             .ctx;
-            let mut button_style =
-                framewise::widgets::button::ButtonStyle::secondary_from_theme(&main_scroll.theme);
-            button_style.background = Color::from_srgb_f32(0.80, 0.20, 0.20, 1.0);
-            button_style.hovered = Color::from_srgb_f32(0.90, 0.30, 0.30, 1.0);
-            button_style.pressed = Color::from_srgb_f32(0.70, 0.10, 0.10, 1.0);
 
-            for i in 0..30 {
-                let shade = (i % 2) as f32 * 0.15;
+            for j in 0..6 {
+                let shade = (j % 2) as f32 * 0.15;
                 button_style.background =
-                    Color::from_srgb_f32(0.80 + shade, 0.20 + shade, 0.20 + shade, 1.0);
+                    Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
                 let btn = {
-                    let btn_state = &mut state.main_btns[i].state;
-                    let layout_params =
-                        ColumnLayoutParams::fixed(350.0, 50.0).align_x(Align::Center); // Narrower width centered in scroll area
-                    let text = format!("Feed Item #{} - Very Important Notification", i + 1);
+                    let btn_state = &mut row_state.inner_btns[j].state;
+                    let layout_params = ColumnLayoutParams::fixed(100.0, 45.0);
+                    let text = format!("V {}", j + 1);
                     let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut main_scroll, spec_builder, layout_params, btn_state)
+                    button(&mut inner_scroll, spec_builder, layout_params, btn_state)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
-                    state.main_btns[i].clicks += 1;
+                    row_state.inner_btns[j].clicks += 1;
                 }
-                main_scroll.spacer(10.0);
+                inner_scroll.spacer(8.0);
             }
-            main_scroll.finish();
+            inner_scroll.finish();
 
-            content_col.spacer(15.0);
+            row_builder.spacer(10.0);
 
-            // Nested Scroll Area Demo
-            let row_h = 160.0;
-            let mut outer_scroll = begin_scroll_area(
-                &mut content_col,
+            // 2. Horizontal Inner scroll area
+            let mut horiz_scroll = begin_scroll_area(
+                &mut row_builder,
+                ScrollAreaSpecBuilder::new()
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    }),
+                RowLayoutParams::fixed(180.0, row_h),
+                &mut row_state.horiz_scroll,
+                framewise::layouts::RowLayout,
+            )
+            .ctx;
+
+            for j in 0..10 {
+                let shade = (j % 2) as f32 * 0.15;
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &horiz_scroll.theme,
+                    );
+                button_style.background =
+                    Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+                let btn = {
+                    let btn_state = &mut row_state.horiz_btns[j].state;
+                    let layout_params = RowLayoutParams::fixed(80.0, row_h - 25.0);
+                    let text = format!("H {}", j + 1);
+                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                    button(&mut horiz_scroll, spec_builder, layout_params, btn_state)
+                };
+                let clicked = btn.input.clicked;
+                if clicked {
+                    row_state.horiz_btns[j].clicks += 1;
+                }
+                horiz_scroll.spacer(8.0);
+            }
+            horiz_scroll.finish();
+
+            row_builder.spacer(10.0);
+
+            // 3. Both directions Inner scroll area
+            let mut both_scroll = begin_scroll_area(
+                &mut row_builder,
                 ScrollAreaSpecBuilder::new()
                     .horizontal(framewise::widgets::scroll_area::ScrollAxis {
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
@@ -405,204 +566,176 @@ pub fn draw_scroll_demo(
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                ColumnLayoutParams::fixed(inner_w, 300.0),
-                &mut state.nested_outer_scroll,
+                RowLayoutParams::fixed(200.0, row_h),
+                &mut row_state.both_scroll,
+                framewise::layouts::ManualLayout,
+            )
+            .ctx;
+
+            for j in 0..48 {
+                let x = (j % 8) as f32 * 88.0;
+                let y = (j / 8) as f32 * 53.0;
+                let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &both_scroll.theme,
+                    );
+                button_style.background =
+                    Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
+
+                let btn = {
+                    let btn_state = &mut row_state.both_btns[j].state;
+                    let layout_params = Rect::new(x, y, 80.0, 45.0);
+                    let text = format!("2D {}", j + 1);
+                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                    button(&mut both_scroll, spec_builder, layout_params, btn_state)
+                };
+                let clicked = btn.input.clicked;
+                if clicked {
+                    row_state.both_btns[j].clicks += 1;
+                }
+            }
+            both_scroll.finish();
+
+            row_builder.spacer(10.0);
+
+            // Standalone vertical slider
+            {
+                let slider_state: &mut SliderState = &mut row_state.slider_state;
+                let step = 20.0;
+                let layout_params = RowLayoutParams::fixed(30.0, row_h);
+                let spec_builder = SliderSpecBuilder::new()
+                    .orientation(SliderOrientation::Vertical)
+                    .page_step(step)
+                    .step(step);
+                slider(&mut row_builder, spec_builder, layout_params, slider_state);
+            };
+
+            row_builder.spacer(10.0);
+
+            // Standalone horizontal slider
+            {
+                let slider_state: &mut SliderState = &mut row_state.horiz_slider_state;
+                let step = 20.0;
+                let layout_params = RowLayoutParams::fixed(100.0, 30.0);
+                let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
+                slider(&mut row_builder, spec_builder, layout_params, slider_state);
+            };
+
+            row_builder.finish();
+            outer_scroll.spacer(10.0);
+        }
+        outer_scroll.finish();
+
+        // Double Horizontal Scroll Demo
+        let mut d_outer_scroll = begin_scroll_area(
+            &mut content_col,
+            ScrollAreaSpecBuilder::new()
+                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                })
+                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                }),
+            ColumnLayoutParams::fixed(inner_w, 150.0),
+            &mut state.double_horiz_outer_scroll,
+            framewise::layouts::RowLayout,
+        )
+        .ctx;
+
+        button(
+            &mut d_outer_scroll,
+            ButtonSpecBuilder::new().text("Outer L"),
+            RowLayoutParams::fixed(100.0, 100.0),
+            &mut framewise::widgets::button::ButtonState::default(),
+        );
+
+        d_outer_scroll.spacer(20.0);
+
+        let mut d_inner_scroll = begin_scroll_area(
+            &mut d_outer_scroll,
+            ScrollAreaSpecBuilder::new()
+                .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                })
+                .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                    extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                    vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                }),
+            RowLayoutParams::fixed(600.0, 120.0),
+            &mut state.double_horiz_inner_scroll,
+            framewise::layouts::RowLayout,
+        )
+        .ctx;
+
+        for j in 0..20 {
+            let _btn = {
+                let btn_state = &mut state.double_horiz_btns[j].state;
+                let layout_params = RowLayoutParams::fixed(60.0, 80.0);
+                let text = format!("H {}", j + 1);
+                let spec_builder = ButtonSpecBuilder::new().text(&text);
+                button(&mut d_inner_scroll, spec_builder, layout_params, btn_state)
+            };
+            d_inner_scroll.spacer(8.0);
+        }
+        d_inner_scroll.finish();
+
+        d_outer_scroll.spacer(20.0);
+
+        button(
+            &mut d_outer_scroll,
+            ButtonSpecBuilder::new().text("Outer R"),
+            RowLayoutParams::fixed(300.0, 100.0),
+            &mut framewise::widgets::button::ButtonState::default(),
+        );
+
+        d_outer_scroll.finish();
+
+        content_col.spacer(15.0);
+
+        // AtMost extent demo (Phase 5): vertical AtMost(Viewport) + Auto vis.
+        // The content shrink-wraps and is capped at the viewport; because it
+        // provably fits, no scrollbar gutter is reserved and the content is not
+        // force-filled — a case the old fixed `content_size` API could not
+        // express (it would either fill or always show a bar). Adding enough
+        // rows to exceed the 160px viewport would clip with no scrollbar, since
+        // AtMost is a ceiling, not a scroll region.
+        {
+            let mut atmost = begin_scroll_area(
+                &mut content_col,
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::AtMost(
+                            framewise::widgets::scroll_area::ScrollLen::Viewport,
+                        ),
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    },
+                ),
+                ColumnLayoutParams::fixed(inner_w.min(440.0), 160.0),
+                &mut state.atmost_scroll,
                 framewise::layouts::ColumnLayout,
             )
             .ctx;
-
-            for i in 0..3 {
-                let row_state = &mut state.nested_rows[i];
-
-                let mut row_builder = {
-                    let layout_params = ColumnLayoutParams::fixed(800.0, row_h);
-                    let layout = framewise::layouts::RowLayout;
-                    outer_scroll.child_with_layout(layout_params, layout)
-                };
-                let (base_r, base_g, base_b) = match i {
-                    0 => (0.40, 0.80, 0.10),
-                    1 => (0.90, 0.20, 0.60),
-                    _ => (0.10, 0.50, 0.90),
-                };
-                let mut button_style =
-                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                        &row_builder.theme,
-                    );
-                button_style.background = Color::from_srgb_f32(base_r, base_g, base_b, 1.0);
-                button_style.hovered =
-                    Color::from_srgb_f32(base_r + 0.1, base_g + 0.1, base_b + 0.1, 1.0);
-                button_style.pressed =
-                    Color::from_srgb_f32(base_r - 0.1, base_g - 0.1, base_b - 0.1, 1.0);
-
-                // Left button
-                let btn1 = {
-                    let btn_state = &mut row_state.btn1.state;
-                    let layout_params = RowLayoutParams::fixed(80.0, row_h);
-                    let text = format!("R{} A", i + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut row_builder, spec_builder, layout_params, btn_state)
-                };
-                let clicked1 = btn1.input.clicked;
-                if clicked1 {
-                    row_state.btn1.clicks += 1;
-                }
-
-                row_builder.spacer(10.0);
-
-                // 1. Vertical Inner scroll area
-                let mut inner_scroll = begin_scroll_area(
-                    &mut row_builder,
-                    ScrollAreaSpecBuilder::new().vertical(
-                        framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        },
-                    ),
-                    RowLayoutParams::fixed(120.0, row_h),
-                    &mut row_state.inner_scroll,
-                    framewise::layouts::ColumnLayout,
-                )
-                .ctx;
-
-                for j in 0..6 {
-                    let shade = (j % 2) as f32 * 0.15;
-                    button_style.background =
-                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
-                    let btn = {
-                        let btn_state = &mut row_state.inner_btns[j].state;
-                        let layout_params = ColumnLayoutParams::fixed(100.0, 45.0);
-                        let text = format!("V {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut inner_scroll, spec_builder, layout_params, btn_state)
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        row_state.inner_btns[j].clicks += 1;
-                    }
-                    inner_scroll.spacer(8.0);
-                }
-                inner_scroll.finish();
-
-                row_builder.spacer(10.0);
-
-                // 2. Horizontal Inner scroll area
-                let mut horiz_scroll = begin_scroll_area(
-                    &mut row_builder,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                        }),
-                    RowLayoutParams::fixed(180.0, row_h),
-                    &mut row_state.horiz_scroll,
-                    framewise::layouts::RowLayout,
-                )
-                .ctx;
-
-                for j in 0..10 {
-                    let shade = (j % 2) as f32 * 0.15;
-                    let mut button_style =
-                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                            &horiz_scroll.theme,
-                        );
-                    button_style.background =
-                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
-                    let btn = {
-                        let btn_state = &mut row_state.horiz_btns[j].state;
-                        let layout_params = RowLayoutParams::fixed(80.0, row_h - 25.0);
-                        let text = format!("H {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut horiz_scroll, spec_builder, layout_params, btn_state)
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        row_state.horiz_btns[j].clicks += 1;
-                    }
-                    horiz_scroll.spacer(8.0);
-                }
-                horiz_scroll.finish();
-
-                row_builder.spacer(10.0);
-
-                // 3. Both directions Inner scroll area
-                let mut both_scroll = begin_scroll_area(
-                    &mut row_builder,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        }),
-                    RowLayoutParams::fixed(200.0, row_h),
-                    &mut row_state.both_scroll,
-                    framewise::layouts::ManualLayout,
-                )
-                .ctx;
-
-                for j in 0..48 {
-                    let x = (j % 8) as f32 * 88.0;
-                    let y = (j / 8) as f32 * 53.0;
-                    let shade = ((j % 8 + j / 8) % 2) as f32 * 0.15;
-                    let mut button_style =
-                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                            &both_scroll.theme,
-                        );
-                    button_style.background =
-                        Color::from_srgb_f32(base_r + shade, base_g + shade, base_b + shade, 1.0);
-
-                    let btn = {
-                        let btn_state = &mut row_state.both_btns[j].state;
-                        let layout_params = Rect::new(x, y, 80.0, 45.0);
-                        let text = format!("2D {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut both_scroll, spec_builder, layout_params, btn_state)
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        row_state.both_btns[j].clicks += 1;
-                    }
-                }
-                both_scroll.finish();
-
-                row_builder.spacer(10.0);
-
-                // Standalone vertical slider
-                {
-                    let slider_state: &mut SliderState = &mut row_state.slider_state;
-                    let step = 20.0;
-                    let layout_params = RowLayoutParams::fixed(30.0, row_h);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .orientation(SliderOrientation::Vertical)
-                        .page_step(step)
-                        .step(step);
-                    slider(&mut row_builder, spec_builder, layout_params, slider_state);
-                };
-
-                row_builder.spacer(10.0);
-
-                // Standalone horizontal slider
-                {
-                    let slider_state: &mut SliderState = &mut row_state.horiz_slider_state;
-                    let step = 20.0;
-                    let layout_params = RowLayoutParams::fixed(100.0, 30.0);
-                    let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
-                    slider(&mut row_builder, spec_builder, layout_params, slider_state);
-                };
-
-                row_builder.finish();
-                outer_scroll.spacer(10.0);
+            for j in 0..3 {
+                let btn_state = &mut state.atmost_btns[j].state;
+                let text = format!("AtMost row {} (fits → no scrollbar)", j + 1);
+                button(
+                    &mut atmost,
+                    ButtonSpecBuilder::new().text(&text),
+                    ColumnLayoutParams::fixed(260.0, 30.0),
+                    btn_state,
+                );
+                atmost.spacer(6.0);
             }
-            outer_scroll.finish();
+            atmost.finish();
+        }
 
-            // Double Horizontal Scroll Demo
-            let mut d_outer_scroll = begin_scroll_area(
+        // Nested 2D Scroll Demo: outer[2D] > inner[2D]
+        {
+            let mut outer = begin_scroll_area(
                 &mut content_col,
                 ScrollAreaSpecBuilder::new()
                     .horizontal(framewise::widgets::scroll_area::ScrollAxis {
@@ -610,338 +743,225 @@ pub fn draw_scroll_demo(
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     })
                     .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                ColumnLayoutParams::fixed(inner_w, 150.0),
-                &mut state.double_horiz_outer_scroll,
-                framewise::layouts::RowLayout,
+                ColumnLayoutParams::fixed(inner_w.min(440.0), 200.0),
+                &mut state.nested_2d_outer_scroll,
+                framewise::layouts::ManualLayout,
             )
             .ctx;
 
-            button(
-                &mut d_outer_scroll,
-                ButtonSpecBuilder::new().text("Outer L"),
-                RowLayoutParams::fixed(100.0, 100.0),
-                &mut framewise::widgets::button::ButtonState::default(),
-            );
+            for (k, (bx, by, lbl)) in [
+                (10.0, 30.0, "OA"),
+                (700.0, 30.0, "OB"),
+                (10.0, 340.0, "OC"),
+                (700.0, 340.0, "OD"),
+                (400.0, 180.0, "OE"),
+                (550.0, 100.0, "OF"),
+            ]
+            .iter()
+            .enumerate()
+            {
+                let _btn = {
+                    let btn_state = &mut state.nested_2d_outer_btns[k].state;
+                    let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
+                    let text = lbl;
+                    let spec_builder = ButtonSpecBuilder::new().text(text);
+                    button(&mut outer, spec_builder, layout_params, btn_state)
+                };
+            }
 
-            d_outer_scroll.spacer(20.0);
-
-            let mut d_inner_scroll = begin_scroll_area(
-                &mut d_outer_scroll,
+            let mut inner = begin_scroll_area(
+                &mut outer,
                 ScrollAreaSpecBuilder::new()
                     .horizontal(framewise::widgets::scroll_area::ScrollAxis {
                         extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
                         vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     })
                     .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
                     }),
-                RowLayoutParams::fixed(600.0, 120.0),
-                &mut state.double_horiz_inner_scroll,
-                framewise::layouts::RowLayout,
+                Rect::new(80.0, 50.0, 250.0, 150.0),
+                &mut state.nested_2d_inner_scroll,
+                framewise::layouts::ManualLayout,
             )
             .ctx;
 
             for j in 0..20 {
-                let _btn = {
-                    let btn_state = &mut state.double_horiz_btns[j].state;
-                    let layout_params = RowLayoutParams::fixed(60.0, 80.0);
-                    let text = format!("H {}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text);
-                    button(&mut d_inner_scroll, spec_builder, layout_params, btn_state)
-                };
-                d_inner_scroll.spacer(8.0);
-            }
-            d_inner_scroll.finish();
-
-            d_outer_scroll.spacer(20.0);
-
-            button(
-                &mut d_outer_scroll,
-                ButtonSpecBuilder::new().text("Outer R"),
-                RowLayoutParams::fixed(300.0, 100.0),
-                &mut framewise::widgets::button::ButtonState::default(),
-            );
-
-            d_outer_scroll.finish();
-
-            content_col.spacer(15.0);
-
-            // AtMost extent demo (Phase 5): vertical AtMost(Viewport) + Auto vis.
-            // The content shrink-wraps and is capped at the viewport; because it
-            // provably fits, no scrollbar gutter is reserved and the content is not
-            // force-filled — a case the old fixed `content_size` API could not
-            // express (it would either fill or always show a bar). Adding enough
-            // rows to exceed the 160px viewport would clip with no scrollbar, since
-            // AtMost is a ceiling, not a scroll region.
-            {
-                let mut atmost = begin_scroll_area(
-                    &mut content_col,
-                    ScrollAreaSpecBuilder::new().vertical(
-                        framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::AtMost(
-                                framewise::widgets::scroll_area::ScrollLen::Viewport,
-                            ),
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                        },
-                    ),
-                    ColumnLayoutParams::fixed(inner_w.min(440.0), 160.0),
-                    &mut state.atmost_scroll,
-                    framewise::layouts::ColumnLayout,
-                )
-                .ctx;
-                for j in 0..3 {
-                    let btn_state = &mut state.atmost_btns[j].state;
-                    let text = format!("AtMost row {} (fits → no scrollbar)", j + 1);
-                    button(
-                        &mut atmost,
-                        ButtonSpecBuilder::new().text(&text),
-                        ColumnLayoutParams::fixed(260.0, 30.0),
-                        btn_state,
+                let col = j % 4;
+                let row = j / 4;
+                let shade = ((col + row) % 2) as f32 * 0.12;
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner.theme);
+                button_style.background =
+                    Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
+                button_style.hovered =
+                    Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
+                let btn = {
+                    let btn_state = &mut state.nested_2d_inner_btns[j].state;
+                    let layout_params = Rect::new(
+                        col as f32 * 120.0 + 5.0,
+                        row as f32 * 58.0 + 5.0,
+                        110.0,
+                        48.0,
                     );
-                    atmost.spacer(6.0);
-                }
-                atmost.finish();
-            }
-
-            // Nested 2D Scroll Demo: outer[2D] > inner[2D]
-            {
-                let mut outer = begin_scroll_area(
-                    &mut content_col,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        }),
-                    ColumnLayoutParams::fixed(inner_w.min(440.0), 200.0),
-                    &mut state.nested_2d_outer_scroll,
-                    framewise::layouts::ManualLayout,
-                )
-                .ctx;
-
-                for (k, (bx, by, lbl)) in [
-                    (10.0, 30.0, "OA"),
-                    (700.0, 30.0, "OB"),
-                    (10.0, 340.0, "OC"),
-                    (700.0, 340.0, "OD"),
-                    (400.0, 180.0, "OE"),
-                    (550.0, 100.0, "OF"),
-                ]
-                .iter()
-                .enumerate()
-                {
-                    let _btn = {
-                        let btn_state = &mut state.nested_2d_outer_btns[k].state;
-                        let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
-                        let text = lbl;
-                        let spec_builder = ButtonSpecBuilder::new().text(text);
-                        button(&mut outer, spec_builder, layout_params, btn_state)
-                    };
-                }
-
-                let mut inner = begin_scroll_area(
-                    &mut outer,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        }),
-                    Rect::new(80.0, 50.0, 250.0, 150.0),
-                    &mut state.nested_2d_inner_scroll,
-                    framewise::layouts::ManualLayout,
-                )
-                .ctx;
-
-                for j in 0..20 {
-                    let col = j % 4;
-                    let row = j / 4;
-                    let shade = ((col + row) % 2) as f32 * 0.12;
-                    let mut button_style =
-                        framewise::widgets::button::ButtonStyle::secondary_from_theme(&inner.theme);
-                    button_style.background =
-                        Color::from_srgb_f32(0.10 + shade, 0.35 + shade, 0.70 + shade, 1.0);
-                    button_style.hovered =
-                        Color::from_srgb_f32(0.20 + shade, 0.45 + shade, 0.80 + shade, 1.0);
-                    let btn = {
-                        let btn_state = &mut state.nested_2d_inner_btns[j].state;
-                        let layout_params = Rect::new(
-                            col as f32 * 120.0 + 5.0,
-                            row as f32 * 58.0 + 5.0,
-                            110.0,
-                            48.0,
-                        );
-                        let text = format!("2D {:02}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut inner, spec_builder, layout_params, btn_state)
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        state.nested_2d_inner_btns[j].clicks += 1;
-                    }
-                }
-                inner.finish();
-
-                outer.finish();
-            }
-
-            // Quad-Nested Scroll Demo
-            {
-                let mut outer_scroll = begin_scroll_area(
-                    &mut content_col,
-                    ScrollAreaSpecBuilder::new().vertical(
-                        framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        },
-                    ),
-                    ColumnLayoutParams::fixed(inner_w, 220.0),
-                    &mut state.triple_outer_scroll,
-                    framewise::layouts::ColumnLayout,
-                )
-                .ctx;
-
-                let mut middle_scroll = begin_scroll_area(
-                    &mut outer_scroll,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                        }),
-                    ColumnLayoutParams::fixed(inner_w - 15.0, 160.0),
-                    &mut state.triple_middle_scroll,
-                    framewise::layouts::RowLayout,
-                )
-                .ctx;
-
-                let mut inner_scroll = begin_scroll_area(
-                    &mut middle_scroll,
-                    ScrollAreaSpecBuilder::new().vertical(
-                        framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        },
-                    ),
-                    RowLayoutParams::fixed(200.0, 130.0),
-                    &mut state.triple_inner_scroll,
-                    framewise::layouts::ColumnLayout,
-                )
-                .ctx;
-
-                for j in 0..12 {
-                    let shade = (j % 2) as f32 * 0.12;
-                    let mut button_style =
-                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                            &inner_scroll.theme,
-                        );
-                    button_style.background =
-                        Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
-                    button_style.hovered =
-                        Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
-                    let btn = {
-                        let btn_state = &mut state.triple_inner_btns[j].state;
-                        let layout_params = ColumnLayoutParams::fixed(165.0, 35.0);
-                        let text = format!("Inner V {}", j + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(&mut inner_scroll, spec_builder, layout_params, btn_state)
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        state.triple_inner_btns[j].clicks += 1;
-                    }
-                    inner_scroll.spacer(6.0);
-                }
-
-                let mut innermost_scroll = begin_scroll_area(
-                    &mut inner_scroll,
-                    ScrollAreaSpecBuilder::new()
-                        .horizontal(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
-                        })
-                        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-                            extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
-                            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-                        }),
-                    ColumnLayoutParams::fixed(165.0, 50.0),
-                    &mut state.triple_innermost_scroll,
-                    framewise::layouts::RowLayout,
-                )
-                .ctx;
-                for k in 0..5 {
-                    let mut button_style =
-                        framewise::widgets::button::ButtonStyle::secondary_from_theme(
-                            &innermost_scroll.theme,
-                        );
-                    button_style.background =
-                        Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
-                    button_style.hovered =
-                        Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
-                    let btn = {
-                        let btn_state = &mut state.triple_innermost_btns[k].state;
-                        let layout_params = RowLayoutParams::fixed(80.0, 26.0);
-                        let text = format!("IH {}", k + 1);
-                        let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                        button(
-                            &mut innermost_scroll,
-                            spec_builder,
-                            layout_params,
-                            btn_state,
-                        )
-                    };
-                    let clicked = btn.input.clicked;
-                    if clicked {
-                        state.triple_innermost_btns[k].clicks += 1;
-                    }
-                    innermost_scroll.spacer(6.0);
-                }
-                innermost_scroll.finish();
-
-                inner_scroll.finish();
-
-                middle_scroll.spacer(10.0);
-
-                {
-                    let slider_state: &mut SliderState = &mut state.triple_inner_slider_state;
-                    let step = 20.0;
-                    let layout_params = RowLayoutParams::fixed(30.0, 130.0);
-                    let spec_builder = SliderSpecBuilder::new()
-                        .orientation(SliderOrientation::Vertical)
-                        .page_step(step)
-                        .step(step);
-                    slider(
-                        &mut middle_scroll,
-                        spec_builder,
-                        layout_params,
-                        slider_state,
-                    );
+                    let text = format!("2D {:02}", j + 1);
+                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                    button(&mut inner, spec_builder, layout_params, btn_state)
                 };
-
-                middle_scroll.finish();
-
-                outer_scroll.finish();
+                let clicked = btn.input.clicked;
+                if clicked {
+                    state.nested_2d_inner_btns[j].clicks += 1;
+                }
             }
+            inner.finish();
 
-            content_col.finish();
+            outer.finish();
         }
 
-        main_row.finish()
-    };
+        // Quad-Nested Scroll Demo
+        {
+            let mut outer_scroll = begin_scroll_area(
+                &mut content_col,
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    },
+                ),
+                ColumnLayoutParams::fixed(inner_w, 220.0),
+                &mut state.triple_outer_scroll,
+                framewise::layouts::ColumnLayout,
+            )
+            .ctx;
 
-    ctx.finish();
-    cmds
+            let mut middle_scroll = begin_scroll_area(
+                &mut outer_scroll,
+                ScrollAreaSpecBuilder::new()
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    }),
+                ColumnLayoutParams::fixed(inner_w - 15.0, 160.0),
+                &mut state.triple_middle_scroll,
+                framewise::layouts::RowLayout,
+            )
+            .ctx;
+
+            let mut inner_scroll = begin_scroll_area(
+                &mut middle_scroll,
+                ScrollAreaSpecBuilder::new().vertical(
+                    framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    },
+                ),
+                RowLayoutParams::fixed(200.0, 130.0),
+                &mut state.triple_inner_scroll,
+                framewise::layouts::ColumnLayout,
+            )
+            .ctx;
+
+            for j in 0..12 {
+                let shade = (j % 2) as f32 * 0.12;
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &inner_scroll.theme,
+                    );
+                button_style.background =
+                    Color::from_srgb_f32(0.10 + shade, 0.50 + shade, 0.30 + shade, 1.0);
+                button_style.hovered =
+                    Color::from_srgb_f32(0.20 + shade, 0.60 + shade, 0.40 + shade, 1.0);
+                let btn = {
+                    let btn_state = &mut state.triple_inner_btns[j].state;
+                    let layout_params = ColumnLayoutParams::fixed(165.0, 35.0);
+                    let text = format!("Inner V {}", j + 1);
+                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                    button(&mut inner_scroll, spec_builder, layout_params, btn_state)
+                };
+                let clicked = btn.input.clicked;
+                if clicked {
+                    state.triple_inner_btns[j].clicks += 1;
+                }
+                inner_scroll.spacer(6.0);
+            }
+
+            let mut innermost_scroll = begin_scroll_area(
+                &mut inner_scroll,
+                ScrollAreaSpecBuilder::new()
+                    .horizontal(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Always,
+                    })
+                    .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                        extent: framewise::widgets::scroll_area::ScrollExtent::FIT,
+                        vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+                    }),
+                ColumnLayoutParams::fixed(165.0, 50.0),
+                &mut state.triple_innermost_scroll,
+                framewise::layouts::RowLayout,
+            )
+            .ctx;
+            for k in 0..5 {
+                let mut button_style =
+                    framewise::widgets::button::ButtonStyle::secondary_from_theme(
+                        &innermost_scroll.theme,
+                    );
+                button_style.background =
+                    Color::from_srgb_f32(0.60, 0.25 + k as f32 * 0.06, 0.10, 1.0);
+                button_style.hovered =
+                    Color::from_srgb_f32(0.70, 0.35 + k as f32 * 0.06, 0.20, 1.0);
+                let btn = {
+                    let btn_state = &mut state.triple_innermost_btns[k].state;
+                    let layout_params = RowLayoutParams::fixed(80.0, 26.0);
+                    let text = format!("IH {}", k + 1);
+                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
+                    button(
+                        &mut innermost_scroll,
+                        spec_builder,
+                        layout_params,
+                        btn_state,
+                    )
+                };
+                let clicked = btn.input.clicked;
+                if clicked {
+                    state.triple_innermost_btns[k].clicks += 1;
+                }
+                innermost_scroll.spacer(6.0);
+            }
+            innermost_scroll.finish();
+
+            inner_scroll.finish();
+
+            middle_scroll.spacer(10.0);
+
+            {
+                let slider_state: &mut SliderState = &mut state.triple_inner_slider_state;
+                let step = 20.0;
+                let layout_params = RowLayoutParams::fixed(30.0, 130.0);
+                let spec_builder = SliderSpecBuilder::new()
+                    .orientation(SliderOrientation::Vertical)
+                    .page_step(step)
+                    .step(step);
+                slider(
+                    &mut middle_scroll,
+                    spec_builder,
+                    layout_params,
+                    slider_state,
+                );
+            };
+
+            middle_scroll.finish();
+
+            outer_scroll.finish();
+        }
+
+        content_col.finish();
+    }
 }

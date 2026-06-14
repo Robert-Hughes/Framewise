@@ -193,7 +193,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
 > {
     let DemoPageNoScrollResult { ctx } =
-        begin_demo_page_no_scroll(parent_ctx, title, debug_layout, inner_layout);
+        begin_demo_page_no_scroll(parent_ctx, title, debug_layout, false, inner_layout);
     DemoPageResult { ctx }
 }
 
@@ -202,6 +202,7 @@ pub fn begin_demo_page_no_scroll<'a, 'b, T: TextSystem, L: Layout, CF>(
     parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
     title: &str,
     debug_layout: bool,
+    unbounded_height: bool,
     inner_layout: L,
 ) -> DemoPageNoScrollResult<
     'b,
@@ -237,8 +238,13 @@ pub fn begin_demo_page_no_scroll<'a, 'b, T: TextSystem, L: Layout, CF>(
         inner: inner_layout,
     };
 
-    let mut body_ctx =
-        parent_ctx.child_with_layout(ColumnLayoutParams::auto().fill_x().fill_y(), offset_layout);
+    let layout_params = if unbounded_height {
+        ColumnLayoutParams::auto().fill_x()
+    } else {
+        ColumnLayoutParams::auto().fill_x().fill_y()
+    };
+
+    let mut body_ctx = parent_ctx.child_with_layout(layout_params, offset_layout);
     body_ctx.debug_layout = debug_layout;
     body_ctx.layout_policy = LayoutViolationPolicy::Highlight;
 

@@ -30,26 +30,59 @@ pub fn draw_label_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
+    let is_unbounded = win_h.is_infinite();
 
     let mut cmds = framewise::DrawCommands::new();
+    let space = if is_unbounded {
+        framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
+    } else {
+        Rect::new(0.0, 0.0, win_w, win_h).into()
+    };
+
     let mut root_ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
         ColumnLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        space,
         &mut cmds,
     );
 
-    let crate::demo_page::DemoPageResult { mut ctx } = crate::demo_page::begin_demo_page(
-        &mut root_ctx,
-        "Label Demo",
-        &mut _state.page,
-        debug_layout,
-        ColumnLayout,
-    );
+    if is_unbounded {
+        let mut outer = crate::demo_page::begin_demo_page_no_scroll(
+            &mut root_ctx,
+            "Label Demo",
+            debug_layout,
+            true,
+            ColumnLayout,
+        );
+        draw_label_page_content(&mut outer.ctx);
+        outer.ctx.finish();
+    } else {
+        let mut outer = crate::demo_page::begin_demo_page(
+            &mut root_ctx,
+            "Label Demo",
+            &mut _state.page,
+            debug_layout,
+            ColumnLayout,
+        );
+        draw_label_page_content(&mut outer.ctx);
+        outer.ctx.finish();
+    }
 
+    root_ctx.finish();
+    cmds
+}
+
+pub(crate) fn draw_label_page_content<'a, 'b, CF>(
+    ctx: &'b mut WidgetContext<
+        'a,
+        SampleTextSystem,
+        framewise::layouts::OffsetState<framewise::ColumnState>,
+        CF,
+    >,
+) {
     let theme = ctx.theme;
 
     let box_style = FrameStyle {
@@ -74,7 +107,7 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("1. Font Families & Sizes")
                 .style(section_header),
@@ -207,7 +240,7 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("2. Color and Horizontal Rules")
                 .style(section_header),
@@ -311,14 +344,14 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("4. Overflow (non-wrapping)")
                 .style(section_header),
             ColumnLayoutParams::auto(),
         );
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new().text(r#"All text is the same "hello\nhello" string"#),
             ColumnLayoutParams::auto(),
         );
@@ -835,14 +868,14 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("4.1 Overflow (wrapping)")
                 .style(section_header),
             ColumnLayoutParams::auto(),
         );
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text(r#"First row: all text is the same "hello\nhello" string"#),
             ColumnLayoutParams::auto(),
@@ -1043,7 +1076,7 @@ pub fn draw_label_page(
 
         // Row 2: Cards 4 - 6
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text(r#"Remaining rows: all text is the same "hello there\nhello there" string"#),
             ColumnLayoutParams::auto(),
@@ -1442,7 +1475,7 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("5. Internal Text Alignment (Fixed-Width)")
                 .style(section_header),
@@ -1528,7 +1561,7 @@ pub fn draw_label_page(
             rule_color: theme.line,
         };
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("6. Widget Content Placement")
                 .style(section_header),
@@ -1663,7 +1696,7 @@ pub fn draw_label_page(
 
     // Footer info
     label(
-        &mut ctx,
+        ctx,
         LabelSpecBuilder::new()
             .text("Press F1-F5 to navigate to other showcase pages. (F6 for Labels)")
             .style(LabelStyle {
@@ -1680,8 +1713,4 @@ pub fn draw_label_page(
             }),
         ColumnLayoutParams::auto(),
     );
-
-    ctx.finish();
-    root_ctx.finish();
-    cmds
 }

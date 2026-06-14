@@ -59,27 +59,66 @@ pub fn draw_text_edit_demo(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
+    let is_unbounded = win_h.is_infinite();
 
     let mut cmds = framewise::DrawCommands::new();
+    let space = if is_unbounded {
+        framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
+    } else {
+        Rect::new(0.0, 0.0, win_w, win_h).into()
+    };
+
     let mut root_ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
         ColumnLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        space,
         &mut cmds,
     );
     root_ctx.time = time;
 
-    let crate::demo_page::DemoPageResult { mut ctx } = crate::demo_page::begin_demo_page(
-        &mut root_ctx,
-        "TextEdit Demo",
-        &mut state.page,
-        debug_layout,
-        ColumnLayout,
-    );
+    if is_unbounded {
+        let mut outer = crate::demo_page::begin_demo_page_no_scroll(
+            &mut root_ctx,
+            "TextEdit Demo",
+            debug_layout,
+            true,
+            ColumnLayout,
+        );
+        draw_text_edit_demo_content(&mut outer.ctx, state);
+        outer.ctx.finish();
+    } else {
+        let mut page_state = std::mem::take(&mut state.page);
+        {
+            let mut outer = crate::demo_page::begin_demo_page(
+                &mut root_ctx,
+                "TextEdit Demo",
+                &mut page_state,
+                debug_layout,
+                ColumnLayout,
+            );
+            draw_text_edit_demo_content(&mut outer.ctx, state);
+            outer.ctx.finish();
+        }
+        state.page = page_state;
+    }
 
+    root_ctx.finish();
+
+    cmds
+}
+
+pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
+    ctx: &'b mut WidgetContext<
+        'a,
+        SampleTextSystem,
+        framewise::layouts::OffsetState<framewise::ColumnState>,
+        CF,
+    >,
+    state: &mut TextEditDemoState,
+) {
     let theme = ctx.theme;
 
     // Header section style
@@ -113,7 +152,7 @@ pub fn draw_text_edit_demo(
     // ── 1. Allow Policy ──────────────────────────────────────────────────────────
     {
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("1. NewlinePolicy::Allow")
                 .style(section_header_style),
@@ -121,7 +160,7 @@ pub fn draw_text_edit_demo(
         );
         ctx.spacer(4.0);
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("Allows typing and pasting multiline text. Press Enter to insert a newline.")
                 .style(desc_style),
@@ -130,7 +169,7 @@ pub fn draw_text_edit_demo(
         ctx.spacer(10.0);
 
         text_edit(
-            &mut ctx,
+            ctx,
             TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Allow),
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_allow,
@@ -141,7 +180,7 @@ pub fn draw_text_edit_demo(
     // ── 2. ReplaceWithSpace Policy ────────────────────────────────────────────────
     {
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("2. NewlinePolicy::ReplaceWithSpace")
                 .style(section_header_style),
@@ -149,7 +188,7 @@ pub fn draw_text_edit_demo(
         );
         ctx.spacer(4.0);
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("Replaces newline characters with spaces on paste. Hitting Enter is ignored.")
                 .style(desc_style),
@@ -158,7 +197,7 @@ pub fn draw_text_edit_demo(
         ctx.spacer(10.0);
 
         text_edit(
-            &mut ctx,
+            ctx,
             TextEditSpecBuilder::new().newline_policy(NewlinePolicy::ReplaceWithSpace),
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_replace,
@@ -169,7 +208,7 @@ pub fn draw_text_edit_demo(
     // ── 3. Reject Policy ──────────────────────────────────────────────────────────
     {
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("3. NewlinePolicy::Reject")
                 .style(section_header_style),
@@ -177,7 +216,7 @@ pub fn draw_text_edit_demo(
         );
         ctx.spacer(4.0);
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("Strips/rejects newline characters entirely. Hitting Enter is ignored.")
                 .style(desc_style),
@@ -186,7 +225,7 @@ pub fn draw_text_edit_demo(
         ctx.spacer(10.0);
 
         text_edit(
-            &mut ctx,
+            ctx,
             TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Reject),
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_reject,
@@ -197,7 +236,7 @@ pub fn draw_text_edit_demo(
     // ── 4. Wrapping ──────────────────────────────────────────────────────────────
     {
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("4. Wrapping (NewlinePolicy::Allow + wrap(true))")
                 .style(section_header_style),
@@ -205,7 +244,7 @@ pub fn draw_text_edit_demo(
         );
         ctx.spacer(4.0);
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("Enables word wrapping on the text edit. Long lines wrap to the next line automatically.")
                 .style(desc_style),
@@ -214,7 +253,7 @@ pub fn draw_text_edit_demo(
         ctx.spacer(10.0);
 
         text_edit(
-            &mut ctx,
+            ctx,
             TextEditSpecBuilder::new()
                 .newline_policy(NewlinePolicy::Allow)
                 .wrap(true),
@@ -227,7 +266,7 @@ pub fn draw_text_edit_demo(
     // ── 5. Alignment Combinations ──────────────────────────────────────────────
     {
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("5. Alignment Combinations (3x3 Grid)")
                 .style(section_header_style),
@@ -235,7 +274,7 @@ pub fn draw_text_edit_demo(
         );
         ctx.spacer(4.0);
         label(
-            &mut ctx,
+            ctx,
             LabelSpecBuilder::new()
                 .text("Demonstrates the 9 combinations of vertical alignment (Top, Middle, Bottom) and horizontal line alignment (Left, Center, Right).")
                 .style(desc_style),
@@ -274,9 +313,4 @@ pub fn draw_text_edit_demo(
             ctx.spacer(12.0);
         }
     }
-
-    ctx.finish();
-    root_ctx.finish();
-
-    cmds
 }

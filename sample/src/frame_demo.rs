@@ -96,27 +96,67 @@ pub fn draw_frame_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
-    let pad = 20.0;
+    let is_unbounded = win_h.is_infinite();
 
     let mut cmds = framewise::DrawCommands::new();
+    let space = if is_unbounded {
+        framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
+    } else {
+        Rect::new(0.0, 0.0, win_w, win_h).into()
+    };
+
     let mut ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
         ColumnLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        space,
         &mut cmds,
     );
 
-    let crate::demo_page::DemoPageResult { ctx: mut outer } = crate::demo_page::begin_demo_page(
-        &mut ctx,
-        "Frame Demo",
-        &mut state.page,
-        debug_layout,
-        ColumnLayout,
-    );
+    if is_unbounded {
+        let mut outer = crate::demo_page::begin_demo_page_no_scroll(
+            &mut ctx,
+            "Frame Demo",
+            debug_layout,
+            true,
+            ColumnLayout,
+        );
+        draw_frame_page_content(&mut outer.ctx, state, win_w);
+        outer.ctx.finish();
+    } else {
+        let mut page_state = std::mem::take(&mut state.page);
+        {
+            let mut outer = crate::demo_page::begin_demo_page(
+                &mut ctx,
+                "Frame Demo",
+                &mut page_state,
+                debug_layout,
+                ColumnLayout,
+            );
+            draw_frame_page_content(&mut outer.ctx, state, win_w);
+            outer.ctx.finish();
+        }
+        state.page = page_state;
+    }
 
+    ctx.finish();
+
+    cmds
+}
+
+pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
+    outer: &'b mut WidgetContext<
+        'a,
+        SampleTextSystem,
+        framewise::layouts::OffsetState<framewise::ColumnState>,
+        CF,
+    >,
+    state: &mut FrameDemoState,
+    win_w: f32,
+) {
+    let pad = 20.0;
     let theme = outer.theme;
 
     // Root Row — two columns side-by-side (Left column: Dynamic list & sizes; Right column: Nesting & alignments)
@@ -529,8 +569,4 @@ pub fn draw_frame_page(
     }
 
     root_row.finish();
-    outer.finish();
-    ctx.finish();
-
-    cmds
 }

@@ -84,27 +84,68 @@ pub fn draw_layout_page(
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
-    let pad = 20.0;
-    let col_w = (win_w - 2.0 * pad - 30.0) * 0.5;
+    let is_unbounded = win_h.is_infinite();
 
     let mut cmds = framewise::DrawCommands::new();
+    let space = if is_unbounded {
+        framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
+    } else {
+        Rect::new(0.0, 0.0, win_w, win_h).into()
+    };
+
     let mut ctx = WidgetContext::root(
         Theme::default(),
         text_system,
         focus_system,
         input,
         ColumnLayout,
-        Rect::new(0.0, 0.0, win_w, win_h),
+        space,
         &mut cmds,
     );
 
-    let crate::demo_page::DemoPageResult { ctx: mut outer } = crate::demo_page::begin_demo_page(
-        &mut ctx,
-        "Layout Demo",
-        &mut state.page,
-        debug_layout,
-        ColumnLayout,
-    );
+    if is_unbounded {
+        let mut outer = crate::demo_page::begin_demo_page_no_scroll(
+            &mut ctx,
+            "Layout Demo",
+            debug_layout,
+            true,
+            ColumnLayout,
+        );
+        draw_layout_page_content(&mut outer.ctx, state, win_w);
+        outer.ctx.finish();
+    } else {
+        let mut page_state = std::mem::take(&mut state.page);
+        {
+            let mut outer = crate::demo_page::begin_demo_page(
+                &mut ctx,
+                "Layout Demo",
+                &mut page_state,
+                debug_layout,
+                ColumnLayout,
+            );
+            draw_layout_page_content(&mut outer.ctx, state, win_w);
+            outer.ctx.finish();
+        }
+        state.page = page_state;
+    }
+
+    ctx.finish();
+
+    cmds
+}
+
+pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
+    outer: &'b mut WidgetContext<
+        'a,
+        SampleTextSystem,
+        framewise::layouts::OffsetState<framewise::ColumnState>,
+        CF,
+    >,
+    state: &mut LayoutDemoState,
+    win_w: f32,
+) {
+    let pad = 20.0;
+    let col_w = (win_w - 2.0 * pad - 30.0) * 0.5;
 
     let theme = outer.theme;
     let primary = ButtonStyle::primary_from_theme(&theme);
@@ -714,10 +755,6 @@ pub fn draw_layout_page(
     }
 
     root_row.finish();
-    outer.finish();
-    ctx.finish();
-
-    cmds
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
