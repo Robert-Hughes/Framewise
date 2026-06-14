@@ -4,8 +4,8 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        CaretPosition, FontId, LineHeight, TextBounds, TextFlow, TextHandle, TextLineAlign,
-        TextMetrics, TextStyle, TextSystem,
+        CaretPosition, FontId, LineHeight, TextBounds, TextFlow, TextLineAlign, TextMetrics,
+        TextStyle, TextSystem,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -301,19 +301,11 @@ pub mod raw {
                             caret_byte = caret_byte.min(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
-                            if let Some(position) = visually_previous_caret(
-                                text_system,
-                                initial_handle,
-                                &state.value,
-                                caret,
-                                caret_byte,
-                            ) {
-                                caret = position;
-                                caret_needs_layout_sync = false;
-                            } else {
-                                caret_byte = previous_char_boundary(&state.value, caret_byte);
-                                caret_needs_layout_sync = true;
-                            }
+                            caret = text_system.previous_caret_position(initial_handle, caret);
+                            caret_byte = text_system
+                                .caret_insertion_byte(initial_handle, caret)
+                                .min(state.value.len());
+                            caret_needs_layout_sync = false;
                         }
                     }
                     TextEvent::CaretRight { shift, ctrl } => {
@@ -340,15 +332,11 @@ pub mod raw {
                             caret_byte = caret_byte.max(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
-                            if let Some(position) =
-                                visually_next_caret(text_system, initial_handle, caret, caret_byte)
-                            {
-                                caret = position;
-                                caret_needs_layout_sync = false;
-                            } else {
-                                caret_byte = next_char_boundary(&state.value, caret_byte);
-                                caret_needs_layout_sync = true;
-                            }
+                            caret = text_system.next_caret_position(initial_handle, caret);
+                            caret_byte = text_system
+                                .caret_insertion_byte(initial_handle, caret)
+                                .min(state.value.len());
+                            caret_needs_layout_sync = false;
                         }
                     }
                     TextEvent::CaretUp { shift } => {
@@ -1256,74 +1244,6 @@ fn remove_selection(
     }
 }
 
-fn previous_char_boundary(text: &str, byte_index: usize) -> usize {
-    let mut prev = byte_index.saturating_sub(1);
-    while prev > 0 && !text.is_char_boundary(prev) {
-        prev -= 1;
-    }
-    prev
-}
-
-fn next_char_boundary(text: &str, byte_index: usize) -> usize {
-    let mut next = (byte_index + 1).min(text.len());
-    while next < text.len() && !text.is_char_boundary(next) {
-        next += 1;
-    }
-    next
-}
-
-fn visually_previous_caret<T: TextSystem>(
-    text_system: &T,
-    handle: TextHandle,
-    text: &str,
-    position: CaretPosition,
-    insertion_byte: usize,
-) -> Option<CaretPosition> {
-    if !matches!(position, CaretPosition::BeforeCluster { .. }) || insertion_byte == 0 {
-        return None;
-    }
-
-    let candidate = CaretPosition::AfterCluster {
-        cluster_byte_index: previous_char_boundary(text, insertion_byte),
-    };
-    visually_distinct_same_insertion_caret(text_system, handle, position, candidate, insertion_byte)
-}
-
-fn visually_next_caret<T: TextSystem>(
-    text_system: &T,
-    handle: TextHandle,
-    position: CaretPosition,
-    insertion_byte: usize,
-) -> Option<CaretPosition> {
-    if !matches!(position, CaretPosition::AfterCluster { .. }) {
-        return None;
-    }
-
-    let candidate = text_system.caret_position_at_insertion_byte(handle, insertion_byte);
-    visually_distinct_same_insertion_caret(text_system, handle, position, candidate, insertion_byte)
-}
-
-fn visually_distinct_same_insertion_caret<T: TextSystem>(
-    text_system: &T,
-    handle: TextHandle,
-    current: CaretPosition,
-    candidate: CaretPosition,
-    insertion_byte: usize,
-) -> Option<CaretPosition> {
-    if candidate == current || text_system.caret_insertion_byte(handle, candidate) != insertion_byte
-    {
-        return None;
-    }
-
-    let current_geom = text_system.caret_geom(handle, current);
-    let candidate_geom = text_system.caret_geom(handle, candidate);
-    if current_geom.x != candidate_geom.x || current_geom.y_top != candidate_geom.y_top {
-        Some(candidate)
-    } else {
-        None
-    }
-}
-
 fn caret_position_at_text_end(text: &str) -> CaretPosition {
     text.char_indices()
         .next_back()
@@ -1638,7 +1558,7 @@ mod tests {
 
     use crate::{
         test_utils::DummyTextSys,
-        text::{CaretGeom, LineMetrics, TextLayout},
+        text::{CaretGeom, LineMetrics, TextHandle, TextLayout},
     };
 
     #[test]
@@ -1843,6 +1763,74 @@ mod tests {
                 _ => CaretPosition::AfterCluster {
                     cluster_byte_index: 1,
                 },
+            }
+        }
+
+        fn previous_caret_position(
+            &self,
+            _handle: TextHandle,
+            position: CaretPosition,
+        ) -> CaretPosition {
+            match position {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                } => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                },
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                }
+                | CaretPosition::AfterCluster {
+                    cluster_byte_index: 0,
+                } => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                } => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                },
+                CaretPosition::BeforeCluster { cluster_byte_index }
+                | CaretPosition::AfterCluster { cluster_byte_index } => {
+                    CaretPosition::BeforeCluster {
+                        cluster_byte_index: cluster_byte_index.saturating_sub(1),
+                    }
+                }
+                CaretPosition::EmptyText => CaretPosition::EmptyText,
+            }
+        }
+
+        fn next_caret_position(
+            &self,
+            _handle: TextHandle,
+            position: CaretPosition,
+        ) -> CaretPosition {
+            match position {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                } => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                },
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                }
+                | CaretPosition::AfterCluster {
+                    cluster_byte_index: 0,
+                } => CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                } => CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                },
+                CaretPosition::BeforeCluster { cluster_byte_index }
+                | CaretPosition::AfterCluster { cluster_byte_index } => {
+                    CaretPosition::BeforeCluster {
+                        cluster_byte_index: cluster_byte_index + 1,
+                    }
+                }
+                CaretPosition::EmptyText => CaretPosition::EmptyText,
             }
         }
 
@@ -2081,7 +2069,7 @@ mod tests {
     }
 
     #[test]
-    fn test_text_edit_left_right_preserve_visual_side_at_shared_insertion() {
+    fn test_text_edit_left_right_skip_same_byte_visual_side() {
         let mut text_system = VisualBoundaryTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("ab");
@@ -2089,7 +2077,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
-        state.caret = CaretPosition::AfterCluster {
+        state.caret = CaretPosition::BeforeCluster {
             cluster_byte_index: 0,
         };
         let mut input = Input::default();
@@ -2130,11 +2118,11 @@ mod tests {
         );
         assert_eq!(
             state.caret,
-            CaretPosition::AfterCluster {
+            CaretPosition::BeforeCluster {
                 cluster_byte_index: 0
             }
         );
-        assert_eq!(caret_byte(&state), 1);
+        assert_eq!(caret_byte(&state), 0);
     }
 
     #[test]

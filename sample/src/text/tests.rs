@@ -1487,6 +1487,107 @@ mod tests {
         );
     }
 
+    #[test]
+    fn caret_navigation_moves_by_cluster_boundaries() {
+        let mut sys = sys();
+        let layout = sys.prepare(
+            "abcd",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+
+        let from_c = CaretPosition::BeforeCluster {
+            cluster_byte_index: 2,
+        };
+        let previous = sys.previous_caret_position(layout.handle, from_c);
+        let next = sys.next_caret_position(layout.handle, from_c);
+
+        assert_eq!(
+            previous,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 1
+            }
+        );
+        assert_eq!(sys.caret_insertion_byte(layout.handle, previous), 1);
+        assert_eq!(
+            next,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 3
+            }
+        );
+        assert_eq!(sys.caret_insertion_byte(layout.handle, next), 3);
+    }
+
+    #[test]
+    fn caret_navigation_chooses_newline_side_by_direction() {
+        let mut sys = sys();
+        let layout = sys.prepare(
+            "ab\ncd",
+            TextStyle::new(FontId(0), 16.0, 400, TextFlow::single_line()),
+            Rect::new(0.0, 0.0, 200.0, 100.0),
+        );
+        let newline_byte = 2;
+
+        let onto_newline_from_left = sys.next_caret_position(
+            layout.handle,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 1,
+            },
+        );
+        assert_eq!(
+            onto_newline_from_left,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: newline_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, onto_newline_from_left),
+            newline_byte
+        );
+
+        let through_newline = sys.next_caret_position(layout.handle, onto_newline_from_left);
+        assert_eq!(
+            through_newline,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: newline_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, through_newline),
+            newline_byte + 1
+        );
+
+        let onto_newline_from_right = sys.previous_caret_position(
+            layout.handle,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: newline_byte + 1,
+            },
+        );
+        assert_eq!(
+            onto_newline_from_right,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: newline_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, onto_newline_from_right),
+            newline_byte + 1
+        );
+
+        let back_before_newline =
+            sys.previous_caret_position(layout.handle, onto_newline_from_right);
+        assert_eq!(
+            back_before_newline,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: newline_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, back_before_newline),
+            newline_byte
+        );
+    }
+
     /// For soft-wrapped lines, test:
     /// - Querying `caret_geom` at the visual line's `byte_end` (which equals the `byte_start`
     ///   of the next visual line) resolves to the start of the next visual line.
@@ -1579,6 +1680,81 @@ mod tests {
             CaretPosition::BeforeCluster {
                 cluster_byte_index: space_byte
             }
+        );
+    }
+
+    #[test]
+    fn caret_navigation_chooses_soft_wrap_boundary_space_side_by_direction() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(0), 16.0, 400, wrap_word_preserving_whitespace_flow());
+        let hello_w = line_width(&mut sys, "hello", style);
+        let layout = sys.prepare(
+            "hello world",
+            style,
+            Rect::new(0.0, 0.0, hello_w + 0.1, 200.0),
+        );
+        let space_byte = 5;
+        assert!(sys.runs[layout.handle.0]
+            .clusters
+            .iter()
+            .any(|cluster| { cluster.byte_start == space_byte && cluster.is_soft_wrap_boundary }));
+
+        let onto_space_from_left = sys.next_caret_position(
+            layout.handle,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 4,
+            },
+        );
+        assert_eq!(
+            onto_space_from_left,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: space_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, onto_space_from_left),
+            space_byte
+        );
+
+        let through_space = sys.next_caret_position(layout.handle, onto_space_from_left);
+        assert_eq!(
+            through_space,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: space_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, through_space),
+            space_byte + 1
+        );
+
+        let onto_space_from_right = sys.previous_caret_position(
+            layout.handle,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: space_byte + 1,
+            },
+        );
+        assert_eq!(
+            onto_space_from_right,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: space_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, onto_space_from_right),
+            space_byte + 1
+        );
+
+        let back_before_space = sys.previous_caret_position(layout.handle, onto_space_from_right);
+        assert_eq!(
+            back_before_space,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: space_byte
+            }
+        );
+        assert_eq!(
+            sys.caret_insertion_byte(layout.handle, back_before_space),
+            space_byte
         );
     }
 

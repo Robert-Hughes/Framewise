@@ -885,6 +885,42 @@ pub trait TextSystem {
         byte_index: usize,
     ) -> CaretPosition;
 
+    /// Move one shaped cluster boundary to the left.
+    ///
+    /// Implementations should move by the prepared text's cluster model, not by
+    /// UTF-8 scalar boundaries. When movement is possible, the returned caret
+    /// should map to a different insertion byte from `position`. At hard
+    /// newlines and collapsed soft-wrap boundary whitespace, the returned
+    /// [`CaretPosition`] should preserve the visual side reached by moving from
+    /// the right, such as `AfterCluster` for the boundary character when landing
+    /// immediately after it.
+    ///
+    /// The default implementation is a no-op for text systems used only by
+    /// non-editing tests. Editable text systems should override it.
+    fn previous_caret_position(
+        &self,
+        _handle: TextHandle,
+        position: CaretPosition,
+    ) -> CaretPosition {
+        position
+    }
+
+    /// Move one shaped cluster boundary to the right.
+    ///
+    /// Implementations should move by the prepared text's cluster model, not by
+    /// UTF-8 scalar boundaries. When movement is possible, the returned caret
+    /// should map to a different insertion byte from `position`. At hard
+    /// newlines and collapsed soft-wrap boundary whitespace, the returned
+    /// [`CaretPosition`] should preserve the visual side reached by moving from
+    /// the left, such as `BeforeCluster` for the boundary character when landing
+    /// immediately before it.
+    ///
+    /// The default implementation is a no-op for text systems used only by
+    /// non-editing tests. Editable text systems should override it.
+    fn next_caret_position(&self, _handle: TextHandle, position: CaretPosition) -> CaretPosition {
+        position
+    }
+
     /// Hit-test a point (block-local coordinates) to a shaped glyph cluster,
     /// returning the start byte index of the hit cluster.
     ///

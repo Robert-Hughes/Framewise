@@ -4,6 +4,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- I'm seeing weird behaviour in text_edit when pressing left/right. Only seems to be in wrapped text possibly. It's taking two presses to move one character. Probably related to recent CaretPosition changes. Investigate and explain what's happening, and why test coverage hasn't detected this (maybe tests are wrong?)
+- do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
+
 - selection highlighting is borked for non-left-aligned text
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
 
@@ -60,24 +63,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
 - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
-- do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
-      ## 9. Add cluster navigation APIs
-
-      Since TextEdit should move by clusters, not chars, I’d avoid keeping this logic in TextEdit:
-
-      ```rust
-      fn previous_caret_position(&self, handle: TextHandle, position: CaretPosition) -> CaretPosition;
-      fn next_caret_position(&self, handle: TextHandle, position: CaretPosition) -> CaretPosition;
-      ```
-
-      This is where soft-wrap boundaries become really nice:
-
-      * `AfterCluster(c)` + Right at a soft-wrap boundary can become `BeforeCluster(d)` without changing insertion byte.
-      * `BeforeCluster(d)` + Left can become `AfterCluster(c)`.
-      * `AfterCluster(space)` for terminal wrapped space can be the empty next line.
-      * `BeforeCluster(space)` can be previous-line boundary.
-
-      If you do not add these, TextEdit will continue walking UTF-8 char boundaries, which is already not ideal for shaped clusters.
 
 - Weird behaviour of ligatures(?) with equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 

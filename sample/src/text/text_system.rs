@@ -480,6 +480,40 @@ impl TextSystem for SampleTextSystem {
         }
     }
 
+    fn previous_caret_position(
+        &self,
+        handle: framewise::TextHandle,
+        position: CaretPosition,
+    ) -> CaretPosition {
+        let run = &self.runs[handle.0];
+        let byte_index = self.caret_insertion_byte(handle, position);
+        let Some(target_byte) = previous_insertion_boundary(run, byte_index) else {
+            return self.caret_position_at_insertion_byte(handle, 0);
+        };
+        caret_position_for_movement_target(run, target_byte)
+            .unwrap_or_else(|| self.caret_position_at_insertion_byte(handle, target_byte))
+    }
+
+    fn next_caret_position(
+        &self,
+        handle: framewise::TextHandle,
+        position: CaretPosition,
+    ) -> CaretPosition {
+        let run = &self.runs[handle.0];
+        let byte_index = self.caret_insertion_byte(handle, position);
+        let Some(target_byte) = next_insertion_boundary(run, byte_index) else {
+            return run
+                .clusters
+                .last()
+                .map(|cluster| CaretPosition::AfterCluster {
+                    cluster_byte_index: cluster.byte_start,
+                })
+                .unwrap_or(CaretPosition::EmptyText);
+        };
+        caret_position_for_movement_target(run, target_byte)
+            .unwrap_or_else(|| self.caret_position_at_insertion_byte(handle, target_byte))
+    }
+
     fn hit_test_cluster(&self, handle: framewise::TextHandle, pos: Vec2) -> usize {
         let run = &self.runs[handle.0];
 
@@ -556,4 +590,51 @@ fn empty_line_caret_position(run: &CachedLayout, line_idx: usize) -> CaretPositi
             cluster_byte_index: cluster.byte_start,
         })
         .unwrap_or(CaretPosition::EmptyText)
+}
+
+fn previous_insertion_boundary(run: &CachedLayout, byte_index: usize) -> Option<usize> {
+    run.clusters
+        .iter()
+        .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
+        .filter(|byte| *byte < byte_index)
+        .max()
+}
+
+fn next_insertion_boundary(run: &CachedLayout, byte_index: usize) -> Option<usize> {
+    run.clusters
+        .iter()
+        .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
+        .filter(|byte| *byte > byte_index)
+        .min()
+}
+
+fn caret_position_for_movement_target(
+    run: &CachedLayout,
+    target_byte: usize,
+) -> Option<CaretPosition> {
+    if let Some(cluster) = run
+        .clusters
+        .iter()
+        .find(|cluster| is_visual_boundary_cluster(cluster) && cluster.byte_end == target_byte)
+    {
+        return Some(CaretPosition::AfterCluster {
+            cluster_byte_index: cluster.byte_start,
+        });
+    }
+
+    if let Some(cluster) = run
+        .clusters
+        .iter()
+        .find(|cluster| is_visual_boundary_cluster(cluster) && cluster.byte_start == target_byte)
+    {
+        return Some(CaretPosition::BeforeCluster {
+            cluster_byte_index: cluster.byte_start,
+        });
+    }
+
+    None
+}
+
+fn is_visual_boundary_cluster(cluster: &TextCluster) -> bool {
+    cluster.is_hard_break || cluster.is_soft_wrap_boundary
 }

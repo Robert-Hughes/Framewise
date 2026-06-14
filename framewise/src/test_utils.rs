@@ -223,6 +223,42 @@ impl TextSystem for DummyTextSys {
         }
     }
 
+    fn previous_caret_position(
+        &self,
+        handle: TextHandle,
+        position: CaretPosition,
+    ) -> CaretPosition {
+        let byte_index = self.caret_insertion_byte(handle, position);
+        let Some((ref text, _)) = self.last_run else {
+            return position;
+        };
+        if byte_index == 0 {
+            return self.caret_position_at_insertion_byte(handle, 0);
+        }
+
+        let previous = text[..byte_index]
+            .char_indices()
+            .next_back()
+            .map_or(0, |(idx, _)| idx);
+        self.caret_position_at_insertion_byte(handle, previous)
+    }
+
+    fn next_caret_position(&self, handle: TextHandle, position: CaretPosition) -> CaretPosition {
+        let byte_index = self.caret_insertion_byte(handle, position);
+        let Some((ref text, _)) = self.last_run else {
+            return position;
+        };
+        if byte_index >= text.len() {
+            return self.caret_position_at_insertion_byte(handle, text.len());
+        }
+
+        let next = text[byte_index..]
+            .chars()
+            .next()
+            .map_or(text.len(), |ch| byte_index + ch.len_utf8());
+        self.caret_position_at_insertion_byte(handle, next)
+    }
+
     fn hit_test_cluster(&self, _handle: TextHandle, pos: Vec2) -> usize {
         if let Some((ref text, ref metrics)) = self.last_run {
             let line = metrics
