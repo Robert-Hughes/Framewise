@@ -1287,8 +1287,8 @@ mod tests {
             layer: Layer::default(),
             style: ButtonStyle {
                 content_placement: crate::text::TextContentPlacement::logical(
-                    crate::Align::End,
-                    crate::Align::End,
+                    crate::text::ContentPlacement::Align(crate::Align::End),
+                    crate::text::ContentPlacement::Align(crate::Align::End),
                 ),
                 ..ButtonStyle::primary_from_theme(&theme::Theme::default())
             },

@@ -1480,10 +1480,8 @@ pub fn draw_label_page(
                             theme.sans_weight_regular,
                             framewise::text::TextFlow::single_line(),
                         ),
-                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
+                        ..LabelStyle::from_theme(&theme)
                     }),
                 ColumnLayoutParams::auto(),
             );
@@ -1502,10 +1500,8 @@ pub fn draw_label_page(
                             line_align: text_align,
                         },
                     ),
-                    content_placement: framewise::TextContentPlacement::TOP_LEFT,
                     text_color: theme.ink,
-                    rule: false,
-                    rule_color: theme.line,
+                    ..LabelStyle::from_theme(&theme)
                 }),
                 ColumnLayoutParams::auto().fill_x(),
             );
@@ -1569,7 +1565,10 @@ pub fn draw_label_page(
                 label(
                     &mut cell.ctx,
                     LabelSpecBuilder::new().text(text).style(LabelStyle {
-                        content_placement: framewise::TextContentPlacement::logical(*x, *y),
+                        content_placement: framewise::TextContentPlacement::logical(
+                            framewise::ContentPlacement::Align(*x),
+                            framewise::ContentPlacement::Align(*y),
+                        ),
                         text_color: theme.ink,
                         ..LabelStyle::from_theme(&theme)
                     }),

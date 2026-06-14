@@ -387,7 +387,10 @@ fn button_intrinsic_width<T: TextSystem>(
 
 #[cfg(feature = "button")]
 fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
-    style.content_placement = framewise::TextContentPlacement::logical(Align::Start, Align::Center);
+    style.content_placement = framewise::TextContentPlacement::logical(
+        framewise::ContentPlacement::Align(Align::Start),
+        framewise::ContentPlacement::Align(Align::Center),
+    );
     style
 }
 
@@ -1604,8 +1607,8 @@ fn section_01_buttons<CF>(
                     text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
                     text_color: b.theme.ink,
                     content_placement: framewise::TextContentPlacement::logical(
-                        Align::Start,
-                        Align::Center,
+                        framewise::ContentPlacement::Align(Align::Start),
+                        framewise::ContentPlacement::Align(Align::Center),
                     ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -1791,8 +1794,8 @@ fn section_02_text_inputs<CF>(
                     text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
                     text_color: b.theme.ink,
                     content_placement: framewise::TextContentPlacement::logical(
-                        Align::Start,
-                        Align::Center,
+                        framewise::ContentPlacement::Align(Align::Start),
+                        framewise::ContentPlacement::Align(Align::Center),
                     ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -2021,8 +2024,8 @@ fn section_03_toggles<CF>(
                 text_style: label_text_style,
                 text_color: b.theme.ink,
                 content_placement: framewise::TextContentPlacement::logical(
-                    Align::Start,
-                    Align::Center,
+                    framewise::ContentPlacement::Align(Align::Start),
+                    framewise::ContentPlacement::Align(Align::Center),
                 ),
                 ..LabelStyle::from_theme(&b.theme)
             });
@@ -2072,8 +2075,8 @@ fn section_03_toggles<CF>(
                     text_style: label_text_style,
                     text_color: b.theme.ink,
                     content_placement: framewise::TextContentPlacement::logical(
-                        Align::Start,
-                        Align::Center,
+                        framewise::ContentPlacement::Align(Align::Start),
+                        framewise::ContentPlacement::Align(Align::Center),
                     ),
                     ..LabelStyle::from_theme(&b.theme)
                 });

@@ -505,7 +505,10 @@ pub fn draw_button_page(
             for (col_index, (text, x, y)) in row_positions.iter().enumerate() {
                 let index = row_index * 3 + col_index;
                 let style = ButtonStyle {
-                    content_placement: framewise::TextContentPlacement::logical(*x, *y),
+                    content_placement: framewise::TextContentPlacement::logical(
+                        framewise::ContentPlacement::Align(*x),
+                        framewise::ContentPlacement::Align(*y),
+                    ),
                     ..secondary
                 };
                 button(

@@ -342,8 +342,10 @@ pub fn draw_layout_page(
 
             // Button 0: Outer (Strictly encompasses Inner)
             let mut outer_style = primary;
-            outer_style.content_placement =
-                TextContentPlacement::logical(Align::Center, Align::Start);
+            outer_style.content_placement = TextContentPlacement::logical(
+                framewise::ContentPlacement::Align(Align::Center),
+                framewise::ContentPlacement::Align(Align::Start),
+            );
             outer_style.hovered = Color::from_srgb_u8(130, 50, 200, 255); // Custom vibrant purple
 
             let text_0 = format!("Clicks: {}", state.n_clicks[0]);

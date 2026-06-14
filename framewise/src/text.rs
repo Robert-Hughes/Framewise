@@ -387,6 +387,16 @@ pub enum TextContentBasis {
     Ink,
 }
 
+/// Horizontal or vertical placement policy for a prepared text block inside a containing box.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ContentPlacement {
+    /// Span the layout's available extent in that direction, allowing line alignment to take effect.
+    #[default]
+    Fill,
+    /// Shrink-wrap the content in that direction and align it.
+    Align(Align),
+}
+
 /// Placement of a prepared text block inside a widget's own content rect.
 ///
 /// This is widget-local content placement. It is distinct from
@@ -395,17 +405,26 @@ pub enum TextContentBasis {
 /// inside its parent layout space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextContentPlacement {
-    pub x: Align,
-    pub y: Align,
+    pub x: ContentPlacement,
+    pub y: ContentPlacement,
     pub basis: TextContentBasis,
 }
 
 impl TextContentPlacement {
-    pub const TOP_LEFT: Self = Self::logical(Align::Start, Align::Start);
-    pub const CENTER: Self = Self::logical(Align::Center, Align::Center);
-    pub const INK_CENTER: Self = Self::ink(Align::Center, Align::Center);
+    pub const TOP_LEFT: Self = Self::logical(
+        ContentPlacement::Align(Align::Start),
+        ContentPlacement::Align(Align::Start),
+    );
+    pub const CENTER: Self = Self::logical(
+        ContentPlacement::Align(Align::Center),
+        ContentPlacement::Align(Align::Center),
+    );
+    pub const INK_CENTER: Self = Self::ink(
+        ContentPlacement::Align(Align::Center),
+        ContentPlacement::Align(Align::Center),
+    );
 
-    pub const fn logical(x: Align, y: Align) -> Self {
+    pub const fn logical(x: ContentPlacement, y: ContentPlacement) -> Self {
         Self {
             x,
             y,
@@ -413,7 +432,7 @@ impl TextContentPlacement {
         }
     }
 
-    pub const fn ink(x: Align, y: Align) -> Self {
+    pub const fn ink(x: ContentPlacement, y: ContentPlacement) -> Self {
         Self {
             x,
             y,
@@ -437,14 +456,25 @@ impl TextContentPlacement {
             TextContentBasis::Ink => (0.0, logical.y),
         };
 
-        let x = content_rect.x + align_offset(content_rect.w, basis_w, self.x) - basis_x;
-        let y = content_rect.y + align_offset(content_rect.h, basis_h, self.y) - basis_y;
-        Rect::new(
-            x,
-            y,
-            logical.x.min(content_rect.w),
-            logical.y.min(content_rect.h),
-        )
+        let (x, w) = match self.x {
+            ContentPlacement::Fill => (content_rect.x, content_rect.w),
+            ContentPlacement::Align(align) => {
+                let x = content_rect.x + align_offset(content_rect.w, basis_w, align) - basis_x;
+                let w = logical.x.min(content_rect.w);
+                (x, w)
+            }
+        };
+
+        let (y, h) = match self.y {
+            ContentPlacement::Fill => (content_rect.y, content_rect.h),
+            ContentPlacement::Align(align) => {
+                let y = content_rect.y + align_offset(content_rect.h, basis_h, align) - basis_y;
+                let h = logical.y.min(content_rect.h);
+                (y, h)
+            }
+        };
+
+        Rect::new(x, y, w, h)
     }
 }
 
@@ -475,6 +505,54 @@ mod tests {
         assert_eq!(
             TextContentPlacement::TOP_LEFT.resolve_rect(content_rect, overflow_metrics),
             Rect::new(10.0, 20.0, 4.0, 12.0)
+        );
+    }
+
+    #[test]
+    fn text_content_placement_fill_uses_full_content_size() {
+        let content_rect = Rect::new(10.0, 20.0, 100.0, 50.0);
+        let metrics = TextMetrics {
+            logical_size: Vec2::new(40.0, 16.0),
+            ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
+            line_count: 1,
+            truncated_horizontal: false,
+            truncated_vertical: false,
+            lines: Vec::new(),
+        };
+
+        let placement = TextContentPlacement {
+            x: ContentPlacement::Fill,
+            y: ContentPlacement::Fill,
+            basis: TextContentBasis::Logical,
+        };
+
+        assert_eq!(
+            placement.resolve_rect(content_rect, metrics),
+            Rect::new(10.0, 20.0, 100.0, 50.0)
+        );
+    }
+
+    #[test]
+    fn text_content_placement_fill_x_align_y() {
+        let content_rect = Rect::new(10.0, 20.0, 100.0, 50.0);
+        let metrics = TextMetrics {
+            logical_size: Vec2::new(40.0, 16.0),
+            ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
+            line_count: 1,
+            truncated_horizontal: false,
+            truncated_vertical: false,
+            lines: Vec::new(),
+        };
+
+        let placement = TextContentPlacement {
+            x: ContentPlacement::Fill,
+            y: ContentPlacement::Align(Align::Center),
+            basis: TextContentBasis::Logical,
+        };
+
+        assert_eq!(
+            placement.resolve_rect(content_rect, metrics),
+            Rect::new(10.0, 37.0, 100.0, 16.0)
         );
     }
 }

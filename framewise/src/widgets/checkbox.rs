@@ -374,8 +374,10 @@ pub fn labelled_checkbox<T: TextSystem, S: LayoutState, CF>(
 
     // Resolve label style and measure text size
     let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
-    label_style.content_placement =
-        crate::text::TextContentPlacement::logical(crate::Align::Start, crate::Align::Center);
+    label_style.content_placement = crate::text::TextContentPlacement::logical(
+        crate::text::ContentPlacement::Align(crate::Align::Start),
+        crate::text::ContentPlacement::Align(crate::Align::Center),
+    );
     if spec.disabled {
         let alpha = spec.style.disabled_alpha;
         label_style.text_color = Color::linear_rgba(

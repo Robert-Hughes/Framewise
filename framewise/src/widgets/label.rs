@@ -121,7 +121,10 @@ impl LabelStyle {
                 theme.sans_weight_regular,
                 crate::text::TextFlow::single_line(),
             ),
-            content_placement: crate::text::TextContentPlacement::TOP_LEFT,
+            content_placement: crate::text::TextContentPlacement::logical(
+                crate::text::ContentPlacement::Fill,
+                crate::text::ContentPlacement::Align(crate::Align::Start),
+            ),
             text_color: theme.ink,
             rule: false,
             rule_color: theme.line,
@@ -449,8 +452,8 @@ mod tests {
             text: "Hello",
             style: LabelStyle {
                 content_placement: crate::text::TextContentPlacement::logical(
-                    crate::Align::End,
-                    crate::Align::End,
+                    crate::text::ContentPlacement::Align(crate::Align::End),
+                    crate::text::ContentPlacement::Align(crate::Align::End),
                 ),
                 ..LabelStyle::from_theme(&theme::Theme::default())
             },

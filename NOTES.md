@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
--
-- F2 page, section 5, 'centre aligned text' doesn't look so centred!
-
 - add golden comparisons for all the sample app pages, not just the spec page?
 
 - Text Edit
