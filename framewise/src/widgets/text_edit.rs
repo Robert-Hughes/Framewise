@@ -4,8 +4,8 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        CaretPosition, FontId, LineHeight, TextBounds, TextFlow, TextLineAlign, TextMetrics,
-        TextStyle, TextSystem,
+        CaretPosition, FontId, LineHeight, LineMetrics, TextBounds, TextFlow, TextHandle,
+        TextLineAlign, TextMetrics, TextStyle, TextSystem,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -948,16 +948,14 @@ pub mod raw {
                                     .caret_position_at_insertion_byte(handle, line_sel_start),
                             );
 
-                            let has_newline = line.byte_end > line.byte_start
-                                && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
-
                             let end_x = if line_sel_end == line.byte_end {
-                                if has_newline {
-                                    // Highlight the newline character specifically by extending 8px past the text end
-                                    line.logical_width + 8.0
-                                } else {
-                                    line.logical_width
-                                }
+                                line.logical_width
+                                    + selected_line_end_affordance_width(
+                                        &state.value,
+                                        line,
+                                        handle,
+                                        text_system,
+                                    )
                             } else {
                                 text_system
                                     .caret_geom(
@@ -1054,6 +1052,54 @@ pub mod raw {
                 clicked: input.mouse_clicked && contains,
             },
         }
+    }
+
+    const SELECTED_BOUNDARY_AFFORDANCE_WIDTH: f32 = 8.0;
+
+    fn selected_line_end_affordance_width<T: TextSystem>(
+        text: &str,
+        line: &LineMetrics,
+        handle: TextHandle,
+        text_system: &T,
+    ) -> f32 {
+        if selected_line_end_has_affordance(text, line, handle, text_system) {
+            SELECTED_BOUNDARY_AFFORDANCE_WIDTH
+        } else {
+            0.0
+        }
+    }
+
+    fn selected_line_end_has_affordance<T: TextSystem>(
+        text: &str,
+        line: &LineMetrics,
+        handle: TextHandle,
+        text_system: &T,
+    ) -> bool {
+        let Some((last_byte, last_char)) = text
+            .get(line.byte_start..line.byte_end)
+            .and_then(|line_text| line_text.char_indices().next_back())
+            .map(|(offset, ch)| (line.byte_start + offset, ch))
+        else {
+            return false;
+        };
+
+        if last_char == '\n' {
+            return true;
+        }
+
+        if !last_char.is_whitespace() {
+            return false;
+        }
+
+        let before_boundary = text_system.caret_geom(
+            handle,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: last_byte,
+            },
+        );
+
+        before_boundary.y_top == line.y_top
+            && (before_boundary.x - line.logical_width).abs() <= f32::EPSILON
     }
 
     pub(super) fn edit_layout_size<T: TextSystem>(
@@ -1836,6 +1882,149 @@ mod tests {
 
         fn hit_test_cluster(&self, _handle: TextHandle, pos: Vec2) -> usize {
             usize::from(pos.y >= 16.0)
+        }
+    }
+
+    struct CollapsedTrailingSpaceTextSys;
+
+    impl CollapsedTrailingSpaceTextSys {
+        fn metrics() -> TextMetrics {
+            TextMetrics {
+                logical_size: Vec2::new(8.0, 32.0),
+                ink_bounds: Rect::new(0.0, 0.0, 8.0, 32.0),
+                line_count: 2,
+                truncated_horizontal: false,
+                truncated_vertical: false,
+                lines: vec![
+                    LineMetrics {
+                        y_top: 0.0,
+                        height: 16.0,
+                        logical_width: 8.0,
+                        ink_width: 8.0,
+                        byte_start: 0,
+                        byte_end: 2,
+                    },
+                    LineMetrics {
+                        y_top: 16.0,
+                        height: 16.0,
+                        logical_width: 8.0,
+                        ink_width: 8.0,
+                        byte_start: 2,
+                        byte_end: 3,
+                    },
+                ],
+            }
+        }
+    }
+
+    impl TextSystem for CollapsedTrailingSpaceTextSys {
+        fn measure(&mut self, _text: &str, _style: TextStyle, _bounds: TextBounds) -> TextMetrics {
+            Self::metrics()
+        }
+
+        fn prepare(&mut self, _text: &str, _style: TextStyle, _rect: Rect) -> TextLayout {
+            TextLayout {
+                handle: TextHandle(0),
+                metrics: Self::metrics(),
+            }
+        }
+
+        fn caret_geom(&self, _handle: TextHandle, position: CaretPosition) -> CaretGeom {
+            match position {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                } => CaretGeom {
+                    x: 0.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                } => CaretGeom {
+                    x: 8.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                }
+                | CaretPosition::BeforeCluster {
+                    cluster_byte_index: 2,
+                } => CaretGeom {
+                    x: 0.0,
+                    y_top: 16.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 2,
+                } => CaretGeom {
+                    x: 8.0,
+                    y_top: 16.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 0,
+                } => CaretGeom {
+                    x: 8.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::BeforeCluster { cluster_byte_index }
+                | CaretPosition::AfterCluster { cluster_byte_index } => CaretGeom {
+                    x: cluster_byte_index as f32 * 8.0,
+                    y_top: 16.0,
+                    height: 16.0,
+                },
+                CaretPosition::EmptyText => CaretGeom {
+                    x: 0.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+            }
+        }
+
+        fn hit_test_caret(&self, _handle: TextHandle, pos: Vec2) -> CaretPosition {
+            if pos.y >= 16.0 {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 2,
+                }
+            } else {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                }
+            }
+        }
+
+        fn caret_insertion_byte(&self, _handle: TextHandle, position: CaretPosition) -> usize {
+            match position {
+                CaretPosition::BeforeCluster { cluster_byte_index } => cluster_byte_index,
+                CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index + 1,
+                CaretPosition::EmptyText => 0,
+            }
+        }
+
+        fn caret_position_at_insertion_byte(
+            &self,
+            _handle: TextHandle,
+            byte_index: usize,
+        ) -> CaretPosition {
+            if byte_index >= 3 {
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 2,
+                }
+            } else {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: byte_index,
+                }
+            }
+        }
+
+        fn hit_test_cluster(&self, _handle: TextHandle, pos: Vec2) -> usize {
+            if pos.y >= 16.0 {
+                2
+            } else {
+                1
+            }
         }
     }
 
@@ -4607,6 +4796,54 @@ mod tests {
                 },
                 DrawCmd::PopClip,
             ])
+        );
+    }
+
+    #[test]
+    fn test_text_edit_selection_highlights_collapsed_trailing_space_affordance() {
+        let mut text_system = CollapsedTrailingSpaceTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("a b");
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        focus_system.begin_frame();
+
+        state.was_focused = true;
+        set_selection_byte(&mut state, Some(0));
+        set_caret_byte(&mut state, 2);
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            TextEditSpec {
+                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                newline_policy: NewlinePolicy::Allow,
+                wrap: true,
+                vertical_align: Align::Start,
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        let has_collapsed_space_affordance = cmds.iter().any(|cmd| {
+            matches!(
+                cmd,
+                DrawCmd::FillRect {
+                    rect,
+                    color,
+                    ..
+                } if *color == spec().style.select_color
+                    && *rect == Rect::new(5.0, 5.0, 16.0, 16.0)
+            )
+        });
+
+        assert!(
+            has_collapsed_space_affordance,
+            "selection highlight should extend past line.logical_width for the collapsed trailing space"
         );
     }
 

@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- I'm seeing weird behaviour in text_edit when pressing left/right. Only seems to be in wrapped text possibly. It's taking two presses to move one character. Probably related to recent CaretPosition changes. Investigate and explain what's happening, and why test coverage hasn't detected this (maybe tests are wrong?)
-- do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
-
 - selection highlighting is borked for non-left-aligned text
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
 
@@ -15,7 +12,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Text Edit
 
   - wrapping options for multi-line
-    - text_edit should have visual affordance for selected collapsed trailing spaces (test visual appearance like we do for hard breaks)
     - adding spaces to the start of wrapped lines is weird (appends to prev line instead?)
     - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
     - End key moves caret to the line *beneath*, not end of the current (wrapped) line. Should use the new caret begin/end semenatic? Make sure is correct for wrapped words and collapsed trailing spaces etc.
@@ -369,7 +365,9 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Right-click context menu (copy/paste etc.)
 - Scrolling and clipping within the edit field
 - Multi-line editing
+- Emojis and multi-character clusters etc.
 - IME support
+- Undo and redo? (Or built into larger app-wide system?)
 
 ## Splitters
 
