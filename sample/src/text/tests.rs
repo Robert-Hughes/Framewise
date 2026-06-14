@@ -3,9 +3,10 @@ mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
     use framewise::widgets::label::{raw as raw_label, LabelStyle};
     use framewise::{
-        CaretGeom, CaretPosition, Color, DrawCommands, EllipsisFallback, FontId, Layer, LineHeight,
-        OverflowX, OverflowY, Rect, TextBounds, TextContentPlacement, TextFlow, TextHandle,
-        TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback, WrapWordFallback,
+        CaretGeom, CaretPosition, Color, DrawCommands, EllipsisFallback, FontId, Layer,
+        LineEndKind, LineHeight, OverflowX, OverflowY, Rect, TextBounds, TextContentPlacement,
+        TextFlow, TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback,
+        WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
@@ -289,6 +290,7 @@ mod tests {
             TextBounds::UNBOUNDED,
         );
         assert_eq!(m.line_count, 1);
+        assert_eq!(m.lines[0].end_kind, LineEndKind::EndOfText);
         assert!(!m.truncated_horizontal && !m.truncated_vertical);
         assert!(m.logical_size.x > 0.0);
     }
@@ -302,6 +304,9 @@ mod tests {
             TextBounds::UNBOUNDED,
         );
         assert_eq!(m.line_count, 3);
+        assert_eq!(m.lines[0].end_kind, LineEndKind::HardNewline);
+        assert_eq!(m.lines[1].end_kind, LineEndKind::HardNewline);
+        assert_eq!(m.lines[2].end_kind, LineEndKind::EndOfText);
     }
 
     #[test]
@@ -322,6 +327,8 @@ mod tests {
         assert_eq!(l0.byte_end, 6); // inclusive of '\n'
         assert_eq!(l1.byte_start, 6);
         assert_eq!(l1.byte_end, 11);
+        assert_eq!(l0.end_kind, LineEndKind::HardNewline);
+        assert_eq!(l1.end_kind, LineEndKind::EndOfText);
 
         assert!(l0.height > 0.0);
         assert_eq!(l0.y_top, 0.0);
@@ -1051,6 +1058,7 @@ mod tests {
             text.ends_with('…'),
             "expected trailing ellipsis, got {text:?}"
         );
+        assert_eq!(layout.metrics.lines[0].end_kind, LineEndKind::EllipsisX);
     }
 
     #[test]
@@ -1105,6 +1113,7 @@ mod tests {
             Rect::new(0.0, 0.0, 80.0, lh * 2.0 + 1.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
+        assert_eq!(layout.metrics.lines[1].end_kind, LineEndKind::EllipsisY);
         let text = visible(&sys, layout.handle);
         assert!(
             text.contains('…'),
@@ -1823,6 +1832,7 @@ mod tests {
             Rect::new(0.0, 0.0, 25.0, 28.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
+        assert_eq!(layout.metrics.lines[0].end_kind, LineEndKind::OverflowDrop);
         assert_eq!(visual_lines(&sys, layout.handle), ["hell"]);
         let run = &sys.runs[layout.handle.0];
         for g in &run.glyphs {
@@ -1866,6 +1876,8 @@ mod tests {
         assert!(line1_has_overflow);
         assert!(line2_has_overflow);
         assert_eq!(visual_lines(&sys, layout.handle), ["hello", "hello"]);
+        assert_eq!(layout.metrics.lines[0].end_kind, LineEndKind::OverflowKeep);
+        assert_eq!(layout.metrics.lines[1].end_kind, LineEndKind::OverflowKeep);
     }
 
     // Keep this test in sync with Card 3 in Section 4 of sample/src/label_page.rs
@@ -1888,6 +1900,7 @@ mod tests {
         let text = visible(&sys, layout.handle);
         assert!(text.ends_with('…'));
         assert_eq!(visual_lines(&sys, layout.handle), ["h…"]);
+        assert_eq!(layout.metrics.lines[0].end_kind, LineEndKind::EllipsisY);
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
         assert!(logical_glyph_end(last_glyph) <= 25.0 + 0.1);
@@ -1958,6 +1971,8 @@ mod tests {
         let text = visible(&sys, layout.handle);
         assert!(text.contains('…'));
         assert_eq!(visual_lines(&sys, layout.handle), ["h…", "h…"]);
+        assert_eq!(layout.metrics.lines[0].end_kind, LineEndKind::EllipsisX);
+        assert_eq!(layout.metrics.lines[1].end_kind, LineEndKind::EllipsisX);
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
@@ -2045,6 +2060,20 @@ mod tests {
         assert_eq!(
             visual_lines(&sys, layout.handle),
             ["hel", "lo\n", "hel", "lo"]
+        );
+        assert_eq!(
+            layout
+                .metrics
+                .lines
+                .iter()
+                .map(|line| line.end_kind)
+                .collect::<Vec<_>>(),
+            [
+                LineEndKind::SoftWrapNonWhitespace,
+                LineEndKind::HardNewline,
+                LineEndKind::SoftWrapNonWhitespace,
+                LineEndKind::EndOfText,
+            ]
         );
     }
 
@@ -2528,6 +2557,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(run.lines[0].logical_width, hello_w, "collapsed line width");
         assert_close(
             layout.metrics.lines[0].logical_width,
@@ -2551,6 +2582,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             hello_w,
@@ -2584,6 +2617,8 @@ mod tests {
         let line0 = &run.lines[0];
         assert_eq!((line0.byte_start, line0.byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_eq!(line0.end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             line0.logical_width,
             hello_w,
@@ -2650,6 +2685,9 @@ mod tests {
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
         assert_eq!((run.lines[2].byte_start, run.lines[2].byte_end), (7, 12));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::SoftWrapNonWhitespace);
+        assert_eq!(run.lines[2].end_kind, LineEndKind::EndOfText);
         assert_close(run.lines[0].logical_width, hello_w, "first line width");
         assert_close(run.lines[1].logical_width, space_w, "second line width");
     }
@@ -2666,6 +2704,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             hello_w,
@@ -2689,6 +2729,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 7));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(run.lines[0].logical_width, hello_w, "first line width");
         assert_close(run.lines[1].logical_width, space_w, "second line width");
         assert_eq!(run.lines[1].ink_width, 0.0);
@@ -2713,6 +2755,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 5));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (5, 10));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapNonWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             five_spaces_w,
@@ -2729,6 +2773,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             five_spaces_w,
@@ -2758,6 +2804,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 11));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             hello_w,
@@ -2809,6 +2857,8 @@ mod tests {
         let run = &sys.runs[layout.handle.0];
         assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 6));
         assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (6, 6));
+        assert_eq!(run.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+        assert_eq!(run.lines[1].end_kind, LineEndKind::EndOfText);
         assert_close(
             run.lines[0].logical_width,
             hello_w,

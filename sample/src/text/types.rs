@@ -1,4 +1,4 @@
-use framewise::FontId;
+use framewise::{FontId, LineEndKind};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GlyphRasterConfig {
@@ -85,6 +85,7 @@ pub struct LineRec {
     pub ink_width: f32,
     pub logical_x: f32,
     pub ink_x: f32,
+    pub end_kind: LineEndKind,
 }
 
 #[derive(Debug, Clone, PartialEq)]

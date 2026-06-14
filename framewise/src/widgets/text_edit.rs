@@ -4,7 +4,7 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        CaretPosition, FontId, LineHeight, LineMetrics, TextBounds, TextFlow, TextHandle,
+        CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBounds, TextFlow,
         TextLineAlign, TextMetrics, TextStyle, TextSystem,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
@@ -558,14 +558,15 @@ pub mod raw {
                             let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
                             let current_line_idx = visual_line_index_at_y(&metrics, caret_mid_y);
                             let line = &metrics.lines[current_line_idx];
-                            let has_newline = line.byte_end > line.byte_start
-                                && state.value.as_bytes().get(line.byte_end - 1) == Some(&b'\n');
                             let line_mid_y = line.y_top + line.height * 0.5;
                             let end_cluster = text_system.hit_test_cluster(
                                 handle,
                                 Vec2::new(line.logical_x + line.logical_width + 1.0, line_mid_y),
                             );
-                            caret = if has_newline {
+                            caret = if matches!(
+                                line.end_kind,
+                                LineEndKind::HardNewline | LineEndKind::SoftWrapWhitespace
+                            ) {
                                 CaretPosition::BeforeCluster {
                                     cluster_byte_index: end_cluster,
                                 }
@@ -1025,12 +1026,7 @@ pub mod raw {
                             let end_x = if line_sel_end == line.byte_end {
                                 line_start_x
                                     + line.logical_width
-                                    + selected_line_end_affordance_width(
-                                        &state.value,
-                                        line,
-                                        handle,
-                                        text_system,
-                                    )
+                                    + selected_line_end_affordance_width(line)
                             } else {
                                 text_system
                                     .caret_geom(
@@ -1131,50 +1127,15 @@ pub mod raw {
 
     const SELECTED_BOUNDARY_AFFORDANCE_WIDTH: f32 = 8.0;
 
-    fn selected_line_end_affordance_width<T: TextSystem>(
-        text: &str,
-        line: &LineMetrics,
-        handle: TextHandle,
-        text_system: &T,
-    ) -> f32 {
-        if selected_line_end_has_affordance(text, line, handle, text_system) {
+    fn selected_line_end_affordance_width(line: &LineMetrics) -> f32 {
+        if matches!(
+            line.end_kind,
+            LineEndKind::HardNewline | LineEndKind::SoftWrapWhitespace
+        ) {
             SELECTED_BOUNDARY_AFFORDANCE_WIDTH
         } else {
             0.0
         }
-    }
-
-    fn selected_line_end_has_affordance<T: TextSystem>(
-        text: &str,
-        line: &LineMetrics,
-        handle: TextHandle,
-        text_system: &T,
-    ) -> bool {
-        let Some((last_byte, last_char)) = text
-            .get(line.byte_start..line.byte_end)
-            .and_then(|line_text| line_text.char_indices().next_back())
-            .map(|(offset, ch)| (line.byte_start + offset, ch))
-        else {
-            return false;
-        };
-
-        if last_char == '\n' {
-            return true;
-        }
-
-        if !last_char.is_whitespace() {
-            return false;
-        }
-
-        let before_boundary = text_system.caret_geom(
-            handle,
-            CaretPosition::BeforeCluster {
-                cluster_byte_index: last_byte,
-            },
-        );
-
-        before_boundary.y_top == line.y_top
-            && (before_boundary.x - line.logical_x - line.logical_width).abs() <= f32::EPSILON
     }
 
     pub(super) fn edit_layout_size<T: TextSystem>(
@@ -1697,7 +1658,7 @@ mod tests {
 
     use crate::{
         test_utils::DummyTextSys,
-        text::{CaretGeom, LineMetrics, TextHandle, TextLayout},
+        text::{CaretGeom, LineEndKind, LineMetrics, TextHandle, TextLayout},
     };
 
     #[test]
@@ -1795,6 +1756,7 @@ mod tests {
                         ink_x: 0.0,
                         byte_start: 0,
                         byte_end: 1.min(text.len()),
+                        end_kind: LineEndKind::SoftWrapNonWhitespace,
                     },
                     LineMetrics {
                         y_top: 16.0,
@@ -1805,6 +1767,7 @@ mod tests {
                         ink_x: 0.0,
                         byte_start: 1.min(text.len()),
                         byte_end: text.len(),
+                        end_kind: LineEndKind::EndOfText,
                     },
                 ],
             }
@@ -2002,6 +1965,7 @@ mod tests {
                         ink_x: 0.0,
                         byte_start: 0,
                         byte_end: 2,
+                        end_kind: LineEndKind::SoftWrapWhitespace,
                     },
                     LineMetrics {
                         y_top: 16.0,
@@ -2012,6 +1976,7 @@ mod tests {
                         ink_x: 0.0,
                         byte_start: 2,
                         byte_end: 3,
+                        end_kind: LineEndKind::EndOfText,
                     },
                 ],
             }

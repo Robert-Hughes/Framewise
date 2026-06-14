@@ -603,6 +603,27 @@ impl TextBounds {
     }
 }
 
+/// Why a visual line ends where it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LineEndKind {
+    /// The source text ended normally on this visual line.
+    EndOfText,
+    /// The line ends with an explicit hard newline cluster.
+    HardNewline,
+    /// The line ends at collapsed soft-wrap boundary whitespace.
+    SoftWrapWhitespace,
+    /// The line ended because non-whitespace content wrapped to the next line.
+    SoftWrapNonWhitespace,
+    /// X overflow kept the first overflowing unit on this line.
+    OverflowKeep,
+    /// X overflow dropped content after this line.
+    OverflowDrop,
+    /// X overflow replaced omitted inline content with an ellipsis.
+    EllipsisX,
+    /// Y overflow replaced omitted later lines with an ellipsis on this line.
+    EllipsisY,
+}
+
 /// The measured logical geometry of a single visual line of laid-out text, independent of where it is
 /// drawn.
 ///
@@ -646,6 +667,8 @@ pub struct LineMetrics {
     /// collapsed boundary whitespace is terminal, the following empty visual
     /// line has `byte_start == byte_end == text.len()`.
     pub byte_end: usize,
+    /// The semantic reason this visual line ends here.
+    pub end_kind: LineEndKind,
 }
 
 /// The measured logical geometry of a block of text, independent of where it is

@@ -1,8 +1,8 @@
 use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec, TextCluster};
 use crate::text::SampleTextSystem;
 use framewise::{
-    EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextFlow, TextLineAlign,
-    TextMetrics, TextStyle, Vec2, WrapClusterFallback, WrapWordFallback,
+    EllipsisFallback, FontId, LineEndKind, LineHeight, OverflowX, OverflowY, Rect, TextFlow,
+    TextLineAlign, TextMetrics, TextStyle, Vec2, WrapClusterFallback, WrapWordFallback,
 };
 
 struct Line {
@@ -316,6 +316,7 @@ impl SampleTextSystem {
             byte_start: usize,
             byte_end: usize,
             baseline_y: f32,
+            end_kind: LineEndKind,
         }
 
         let mut truncated_horizontal = false;
@@ -338,6 +339,7 @@ impl SampleTextSystem {
             }
 
             let mut final_sublines = Vec::new();
+            let mut overflow_line_end_kind = None;
 
             if let Some(w) = max_w {
                 match flow.overflow_x {
@@ -355,6 +357,7 @@ impl SampleTextSystem {
                             truncated_horizontal = true;
                             match flow.overflow_x {
                                 OverflowX::Ellipsis { fallback } => {
+                                    overflow_line_end_kind = Some(LineEndKind::EllipsisX);
                                     let ellipsised = self.apply_ellipsis_x(
                                         seg,
                                         w,
@@ -366,6 +369,7 @@ impl SampleTextSystem {
                                     final_sublines.push(ellipsised);
                                 }
                                 OverflowX::Keep => {
+                                    overflow_line_end_kind = Some(LineEndKind::OverflowKeep);
                                     let mut out = Vec::new();
                                     for cluster in seg {
                                         let end_x = cluster.end_x();
@@ -377,6 +381,7 @@ impl SampleTextSystem {
                                     final_sublines.push(out);
                                 }
                                 OverflowX::Drop => {
+                                    overflow_line_end_kind = Some(LineEndKind::OverflowDrop);
                                     let mut out = Vec::new();
                                     for cluster in seg {
                                         if cluster.end_x() <= w {
@@ -423,11 +428,26 @@ impl SampleTextSystem {
             sub_infos.push(line.byte_end);
 
             for (j, sub_seg) in final_sublines.into_iter().enumerate() {
+                let end_kind = overflow_line_end_kind.unwrap_or_else(|| {
+                    if sub_seg.last().is_some_and(|cluster| cluster.is_hard_break) {
+                        LineEndKind::HardNewline
+                    } else if sub_seg
+                        .last()
+                        .is_some_and(|cluster| cluster.is_soft_wrap_boundary)
+                    {
+                        LineEndKind::SoftWrapWhitespace
+                    } else if j + 1 < sub_infos.len() - 1 {
+                        LineEndKind::SoftWrapNonWhitespace
+                    } else {
+                        LineEndKind::EndOfText
+                    }
+                });
                 processed_lines.push(ProcessedLine {
                     clusters: sub_seg,
                     byte_start: sub_infos[j],
                     byte_end: sub_infos[j + 1],
                     baseline_y: line.baseline_y,
+                    end_kind,
                 });
             }
         }
@@ -462,10 +482,14 @@ impl SampleTextSystem {
                         );
                         processed_lines.truncate(max_lines);
                         processed_lines[last_idx].clusters = ellipsised;
+                        processed_lines[last_idx].end_kind = LineEndKind::EllipsisY;
                     } else {
                         match fallback {
                             EllipsisFallback::Keep => {
                                 processed_lines.truncate(1);
+                                if let Some(line) = processed_lines.first_mut() {
+                                    line.end_kind = LineEndKind::EllipsisY;
+                                }
                             }
                             EllipsisFallback::Drop => {
                                 processed_lines.clear();
@@ -482,6 +506,7 @@ impl SampleTextSystem {
                 byte_start: 0,
                 byte_end: text.len(),
                 baseline_y: line_height_snapped,
+                end_kind: LineEndKind::EndOfText,
             });
         }
 
@@ -633,6 +658,7 @@ impl SampleTextSystem {
                 cluster_end: out_clusters.len(),
                 byte_start: line.byte_start,
                 byte_end: line.byte_end,
+                end_kind: line.end_kind,
             });
         }
 
@@ -654,6 +680,7 @@ impl SampleTextSystem {
                 ink_x: r.ink_x,
                 byte_start: r.byte_start,
                 byte_end: r.byte_end,
+                end_kind: r.end_kind,
             })
             .collect();
 

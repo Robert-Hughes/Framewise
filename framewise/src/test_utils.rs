@@ -1,6 +1,6 @@
 use crate::text::{
-    CaretGeom, CaretPosition, LineMetrics, OverflowX, TextBounds, TextHandle, TextLayout,
-    TextLineAlign, TextMetrics, TextStyle, TextSystem,
+    CaretGeom, CaretPosition, LineEndKind, LineMetrics, OverflowX, TextBounds, TextHandle,
+    TextLayout, TextLineAlign, TextMetrics, TextStyle, TextSystem,
 };
 use crate::types::{Rect, Vec2};
 
@@ -85,6 +85,13 @@ impl DummyTextSys {
                         ink_x: logical_x,
                         byte_start,
                         byte_end: byte_end_sub,
+                        end_kind: if end_idx < char_indices.len() {
+                            LineEndKind::SoftWrapNonWhitespace
+                        } else if has_next {
+                            LineEndKind::HardNewline
+                        } else {
+                            LineEndKind::EndOfText
+                        },
                     });
 
                     y_top += 16.0;
@@ -107,6 +114,11 @@ impl DummyTextSys {
                     ink_x: logical_x,
                     byte_start: byte_idx,
                     byte_end,
+                    end_kind: if has_next {
+                        LineEndKind::HardNewline
+                    } else {
+                        LineEndKind::EndOfText
+                    },
                 });
 
                 y_top += 16.0;
@@ -126,6 +138,7 @@ impl DummyTextSys {
                 ink_x: logical_x,
                 byte_start: 0,
                 byte_end: 0,
+                end_kind: LineEndKind::EndOfText,
             });
         }
 
@@ -213,6 +226,7 @@ impl TextSystem for DummyTextSys {
                         ink_x: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
+                        end_kind: LineEndKind::EndOfText,
                     })
                 });
 
@@ -320,6 +334,7 @@ impl TextSystem for DummyTextSys {
                         ink_x: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
+                        end_kind: LineEndKind::EndOfText,
                     })
                 });
 
