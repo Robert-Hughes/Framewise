@@ -431,6 +431,7 @@ mod tests {
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let res = raw::drag_number(
             spec,
             &mut DragNumberState {
@@ -439,7 +440,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
         (res, cmds)
@@ -529,12 +530,13 @@ mod tests {
         input.mouse_down = true;
         let mut state = state;
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let _res = raw::drag_number(
             spec,
             &mut state,
             &input,
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
 

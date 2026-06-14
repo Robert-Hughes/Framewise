@@ -333,12 +333,13 @@ mod tests {
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let res = raw::chip(
             spec,
             &mut ChipState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
         (res, cmds)

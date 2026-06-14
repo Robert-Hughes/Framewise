@@ -399,6 +399,7 @@ mod tests {
         active_index: usize,
     ) -> (raw::SegmentedResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let res = raw::segmented(
             spec,
             &mut SegmentedState {
@@ -407,7 +408,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
         (res, cmds)

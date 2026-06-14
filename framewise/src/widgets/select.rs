@@ -548,12 +548,13 @@ mod tests {
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let result = raw::select(
             spec,
             &mut SelectState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
         (result, cmds)

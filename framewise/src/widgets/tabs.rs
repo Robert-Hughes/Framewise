@@ -392,6 +392,7 @@ mod tests {
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
         let mut cmds = DrawCommands::new();
+        let mut text_system = DummyTextSys;
         let result = raw::tabs(
             spec,
             &mut TabsState {
@@ -400,7 +401,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut DummyTextSys,
+            &mut text_system,
             &mut cmds,
         );
         (cmds, result)
