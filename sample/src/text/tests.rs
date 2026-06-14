@@ -2403,4 +2403,61 @@ mod tests {
             "kept overwide whitespace width",
         );
     }
+
+    #[test]
+    fn wrap_word_keep_moves_overlong_word_to_new_line_before_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let prefix_w = line_width(&mut sys, "ok", style);
+
+        let layout = sys.prepare(
+            "ok abcdef",
+            style,
+            Rect::new(0.0, 0.0, prefix_w + 0.1, 200.0),
+        );
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.lines.len(), 2);
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 3));
+        assert_eq!((run.lines[1].byte_start, run.lines[1].byte_end), (3, 9));
+
+        let line1_first = &run.clusters[run.lines[1].cluster_start];
+        assert_eq!(line1_first.byte_start, 3);
+        assert_close(line1_first.x, 0.0, "overlong word starts new line");
+    }
+
+    #[test]
+    fn wrap_cluster_keep_moves_overwide_cluster_to_new_line_before_fallback() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+        let prefix_w = line_width(&mut sys, "ok", style);
+
+        let layout = sys.prepare("ok ◎", style, Rect::new(0.0, 0.0, prefix_w + 0.1, 200.0));
+
+        let run = &sys.runs[layout.handle.0];
+        assert_eq!(run.lines.len(), 2);
+        assert_eq!((run.lines[0].byte_start, run.lines[0].byte_end), (0, 3));
+        assert_eq!(
+            (run.lines[1].byte_start, run.lines[1].byte_end),
+            (3, "ok ◎".len())
+        );
+
+        let line1_first = &run.clusters[run.lines[1].cluster_start];
+        assert_eq!(line1_first.byte_start, 3);
+        assert_close(line1_first.x, 0.0, "overwide cluster starts new line");
+    }
 }

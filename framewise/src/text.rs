@@ -277,7 +277,8 @@ pub enum OverflowX {
 }
 
 /// Fallback used by [`OverflowX::WrapWord`] when a word cannot fit on an empty
-/// line.
+/// line. This fallback is evaluated only after the word has first been moved to
+/// an empty line and still cannot fit there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WrapWordFallback {
     /// Try breaking the over-long word at cluster boundaries, see OverflowX::WrapCluster.
@@ -296,7 +297,8 @@ pub enum WrapWordFallback {
 }
 
 /// Fallback used by cluster wrapping when even one cluster cannot fit on an
-/// empty line.
+/// empty line. This fallback is evaluated only after the cluster has first been
+/// moved to an empty line and still cannot fit there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WrapClusterFallback {
     /// Keep the first overflowing cluster, then truncate. See OverflowX::Keep.
