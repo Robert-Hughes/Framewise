@@ -198,6 +198,44 @@ whitespace-collapsing text engine.
 
 ---
 
+## Caret Positions Are Visual Anchors
+
+A text insertion boundary may have two visual positions. This occurs at line
+boundaries where the end of one visual line and the start of the next visual
+line are adjacent in the source text. Editor-facing caret APIs therefore use
+`CaretPosition`, which anchors the caret before or after a specific shaped
+cluster.
+
+At ordinary boundaries, `AfterCluster(previous)` and `BeforeCluster(next)`
+usually map to the same insertion byte index and the same visual x/y. At
+soft-wrap boundaries they can map to the same insertion byte index but different
+visual geometries.
+
+Hard newline clusters are explicit boundary clusters:
+
+```text
+abc\n
+```
+
+- `BeforeCluster('\n')` is the end of the previous visual line.
+- `AfterCluster('\n')` is the start of the following visual line.
+
+Collapsed soft-wrap whitespace follows the same visual-anchor model:
+
+```text
+abc.    // trailing space collapsed by soft wrap
+```
+
+- `BeforeCluster(' ')` is the end of the previous visual line.
+- `AfterCluster(' ')` is the start of the following empty visual line when
+  terminal wrapped whitespace creates one.
+
+Editing operations still use insertion byte indices for mutation. The visual
+caret position is converted to an insertion byte only at the point where text is
+inserted, removed, copied, or selected.
+
+---
+
 ## Widget Consistency
 
 All widget files must be consistent with each other. A reader browsing from one widget to another should never have to ask "why does widget X do it like this but widget Y does it like that?"

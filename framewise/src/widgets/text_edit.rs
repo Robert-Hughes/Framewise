@@ -4,7 +4,8 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        FontId, LineHeight, TextBounds, TextFlow, TextLineAlign, TextMetrics, TextStyle, TextSystem,
+        CaretPosition, FontId, LineHeight, TextBounds, TextFlow, TextHandle, TextLineAlign,
+        TextMetrics, TextStyle, TextSystem,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -151,9 +152,6 @@ pub mod raw {
         let focused = focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect);
         let just_focused = focused && !state.was_focused;
 
-        let old_caret = state.caret_byte;
-        let old_selection = state.selection_byte;
-
         // Hit test mouse
         let is_visible = spec
             .clip_rect
@@ -165,9 +163,39 @@ pub mod raw {
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
         let contains = contains_raw && is_hover_active;
 
+        let initial_text_content = if state.value.is_empty() {
+            " "
+        } else {
+            &state.value
+        };
+        let (_, initial_layout_width, initial_layout_height, _) =
+            edit_layout_size(initial_text_content, &spec, text_style, text_system);
+        let initial_layout = text_system.prepare(
+            initial_text_content,
+            text_style,
+            Rect::new(0.0, 0.0, initial_layout_width, initial_layout_height),
+        );
+        let initial_handle = initial_layout.handle;
+
+        let mut caret_byte = text_system
+            .caret_insertion_byte(initial_handle, state.caret)
+            .min(state.value.len());
+        let mut selection_byte = state
+            .selection_anchor
+            .map(|selection| {
+                text_system
+                    .caret_insertion_byte(initial_handle, selection)
+                    .min(state.value.len())
+            })
+            .filter(|selection| state.value.is_char_boundary(*selection));
+
+        let old_caret = state.caret;
+        let old_selection = state.selection_anchor;
+        let mut caret_override = None;
+
         if just_focused && !(contains && input.mouse_pressed) {
-            state.selection_byte = Some(0);
-            state.caret_byte = state.value.len();
+            selection_byte = Some(0);
+            caret_byte = state.value.len();
             selection_only_action = true;
         }
 
@@ -184,7 +212,11 @@ pub mod raw {
                             !c.is_control()
                         };
                         if ok {
-                            state.remove_selection();
+                            remove_selection(
+                                &mut state.value,
+                                &mut caret_byte,
+                                &mut selection_byte,
+                            );
                             let char_to_insert = if is_newline {
                                 if spec.newline_policy == NewlinePolicy::ReplaceWithSpace {
                                     ' '
@@ -194,117 +226,146 @@ pub mod raw {
                             } else {
                                 *c
                             };
-                            state.value.insert(state.caret_byte, char_to_insert);
-                            state.caret_byte += char_to_insert.len_utf8();
+                            state.value.insert(caret_byte, char_to_insert);
+                            caret_byte += char_to_insert.len_utf8();
+                            caret_override = None;
                             if is_newline {
                                 newline_inserted = true;
                             }
                         }
                     }
                     TextEvent::Backspace { ctrl } => {
-                        if state.selection_byte.is_some() {
-                            state.remove_selection();
+                        if selection_byte.is_some() {
+                            remove_selection(
+                                &mut state.value,
+                                &mut caret_byte,
+                                &mut selection_byte,
+                            );
+                            caret_override = None;
                         } else if *ctrl {
-                            let prev = find_word_boundary(&state.value, state.caret_byte, false);
-                            state.value.replace_range(prev..state.caret_byte, "");
-                            state.caret_byte = prev;
-                        } else if state.caret_byte > 0 {
+                            let prev = find_word_boundary(&state.value, caret_byte, false);
+                            state.value.replace_range(prev..caret_byte, "");
+                            caret_byte = prev;
+                            caret_override = None;
+                        } else if caret_byte > 0 {
                             // Find previous char boundary
-                            let mut prev = state.caret_byte - 1;
+                            let mut prev = caret_byte - 1;
                             while prev > 0 && !state.value.is_char_boundary(prev) {
                                 prev -= 1;
                             }
                             state.value.remove(prev);
-                            state.caret_byte = prev;
+                            caret_byte = prev;
+                            caret_override = None;
                         }
                     }
                     TextEvent::Delete { ctrl } => {
-                        if state.selection_byte.is_some() {
-                            state.remove_selection();
+                        if selection_byte.is_some() {
+                            remove_selection(
+                                &mut state.value,
+                                &mut caret_byte,
+                                &mut selection_byte,
+                            );
+                            caret_override = None;
                         } else if *ctrl {
-                            let next = find_word_boundary(&state.value, state.caret_byte, true);
-                            state.value.replace_range(state.caret_byte..next, "");
-                        } else if state.caret_byte < state.value.len() {
-                            state.value.remove(state.caret_byte);
+                            let next = find_word_boundary(&state.value, caret_byte, true);
+                            state.value.replace_range(caret_byte..next, "");
+                            caret_override = None;
+                        } else if caret_byte < state.value.len() {
+                            state.value.remove(caret_byte);
+                            caret_override = None;
                         }
                     }
                     TextEvent::CaretLeft { shift, ctrl } => {
-                        let sel_byte = state.selection_byte;
-                        let has_selection =
-                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+                        let sel_byte = selection_byte;
+                        let has_selection = sel_byte.is_some() && sel_byte != Some(caret_byte);
 
                         if *shift {
-                            if state.selection_byte.is_none() {
-                                state.selection_byte = Some(state.caret_byte);
+                            if selection_byte.is_none() {
+                                selection_byte = Some(caret_byte);
                             }
                         } else {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
 
                         if *ctrl {
                             let start_byte = if has_selection && !*shift {
-                                state.caret_byte.min(sel_byte.unwrap())
+                                caret_byte.min(sel_byte.unwrap())
                             } else {
-                                state.caret_byte
+                                caret_byte
                             };
-                            state.caret_byte = find_word_boundary(&state.value, start_byte, false);
+                            caret_byte = find_word_boundary(&state.value, start_byte, false);
+                            caret_override = None;
                         } else if has_selection && !*shift {
-                            state.caret_byte = state.caret_byte.min(sel_byte.unwrap());
-                        } else if state.caret_byte > 0 {
-                            let mut prev = state.caret_byte - 1;
-                            while prev > 0 && !state.value.is_char_boundary(prev) {
-                                prev -= 1;
+                            caret_byte = caret_byte.min(sel_byte.unwrap());
+                            caret_override = None;
+                        } else if caret_byte > 0 {
+                            if let Some(position) = visually_previous_caret(
+                                text_system,
+                                initial_handle,
+                                &state.value,
+                                state.caret,
+                                caret_byte,
+                            ) {
+                                caret_override = Some(position);
+                            } else {
+                                caret_byte = previous_char_boundary(&state.value, caret_byte);
+                                caret_override = None;
                             }
-                            state.caret_byte = prev;
                         }
                     }
                     TextEvent::CaretRight { shift, ctrl } => {
-                        let sel_byte = state.selection_byte;
-                        let has_selection =
-                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+                        let sel_byte = selection_byte;
+                        let has_selection = sel_byte.is_some() && sel_byte != Some(caret_byte);
 
                         if *shift {
-                            if state.selection_byte.is_none() {
-                                state.selection_byte = Some(state.caret_byte);
+                            if selection_byte.is_none() {
+                                selection_byte = Some(caret_byte);
                             }
                         } else {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
 
                         if *ctrl {
                             let start_byte = if has_selection && !*shift {
-                                state.caret_byte.max(sel_byte.unwrap())
+                                caret_byte.max(sel_byte.unwrap())
                             } else {
-                                state.caret_byte
+                                caret_byte
                             };
-                            state.caret_byte = find_word_boundary(&state.value, start_byte, true);
+                            caret_byte = find_word_boundary(&state.value, start_byte, true);
+                            caret_override = None;
                         } else if has_selection && !*shift {
-                            state.caret_byte = state.caret_byte.max(sel_byte.unwrap());
-                        } else if state.caret_byte < state.value.len() {
-                            let mut next = state.caret_byte + 1;
-                            while next < state.value.len() && !state.value.is_char_boundary(next) {
-                                next += 1;
+                            caret_byte = caret_byte.max(sel_byte.unwrap());
+                            caret_override = None;
+                        } else if caret_byte < state.value.len() {
+                            if let Some(position) = visually_next_caret(
+                                text_system,
+                                initial_handle,
+                                state.caret,
+                                caret_byte,
+                            ) {
+                                caret_override = Some(position);
+                            } else {
+                                caret_byte = next_char_boundary(&state.value, caret_byte);
+                                caret_override = None;
                             }
-                            state.caret_byte = next;
                         }
                     }
                     TextEvent::CaretUp { shift } => {
-                        let sel_byte = state.selection_byte;
-                        let has_selection =
-                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+                        let sel_byte = selection_byte;
+                        let has_selection = sel_byte.is_some() && sel_byte != Some(caret_byte);
 
                         if *shift {
-                            if state.selection_byte.is_none() {
-                                state.selection_byte = Some(state.caret_byte);
+                            if selection_byte.is_none() {
+                                selection_byte = Some(caret_byte);
                             }
                         } else {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
 
                         let start_byte = if has_selection && !*shift {
-                            state.caret_byte.min(sel_byte.unwrap())
+                            caret_byte.min(sel_byte.unwrap())
                         } else {
-                            state.caret_byte
+                            caret_byte
                         };
 
                         let text_content = if state.value.is_empty() {
@@ -338,31 +399,30 @@ pub mod raw {
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
                             let new_caret = text_system.hit_test_caret(handle, pos);
-                            state.caret_byte = text_system
+                            caret_byte = text_system
                                 .caret_insertion_byte(handle, new_caret)
                                 .min(state.value.len());
                         } else {
                             // Already on first visual line, move to start of text
-                            state.caret_byte = 0;
+                            caret_byte = 0;
                         }
                     }
                     TextEvent::CaretDown { shift } => {
-                        let sel_byte = state.selection_byte;
-                        let has_selection =
-                            sel_byte.is_some() && sel_byte != Some(state.caret_byte);
+                        let sel_byte = selection_byte;
+                        let has_selection = sel_byte.is_some() && sel_byte != Some(caret_byte);
 
                         if *shift {
-                            if state.selection_byte.is_none() {
-                                state.selection_byte = Some(state.caret_byte);
+                            if selection_byte.is_none() {
+                                selection_byte = Some(caret_byte);
                             }
                         } else {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
 
                         let start_byte = if has_selection && !*shift {
-                            state.caret_byte.max(sel_byte.unwrap())
+                            caret_byte.max(sel_byte.unwrap())
                         } else {
-                            state.caret_byte
+                            caret_byte
                         };
 
                         let text_content = if state.value.is_empty() {
@@ -396,22 +456,22 @@ pub mod raw {
                             let pos =
                                 Vec2::new(caret.x, target_line.y_top + target_line.height * 0.5);
                             let new_caret = text_system.hit_test_caret(handle, pos);
-                            state.caret_byte = text_system
+                            caret_byte = text_system
                                 .caret_insertion_byte(handle, new_caret)
                                 .min(state.value.len());
                         } else {
                             // Already on last visual line, move to end of text
-                            state.caret_byte = state.value.len();
+                            caret_byte = state.value.len();
                         }
                     }
                     TextEvent::CaretHome { shift, ctrl } => {
-                        if *shift && state.selection_byte.is_none() {
-                            state.selection_byte = Some(state.caret_byte);
+                        if *shift && selection_byte.is_none() {
+                            selection_byte = Some(caret_byte);
                         } else if !*shift {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
                         if *ctrl {
-                            state.caret_byte = 0;
+                            caret_byte = 0;
                         } else if spec.wrap {
                             let text_content = if state.value.is_empty() {
                                 " "
@@ -429,27 +489,26 @@ pub mod raw {
                             let current_line_idx = metrics
                                 .lines
                                 .iter()
-                                .rposition(|line| state.caret_byte >= line.byte_start)
+                                .rposition(|line| caret_byte >= line.byte_start)
                                 .unwrap_or(0);
                             let line = &metrics.lines[current_line_idx];
-                            state.caret_byte = line.byte_start;
+                            caret_byte = line.byte_start;
                         } else {
                             // Line-aware: scan left for the preceding '\n' (or
                             // the start of the string), then land just after it.
-                            let line_start = state.value[..state.caret_byte]
-                                .rfind('\n')
-                                .map_or(0, |nl| nl + 1);
-                            state.caret_byte = line_start;
+                            let line_start =
+                                state.value[..caret_byte].rfind('\n').map_or(0, |nl| nl + 1);
+                            caret_byte = line_start;
                         }
                     }
                     TextEvent::CaretEnd { shift, ctrl } => {
-                        if *shift && state.selection_byte.is_none() {
-                            state.selection_byte = Some(state.caret_byte);
+                        if *shift && selection_byte.is_none() {
+                            selection_byte = Some(caret_byte);
                         } else if !*shift {
-                            state.selection_byte = None;
+                            selection_byte = None;
                         }
                         if *ctrl {
-                            state.caret_byte = state.value.len();
+                            caret_byte = state.value.len();
                         } else if spec.wrap {
                             let text_content = if state.value.is_empty() {
                                 " "
@@ -467,7 +526,7 @@ pub mod raw {
                             let current_line_idx = metrics
                                 .lines
                                 .iter()
-                                .rposition(|line| state.caret_byte >= line.byte_start)
+                                .rposition(|line| caret_byte >= line.byte_start)
                                 .unwrap_or(0);
                             let line = &metrics.lines[current_line_idx];
                             let has_newline = line.byte_end > line.byte_start
@@ -477,25 +536,25 @@ pub mod raw {
                             } else {
                                 line.byte_end
                             };
-                            state.caret_byte = line_end;
+                            caret_byte = line_end;
                         } else {
                             // Line-aware: scan right for the next '\n' and land
                             // just before it (or at the end of the string).
-                            let line_end = state.value[state.caret_byte..]
+                            let line_end = state.value[caret_byte..]
                                 .find('\n')
-                                .map_or(state.value.len(), |nl| state.caret_byte + nl);
-                            state.caret_byte = line_end;
+                                .map_or(state.value.len(), |nl| caret_byte + nl);
+                            caret_byte = line_end;
                         }
                     }
                     TextEvent::SelectAll => {
-                        state.selection_byte = Some(0);
-                        state.caret_byte = state.value.len();
+                        selection_byte = Some(0);
+                        caret_byte = state.value.len();
                         selection_only_action = true;
                     }
                     TextEvent::Copy => {
-                        if let Some(sel) = state.selection_byte {
-                            let start = state.caret_byte.min(sel);
-                            let end = state.caret_byte.max(sel);
+                        if let Some(sel) = selection_byte {
+                            let start = caret_byte.min(sel);
+                            let end = caret_byte.max(sel);
                             if start < end {
                                 clipboard_action = Some(ClipboardAction::Copy(
                                     state.value[start..end].to_string(),
@@ -504,21 +563,25 @@ pub mod raw {
                         }
                     }
                     TextEvent::Cut => {
-                        if let Some(sel) = state.selection_byte {
-                            let start = state.caret_byte.min(sel);
-                            let end = state.caret_byte.max(sel);
+                        if let Some(sel) = selection_byte {
+                            let start = caret_byte.min(sel);
+                            let end = caret_byte.max(sel);
                             if start < end {
                                 clipboard_action =
                                     Some(ClipboardAction::Cut(state.value[start..end].to_string()));
-                                state.remove_selection();
+                                remove_selection(
+                                    &mut state.value,
+                                    &mut caret_byte,
+                                    &mut selection_byte,
+                                );
                             }
                         }
                     }
                     TextEvent::Paste(text) => {
                         let processed = spec.newline_policy.process(text);
-                        state.remove_selection();
-                        state.value.insert_str(state.caret_byte, &processed);
-                        state.caret_byte += processed.len();
+                        remove_selection(&mut state.value, &mut caret_byte, &mut selection_byte);
+                        state.value.insert_str(caret_byte, &processed);
+                        caret_byte += processed.len();
                     }
                 }
             }
@@ -527,26 +590,26 @@ pub mod raw {
                 && !newline_inserted
                 && spec.newline_policy == NewlinePolicy::Allow
             {
-                state.remove_selection();
-                state.value.insert(state.caret_byte, '\n');
-                state.caret_byte += 1;
+                remove_selection(&mut state.value, &mut caret_byte, &mut selection_byte);
+                state.value.insert(caret_byte, '\n');
+                caret_byte += 1;
             }
         }
 
         // Safety checks
-        if state.caret_byte > state.value.len() {
-            state.caret_byte = state.value.len();
+        if caret_byte > state.value.len() {
+            caret_byte = state.value.len();
         }
-        if !state.value.is_char_boundary(state.caret_byte) {
-            state.caret_byte = 0; // fallback
+        if !state.value.is_char_boundary(caret_byte) {
+            caret_byte = 0; // fallback
         }
-        if let Some(sel) = state.selection_byte {
+        if let Some(sel) = selection_byte {
             if sel > state.value.len() {
-                state.selection_byte = Some(state.value.len());
+                selection_byte = Some(state.value.len());
             }
-            if let Some(sel) = state.selection_byte {
+            if let Some(sel) = selection_byte {
                 if !state.value.is_char_boundary(sel) {
-                    state.selection_byte = None;
+                    selection_byte = None;
                 }
             }
         }
@@ -690,19 +753,20 @@ pub mod raw {
             if input.mouse_click_count == 2 {
                 let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
                 let (start, end) = word_bounds(&state.value, cluster_byte);
-                state.selection_byte = Some(start);
-                state.caret_byte = end;
+                selection_byte = Some(start);
+                caret_byte = end;
                 state.is_dragging = true;
                 state.drag_word_origin = Some((start, end));
                 selection_only_action = true;
             } else if input.mouse_click_count >= 3 {
                 // Select line
-                state.selection_byte = Some(0);
-                state.caret_byte = state.value.len();
+                selection_byte = Some(0);
+                caret_byte = state.value.len();
                 selection_only_action = true;
             } else {
-                state.caret_byte = clicked_byte;
-                state.selection_byte = None;
+                caret_byte = clicked_byte;
+                caret_override = Some(clicked_caret);
+                selection_byte = None;
                 state.is_dragging = true;
                 state.drag_word_origin = None;
             }
@@ -722,17 +786,18 @@ pub mod raw {
                     let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
                     let (cur_start, cur_end) = word_bounds(&state.value, cluster_byte);
                     if cluster_byte < orig_start {
-                        state.selection_byte = Some(orig_end);
-                        state.caret_byte = cur_start;
+                        selection_byte = Some(orig_end);
+                        caret_byte = cur_start;
                     } else {
-                        state.selection_byte = Some(orig_start);
-                        state.caret_byte = cur_end;
+                        selection_byte = Some(orig_start);
+                        caret_byte = cur_end;
                     }
                 } else {
-                    if state.selection_byte.is_none() && current_byte != state.caret_byte {
-                        state.selection_byte = Some(state.caret_byte);
+                    if selection_byte.is_none() && current_byte != caret_byte {
+                        selection_byte = Some(caret_byte);
                     }
-                    state.caret_byte = current_byte;
+                    caret_byte = current_byte;
+                    caret_override = Some(current_caret);
                 }
             } else {
                 state.is_dragging = false;
@@ -740,7 +805,21 @@ pub mod raw {
             }
         }
 
-        if state.caret_byte != old_caret || state.selection_byte != old_selection {
+        state.caret = caret_override
+            .unwrap_or_else(|| text_system.caret_position_at_insertion_byte(handle, caret_byte));
+        state.selection_anchor = selection_byte
+            .map(|selection| text_system.caret_position_at_insertion_byte(handle, selection));
+
+        caret_byte = text_system
+            .caret_insertion_byte(handle, state.caret)
+            .min(state.value.len());
+        selection_byte = state.selection_anchor.map(|selection| {
+            text_system
+                .caret_insertion_byte(handle, selection)
+                .min(state.value.len())
+        });
+
+        if state.caret != old_caret || state.selection_anchor != old_selection {
             state.last_caret_move_time = spec.time;
 
             let padding = 16.0_f32;
@@ -749,10 +828,10 @@ pub mod raw {
             // Determine the horizontal span of the target we want to keep in view.
             // If this is a bulk selection action with a non-empty selection, we target
             // the full selection span. Otherwise, we target the zero-width caret position.
-            let (sel_min_x, sel_max_x) = match (selection_only_action, state.selection_byte) {
-                (true, Some(sel)) if sel != state.caret_byte => {
-                    let start = sel.min(state.caret_byte);
-                    let end = sel.max(state.caret_byte);
+            let (sel_min_x, sel_max_x) = match (selection_only_action, selection_byte) {
+                (true, Some(sel)) if sel != caret_byte => {
+                    let start = sel.min(caret_byte);
+                    let end = sel.max(caret_byte);
                     let start_caret = text_system.caret_geom(
                         handle,
                         text_system.caret_position_at_insertion_byte(handle, start),
@@ -767,10 +846,7 @@ pub mod raw {
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
-                    );
+                    let caret = text_system.caret_geom(handle, state.caret);
                     (caret.x, caret.x)
                 }
             };
@@ -799,10 +875,10 @@ pub mod raw {
             let max_scroll_y = (inner_scroll_size.y - scroll_outer_rect.h).max(0.0);
 
             // Determine the vertical span of the target we want to keep in view.
-            let (sel_min_y, sel_max_y) = match (selection_only_action, state.selection_byte) {
-                (true, Some(sel)) if sel != state.caret_byte => {
-                    let start = sel.min(state.caret_byte);
-                    let end = sel.max(state.caret_byte);
+            let (sel_min_y, sel_max_y) = match (selection_only_action, selection_byte) {
+                (true, Some(sel)) if sel != caret_byte => {
+                    let start = sel.min(caret_byte);
+                    let end = sel.max(caret_byte);
                     let start_caret = text_system.caret_geom(
                         handle,
                         text_system.caret_position_at_insertion_byte(handle, start),
@@ -818,10 +894,7 @@ pub mod raw {
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
-                    );
+                    let caret = text_system.caret_geom(handle, state.caret);
                     (caret.y_top, caret.y_top + caret.height)
                 }
             };
@@ -841,10 +914,10 @@ pub mod raw {
 
         // Selection
         if focused {
-            if let Some(sel) = state.selection_byte {
-                if sel != state.caret_byte {
-                    let start = sel.min(state.caret_byte);
-                    let end = sel.max(state.caret_byte);
+            if let Some(sel) = selection_byte {
+                if sel != caret_byte {
+                    let start = sel.min(caret_byte);
+                    let end = sel.max(caret_byte);
 
                     for line in &layout.metrics.lines {
                         let line_sel_start = start.max(line.byte_start);
@@ -919,10 +992,7 @@ pub mod raw {
             };
 
             if blink_on {
-                let caret = text_system.caret_geom(
-                    handle,
-                    text_system.caret_position_at_insertion_byte(handle, state.caret_byte),
-                );
+                let caret = text_system.caret_geom(handle, state.caret);
                 let caret_rect = Rect::new(
                     text_rect.x + caret.x,
                     text_rect.y + caret.y_top,
@@ -1102,11 +1172,11 @@ pub(crate) fn to_text_style(
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextEditState {
     pub value: String,
-    pub caret_byte: usize,
-    pub selection_byte: Option<usize>,
+    pub caret: CaretPosition,
+    pub selection_anchor: Option<CaretPosition>,
     pub focus_id: FocusId,
     pub is_dragging: bool,
     pub drag_word_origin: Option<(usize, usize)>,
@@ -1115,24 +1185,132 @@ pub struct TextEditState {
     pub scroll: ScrollState,
 }
 
+impl Default for TextEditState {
+    fn default() -> Self {
+        Self {
+            value: String::new(),
+            caret: CaretPosition::EmptyText,
+            selection_anchor: None,
+            focus_id: FocusId::default(),
+            is_dragging: false,
+            drag_word_origin: None,
+            last_caret_move_time: 0.0,
+            was_focused: false,
+            scroll: ScrollState::default(),
+        }
+    }
+}
+
 impl TextEditState {
     pub fn new(initial_text: &str) -> Self {
         Self {
             value: initial_text.to_string(),
-            caret_byte: initial_text.len(),
+            caret: caret_position_at_text_end(initial_text),
             scroll: ScrollState::default(),
             ..Default::default()
         }
     }
+}
 
-    fn remove_selection(&mut self) {
-        if let Some(sel) = self.selection_byte {
-            let start = self.caret_byte.min(sel);
-            let end = self.caret_byte.max(sel);
-            self.value.replace_range(start..end, "");
-            self.caret_byte = start;
-            self.selection_byte = None;
-        }
+fn remove_selection(
+    value: &mut String,
+    caret_byte: &mut usize,
+    selection_byte: &mut Option<usize>,
+) {
+    if let Some(sel) = *selection_byte {
+        let start = (*caret_byte).min(sel);
+        let end = (*caret_byte).max(sel);
+        value.replace_range(start..end, "");
+        *caret_byte = start;
+        *selection_byte = None;
+    }
+}
+
+fn previous_char_boundary(text: &str, byte_index: usize) -> usize {
+    let mut prev = byte_index.saturating_sub(1);
+    while prev > 0 && !text.is_char_boundary(prev) {
+        prev -= 1;
+    }
+    prev
+}
+
+fn next_char_boundary(text: &str, byte_index: usize) -> usize {
+    let mut next = (byte_index + 1).min(text.len());
+    while next < text.len() && !text.is_char_boundary(next) {
+        next += 1;
+    }
+    next
+}
+
+fn visually_previous_caret<T: TextSystem>(
+    text_system: &T,
+    handle: TextHandle,
+    text: &str,
+    position: CaretPosition,
+    insertion_byte: usize,
+) -> Option<CaretPosition> {
+    if !matches!(position, CaretPosition::BeforeCluster { .. }) || insertion_byte == 0 {
+        return None;
+    }
+
+    let candidate = CaretPosition::AfterCluster {
+        cluster_byte_index: previous_char_boundary(text, insertion_byte),
+    };
+    visually_distinct_same_insertion_caret(text_system, handle, position, candidate, insertion_byte)
+}
+
+fn visually_next_caret<T: TextSystem>(
+    text_system: &T,
+    handle: TextHandle,
+    position: CaretPosition,
+    insertion_byte: usize,
+) -> Option<CaretPosition> {
+    if !matches!(position, CaretPosition::AfterCluster { .. }) {
+        return None;
+    }
+
+    let candidate = text_system.caret_position_at_insertion_byte(handle, insertion_byte);
+    visually_distinct_same_insertion_caret(text_system, handle, position, candidate, insertion_byte)
+}
+
+fn visually_distinct_same_insertion_caret<T: TextSystem>(
+    text_system: &T,
+    handle: TextHandle,
+    current: CaretPosition,
+    candidate: CaretPosition,
+    insertion_byte: usize,
+) -> Option<CaretPosition> {
+    if candidate == current || text_system.caret_insertion_byte(handle, candidate) != insertion_byte
+    {
+        return None;
+    }
+
+    let current_geom = text_system.caret_geom(handle, current);
+    let candidate_geom = text_system.caret_geom(handle, candidate);
+    if current_geom.x != candidate_geom.x || current_geom.y_top != candidate_geom.y_top {
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+fn caret_position_at_text_end(text: &str) -> CaretPosition {
+    text.char_indices()
+        .next_back()
+        .map(|(cluster_byte_index, _)| CaretPosition::AfterCluster { cluster_byte_index })
+        .unwrap_or(CaretPosition::EmptyText)
+}
+
+#[cfg(test)]
+fn caret_position_at_byte(text: &str, byte_index: usize) -> CaretPosition {
+    if text.is_empty() {
+        return CaretPosition::EmptyText;
+    }
+    if byte_index >= text.len() {
+        return caret_position_at_text_end(text);
+    }
+    CaretPosition::BeforeCluster {
+        cluster_byte_index: byte_index,
     }
 }
 
@@ -1428,7 +1606,10 @@ mod tests {
     use super::raw::TextEditSpec;
     use super::*;
 
-    use crate::test_utils::DummyTextSys;
+    use crate::{
+        test_utils::DummyTextSys,
+        text::{CaretGeom, LineMetrics, TextLayout},
+    };
 
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
@@ -1470,6 +1651,173 @@ mod tests {
             wrap: false,
             vertical_align: Align::Center,
             line_align: TextLineAlign::Start,
+        }
+    }
+
+    fn caret_byte(state: &TextEditState) -> usize {
+        insertion_byte_for_position(&state.value, state.caret)
+    }
+
+    fn selection_byte(state: &TextEditState) -> Option<usize> {
+        state
+            .selection_anchor
+            .map(|position| insertion_byte_for_position(&state.value, position))
+    }
+
+    fn set_caret_byte(state: &mut TextEditState, byte: usize) {
+        state.caret = caret_position_at_byte(&state.value, byte);
+    }
+
+    fn set_selection_byte(state: &mut TextEditState, byte: Option<usize>) {
+        state.selection_anchor = byte.map(|byte| caret_position_at_byte(&state.value, byte));
+    }
+
+    fn insertion_byte_for_position(text: &str, position: CaretPosition) -> usize {
+        match position {
+            CaretPosition::EmptyText => 0,
+            CaretPosition::BeforeCluster { cluster_byte_index } => {
+                cluster_byte_index.min(text.len())
+            }
+            CaretPosition::AfterCluster { cluster_byte_index } => text
+                .get(cluster_byte_index..)
+                .and_then(|tail| tail.chars().next())
+                .map_or(cluster_byte_index, |ch| cluster_byte_index + ch.len_utf8())
+                .min(text.len()),
+        }
+    }
+
+    struct VisualBoundaryTextSys;
+
+    impl VisualBoundaryTextSys {
+        fn metrics(text: &str) -> TextMetrics {
+            TextMetrics {
+                logical_size: Vec2::new(8.0, 32.0),
+                ink_bounds: Rect::new(0.0, 0.0, 8.0, 32.0),
+                line_count: 2,
+                truncated_horizontal: false,
+                truncated_vertical: false,
+                lines: vec![
+                    LineMetrics {
+                        y_top: 0.0,
+                        height: 16.0,
+                        logical_width: 8.0,
+                        ink_width: 8.0,
+                        byte_start: 0,
+                        byte_end: 1.min(text.len()),
+                    },
+                    LineMetrics {
+                        y_top: 16.0,
+                        height: 16.0,
+                        logical_width: 8.0,
+                        ink_width: 8.0,
+                        byte_start: 1.min(text.len()),
+                        byte_end: text.len(),
+                    },
+                ],
+            }
+        }
+    }
+
+    impl TextSystem for VisualBoundaryTextSys {
+        fn measure(&mut self, text: &str, _style: TextStyle, _bounds: TextBounds) -> TextMetrics {
+            Self::metrics(text)
+        }
+
+        fn prepare(&mut self, text: &str, _style: TextStyle, _rect: Rect) -> TextLayout {
+            TextLayout {
+                handle: TextHandle(0),
+                metrics: Self::metrics(text),
+            }
+        }
+
+        fn caret_geom(&self, _handle: TextHandle, position: CaretPosition) -> CaretGeom {
+            match position {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                } => CaretGeom {
+                    x: 0.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 0,
+                } => CaretGeom {
+                    x: 8.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                } => CaretGeom {
+                    x: 0.0,
+                    y_top: 16.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                } => CaretGeom {
+                    x: 8.0,
+                    y_top: 16.0,
+                    height: 16.0,
+                },
+                CaretPosition::BeforeCluster { cluster_byte_index } => CaretGeom {
+                    x: cluster_byte_index as f32 * 8.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::AfterCluster { cluster_byte_index } => CaretGeom {
+                    x: (cluster_byte_index + 1) as f32 * 8.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+                CaretPosition::EmptyText => CaretGeom {
+                    x: 0.0,
+                    y_top: 0.0,
+                    height: 16.0,
+                },
+            }
+        }
+
+        fn hit_test_caret(&self, _handle: TextHandle, pos: Vec2) -> CaretPosition {
+            if pos.y >= 16.0 {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                }
+            } else {
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 0,
+                }
+            }
+        }
+
+        fn caret_insertion_byte(&self, _handle: TextHandle, position: CaretPosition) -> usize {
+            match position {
+                CaretPosition::BeforeCluster { cluster_byte_index } => cluster_byte_index,
+                CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index + 1,
+                CaretPosition::EmptyText => 0,
+            }
+        }
+
+        fn caret_position_at_insertion_byte(
+            &self,
+            _handle: TextHandle,
+            byte_index: usize,
+        ) -> CaretPosition {
+            match byte_index {
+                0 => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 0,
+                },
+                1 => CaretPosition::BeforeCluster {
+                    cluster_byte_index: 1,
+                },
+                _ => CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                },
+            }
+        }
+
+        fn hit_test_cluster(&self, _handle: TextHandle, pos: Vec2) -> usize {
+            usize::from(pos.y >= 16.0)
         }
     }
 
@@ -1547,7 +1895,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abc");
-        assert_eq!(state.caret_byte, 3);
+        assert_eq!(caret_byte(&state), 3);
 
         // Move left
         input.text_events.clear();
@@ -1563,7 +1911,7 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
-        assert_eq!(state.caret_byte, 2);
+        assert_eq!(caret_byte(&state), 2);
 
         // Insert at cursor
         input.text_events.clear();
@@ -1577,7 +1925,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abxc");
-        assert_eq!(state.caret_byte, 3);
+        assert_eq!(caret_byte(&state), 3);
     }
 
     #[test]
@@ -1585,7 +1933,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        state.caret_byte = 3;
+        set_caret_byte(&mut state, 3);
         state.was_focused = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
@@ -1602,7 +1950,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "helo");
-        assert_eq!(state.caret_byte, 2);
+        assert_eq!(caret_byte(&state), 2);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: false });
@@ -1615,7 +1963,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "heo");
-        assert_eq!(state.caret_byte, 2);
+        assert_eq!(caret_byte(&state), 2);
     }
 
     #[test]
@@ -1623,7 +1971,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
-        state.caret_byte = 8; // "hello wo|rld"
+        set_caret_byte(&mut state, 8); // "hello wo|rld"
         state.was_focused = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
@@ -1640,7 +1988,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello rld");
-        assert_eq!(state.caret_byte, 6); // end of "hello "
+        assert_eq!(caret_byte(&state), 6); // end of "hello "
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: true });
@@ -1653,7 +2001,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello ");
-        assert_eq!(state.caret_byte, 6);
+        assert_eq!(caret_byte(&state), 6);
     }
 
     #[test]
@@ -1661,7 +2009,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        state.caret_byte = 1;
+        set_caret_byte(&mut state, 1);
         state.was_focused = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
@@ -1684,8 +2032,8 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
-        assert_eq!(state.selection_byte, Some(1));
-        assert_eq!(state.caret_byte, 3);
+        assert_eq!(selection_byte(&state), Some(1));
+        assert_eq!(caret_byte(&state), 3);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
@@ -1698,8 +2046,65 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "halo");
-        assert_eq!(state.caret_byte, 2);
-        assert_eq!(state.selection_byte, None);
+        assert_eq!(caret_byte(&state), 2);
+        assert_eq!(selection_byte(&state), None);
+    }
+
+    #[test]
+    fn test_text_edit_left_right_preserve_visual_side_at_shared_insertion() {
+        let mut text_system = VisualBoundaryTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("ab");
+        state.was_focused = true;
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+
+        state.caret = CaretPosition::AfterCluster {
+            cluster_byte_index: 0,
+        };
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::CaretRight {
+            shift: false,
+            ctrl: false,
+        });
+
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 1
+            }
+        );
+        assert_eq!(caret_byte(&state), 1);
+
+        input.text_events.clear();
+        input.text_events.push(TextEvent::CaretLeft {
+            shift: false,
+            ctrl: false,
+        });
+
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        assert_eq!(
+            state.caret,
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 0
+            }
+        );
+        assert_eq!(caret_byte(&state), 1);
     }
 
     #[test]
@@ -1739,7 +2144,7 @@ mod tests {
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
-        assert_eq!(state.caret_byte, 5);
+        assert_eq!(caret_byte(&state), 5);
         assert!(state.is_dragging);
         state.was_focused = true;
 
@@ -1756,8 +2161,8 @@ mod tests {
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
-        assert_eq!(state.selection_byte, Some(5));
-        assert_eq!(state.caret_byte, 8);
+        assert_eq!(selection_byte(&state), Some(5));
+        assert_eq!(caret_byte(&state), 8);
 
         // Frame 4: Mouse up / release
         input.mouse_down = false;
@@ -1772,8 +2177,8 @@ mod tests {
         );
         focus_system.end_frame();
         assert!(!state.is_dragging);
-        assert_eq!(state.selection_byte, Some(5));
-        assert_eq!(state.caret_byte, 8);
+        assert_eq!(selection_byte(&state), Some(5));
+        assert_eq!(caret_byte(&state), 8);
     }
 
     #[test]
@@ -1816,8 +2221,8 @@ mod tests {
         );
         focus_system.end_frame();
         // Selection should be "rust" (6 to 10)
-        assert_eq!(state.selection_byte, Some(6));
-        assert_eq!(state.caret_byte, 10);
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 10);
         assert!(state.is_dragging);
         assert_eq!(state.drag_word_origin, Some((6, 10)));
 
@@ -1835,8 +2240,8 @@ mod tests {
         );
         focus_system.end_frame();
         // Should select "rust world", so from 6 to 16
-        assert_eq!(state.selection_byte, Some(6)); // original start
-        assert_eq!(state.caret_byte, 16); // end of "world"
+        assert_eq!(selection_byte(&state), Some(6)); // original start
+        assert_eq!(caret_byte(&state), 16); // end of "world"
 
         // Frame 4: Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
@@ -1851,8 +2256,8 @@ mod tests {
         );
         focus_system.end_frame();
         // Should select "hello rust", so from 10 to 0
-        assert_eq!(state.selection_byte, Some(10)); // original end
-        assert_eq!(state.caret_byte, 0); // start of "hello"
+        assert_eq!(selection_byte(&state), Some(10)); // original end
+        assert_eq!(caret_byte(&state), 0); // start of "hello"
     }
 
     #[test]
@@ -1893,7 +2298,7 @@ mod tests {
             );
             focus_system.end_frame();
 
-            (state.selection_byte, state.caret_byte)
+            (selection_byte(&state), caret_byte(&state))
         };
 
         // Click at various positions in "a b"
@@ -1960,7 +2365,7 @@ mod tests {
             );
             focus_system.end_frame();
 
-            (state.selection_byte, state.caret_byte)
+            (selection_byte(&state), caret_byte(&state))
         };
 
         // Case 1: Line has trailing \n. Double-clicking after line end should select just the \n character.
@@ -1987,7 +2392,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
-        state.caret_byte = 5;
+        set_caret_byte(&mut state, 5);
         state.was_focused = true;
 
         focus_system.take_keyboard_focus(state.focus_id);
@@ -2127,8 +2532,8 @@ mod tests {
             &mut DrawCommands::new(),
         );
         assert!(state.was_focused);
-        assert_eq!(state.selection_byte, Some(0));
-        assert_eq!(state.caret_byte, 11);
+        assert_eq!(selection_byte(&state), Some(0));
+        assert_eq!(caret_byte(&state), 11);
     }
 
     #[test]
@@ -2183,8 +2588,8 @@ mod tests {
         focus_system.end_frame();
 
         assert!(state.was_focused);
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 5);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 5);
     }
 
     #[test]
@@ -2273,8 +2678,8 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         state.was_focused = true;
 
         let mut input = Input::default();
@@ -2302,8 +2707,8 @@ mod tests {
         );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
         assert_eq!(state.value, "hello ");
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 6);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 6);
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
@@ -2317,7 +2722,7 @@ mod tests {
         );
         assert!(res.clipboard_action.is_none());
         assert_eq!(state.value, "hello rust");
-        assert_eq!(state.caret_byte, 10);
+        assert_eq!(caret_byte(&state), 10);
     }
 
     // ── Visual Tests ───────────────────────────────────────────────────────────
@@ -2436,8 +2841,8 @@ mod tests {
         focus_system.begin_frame();
 
         state.was_focused = true;
-        state.selection_byte = Some(0);
-        state.caret_byte = 5;
+        set_selection_byte(&mut state, Some(0));
+        set_caret_byte(&mut state, 5);
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -2591,7 +2996,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         // 1. Caret at start (0): scroll should be 0.0
-        state.caret_byte = 0;
+        set_caret_byte(&mut state, 0);
         raw::text_edit(
             spec(),
             &mut state,
@@ -2604,7 +3009,7 @@ mod tests {
 
         // 2. Caret moves from 23 to 24 (x = 192): exceeds right threshold (198 - 16 = 182)
         // Expected scroll = 192 - 198 + 16 = 10.0
-        state.caret_byte = 23;
+        set_caret_byte(&mut state, 23);
         input.text_events = vec![TextEvent::CaretRight {
             shift: false,
             ctrl: false,
@@ -2617,12 +3022,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 24);
+        assert_eq!(caret_byte(&state), 24);
         assert_eq!(state.scroll.offset.x, 10.0);
 
         // 3. Caret moves from 34 to 35 (x = 280): exceeds right threshold
         // Expected scroll = 280 - 198 + 16 = 98.0, clamped to max_scroll (90.0)
-        state.caret_byte = 34;
+        set_caret_byte(&mut state, 34);
         input.text_events = vec![TextEvent::CaretRight {
             shift: false,
             ctrl: false,
@@ -2635,12 +3040,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 35);
+        assert_eq!(caret_byte(&state), 35);
         assert_eq!(state.scroll.offset.x, 90.0);
 
         // 4. Move caret left from 3 to 2 (x = 16): below left threshold (98.0 + 16 = 114)
         // Expected scroll = 16 - 16 = 0.0
-        state.caret_byte = 3;
+        set_caret_byte(&mut state, 3);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: false,
             ctrl: false,
@@ -2653,7 +3058,7 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 2);
+        assert_eq!(caret_byte(&state), 2);
         assert_eq!(state.scroll.offset.x, 0.0);
     }
 
@@ -2737,8 +3142,8 @@ mod tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        assert_eq!(state.selection_byte, Some(0));
-        assert_eq!(state.caret_byte, 23);
+        assert_eq!(selection_byte(&state), Some(0));
+        assert_eq!(caret_byte(&state), 23);
         assert_eq!(state.scroll.offset.x, 2.0);
 
         // Test case 3: Double-clicking the long word on the right should scroll the viewport right
@@ -2761,8 +3166,8 @@ mod tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        assert_eq!(state.selection_byte, Some(31));
-        assert_eq!(state.caret_byte, 55);
+        assert_eq!(selection_byte(&state), Some(31));
+        assert_eq!(caret_byte(&state), 55);
         assert_eq!(state.scroll.offset.x, 232.0);
     }
 
@@ -2779,8 +3184,8 @@ mod tests {
         // Manually inject a scroll offset of 50.0
         state.scroll.offset.x = 50.0;
         // Selection from index 0 to 5
-        state.selection_byte = Some(0);
-        state.caret_byte = 5;
+        set_selection_byte(&mut state, Some(0));
+        set_caret_byte(&mut state, 5);
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -2863,7 +3268,7 @@ mod tests {
         );
 
         // Caret should have jumped to 11
-        assert_eq!(state.caret_byte, 11);
+        assert_eq!(caret_byte(&state), 11);
     }
 
     #[test]
@@ -2885,8 +3290,8 @@ mod tests {
         // Since text (64px) is taller than the viewport (28px), we expect top-alignment.
         // Expected text_y = outer_rect.y + padding - offset.y = 1.0 + 4.0 - 20.0 = -15.0
         state.scroll.offset.y = 20.0;
-        state.selection_byte = Some(0);
-        state.caret_byte = 5;
+        set_selection_byte(&mut state, Some(0));
+        set_caret_byte(&mut state, 5);
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -3009,7 +3414,7 @@ mod tests {
         );
 
         // Caret should have jumped to 18 (start of "line4\n")
-        assert_eq!(state.caret_byte, 18);
+        assert_eq!(caret_byte(&state), 18);
     }
 
     #[test]
@@ -3035,7 +3440,7 @@ mod tests {
         };
 
         // 1. Caret at start (Line 0, index 0): scroll should be 0.0
-        state.caret_byte = 0;
+        set_caret_byte(&mut state, 0);
         raw::text_edit(
             edit_spec.clone(),
             &mut state,
@@ -3048,7 +3453,7 @@ mod tests {
 
         // 2. Caret moves down from Line 2 to Line 3 (index 9, y_top = 48.0, height = 16.0): exceeds bottom threshold (58 - 16 = 42)
         // Expected scroll = 64 - 58 + 16 = 22.0
-        state.caret_byte = 6;
+        set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3062,7 +3467,7 @@ mod tests {
 
         // 3. Caret moves down to Line 9 (index 27, y_top = 144.0, height = 16.0): exceeds bottom threshold
         // Expected scroll = 160 - 58 + 16 = 118.0, clamped to max_scroll (110.0)
-        state.caret_byte = 27;
+        set_caret_byte(&mut state, 27);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3076,7 +3481,7 @@ mod tests {
 
         // 4. Caret moves up from Line 2 to Line 1 (index 3, y_top = 16.0, height = 16.0): below top threshold
         // Expected scroll = 16 - 16 = 0.0
-        state.caret_byte = 6;
+        set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3155,8 +3560,8 @@ mod tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        assert_eq!(state.selection_byte, Some(3));
-        assert_eq!(state.caret_byte, 5);
+        assert_eq!(selection_byte(&state), Some(3));
+        assert_eq!(caret_byte(&state), 5);
         assert_eq!(state.scroll.offset.y, 0.0);
 
         // Test case 3: Double-clicking word on Line 9 (starts at byte index 27, y_top = 144.0)
@@ -3178,8 +3583,8 @@ mod tests {
             &mut cmds,
         );
         focus_system.end_frame();
-        assert_eq!(state.selection_byte, Some(27));
-        assert_eq!(state.caret_byte, 29);
+        assert_eq!(selection_byte(&state), Some(27));
+        assert_eq!(caret_byte(&state), 29);
         assert_eq!(state.scroll.offset.y, 110.0);
     }
 
@@ -3197,8 +3602,8 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         // 1. Press CaretLeft (shift=false, ctrl=false) -> collapses selection to left edge (6)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: false,
             ctrl: false,
@@ -3211,12 +3616,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 6);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 6);
 
         // 2. Press CaretRight (shift=false, ctrl=false) -> collapses selection to right edge (11)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretRight {
             shift: false,
             ctrl: false,
@@ -3229,12 +3634,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 11);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 11);
 
         // 3. Press Ctrl+CaretLeft (shift=false, ctrl=true) -> starts at left edge (6) and moves one word left (to 5)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: false,
             ctrl: true,
@@ -3247,12 +3652,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 5);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 5);
 
         // 4. Press Ctrl+CaretRight (shift=false, ctrl=true) -> starts at right edge (11) and moves one word right (to 12)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretRight {
             shift: false,
             ctrl: true,
@@ -3265,12 +3670,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 12);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 12);
 
         // 5. Press Shift+CaretLeft (shift=true, ctrl=false) -> starts at caret (11) and moves one character left (to 10)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: true,
             ctrl: false,
@@ -3283,12 +3688,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, Some(6));
-        assert_eq!(state.caret_byte, 10);
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 10);
 
         // 6. Press Shift+CaretRight (shift=true, ctrl=false) -> starts at caret (11) and moves one character right (to 12)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretRight {
             shift: true,
             ctrl: false,
@@ -3301,12 +3706,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, Some(6));
-        assert_eq!(state.caret_byte, 12);
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 12);
 
         // 7. Press Ctrl+Shift+CaretLeft (shift=true, ctrl=true) -> starts at caret (11) and moves one word left (to 6)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: true,
             ctrl: true,
@@ -3319,12 +3724,12 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, Some(6));
-        assert_eq!(state.caret_byte, 6);
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 6);
 
         // 8. Press Ctrl+Shift+CaretRight (shift=true, ctrl=true) -> starts at caret (11) and moves one word right (to 12)
-        state.selection_byte = Some(6);
-        state.caret_byte = 11;
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
         input.text_events = vec![TextEvent::CaretRight {
             shift: true,
             ctrl: true,
@@ -3337,8 +3742,8 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, Some(6));
-        assert_eq!(state.caret_byte, 12);
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 12);
     }
 
     #[test]
@@ -3367,8 +3772,8 @@ mod tests {
         // Left/start boundary is 1 (Line 0).
         // CaretUp without shift collapses selection and moves one line up from start boundary (1).
         // Since 1 is on Line 0 (first visual line), it should move to the start of text (0).
-        state.selection_byte = Some(1);
-        state.caret_byte = 7;
+        set_selection_byte(&mut state, Some(1));
+        set_caret_byte(&mut state, 7);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3378,8 +3783,8 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 0);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 0);
 
         // 2. CaretUp (shift=false): selection from 4 to 7.
         // Left/start boundary is 4 (Line 1).
@@ -3387,8 +3792,8 @@ mod tests {
         // Since 4 is on Line 1, moving up should place it on Line 0.
         // The column for byte 4 (on Line 1) is 4 - 3 = 1 character from start, so x = 8.0.
         // On Line 0, x = 8.0 corresponds to byte index 1.
-        state.selection_byte = Some(4);
-        state.caret_byte = 7;
+        set_selection_byte(&mut state, Some(4));
+        set_caret_byte(&mut state, 7);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3398,8 +3803,8 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 1);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 1);
 
         // 3. CaretDown (shift=false): selection from 1 to 4.
         // Right/end boundary is 4 (Line 1).
@@ -3407,8 +3812,8 @@ mod tests {
         // Since 4 is on Line 1, moving down should place it on Line 2.
         // The column for byte 4 (on Line 1) is 4 - 3 = 1, so x = 8.0.
         // On Line 2, x = 8.0 corresponds to byte index 7.
-        state.selection_byte = Some(4);
-        state.caret_byte = 1;
+        set_selection_byte(&mut state, Some(4));
+        set_caret_byte(&mut state, 1);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3418,15 +3823,15 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 7);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 7);
 
         // 4. CaretDown (shift=false): selection from 4 to 7.
         // Right/end boundary is 7 (Line 2).
         // CaretDown without shift collapses selection and moves one line down from end boundary (7).
         // Since 7 is on Line 2 (last visual line), it should move to the end of text (8).
-        state.selection_byte = Some(7);
-        state.caret_byte = 4;
+        set_selection_byte(&mut state, Some(7));
+        set_caret_byte(&mut state, 4);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3436,8 +3841,8 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, None);
-        assert_eq!(state.caret_byte, 8);
+        assert_eq!(selection_byte(&state), None);
+        assert_eq!(caret_byte(&state), 8);
     }
 
     #[test]
@@ -3467,8 +3872,8 @@ mod tests {
             assert_eq!(state.value, "hello world");
 
             // Paste value containing \n
-            state.caret_byte = 5;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 5);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3486,8 +3891,8 @@ mod tests {
             assert_eq!(state.value, "helloa b world");
 
             // Type \n -> inserts space
-            state.caret_byte = 0;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 0);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Char('\n')];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3546,8 +3951,8 @@ mod tests {
             assert_eq!(state.value, "helloworld");
 
             // Paste value containing \n -> \n is removed
-            state.caret_byte = 5;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 5);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3565,8 +3970,8 @@ mod tests {
             assert_eq!(state.value, "helloabworld");
 
             // Type \n -> ignored
-            state.caret_byte = 0;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 0);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Char('\n')];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3605,8 +4010,8 @@ mod tests {
             assert_eq!(state.value, "hello\nworld");
 
             // Paste value containing \n -> preserved
-            state.caret_byte = 5;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 5);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3624,8 +4029,8 @@ mod tests {
             assert_eq!(state.value, "helloa\nb\nworld");
 
             // Type \n -> inserts \n
-            state.caret_byte = 0;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 0);
+            set_selection_byte(&mut state, None);
             input.text_events = vec![TextEvent::Char('\n')];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3644,8 +4049,8 @@ mod tests {
 
             // Press Enter while focused -> inserts \n
             let mut state = TextEditState::new("abc");
-            state.caret_byte = 1;
-            state.selection_byte = None;
+            set_caret_byte(&mut state, 1);
+            set_selection_byte(&mut state, None);
             state.was_focused = true;
             let mut input = Input::default();
             input.key_pressed_enter = true;
@@ -3698,8 +4103,8 @@ mod tests {
         );
 
         // 1. Arrow Down from Line 0 to Line 1
-        state.caret_byte = 5;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 5);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3709,7 +4114,7 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 11);
+        assert_eq!(caret_byte(&state), 11);
 
         // 2. Arrow Up from Line 1 to Line 0
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
@@ -3721,10 +4126,10 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 5);
+        assert_eq!(caret_byte(&state), 5);
 
         // 3. Boundary Condition: Arrow Up on first line
-        state.caret_byte = 2;
+        set_caret_byte(&mut state, 2);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3734,10 +4139,10 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 0);
+        assert_eq!(caret_byte(&state), 0);
 
         // 4. Boundary Condition: Arrow Down on last line
-        state.caret_byte = 14;
+        set_caret_byte(&mut state, 14);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3747,11 +4152,11 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.caret_byte, 17);
+        assert_eq!(caret_byte(&state), 17);
 
         // 5. Shift + Arrow Down from Line 0 to Line 1 (extending selection)
-        state.caret_byte = 2;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 2);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretDown { shift: true }];
         raw::text_edit(
             edit_spec.clone(),
@@ -3761,8 +4166,8 @@ mod tests {
             &mut text_system,
             &mut cmds,
         );
-        assert_eq!(state.selection_byte, Some(2));
-        assert_eq!(state.caret_byte, 8);
+        assert_eq!(selection_byte(&state), Some(2));
+        assert_eq!(caret_byte(&state), 8);
     }
 
     // ── Home / End navigation ───────────────────────────────────────────────────
@@ -3813,8 +4218,8 @@ mod tests {
         let mut input = Input::default();
 
         // ── 1. Home (ctrl=false) from middle of Line 1 → start of Line 1 ──────
-        state.caret_byte = 9; // "line2|2\n" → inside Line 1
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9); // "line2|2\n" → inside Line 1
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretHome {
             shift: false,
             ctrl: false,
@@ -3828,14 +4233,15 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 6,
+            caret_byte(&state),
+            6,
             "Home (no ctrl) from line 1 mid should move to start of line 1 (byte 6)"
         );
-        assert_eq!(state.selection_byte, None);
+        assert_eq!(selection_byte(&state), None);
 
         // ── 2. End (ctrl=false) from middle of Line 1 → end of Line 1 ──────────
-        state.caret_byte = 9; // restore to mid-line-1
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9); // restore to mid-line-1
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretEnd {
             shift: false,
             ctrl: false,
@@ -3849,14 +4255,15 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 11,
+            caret_byte(&state),
+            11,
             "End (no ctrl) from line 1 mid should move to end of line 1 (byte 11, before \\n)"
         );
-        assert_eq!(state.selection_byte, None);
+        assert_eq!(selection_byte(&state), None);
 
         // ── 3. Home (ctrl=false) on Line 0 already at start → stays at 0 ───────
-        state.caret_byte = 0;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 0);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretHome {
             shift: false,
             ctrl: false,
@@ -3870,13 +4277,14 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 0,
+            caret_byte(&state),
+            0,
             "Home (no ctrl) at byte 0 should stay at 0"
         );
 
         // ── 4. End (ctrl=false) on last line → value.len() ─────────────────────
-        state.caret_byte = 14; // inside "line3"
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 14); // inside "line3"
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretEnd {
             shift: false,
             ctrl: false,
@@ -3890,13 +4298,14 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 17,
+            caret_byte(&state),
+            17,
             "End (no ctrl) on last line should move to value.len() (byte 17)"
         );
 
         // ── 5. Shift+Home (ctrl=false) extends selection to start of line ──────
-        state.caret_byte = 9; // mid-line-1
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9); // mid-line-1
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretHome {
             shift: true,
             ctrl: false,
@@ -3910,18 +4319,19 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.selection_byte,
+            selection_byte(&state),
             Some(9),
             "Shift+Home (no ctrl) should anchor selection at old caret (9)"
         );
         assert_eq!(
-            state.caret_byte, 6,
+            caret_byte(&state),
+            6,
             "Shift+Home (no ctrl) should move caret to start of current line (6)"
         );
 
         // ── 6. Shift+End (ctrl=false) extends selection to end of line ──────────
-        state.caret_byte = 9; // mid-line-1
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9); // mid-line-1
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretEnd {
             shift: true,
             ctrl: false,
@@ -3935,18 +4345,19 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.selection_byte,
+            selection_byte(&state),
             Some(9),
             "Shift+End (no ctrl) should anchor selection at old caret (9)"
         );
         assert_eq!(
-            state.caret_byte, 11,
+            caret_byte(&state),
+            11,
             "Shift+End (no ctrl) should move caret to end of current line (11)"
         );
 
         // ── 7. Home (ctrl=true) from mid-string → byte 0 ───────────────────────
-        state.caret_byte = 9;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretHome {
             shift: false,
             ctrl: true,
@@ -3960,14 +4371,15 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 0,
+            caret_byte(&state),
+            0,
             "Home (ctrl=true) should always move to byte 0"
         );
-        assert_eq!(state.selection_byte, None);
+        assert_eq!(selection_byte(&state), None);
 
         // ── 8. End (ctrl=true) from mid-string → value.len() ───────────────────
-        state.caret_byte = 9;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretEnd {
             shift: false,
             ctrl: true,
@@ -3981,14 +4393,15 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.caret_byte, 17,
+            caret_byte(&state),
+            17,
             "End (ctrl=true) should always move to value.len()"
         );
-        assert_eq!(state.selection_byte, None);
+        assert_eq!(selection_byte(&state), None);
 
         // ── 9. Shift+Ctrl+Home extends selection to byte 0 ──────────────────────
-        state.caret_byte = 9;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretHome {
             shift: true,
             ctrl: true,
@@ -4002,18 +4415,19 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.selection_byte,
+            selection_byte(&state),
             Some(9),
             "Shift+Ctrl+Home should anchor selection at old caret (9)"
         );
         assert_eq!(
-            state.caret_byte, 0,
+            caret_byte(&state),
+            0,
             "Shift+Ctrl+Home should move caret to byte 0"
         );
 
         // ── 10. Shift+Ctrl+End extends selection to value.len() ─────────────────
-        state.caret_byte = 9;
-        state.selection_byte = None;
+        set_caret_byte(&mut state, 9);
+        set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretEnd {
             shift: true,
             ctrl: true,
@@ -4027,12 +4441,13 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(
-            state.selection_byte,
+            selection_byte(&state),
             Some(9),
             "Shift+Ctrl+End should anchor selection at old caret (9)"
         );
         assert_eq!(
-            state.caret_byte, 17,
+            caret_byte(&state),
+            17,
             "Shift+Ctrl+End should move caret to value.len()"
         );
     }
@@ -4047,8 +4462,8 @@ mod tests {
         focus_system.begin_frame();
 
         state.was_focused = true;
-        state.selection_byte = Some(3); // 'l' in "hello"
-        state.caret_byte = 9; // 'r' in "world"
+        set_selection_byte(&mut state, Some(3)); // 'l' in "hello"
+        set_caret_byte(&mut state, 9); // 'r' in "world"
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -4125,8 +4540,8 @@ mod tests {
         focus_system.begin_frame();
 
         state.was_focused = true;
-        state.selection_byte = Some(2); // 'e' in "one"
-        state.caret_byte = 10; // 'r' in "three"
+        set_selection_byte(&mut state, Some(2)); // 'e' in "one"
+        set_caret_byte(&mut state, 10); // 'r' in "three"
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -4241,7 +4656,7 @@ mod tests {
         // "abcde" and "fghij", so CaretUp should move it to index 3.
         // Due to the bug (layout width 50.0), CaretUp thinks index 8 is on Line 1 of the 50.0 layout,
         // and moves it up to index 2.
-        state.caret_byte = 8;
+        set_caret_byte(&mut state, 8);
         state.was_focused = true;
         focus_system.begin_frame();
 
@@ -4258,7 +4673,8 @@ mod tests {
         );
 
         assert_eq!(
-            state.caret_byte, 3,
+            caret_byte(&state),
+            3,
             "CaretUp should move caret to index 3 under correct wrapped layout width"
         );
     }
@@ -4406,7 +4822,8 @@ mod tests {
             focus_system.end_frame();
 
             assert_eq!(
-                state.caret_byte, 3,
+                caret_byte(&state),
+                3,
                 "Hit testing should resolve correctly to index 3"
             );
         }
@@ -4601,7 +5018,7 @@ mod tests {
         // Visual Line 1: "klmnopqrst" (index 10..20)
 
         // Test Home
-        state.caret_byte = 15; // caret is on 'p' (Line 1)
+        set_caret_byte(&mut state, 15); // caret is on 'p' (Line 1)
         focus_system.begin_frame();
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretHome {
@@ -4618,10 +5035,10 @@ mod tests {
         );
         focus_system.end_frame();
 
-        assert_eq!(state.caret_byte, 10);
+        assert_eq!(caret_byte(&state), 10);
 
         // Test End
-        state.caret_byte = 3; // caret is on 'd' (Line 0)
+        set_caret_byte(&mut state, 3); // caret is on 'd' (Line 0)
         focus_system.begin_frame();
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretEnd {
@@ -4638,7 +5055,7 @@ mod tests {
         );
         focus_system.end_frame();
 
-        assert_eq!(state.caret_byte, 10);
+        assert_eq!(caret_byte(&state), 10);
     }
 
     #[test]
@@ -4647,8 +5064,8 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         state.was_focused = true;
-        state.selection_byte = Some(5);
-        state.caret_byte = 15;
+        set_selection_byte(&mut state, Some(5));
+        set_caret_byte(&mut state, 15);
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut edit_spec = spec();

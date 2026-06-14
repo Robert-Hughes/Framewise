@@ -10,6 +10,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Finish going through ChatGPT big design message. Test coverage is mentioned, might overlap with existing.
   - Update DESIGN.md as appropriate
 
+- Clarify what happens in a series of whitespace that gets wrapped - only one space should get visually collapsed, even though two will meet the criteria!
+
 - "wrap first, fallback second" < check this is consistent for whitespace chars that are wrapped too, as we treat these as word-like/cluster-like (docs and tests)
 - selection highlighting is borked for non-left-aligned text
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
@@ -66,6 +68,25 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Copy/paste integration with the system (apparently not working!)
 - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
 - do left/right keys move to the next seelectable element (cluster)? Or just byte offset? Could be broken?
+      ## 9. Add cluster navigation APIs
+
+      Since TextEdit should move by clusters, not chars, I’d avoid keeping this logic in TextEdit:
+
+      ```rust
+      fn previous_caret_position(&self, handle: TextHandle, position: CaretPosition) -> CaretPosition;
+      fn next_caret_position(&self, handle: TextHandle, position: CaretPosition) -> CaretPosition;
+      ```
+
+      This is where soft-wrap boundaries become really nice:
+
+      * `AfterCluster(c)` + Right at a soft-wrap boundary can become `BeforeCluster(d)` without changing insertion byte.
+      * `BeforeCluster(d)` + Left can become `AfterCluster(c)`.
+      * `AfterCluster(space)` for terminal wrapped space can be the empty next line.
+      * `BeforeCluster(space)` can be previous-line boundary.
+
+      If you do not add these, TextEdit will continue walking UTF-8 char boundaries, which is already not ideal for shaped clusters.
+
+
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03
