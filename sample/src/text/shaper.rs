@@ -621,6 +621,12 @@ impl SampleTextSystem {
                 height: line_height_snapped,
                 logical_width: logical_line_w,
                 ink_width: line_ink_width,
+                logical_x: align_off,
+                ink_x: if line_ink_l.is_finite() {
+                    line_ink_l
+                } else {
+                    align_off
+                },
                 glyph_start,
                 glyph_end: out.len(),
                 cluster_start,
@@ -644,6 +650,8 @@ impl SampleTextSystem {
                 height: r.height,
                 logical_width: r.logical_width,
                 ink_width: r.ink_width,
+                logical_x: r.logical_x,
+                ink_x: r.ink_x,
                 byte_start: r.byte_start,
                 byte_end: r.byte_end,
             })

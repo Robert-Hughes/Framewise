@@ -942,6 +942,7 @@ pub mod raw {
                         let line_sel_end = end.min(line.byte_end);
 
                         if line_sel_start < line_sel_end {
+                            let line_start_x = line.logical_x;
                             let start_caret = text_system.caret_geom(
                                 handle,
                                 text_system
@@ -949,7 +950,8 @@ pub mod raw {
                             );
 
                             let end_x = if line_sel_end == line.byte_end {
-                                line.logical_width
+                                line_start_x
+                                    + line.logical_width
                                     + selected_line_end_affordance_width(
                                         &state.value,
                                         line,
@@ -1099,7 +1101,7 @@ pub mod raw {
         );
 
         before_boundary.y_top == line.y_top
-            && (before_boundary.x - line.logical_width).abs() <= f32::EPSILON
+            && (before_boundary.x - line.logical_x - line.logical_width).abs() <= f32::EPSILON
     }
 
     pub(super) fn edit_layout_size<T: TextSystem>(
@@ -1698,6 +1700,8 @@ mod tests {
                         height: 16.0,
                         logical_width: 8.0,
                         ink_width: 8.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 0,
                         byte_end: 1.min(text.len()),
                     },
@@ -1706,6 +1710,8 @@ mod tests {
                         height: 16.0,
                         logical_width: 8.0,
                         ink_width: 8.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 1.min(text.len()),
                         byte_end: text.len(),
                     },
@@ -1901,6 +1907,8 @@ mod tests {
                         height: 16.0,
                         logical_width: 8.0,
                         ink_width: 8.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 0,
                         byte_end: 2,
                     },
@@ -1909,6 +1917,8 @@ mod tests {
                         height: 16.0,
                         logical_width: 8.0,
                         ink_width: 8.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 2,
                         byte_end: 3,
                     },
@@ -3164,6 +3174,53 @@ mod tests {
                 DrawCmd::PopClip,
             ])
         );
+    }
+
+    #[test]
+    fn test_text_edit_selection_highlight_respects_horizontal_line_alignment() {
+        for (line_align, expected_x) in [(TextLineAlign::Center, 84.0), (TextLineAlign::End, 163.0)]
+        {
+            let mut text_system = DummyTextSys;
+            let mut focus_system = FocusSystem::new();
+            let mut state = TextEditState::new("hello");
+            focus_system.take_keyboard_focus(state.focus_id);
+            focus_system.end_frame();
+            focus_system.begin_frame();
+
+            state.was_focused = true;
+            set_selection_byte(&mut state, Some(0));
+            set_caret_byte(&mut state, 5);
+
+            let input = Input::default();
+            let mut cmds = DrawCommands::new();
+            raw::text_edit(
+                TextEditSpec {
+                    line_align,
+                    ..spec()
+                },
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+
+            let has_aligned_selection = cmds.iter().any(|cmd| {
+                matches!(
+                    cmd,
+                    DrawCmd::FillRect {
+                        rect,
+                        color,
+                        ..
+                    } if *color == spec().style.select_color
+                        && *rect == Rect::new(expected_x, 7.0, 40.0, 16.0)
+                )
+            });
+            assert!(
+                has_aligned_selection,
+                "{line_align:?} selection highlight should cover the horizontally aligned text"
+            );
+        }
     }
 
     #[test]

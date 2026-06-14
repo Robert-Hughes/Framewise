@@ -3021,4 +3021,95 @@ mod tests {
         assert_eq!(line1_first.byte_start, 3);
         assert_close(line1_first.x, 0.0, "overwide cluster starts new line");
     }
+
+    #[test]
+    fn test_line_metrics_horizontal_alignment() {
+        let mut sys = sys();
+        let text = "hello";
+        let width = 200.0;
+
+        for (align, expected_logical_x) in [
+            (TextLineAlign::Start, 0.0),
+            (TextLineAlign::Center, 80.0), // (200 - hello_width) * 0.5 where hello_width is ~40.0
+            (TextLineAlign::End, 160.0),   // 200 - hello_width
+        ] {
+            let flow = TextFlow {
+                overflow_x: OverflowX::Keep,
+                overflow_y: OverflowY::Keep,
+                line_align: align,
+            };
+            let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+            let hello_w = line_width(&mut sys, text, style);
+
+            let layout = sys.prepare(text, style, Rect::new(0.0, 0.0, width, 200.0));
+            assert_eq!(layout.metrics.lines.len(), 1);
+            let line = layout.metrics.lines[0];
+
+            let calc_expected = match align {
+                TextLineAlign::Start => 0.0,
+                TextLineAlign::Center => ((width - hello_w) * 0.5).max(0.0),
+                TextLineAlign::End => (width - hello_w).max(0.0),
+            };
+
+            assert_close(
+                line.logical_x,
+                calc_expected,
+                &format!("logical_x for {:?}", align),
+            );
+            assert_close(
+                line.ink_x,
+                line.logical_x,
+                &format!("ink_x for {:?}", align),
+            );
+        }
+    }
+
+    #[test]
+    fn test_caret_geom_alignment_empty_lines_and_empty_text() {
+        let mut sys = sys();
+        let width = 200.0;
+
+        for align in [
+            TextLineAlign::Start,
+            TextLineAlign::Center,
+            TextLineAlign::End,
+        ] {
+            let flow = TextFlow {
+                overflow_x: OverflowX::Keep,
+                overflow_y: OverflowY::Keep,
+                line_align: align,
+            };
+            let style = TextStyle::new(FontId(0), 16.0, 400, flow);
+
+            // Case 1: Empty text
+            let layout_empty = sys.prepare("", style, Rect::new(0.0, 0.0, width, 200.0));
+            let expected_x = match align {
+                TextLineAlign::Start => 0.0,
+                TextLineAlign::Center => width * 0.5,
+                TextLineAlign::End => width,
+            };
+            let caret_empty = sys.caret_geom(layout_empty.handle, CaretPosition::EmptyText);
+            assert_close(
+                caret_empty.x,
+                expected_x,
+                &format!("caret_empty.x for {:?}", align),
+            );
+
+            // Case 2: Text ending with a newline (trailing empty line)
+            // "a\n" -> line 0 has 'a', line 1 is empty
+            let layout_newline = sys.prepare("a\n", style, Rect::new(0.0, 0.0, width, 200.0));
+            // position at the end of the text (after the newline)
+            let caret_after_newline = sys.caret_geom(
+                layout_newline.handle,
+                CaretPosition::AfterCluster {
+                    cluster_byte_index: 1,
+                }, // index 1 is the '\n' character
+            );
+            assert_close(
+                caret_after_newline.x,
+                expected_x,
+                &format!("caret_after_newline.x for {:?}", align),
+            );
+        }
+    }
 }

@@ -357,7 +357,7 @@ impl TextSystem for SampleTextSystem {
                 .first()
                 .expect("a prepared run always has at least one line");
             return CaretGeom {
-                x: 0.0,
+                x: line.logical_x,
                 y_top: line.y_top,
                 height: line.height,
             };
@@ -372,11 +372,12 @@ impl TextSystem for SampleTextSystem {
             {
                 let next_line = run.lines.get(line_idx + 1).unwrap_or(line);
                 let next_clusters = &run.clusters[next_line.cluster_start..next_line.cluster_end];
-                (
-                    line_start_x(next_clusters),
-                    next_line.y_top,
-                    next_line.height,
-                )
+                let next_x = if next_clusters.is_empty() {
+                    next_line.logical_x
+                } else {
+                    line_start_x(next_clusters)
+                };
+                (next_x, next_line.y_top, next_line.height)
             }
             CaretPosition::AfterCluster { .. } => {
                 (cluster.x + cluster.advance, line.y_top, line.height)

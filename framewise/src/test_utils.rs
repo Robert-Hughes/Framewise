@@ -1,6 +1,6 @@
 use crate::text::{
     CaretGeom, CaretPosition, LineMetrics, OverflowX, TextBounds, TextHandle, TextLayout,
-    TextMetrics, TextStyle, TextSystem,
+    TextLineAlign, TextMetrics, TextStyle, TextSystem,
 };
 use crate::types::{Rect, Vec2};
 
@@ -8,10 +8,16 @@ use crate::types::{Rect, Vec2};
 /// Assumes each character is 8px wide and 16px tall, supporting newlines for multi-line layout.
 pub struct DummyTextSys {
     pub last_run: Option<(String, TextMetrics)>,
+    pub last_rect_width: f32,
+    pub last_line_align: TextLineAlign,
 }
 
 #[allow(non_upper_case_globals)]
-pub const DummyTextSys: DummyTextSys = DummyTextSys { last_run: None };
+pub const DummyTextSys: DummyTextSys = DummyTextSys {
+    last_run: None,
+    last_rect_width: 0.0,
+    last_line_align: TextLineAlign::Start,
+};
 
 impl DummyTextSys {
     fn metrics(text: &str, style: TextStyle, max_width: Option<f32>) -> TextMetrics {
@@ -28,6 +34,18 @@ impl DummyTextSys {
             ((w / 8.0).floor() as usize).max(1)
         } else {
             usize::MAX
+        };
+
+        let line_align_offset_for = |line_width: f32| -> f32 {
+            if let Some(w) = max_width {
+                match style.flow.line_align {
+                    TextLineAlign::Start => 0.0,
+                    TextLineAlign::Center => ((w - line_width) * 0.5).max(0.0),
+                    TextLineAlign::End => (w - line_width).max(0.0),
+                }
+            } else {
+                0.0
+            }
         };
 
         let mut byte_idx = 0;
@@ -57,11 +75,14 @@ impl DummyTextSys {
                         max_line_width = line_width;
                     }
 
+                    let logical_x = line_align_offset_for(line_width);
                     lines.push(LineMetrics {
                         y_top,
                         height: 16.0,
                         logical_width: line_width,
                         ink_width: line_width,
+                        logical_x,
+                        ink_x: logical_x,
                         byte_start,
                         byte_end: byte_end_sub,
                     });
@@ -76,11 +97,14 @@ impl DummyTextSys {
                     max_line_width = line_width;
                 }
 
+                let logical_x = line_align_offset_for(line_width);
                 lines.push(LineMetrics {
                     y_top,
                     height: 16.0,
                     logical_width: line_width,
                     ink_width: line_width,
+                    logical_x,
+                    ink_x: logical_x,
                     byte_start: byte_idx,
                     byte_end,
                 });
@@ -92,11 +116,14 @@ impl DummyTextSys {
         }
 
         if lines.is_empty() {
+            let logical_x = line_align_offset_for(0.0);
             lines.push(LineMetrics {
                 y_top: 0.0,
                 height: 16.0,
                 logical_width: 0.0,
                 ink_width: 0.0,
+                logical_x,
+                ink_x: logical_x,
                 byte_start: 0,
                 byte_end: 0,
             });
@@ -122,6 +149,8 @@ impl TextSystem for DummyTextSys {
     fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout {
         let metrics = Self::metrics(text, style, Some(rect.w));
         self.last_run = Some((text.to_string(), metrics.clone()));
+        self.last_rect_width = rect.w;
+        self.last_line_align = style.flow.line_align;
         TextLayout {
             handle: TextHandle(0),
             metrics,
@@ -139,7 +168,7 @@ impl TextSystem for DummyTextSys {
                 .or_else(|| metrics.lines.first());
             let (x, y_top, height) = if let Some(line) = line {
                 let col = byte_index.saturating_sub(line.byte_start);
-                let x = col as f32 * 8.0;
+                let x = line.logical_x + col as f32 * 8.0;
                 (x, line.y_top, line.height)
             } else {
                 (byte_index as f32 * 8.0, 0.0, 16.0)
@@ -168,12 +197,15 @@ impl TextSystem for DummyTextSys {
                         height: 16.0,
                         logical_width: 0.0,
                         ink_width: 0.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
                     })
                 });
 
-            let col = (pos.x / 8.0).max(0.0).round() as usize;
+            let pos_x = pos.x - line.logical_x;
+            let col = (pos_x / 8.0).max(0.0).round() as usize;
             let line_len = line.byte_end.saturating_sub(line.byte_start);
             let actual_line_text = &text[line.byte_start..line.byte_end];
             let has_newline = actual_line_text.ends_with('\n');
@@ -272,6 +304,8 @@ impl TextSystem for DummyTextSys {
                         height: 16.0,
                         logical_width: 0.0,
                         ink_width: 0.0,
+                        logical_x: 0.0,
+                        ink_x: 0.0,
                         byte_start: 0,
                         byte_end: text.len(),
                     })
@@ -282,14 +316,10 @@ impl TextSystem for DummyTextSys {
                 return line.byte_start;
             }
 
-            let col = (pos.x / 8.0).max(0.0).floor() as usize;
+            let pos_x = pos.x - line.logical_x;
+            let col = (pos_x / 8.0).max(0.0).floor() as usize;
             let actual_line_text = &text[line.byte_start..line.byte_end];
-            let has_newline = actual_line_text.ends_with('\n');
-            let max_col = if has_newline {
-                line_len - 1
-            } else {
-                line_len - 1
-            };
+            let max_col = line_len.saturating_sub(1);
             let clamped_col = col.min(max_col);
             line.byte_start + clamped_col
         } else {

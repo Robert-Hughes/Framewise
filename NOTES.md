@@ -4,7 +4,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- selection highlighting is borked for non-left-aligned text
+-
 - F2 page, section 5, 'centre aligned text' doesn't look so centred!
 
 - add golden comparisons for all the sample app pages, not just the spec page?
@@ -51,6 +51,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Ctrl+Up/Down?
   - newline policy reject - is this useful? What about trim after first newline?
   - newline policy - how is enter rejected? Even for replace-with-space?
+  - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
   - TESTS for all this!
 
 - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
@@ -59,8 +60,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Copy/paste integration with the system (apparently not working!)
 - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
+- text_edit tests are very long! Many TextSystem implementations. Reduce duplication, use a common 'testing' TextSystem (upgrade of DummyTextSystem?)
 
-- Weird behaviour of ligatures(?) with equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
+- Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 
 - Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 

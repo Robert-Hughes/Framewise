@@ -83,6 +83,8 @@ pub struct LineRec {
     pub byte_end: usize,
     pub logical_width: f32,
     pub ink_width: f32,
+    pub logical_x: f32,
+    pub ink_x: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -544,6 +544,10 @@ pub struct LineMetrics {
     pub logical_width: f32,
     /// Ink width of the line.
     pub ink_width: f32,
+    /// X offset of the line's logical start in block-local coordinates.
+    pub logical_x: f32,
+    /// X offset of the line's ink start in block-local coordinates.
+    pub ink_x: f32,
     /// Byte start index of the line in the original string.
     pub byte_start: usize,
     /// Byte end index of the line in the original string (exclusive).
