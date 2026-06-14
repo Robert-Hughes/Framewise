@@ -1417,7 +1417,7 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::Text {
-                    rect: Rect::new(13.0, 29.5, 104.0, 16.0),
+                    rect: Rect::new(13.0, 29.5, 92.0, 16.0),
                     color: custom_style.text_color,
                     handle: TextHandle(0),
                     z: 0,

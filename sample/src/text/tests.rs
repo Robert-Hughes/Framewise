@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::text::{GlyphKey, SampleTextSystem};
+    use framewise::widgets::label::{raw as raw_label, LabelStyle};
     use framewise::{
-        EllipsisFallback, FontId, LineHeight, OverflowX, OverflowY, Rect, TextBounds, TextFlow,
-        TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback,
-        WrapWordFallback,
+        Color, DrawCommands, EllipsisFallback, FontId, Layer, LineHeight, OverflowX, OverflowY,
+        Rect, TextBounds, TextContentPlacement, TextFlow, TextHandle, TextLineAlign, TextStyle,
+        TextSystem, Vec2, WrapClusterFallback, WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
@@ -14,6 +15,41 @@ mod tests {
 
     fn visible(sys: &SampleTextSystem, h: TextHandle) -> String {
         sys.runs[h.0].glyphs.iter().map(|g| g.parent).collect()
+    }
+
+    fn visual_lines(sys: &SampleTextSystem, h: TextHandle) -> Vec<String> {
+        let run = &sys.runs[h.0];
+        run.lines
+            .iter()
+            .map(|line| {
+                run.glyphs[line.glyph_start..line.glyph_end]
+                    .iter()
+                    .map(|g| g.parent)
+                    .collect()
+            })
+            .collect()
+    }
+
+    fn label_visual_lines(text: &str, flow: TextFlow, rect: Rect) -> Vec<String> {
+        let mut sys = sys();
+        let mut cmds = DrawCommands::new();
+        raw_label::label(
+            raw_label::LabelSpec {
+                layer: Layer::default(),
+                rect,
+                text,
+                style: LabelStyle {
+                    text_style: TextStyle::new(FontId(1), 14.0, 400, flow),
+                    content_placement: TextContentPlacement::TOP_LEFT,
+                    text_color: Color::BLACK,
+                    rule: false,
+                    rule_color: Color::BLACK,
+                },
+            },
+            &mut sys,
+            &mut cmds,
+        );
+        visual_lines(&sys, TextHandle(sys.runs.len() - 1))
     }
 
     fn logical_glyph_end(g: &crate::text::types::GlyphPosition) -> f32 {
@@ -1503,6 +1539,7 @@ mod tests {
             Rect::new(0.0, 0.0, 25.0, 28.0),
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
+        assert_eq!(visual_lines(&sys, layout.handle), ["hell"]);
         let run = &sys.runs[layout.handle.0];
         for g in &run.glyphs {
             assert!(logical_glyph_end(g) <= 25.0 + 0.1);
@@ -1544,6 +1581,7 @@ mod tests {
         }
         assert!(line1_has_overflow);
         assert!(line2_has_overflow);
+        assert_eq!(visual_lines(&sys, layout.handle), ["hello", "hello"]);
     }
 
     // Keep this test in sync with Card 3 in Section 4 of sample/src/label_page.rs
@@ -1565,6 +1603,7 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 1);
         let text = visible(&sys, layout.handle);
         assert!(text.ends_with('…'));
+        assert_eq!(visual_lines(&sys, layout.handle), ["h…"]);
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
         assert!(logical_glyph_end(last_glyph) <= 25.0 + 0.1);
@@ -1588,6 +1627,7 @@ mod tests {
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
+        assert_eq!(visual_lines(&sys, layout.handle), [""]);
     }
 
     // Keep this test in sync with Card 5 in Section 4 of sample/src/label_page.rs
@@ -1608,6 +1648,7 @@ mod tests {
         );
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "…");
+        assert_eq!(visual_lines(&sys, layout.handle), ["…"]);
         let run = &sys.runs[layout.handle.0];
         let last_glyph = run.glyphs.last().unwrap();
         assert!(logical_glyph_end(last_glyph) > 8.0 + 0.1);
@@ -1632,6 +1673,7 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
         assert!(text.contains('…'));
+        assert_eq!(visual_lines(&sys, layout.handle), ["h…", "h…"]);
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
@@ -1658,6 +1700,7 @@ mod tests {
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.glyphs.len(), 0);
+        assert_eq!(visual_lines(&sys, layout.handle), ["", ""]);
     }
 
     // Keep this test in sync with Card 8 in Section 4 of sample/src/label_page.rs
@@ -1679,6 +1722,7 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "……");
+        assert_eq!(visual_lines(&sys, layout.handle), ["…", "…"]);
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
@@ -1714,6 +1758,10 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "hello\nhello");
+        assert_eq!(
+            visual_lines(&sys, layout.handle),
+            ["hel", "lo\n", "hel", "lo"]
+        );
     }
 
     // Keep this test in sync with Card 2 in Section 4.1 of sample/src/label_page.rs
@@ -1734,6 +1782,7 @@ mod tests {
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
+        assert_eq!(visual_lines(&sys, layout.handle), [""]);
     }
 
     // Keep this test in sync with Card 3 in Section 4.1 of sample/src/label_page.rs
@@ -1752,19 +1801,33 @@ mod tests {
             TextStyle::new(FontId(1), 14.0, 400, flow),
             Rect::new(0.0, 0.0, 4.0, 162.0),
         );
-        // Expect 10 lines: 5 lines for each "hello". The newline character '\n'
-        // is appended to the end of the first "hello"'s last line (containing 'o'),
-        // rather than starting a new blank line.
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 10);
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "hello\nhello");
+        assert_eq!(
+            visual_lines(&sys, layout.handle),
+            ["h", "e", "l", "l", "o\n", "h", "e", "l", "l", "o"]
+        );
         let run = &sys.runs[layout.handle.0];
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
-            // Since '\n' is appended to the same line as 'o', that line will contain 2 glyphs.
-            // Other lines will contain at most 1 glyph.
             assert!(line_glyphs.len() <= 2);
         }
+    }
+
+    #[test]
+    fn label_wrap_cluster_fallback_keep_uses_widget_width() {
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapCluster {
+                fallback: WrapClusterFallback::Keep,
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        assert_eq!(
+            label_visual_lines("hello\nhello", flow, Rect::new(0.0, 0.0, 4.0, 162.0)),
+            ["h", "e", "l", "l", "o\n", "h", "e", "l", "l", "o"]
+        );
     }
 
     // Keep this test in sync with Card 4 in Section 4.1 of sample/src/label_page.rs
@@ -1786,6 +1849,10 @@ mod tests {
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 4);
         let text = visible(&sys, layout.handle);
         assert_eq!(text, "hello there\nhello there");
+        assert_eq!(
+            visual_lines(&sys, layout.handle),
+            ["hello ", "there\n", "hello ", "there"]
+        );
     }
 
     // Keep this test in sync with Card 5 in Section 4.1 of sample/src/label_page.rs
@@ -1808,17 +1875,11 @@ mod tests {
         );
         assert!(sys.runs[layout.handle.0].lines.len() > 4);
         let text = visible(&sys, layout.handle);
-        let run = &sys.runs[layout.handle.0];
-        for (i, line) in run.lines.iter().enumerate() {
-            let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
-            for g in line_glyphs {
-                println!(
-                    "line {}, char={:?}, x={}, raster_w={}",
-                    i, g.parent, g.x, g.raster_w
-                );
-            }
-        }
         assert_eq!(text, "hello there\nhello there");
+        assert_eq!(
+            visual_lines(&sys, layout.handle),
+            ["hel", "lo ", "the", "re\n", "hel", "lo ", "the", "re"]
+        );
     }
 
     // Keep this test in sync with Card 6 in Section 4.1 of sample/src/label_page.rs
@@ -1841,6 +1902,7 @@ mod tests {
         );
         let text = visible(&sys, layout.handle);
         assert!(text.trim().is_empty());
+        assert_eq!(visual_lines(&sys, layout.handle), [""]);
     }
 
     // Keep this test in sync with Card 7 in Section 4.1 of sample/src/label_page.rs
@@ -1862,12 +1924,17 @@ mod tests {
             Rect::new(0.0, 0.0, 4.0, 318.0),
         );
         let text = visible(&sys, layout.handle);
-        // Note: The UI height (318.0) divided by line height (16.0) limits the
-        // layout to max_lines = 19. The 20th line containing the final character 'e'
-        // is truncated/dropped.
+        // Vertical overflow drops the final line, so the final 'e' is not emitted.
         assert_eq!(text, "hello there\nhello ther");
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.lines.len(), 19);
+        assert_eq!(
+            visual_lines(&sys, layout.handle),
+            [
+                "h", "e", "l", "l", "o ", "t", "h", "e", "r", "e\n", "h", "e", "l", "l", "o ", "t",
+                "h", "e", "r"
+            ]
+        );
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             let visible_glyphs: Vec<_> = line_glyphs
@@ -1876,6 +1943,30 @@ mod tests {
                 .collect();
             assert!(visible_glyphs.len() <= 1);
         }
+    }
+
+    #[test]
+    fn label_wrap_word_cluster_keep_uses_widget_width() {
+        let flow = TextFlow {
+            overflow_x: OverflowX::WrapWord {
+                fallback: WrapWordFallback::WrapCluster {
+                    fallback: WrapClusterFallback::Keep,
+                },
+            },
+            overflow_y: OverflowY::Keep,
+            line_align: TextLineAlign::Start,
+        };
+        assert_eq!(
+            label_visual_lines(
+                "hello there\nhello there",
+                flow,
+                Rect::new(0.0, 0.0, 4.0, 318.0),
+            ),
+            [
+                "h", "e", "l", "l", "o ", "t", "h", "e", "r", "e\n", "h", "e", "l", "l", "o ", "t",
+                "h", "e", "r"
+            ]
+        );
     }
 
     // Keep this test in sync with Card 8 in Section 4.1 of sample/src/label_page.rs
@@ -1896,6 +1987,7 @@ mod tests {
         );
         assert_eq!(sys.runs[layout.handle.0].lines.len(), 2);
         let run = &sys.runs[layout.handle.0];
+        assert_eq!(visual_lines(&sys, layout.handle), ["hell", "hell"]);
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];
             for g in line_glyphs {
@@ -1922,6 +2014,7 @@ mod tests {
         );
         let run = &sys.runs[layout.handle.0];
         assert_eq!(run.lines.len(), 2);
+        assert_eq!(visual_lines(&sys, layout.handle), ["hello", "hello"]);
         let mut has_overflow = false;
         for line in &run.lines {
             let line_glyphs = &run.glyphs[line.glyph_start..line.glyph_end];

@@ -4,6 +4,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- trailing space at end of string which causes wrap and is visually collapsed should still create a new, empty line?
+- "wrap first, fallback second" < check this is consistent for whitespace-wrapping too (docs and tests)
+- F2 page, section 5, 'centre aligned text' doesn't look so centred!
+
+- add golden comparisons for all the sample app pages, not just the spec page?
+
 - Text Edit
 
   - wrapping options for multi-line

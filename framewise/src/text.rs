@@ -437,7 +437,12 @@ impl TextContentPlacement {
 
         let x = content_rect.x + align_offset(content_rect.w, basis_w, self.x) - basis_x;
         let y = content_rect.y + align_offset(content_rect.h, basis_h, self.y) - basis_y;
-        Rect::new(x, y, logical.x, logical.y)
+        Rect::new(
+            x,
+            y,
+            logical.x.min(content_rect.w),
+            logical.y.min(content_rect.h),
+        )
     }
 }
 
@@ -446,6 +451,29 @@ fn align_offset(available: f32, content: f32, align: Align) -> f32 {
         Align::Start => 0.0,
         Align::Center => (available - content) * 0.5,
         Align::End => available - content,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_content_placement_keeps_prepare_rect_inside_content_size() {
+        let content_rect = Rect::new(10.0, 20.0, 4.0, 12.0);
+        let overflow_metrics = TextMetrics {
+            logical_size: Vec2::new(9.0, 18.0),
+            ink_bounds: Rect::new(0.0, 0.0, 8.0, 16.0),
+            line_count: 2,
+            truncated_horizontal: true,
+            truncated_vertical: true,
+            lines: Vec::new(),
+        };
+
+        assert_eq!(
+            TextContentPlacement::TOP_LEFT.resolve_rect(content_rect, overflow_metrics),
+            Rect::new(10.0, 20.0, 4.0, 12.0)
+        );
     }
 }
 
