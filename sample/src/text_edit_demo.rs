@@ -27,7 +27,7 @@ impl Default for TextEditDemoState {
             te_allow: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
             te_replace: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
             te_reject: TextEditState::new("one one one\ntwotwotwo\nthreeeeeeeee"),
-            te_wrap: TextEditState::new("This is a wrapping text edit widget. Try typing a very long sentence here to see how word wrapping wraps the characters/words to the next line dynamically inside the widget's box! You can also resize the window or click anywhere in the text edit to place the cursor and test vertical navigation across wrapped lines."),
+            te_wrap: TextEditState::new("This is a wrapping text edit widget. Try typing a very long sentence here to see how word wrapping wraps the characters/words to the next line dynamically inside the widget's box! aaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbvvvvvvvccccccccccccccccccccddddddddddddddddd You can also resize the window or click anywhere in the text edit to place the cursor and test vertical navigation across wrapped lines."),
             te_aligns: [
                 [
                     TextEditState::new("Top\nLeft"),
