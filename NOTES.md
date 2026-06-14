@@ -6,13 +6,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
 
-  - wrapping options for multi-line
-    - adding spaces to the start of wrapped lines is weird (appends to prev line instead?)
-    - test behaviour of things like caret and selection for multiple logical lines plus multiple visual lines
-    - End key moves caret to the line *beneath*, not end of the current (wrapped) line. Should use the new caret begin/end semenatic? Make sure is correct for wrapped words and collapsed trailing spaces etc.
-
-    - double-click and drag select text currently clamps to word - nice! Test this behaviour so we don't lose it
-      - same thing for triple-click for lines?
+  - adding spaces to the start of wrapped lines is weird (appends to prev line instead?)
 
   - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
     - check Antigravity conversation

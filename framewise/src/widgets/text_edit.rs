@@ -809,7 +809,7 @@ pub mod raw {
             let clicked_byte = text_system.caret_insertion_byte(handle, clicked_caret);
             let clicked_byte = clicked_byte.min(state.value.len());
 
-            // Handling double/triple clicks
+            // Handling repeated clicks
             if input.mouse_click_count == 2 {
                 let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
                 let (start, end) = word_bounds(&state.value, cluster_byte);
@@ -818,12 +818,24 @@ pub mod raw {
                 caret_needs_layout_sync = true;
                 state.is_dragging = true;
                 state.drag_word_origin = Some((start, end));
+                state.drag_line_origin = None;
                 selection_only_action = true;
-            } else if input.mouse_click_count >= 3 {
-                // Select line
+            } else if input.mouse_click_count == 3 {
+                let (start, end) = logical_line_bounds(&state.value, clicked_byte);
+                selection_byte = Some(start);
+                caret_byte = end;
+                caret_needs_layout_sync = true;
+                state.is_dragging = true;
+                state.drag_word_origin = None;
+                state.drag_line_origin = Some((start, end));
+                selection_only_action = true;
+            } else if input.mouse_click_count >= 4 {
                 selection_byte = Some(0);
                 caret_byte = state.value.len();
                 caret_needs_layout_sync = true;
+                state.is_dragging = false;
+                state.drag_word_origin = None;
+                state.drag_line_origin = None;
                 selection_only_action = true;
             } else {
                 caret_byte = clicked_byte;
@@ -832,6 +844,7 @@ pub mod raw {
                 selection_byte = None;
                 state.is_dragging = true;
                 state.drag_word_origin = None;
+                state.drag_line_origin = None;
             }
         }
 
@@ -856,6 +869,16 @@ pub mod raw {
                         caret_byte = cur_end;
                     }
                     caret_needs_layout_sync = true;
+                } else if let Some((orig_start, orig_end)) = state.drag_line_origin {
+                    let (cur_start, cur_end) = logical_line_bounds(&state.value, current_byte);
+                    if current_byte < orig_start {
+                        selection_byte = Some(orig_end);
+                        caret_byte = cur_start;
+                    } else {
+                        selection_byte = Some(orig_start);
+                        caret_byte = cur_end;
+                    }
+                    caret_needs_layout_sync = true;
                 } else {
                     if selection_byte.is_none() && current_byte != caret_byte {
                         selection_byte = Some(caret_byte);
@@ -867,6 +890,7 @@ pub mod raw {
             } else {
                 state.is_dragging = false;
                 state.drag_word_origin = None;
+                state.drag_line_origin = None;
             }
         }
 
@@ -1295,6 +1319,7 @@ pub struct TextEditState {
     pub focus_id: FocusId,
     pub is_dragging: bool,
     pub drag_word_origin: Option<(usize, usize)>,
+    pub drag_line_origin: Option<(usize, usize)>,
     pub last_caret_move_time: f64,
     pub was_focused: bool,
     pub scroll: ScrollState,
@@ -1309,6 +1334,7 @@ impl Default for TextEditState {
             focus_id: FocusId::default(),
             is_dragging: false,
             drag_word_origin: None,
+            drag_line_origin: None,
             last_caret_move_time: 0.0,
             was_focused: false,
             scroll: ScrollState::default(),
@@ -1597,6 +1623,22 @@ pub fn word_bounds(text: &str, byte_index: usize) -> (usize, usize) {
         }
     }
     (left, text.len())
+}
+
+pub fn logical_line_bounds(text: &str, byte_index: usize) -> (usize, usize) {
+    if text.is_empty() {
+        return (0, 0);
+    }
+
+    let safe_index = byte_index.min(text.len());
+    let left = text[..safe_index]
+        .rfind('\n')
+        .map_or(0, |newline| newline + 1);
+    let right = text[safe_index..]
+        .find('\n')
+        .map_or(text.len(), |newline| safe_index + newline + 1);
+
+    (left, right)
 }
 
 // ── High-level widget function ───────────────────────────────────────────────────
@@ -2716,6 +2758,213 @@ mod tests {
     }
 
     #[test]
+    fn test_triple_click_selects_logical_line() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("alpha\nbravo\ncharlie");
+        let mut input = Input::default();
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 80.0),
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+
+        input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 3;
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 12);
+        assert!(state.is_dragging);
+        assert_eq!(state.drag_line_origin, Some((6, 12)));
+    }
+
+    #[test]
+    fn test_triple_click_selection_and_drag() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("alpha\nbravo\ncharlie\ndelta");
+        let mut input = Input::default();
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 90.0),
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+
+        input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 3;
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 12);
+        assert_eq!(state.drag_line_origin, Some((6, 12)));
+
+        input.mouse_pressed = false;
+        input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 32.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(6));
+        assert_eq!(caret_byte(&state), 20);
+
+        input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(12));
+        assert_eq!(caret_byte(&state), 0);
+    }
+
+    #[test]
+    fn test_triple_click_selects_wrapped_logical_line() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcdefghijklmnopqrst\nzz");
+        let mut input = Input::default();
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 90.0, 80.0),
+            newline_policy: NewlinePolicy::Allow,
+            wrap: true,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+
+        input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 16.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 3;
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(0));
+        assert_eq!(caret_byte(&state), 21);
+    }
+
+    #[test]
+    fn test_quadruple_click_selects_all() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("alpha\nbravo\ncharlie");
+        let mut input = Input::default();
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 80.0),
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+
+        input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        input.mouse_click_count = 4;
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(selection_byte(&state), Some(0));
+        assert_eq!(caret_byte(&state), state.value.len());
+    }
+
+    #[test]
     fn test_caret_blink_reset_on_move() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
@@ -2838,6 +3087,15 @@ mod tests {
         assert_eq!(find_word_boundary(text, 16, false), 13);
         assert_eq!(find_word_boundary(text, 12, false), 11);
         assert_eq!(find_word_boundary(text, 5, false), 0);
+    }
+
+    #[test]
+    fn test_logical_line_bounds() {
+        let text = "alpha\nbravo\ncharlie";
+        assert_eq!(logical_line_bounds(text, 0), (0, 6));
+        assert_eq!(logical_line_bounds(text, 8), (6, 12));
+        assert_eq!(logical_line_bounds(text, text.len()), (12, text.len()));
+        assert_eq!(logical_line_bounds("alpha\n", 6), (6, 6));
     }
 
     #[test]
