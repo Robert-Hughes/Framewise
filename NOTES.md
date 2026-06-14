@@ -5,11 +5,31 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
+  - fallback " " space string when empty - see Antigravity conversation. We already have CaretPosition::EmptyText, so the TextSystem understands no-text!
+  - Do we have a test for hit_test_caret which checks that clicking off the end of a wrapped line (long-word, not a space) correctly selects AfterCluster of the last char?
+  - Doc-comment on hit_test_cluster mentions line ending with newline, what about a soft-wrap collapsed space? Clarify here? Tests for both special cases?
+  - text_edit caret blinking should reset phase when first focusing (any time where the caret moves or appears it should reset)
+  - change text_edit padding left/right to 10px to match mockup. Affects many tests, perhaps override there?
 
-  - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
-    - check Antigravity conversation
-    - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
+  - scrollbar visibility
+  - scrollbar styling
+  - mouse scroll behaviour
+  - keyboard scroll behaviour
+  - scrollbar(s) focusable?
+  - tab focus behaviour with scrollbars
+  - correct offsets with error bar
+  - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
+  - Ctrl+Up/Down?
+  - newline policy reject - is this useful? What about trim after first newline?
+  - newline policy - how is enter rejected? Even for replace-with-space?
+  - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
+  - TESTS for all this!
 
+  - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
+  - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
+
+  - Copy/paste integration with the system (apparently not working!)
+  - caret cursor
 
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
@@ -21,41 +41,24 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - add to demo page?
   - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
+  - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
+    - check Antigravity conversation
+    - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
 
   - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
+  - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
+  - text_edit tests are very long! Many TextSystem implementations. Reduce duplication, use a common 'testing' TextSystem (upgrade of DummyTextSystem?)
 
-  - scrollbar visibility
-  - scrollbar styling
-    - should be snug against text edit border, currently 1px gap. May need to make more of slider stylable?
-  - mouse scroll behaviour
-  - keyboard scroll behaviour
-  - scrollbar(s) focusable?
-  - tab focus behaviour with scrollbars
-  - correct offsets with error bar
-  - Select all
-  - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
-  - caret cursor
-  - styling to match mockup page (background colour, borders, focus outline etc.). Need some "STATIC" versions!
-  - Ctrl+Up/Down?
-  - newline policy reject - is this useful? What about trim after first newline?
-  - newline policy - how is enter rejected? Even for replace-with-space?
-  - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
-  - TESTS for all this!
+  - Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 
-- Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
-- Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
-- Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour?
+  - Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
+
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
-- Copy/paste integration with the system (apparently not working!)
-- DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
-- text_edit tests are very long! Many TextSystem implementations. Reduce duplication, use a common 'testing' TextSystem (upgrade of DummyTextSystem?)
-
-- Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
-
-- Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
+- Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03
+  - 02: the "prefixed" and "multiline" ones need updating
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)
   - Use/add reusable widget test helpers (test_helpers.rs)
@@ -411,6 +414,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
     - e.g. text edit with lots of text that's clipped.
 - Early-out from widget functions if it's offscreen or completely clipped
 - Resizing window is v. slow
+- Large text edits get very slow!
 
 ## API Ergonomics
 
