@@ -514,6 +514,117 @@ mod tests {
     }
 
     #[test]
+    fn empty_text_measure_reports_one_blank_line() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let line_height = sys
+            .line_height(style.size, style.font, style.line_height)
+            .round();
+
+        let metrics = sys.measure("", style, TextBounds::UNBOUNDED);
+
+        assert_eq!(metrics.line_count, 1);
+        assert_eq!(metrics.lines.len(), 1);
+        assert_eq!(metrics.logical_size.x, 0.0);
+        assert_eq!(metrics.logical_size.y, line_height);
+        assert_eq!(metrics.ink_bounds, Rect::new(0.0, 0.0, 0.0, 0.0));
+        assert!(!metrics.truncated_horizontal);
+        assert!(!metrics.truncated_vertical);
+
+        let line = metrics.lines[0];
+        assert_eq!(line.byte_start, 0);
+        assert_eq!(line.byte_end, 0);
+        assert_eq!(line.end_kind, LineEndKind::EndOfText);
+        assert_eq!(line.y_top, 0.0);
+        assert_eq!(line.height, line_height);
+        assert_eq!(line.logical_width, 0.0);
+        assert_eq!(line.ink_width, 0.0);
+    }
+
+    #[test]
+    fn empty_text_prepare_registers_empty_run_with_matching_metrics() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let rect = Rect::new(3.25, 0.0, 120.0, 40.0);
+
+        let measured = sys.measure(
+            "",
+            style,
+            TextBounds {
+                max_width: Some(rect.w),
+                max_height: Some(rect.h),
+            },
+        );
+        let layout = sys.prepare("", style, rect);
+        let run = &sys.runs[layout.handle.0];
+
+        assert_eq!(layout.metrics, measured);
+        assert!(run.glyphs.is_empty());
+        assert!(run.clusters.is_empty());
+        assert_eq!(run.lines.len(), 1);
+        assert_eq!(run.lines[0].height, measured.lines[0].height);
+        assert_eq!(run.lines[0].logical_x, 0.0);
+    }
+
+    #[test]
+    fn empty_text_caret_apis_are_stable() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let layout = sys.prepare("", style, Rect::new(0.0, 0.0, 120.0, 40.0));
+        let handle = layout.handle;
+
+        assert_eq!(
+            sys.caret_position_at_insertion_byte(handle, 0),
+            CaretPosition::EmptyText
+        );
+        assert_eq!(
+            sys.caret_position_at_insertion_byte(handle, usize::MAX),
+            CaretPosition::EmptyText
+        );
+        assert_eq!(
+            sys.previous_caret_position(handle, CaretPosition::EmptyText),
+            CaretPosition::EmptyText
+        );
+        assert_eq!(
+            sys.next_caret_position(handle, CaretPosition::EmptyText),
+            CaretPosition::EmptyText
+        );
+
+        for position in [
+            CaretPosition::EmptyText,
+            CaretPosition::BeforeCluster {
+                cluster_byte_index: 99,
+            },
+            CaretPosition::AfterCluster {
+                cluster_byte_index: 99,
+            },
+        ] {
+            assert_eq!(sys.caret_insertion_byte(handle, position), 0);
+            let caret = sys.caret_geom(handle, position);
+            assert_eq!(caret.x, 0.0);
+            assert_eq!(caret.y_top, 0.0);
+            assert!(caret.height > 0.0);
+        }
+    }
+
+    #[test]
+    fn empty_text_hit_testing_returns_empty_caret_and_byte_zero() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 16.0, 400, TextFlow::single_line());
+        let layout = sys.prepare("", style, Rect::new(0.0, 0.0, 120.0, 40.0));
+        let handle = layout.handle;
+
+        for pos in [
+            Vec2::new(-100.0, -100.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(10_000.0, 10_000.0),
+        ] {
+            assert_eq!(sys.hit_test_caret(handle, pos), CaretPosition::EmptyText);
+            assert_eq!(sys.hit_test_cluster(handle, pos), 0);
+        }
+    }
+
+    #[test]
     fn wrap_cluster_keep_does_not_split_combining_mark_cluster() {
         let mut sys = sys();
         let text = "x\u{301}"; // x + COMBINING ACUTE ACCENT

@@ -865,6 +865,24 @@ pub struct CaretGeom {
 /// origin is the block's top-left corner, with y increasing downward. The caller
 /// translates the block to its final screen position via the `Rect` it passes to
 /// [`prepare`](Self::prepare) and the rect on `DrawCmd::Text`.
+///
+/// ### Empty Text
+///
+/// Empty input (`""`) is a valid layout, not an error case. Implementations must
+/// report one visible empty line with normal line metrics and zero text advance:
+///
+/// - `line_count == 1` and `lines.len() == 1`.
+/// - `logical_size.x == 0.0`.
+/// - `logical_size.y` is one line height, so empty editors can size and draw a
+///   non-zero-height caret.
+/// - `ink_bounds` is empty because no glyph ink is emitted.
+/// - The single line has `byte_start == byte_end == 0`,
+///   `end_kind == LineEndKind::EndOfText`, and a positive `height`.
+///
+/// Preparing empty text must allocate a valid handle whose cached layout may
+/// contain zero clusters and zero glyphs, but must still contain the single
+/// empty line record above. All caret, hit-testing, and navigation methods must
+/// handle that handle without panicking.
 pub trait TextSystem {
     /// Measure `text` without committing it for drawing (no handle is produced).
     ///
@@ -887,6 +905,10 @@ pub trait TextSystem {
     /// truncation: those decisions are made in logical line space. It may affect
     /// `ink_bounds`, because alignment shifts the admitted glyphs within the
     /// available line width.
+    ///
+    /// For empty `text`, this must return the empty-text metrics described in
+    /// the trait-level contract: one normal-height line, zero width, and empty
+    /// ink bounds.
     ///
     /// Must be free of observable side effects on the run table — calling
     /// `measure` does not allocate a [`TextHandle`].
@@ -911,6 +933,11 @@ pub trait TextSystem {
     /// would report for the same `text` and `style`, with
     /// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
     ///
+    /// For empty `text`, this must still return a valid handle. The prepared run
+    /// may have no clusters or glyphs, but it must have one empty line with
+    /// positive line height so caret and hit-testing methods have stable line
+    /// geometry.
+    ///
     /// The handle is valid until the next frame reset (see [`TextHandle`]).
     fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout;
 
@@ -924,7 +951,12 @@ pub trait TextSystem {
     ///   of the anchored cluster.
     /// - `AfterCluster { cluster_byte_index }` returns the trailing visual edge
     ///   of the anchored cluster.
-    /// - `EmptyText` returns the start of the single empty line.
+    /// - `EmptyText` returns the start of the single empty line with a positive
+    ///   height.
+    ///
+    /// If an empty prepared layout is queried with any cluster-anchored
+    /// position, implementations should clamp to the same geometry as
+    /// `EmptyText` instead of panicking.
     ///
     /// Hard newline clusters have newline-specific visual anchors:
     ///
@@ -964,6 +996,7 @@ pub trait TextSystem {
     ///   `EmptyText` for empty input, or `AfterCluster` for the previous hard
     ///   newline / terminal collapsed soft-wrap boundary when the empty line
     ///   exists because of such a boundary.
+    /// - Points anywhere in an empty prepared layout return `EmptyText`.
     ///
     /// The returned cluster anchor can be converted to an insertion byte index
     /// with [`TextSystem::caret_insertion_byte`].
@@ -974,6 +1007,9 @@ pub trait TextSystem {
     ///
     /// `BeforeCluster` returns the anchored cluster's `byte_start`;
     /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
+    ///
+    /// For an empty prepared layout, every position must map to byte `0`,
+    /// including stale or invalid cluster-anchored positions.
     fn caret_insertion_byte(&self, handle: TextHandle, position: CaretPosition) -> usize;
 
     /// Choose a canonical visual caret anchor for a programmatic insertion byte
@@ -983,7 +1019,8 @@ pub trait TextSystem {
     /// "go to end", or adapting existing byte-oriented editor state. It should
     /// return `BeforeCluster` for the first cluster at or after the byte, and
     /// `AfterCluster` for the last cluster when the byte is at or beyond the
-    /// prepared text's end. Empty prepared text returns `EmptyText`.
+    /// prepared text's end. Empty prepared text returns `EmptyText` for every
+    /// requested byte index.
     fn caret_position_at_insertion_byte(
         &self,
         handle: TextHandle,
@@ -1002,6 +1039,9 @@ pub trait TextSystem {
     ///
     /// The default implementation is a no-op for text systems used only by
     /// non-editing tests. Editable text systems should override it.
+    ///
+    /// Empty prepared text has no previous insertion boundary; editable
+    /// implementations must return `EmptyText`.
     fn previous_caret_position(
         &self,
         _handle: TextHandle,
@@ -1022,6 +1062,9 @@ pub trait TextSystem {
     ///
     /// The default implementation is a no-op for text systems used only by
     /// non-editing tests. Editable text systems should override it.
+    ///
+    /// Empty prepared text has no next insertion boundary; editable
+    /// implementations must return `EmptyText`.
     fn next_caret_position(&self, _handle: TextHandle, position: CaretPosition) -> CaretPosition {
         position
     }
@@ -1042,5 +1085,6 @@ pub trait TextSystem {
     ///   byte index of the cluster.
     /// - If the line ends with a hard newline (`\n`), a hit to the right of the line
     ///   or on the newline itself must return the index of the `\n` character itself.
+    /// - Empty prepared text has no clusters, so every hit returns byte `0`.
     fn hit_test_cluster(&self, handle: TextHandle, pos: Vec2) -> usize;
 }

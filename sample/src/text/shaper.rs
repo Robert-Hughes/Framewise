@@ -143,9 +143,6 @@ impl SampleTextSystem {
         if start_byte <= text.len() {
             lines_raw.push((&text[start_byte..], false, start_byte, text.len()));
         }
-        if text.is_empty() {
-            lines_raw.push(("", false, 0, 0));
-        }
 
         let mut lines = Vec::new();
 

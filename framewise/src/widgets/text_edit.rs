@@ -66,13 +66,8 @@ pub mod raw {
         state: &TextEditState,
         text_system: &mut T,
     ) -> IntrinsicSize {
-        let text = if state.value.is_empty() {
-            " "
-        } else {
-            &state.value
-        };
         let metrics = text_system.measure(
-            text,
+            &state.value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
         );
@@ -183,11 +178,7 @@ pub mod raw {
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
         let contains = contains_raw && is_hover_active;
 
-        let initial_text_content = if state.value.is_empty() {
-            " "
-        } else {
-            &state.value
-        };
+        let initial_text_content = state.value.as_str();
         let (_, initial_layout_width, initial_layout_height, _) =
             edit_layout_size(initial_text_content, &spec, text_style, text_system);
         let initial_layout = text_system.prepare(
@@ -377,11 +368,7 @@ pub mod raw {
                             caret_byte
                         };
 
-                        let text_content = if state.value.is_empty() {
-                            " "
-                        } else {
-                            &state.value
-                        };
+                        let text_content = state.value.as_str();
                         let (_, layout_width, layout_height, _) =
                             edit_layout_size(text_content, &spec, text_style, text_system);
                         let layout = text_system.prepare(
@@ -441,11 +428,7 @@ pub mod raw {
                             caret_byte
                         };
 
-                        let text_content = if state.value.is_empty() {
-                            " "
-                        } else {
-                            &state.value
-                        };
+                        let text_content = state.value.as_str();
                         let (_, layout_width, layout_height, _) =
                             edit_layout_size(text_content, &spec, text_style, text_system);
                         let layout = text_system.prepare(
@@ -497,11 +480,7 @@ pub mod raw {
                             caret_byte = 0;
                             caret_needs_layout_sync = true;
                         } else if spec.wrap {
-                            let text_content = if state.value.is_empty() {
-                                " "
-                            } else {
-                                &state.value
-                            };
+                            let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
                                 edit_layout_size(text_content, &spec, text_style, text_system);
                             let layout = text_system.prepare(
@@ -546,11 +525,7 @@ pub mod raw {
                             caret_byte = state.value.len();
                             caret_needs_layout_sync = true;
                         } else if spec.wrap {
-                            let text_content = if state.value.is_empty() {
-                                " "
-                            } else {
-                                &state.value
-                            };
+                            let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
                                 edit_layout_size(text_content, &spec, text_style, text_system);
                             let layout = text_system.prepare(
@@ -686,11 +661,7 @@ pub mod raw {
             }
         }
 
-        let text_content = if state.value.is_empty() {
-            " "
-        } else {
-            &state.value
-        };
+        let text_content = state.value.as_str();
         let (metrics, layout_width, layout_height, scroll_outer_rect) =
             edit_layout_size(text_content, &spec, text_style, text_system);
 
@@ -2485,6 +2456,43 @@ mod tests {
             }
         );
         assert_eq!(caret_byte(&state), 1);
+    }
+
+    #[test]
+    fn test_empty_mouse_click_keeps_empty_caret() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::default();
+        let mut input = Input {
+            mouse_pos: Vec2::new(120.0, 15.0),
+            ..Input::default()
+        };
+
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+
+        assert_eq!(state.caret, CaretPosition::EmptyText);
+        assert_eq!(caret_byte(&state), 0);
     }
 
     #[test]
