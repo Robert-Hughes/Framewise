@@ -48,6 +48,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
     Then Framewise owns line layout, but the backend still supplies font-derived baseline placement.
 
+
+The two dodgy tests are:
+widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
+widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds
+Summary: both try to prove INK_CENTER uses distinct TextMetrics::ink_bounds, but the new widget path recomputes metrics through layout_text, so the fake backend’s stored metrics.ink_bounds is ignored. Later, move that exact assertion to a direct TextContentPlacement::resolve_rect(...) test, and keep these widget tests focused on glyph emission/placement.
+
+
 - perf 40fps on text edit demo page
 
 - Text Edit

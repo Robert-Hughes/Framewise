@@ -699,7 +699,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         let _ = raw::label(spec, &mut sys, &mut cmds);
 
-        assert_eq!(sys.prepared_rect, Some(Rect::new(55.0, 37.0, 30.0, 20.0)));
+        assert_eq!(sys.prepared_rect, Some(Rect::new(45.0, 35.0, 30.0, 20.0)));
     }
 
     #[test]

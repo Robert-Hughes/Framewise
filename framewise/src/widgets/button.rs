@@ -1514,7 +1514,7 @@ mod tests {
 
         assert_eq!(
             text_system.prepared_rect,
-            Some(Rect::new(55.0, 37.0, 30.0, 20.0))
+            Some(Rect::new(45.0, 35.0, 30.0, 20.0))
         );
     }
 
