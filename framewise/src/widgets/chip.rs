@@ -3,13 +3,13 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    types::{ClipRect, Color, Layer, Rect},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
 };
 
 pub mod raw {
-    use crate::text::{emit_text_in_rect, layout_text_in_rect, measure_text};
+    use crate::text::{layout_text_in_rect, measure_text};
 
     use super::*;
 
@@ -140,17 +140,17 @@ pub mod raw {
 
         let text_color = if state.checked { s.active_text } else { s.text };
         let ty = r.y + (h - layout.metrics.logical_size.y) * 0.5;
-        emit_text_in_rect(
+        let text_rect = Rect::new(
+            r.x + pad_x,
+            ty,
+            layout.metrics.logical_size.x,
+            layout.metrics.logical_size.y,
+        );
+        layout.emit_glyphs(
             cmds,
             text_system,
-            spec.text,
+            Vec2::new(text_rect.x, text_rect.y),
             spec.style.text_style,
-            Rect::new(
-                r.x + pad_x,
-                ty,
-                layout.metrics.logical_size.x,
-                layout.metrics.logical_size.y,
-            ),
             tint(text_color),
             spec.layer.get_z(),
         );

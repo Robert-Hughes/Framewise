@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub mod raw {
-    use crate::text::{emit_text_in_rect, measure_text};
+    use crate::text::{layout_text, measure_text};
 
     use super::*;
 
@@ -55,7 +55,7 @@ pub mod raw {
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> LabelResult {
-        let metrics = measure_text(
+        let layout = layout_text(
             text_system,
             spec.text,
             spec.style.text_style,
@@ -67,13 +67,12 @@ pub mod raw {
         let text_rect = spec
             .style
             .content_placement
-            .resolve_rect(spec.rect, metrics);
-        emit_text_in_rect(
+            .resolve_rect(spec.rect, layout.metrics().clone());
+        layout.emit_glyphs(
             cmds,
             text_system,
-            spec.text,
+            Vec2::new(text_rect.x, text_rect.y),
             spec.style.text_style,
-            text_rect,
             spec.style.text_color,
             0,
         );

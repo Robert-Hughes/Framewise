@@ -39,7 +39,7 @@ use crate::text::types::{
 use framewise::{
     CaretGeom, CaretPosition, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest,
     PreparedGlyphHandle, Rect, ShapedText, TextBackend, TextBounds, TextFlow, TextLayout,
-    TextMetrics, TextSystem, Vec2,
+    TextLineLayoutMetrics, TextMetrics, TextSystem, Vec2,
 };
 use std::collections::HashMap;
 
@@ -222,6 +222,10 @@ impl PreparedGlyphResources for SampleTextSystem {
 
 impl TextBackend for SampleTextSystem {
     type ShapedGlyphId = u16;
+
+    fn line_metrics(&mut self, style: framewise::TextStyle) -> TextLineLayoutMetrics {
+        self.line_layout_metrics(style.size, style.font, style.line_height)
+    }
 
     fn line_height(&mut self, style: framewise::TextStyle) -> f32 {
         Self::line_height(self, style.size, style.font, style.line_height)

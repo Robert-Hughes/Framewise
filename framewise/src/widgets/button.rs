@@ -3,13 +3,13 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    types::{ClipRect, Color, Layer, Rect},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
 };
 
 pub mod raw {
-    use crate::text::{emit_text_in_rect, measure_text};
+    use crate::text::{layout_text, measure_text};
 
     use super::*;
 
@@ -73,7 +73,7 @@ pub mod raw {
             (rect.w - 2.0 * style.pad_x).max(0.0),
             (rect.h - 2.0 * style.pad_y).max(0.0),
         );
-        let m = measure_text(
+        let layout = layout_text(
             text_system,
             text,
             style.text_style,
@@ -82,13 +82,14 @@ pub mod raw {
                 max_height: Some(content_rect.h),
             },
         );
-        let text_rect = style.content_placement.resolve_rect(content_rect, m);
-        emit_text_in_rect(
+        let text_rect = style
+            .content_placement
+            .resolve_rect(content_rect, layout.metrics().clone());
+        layout.emit_glyphs(
             cmds,
             text_system,
-            text,
+            Vec2::new(text_rect.x, text_rect.y),
             style.text_style,
-            text_rect,
             color,
             z,
         );

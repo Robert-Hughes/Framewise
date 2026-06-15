@@ -48,8 +48,8 @@ pub use text::{
     CaretGeom, CaretPosition, ContentPlacement, EllipsisFallback, FontId, FontRole, LineEndKind,
     LineHeight, LineMetrics, OverflowX, OverflowY, PrepareGlyphRequest, ShapedCluster, ShapedGlyph,
     ShapedText, TextBackend, TextBounds, TextContentBasis, TextContentPlacement, TextFlow,
-    TextHandle, TextLayout, TextLineAlign, TextMetrics, TextStyle, TextSystem, WrapClusterFallback,
-    WrapWordFallback,
+    TextHandle, TextLayout, TextLineAlign, TextLineLayoutMetrics, TextMetrics, TextStyle,
+    TextSystem, WrapClusterFallback, WrapWordFallback,
 };
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Layer, Rect, Vec2};

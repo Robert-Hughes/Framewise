@@ -2,8 +2,8 @@ use crate::text::types::{GlyphPosition, GlyphRasterConfig, LineRec, TextCluster}
 use crate::text::SampleTextSystem;
 use framewise::{
     EllipsisFallback, FontId, LineEndKind, LineHeight, OverflowX, OverflowY, Rect, ShapedCluster,
-    ShapedGlyph, ShapedText, TextFlow, TextLineAlign, TextMetrics, TextStyle, Vec2,
-    WrapClusterFallback, WrapWordFallback,
+    ShapedGlyph, ShapedText, TextFlow, TextLineAlign, TextLineLayoutMetrics, TextMetrics,
+    TextStyle, Vec2, WrapClusterFallback, WrapWordFallback,
 };
 
 struct Line {
@@ -69,21 +69,35 @@ impl SampleTextSystem {
     }
 
     pub fn line_height(&self, size: f32, font_id: FontId, line_height_style: LineHeight) -> f32 {
-        match line_height_style {
-            LineHeight::Normal => {
-                let font = self.fonts[font_id.0 as usize];
+        self.line_layout_metrics(size, font_id, line_height_style)
+            .line_height
+    }
 
-                // For now, get metrics without variations - they should be similar enough
-                // TODO: Consider if we need to normalize coords for metrics
-                let metrics = font.metrics(&[]);
-                let units_per_em = metrics.units_per_em as f32;
-                let scale = size / units_per_em;
-                let ascent = metrics.ascent * scale;
-                let descent = (metrics.descent * scale).abs();
-                let line_gap = metrics.leading * scale;
-                ascent + descent + line_gap
-            }
+    pub fn line_layout_metrics(
+        &self,
+        size: f32,
+        font_id: FontId,
+        line_height_style: LineHeight,
+    ) -> TextLineLayoutMetrics {
+        let font = self.fonts[font_id.0 as usize];
+
+        // For now, get metrics without variations - they should be similar enough
+        // TODO: Consider if we need to normalize coords for metrics
+        let metrics = font.metrics(&[]);
+        let units_per_em = metrics.units_per_em as f32;
+        let scale = size / units_per_em;
+        let ascent = metrics.ascent * scale;
+        let descent = (metrics.descent * scale).abs();
+        let line_gap = metrics.leading * scale;
+
+        let line_height = match line_height_style {
+            LineHeight::Normal => ascent + descent + line_gap,
             LineHeight::Relative(mult) => size * mult,
+        };
+
+        TextLineLayoutMetrics {
+            line_height,
+            baseline_offset: ascent,
         }
     }
 

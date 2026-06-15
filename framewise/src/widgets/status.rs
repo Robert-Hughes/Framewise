@@ -1,8 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
-    types::{Color, Layer, Rect},
+    text::{layout_text, measure_text, TextBackend},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -74,7 +74,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
 
-        let metrics = measure_text(
+        let layout = layout_text(
             text_system,
             spec.text,
             s.text_style,
@@ -83,6 +83,7 @@ pub mod raw {
                 max_height: Some(spec.rect.h),
             },
         );
+        let metrics = layout.metrics();
         let ty = spec.rect.y + (dot_size - metrics.logical_size.y) * 0.5;
         let text_rect = Rect::new(
             spec.rect.x + dot_size + gap,
@@ -90,12 +91,11 @@ pub mod raw {
             metrics.logical_size.x,
             metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        layout.emit_glyphs(
             cmds,
             text_system,
-            spec.text,
+            Vec2::new(text_rect.x, text_rect.y),
             s.text_style,
-            text_rect,
             s.text,
             spec.layer.get_z(),
         );

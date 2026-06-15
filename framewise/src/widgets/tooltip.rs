@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
+    text::{layout_text, measure_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -69,12 +69,13 @@ pub mod raw {
             TooltipVariant::Rust => (s.rust_bg, s.rust_text),
         };
 
-        let metrics = measure_text(
+        let layout = layout_text(
             text_system,
             spec.text,
             s.text_style,
             crate::text::TextBounds::width((s.max_width - pad_x * 2.0).max(0.0)),
         );
+        let metrics = layout.metrics();
         let box_w = (metrics.logical_size.x + pad_x * 2.0).min(s.max_width);
         let box_h = metrics.logical_size.y + pad_y_top + pad_y_bot;
 
@@ -92,12 +93,11 @@ pub mod raw {
             metrics.logical_size.x,
             metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        layout.emit_glyphs(
             cmds,
             text_system,
-            spec.text,
+            Vec2::new(text_rect.x, text_rect.y),
             s.text_style,
-            text_rect,
             text_color,
             spec.layer.get_z(),
         );
