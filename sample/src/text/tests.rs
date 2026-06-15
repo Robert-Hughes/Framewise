@@ -1300,6 +1300,48 @@ mod tests {
     }
 
     #[test]
+    fn hit_test_right_of_wrapped_long_word_line_selects_after_last_cluster() {
+        let mut sys = sys();
+        let layout = sys.prepare(
+            "supercalifragilisticexpialidocious",
+            TextStyle::new(
+                FontId(1),
+                16.0,
+                400,
+                TextFlow {
+                    overflow_x: OverflowX::WrapWord {
+                        fallback: WrapWordFallback::WrapCluster {
+                            fallback: WrapClusterFallback::Drop,
+                        },
+                    },
+                    overflow_y: OverflowY::Drop,
+                    line_align: TextLineAlign::Start,
+                },
+            ),
+            Rect::new(0.0, 0.0, 40.0, 200.0),
+        );
+        let run = &sys.runs[layout.handle.0];
+        let line = run
+            .lines
+            .iter()
+            .find(|line| line.end_kind == LineEndKind::SoftWrapNonWhitespace)
+            .expect("expected a visual line ending in a long-word soft wrap");
+        let last_cluster = &run.clusters[line.cluster_start..line.cluster_end]
+            .last()
+            .expect("soft-wrapped non-whitespace line should contain clusters");
+        let expected = CaretPosition::AfterCluster {
+            cluster_byte_index: last_cluster.byte_start,
+        };
+        let pos = Vec2::new(1000.0, line.y_top + line.height * 0.5);
+
+        assert_eq!(
+            sys.hit_test_caret(layout.handle, pos),
+            expected,
+            "hit-testing past a long-word wrapped line should choose the after side of the last cluster"
+        );
+    }
+
+    #[test]
     fn metrics_width_matches_logical_run_width_after_ellipsis() {
         let mut sys = sys();
         let flow = TextFlow {

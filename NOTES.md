@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - fallback " " space string when empty - see Antigravity conversation. We already have CaretPosition::EmptyText, so the TextSystem understands no-text!
-  - Do we have a test for hit_test_caret which checks that clicking off the end of a wrapped line (long-word, not a space) correctly selects AfterCluster of the last char?
   - Doc-comment on hit_test_cluster mentions line ending with newline, what about a soft-wrap collapsed space? Clarify here? Tests for both special cases?
   - text_edit caret blinking should reset phase when first focusing (any time where the caret moves or appears it should reset)
   - change text_edit padding left/right to 10px to match mockup. Affects many tests, perhaps override there?
