@@ -2,9 +2,9 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState},
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
-    TextSystem,
 };
 
 pub mod raw {
@@ -51,7 +51,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn begin_window<'a, T: TextSystem>(
+    pub fn begin_window<'a, T: TextBackend>(
         spec: WindowSpec<'a>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -90,8 +90,12 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
 
-        let title_metrics =
-            text_system.measure(spec.title, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let title_metrics = measure_text(
+            text_system,
+            spec.title,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let tty = spec.rect.y + (title_h - title_metrics.logical_size.y) * 0.5;
         let title_text_rect = Rect::new(
             spec.rect.x + s.text_pad_x,
@@ -99,20 +103,26 @@ pub mod raw {
             title_metrics.logical_size.x,
             title_metrics.logical_size.y,
         );
-        let title_layout = text_system.prepare(spec.title, s.text_style, title_text_rect);
-        cmds.push(DrawCmd::Text {
-            rect: title_text_rect,
-            color: s.title_text,
-            handle: title_layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.title,
+            s.text_style,
+            title_text_rect,
+            s.title_text,
+            spec.layer.get_z(),
+        );
 
         // Window buttons (right side).
         let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
-            let btn_metrics =
-                text_system.measure(btn.symbol, s.text_style, crate::text::TextBounds::UNBOUNDED);
+            let btn_metrics = measure_text(
+                text_system,
+                btn.symbol,
+                s.text_style,
+                crate::text::TextBounds::UNBOUNDED,
+            );
             let bty = spec.rect.y + (title_h - btn_metrics.logical_size.y) * 0.5;
             let btn_rect = Rect::new(
                 btn_x,
@@ -120,13 +130,15 @@ pub mod raw {
                 btn_metrics.logical_size.x,
                 btn_metrics.logical_size.y,
             );
-            let btn_layout = text_system.prepare(btn.symbol, s.text_style, btn_rect);
-            cmds.push(DrawCmd::Text {
-                rect: btn_rect,
-                color: s.title_text,
-                handle: btn_layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                btn.symbol,
+                s.text_style,
+                btn_rect,
+                s.title_text,
+                spec.layer.get_z(),
+            );
         }
 
         // Status bar.
@@ -141,7 +153,8 @@ pub mod raw {
                 z: spec.layer.get_z(),
             });
             let status_text = spec.status_text.unwrap_or("");
-            let status_metrics = text_system.measure(
+            let status_metrics = measure_text(
+                text_system,
                 status_text,
                 s.text_style,
                 crate::text::TextBounds::UNBOUNDED,
@@ -153,13 +166,15 @@ pub mod raw {
                 status_metrics.logical_size.x,
                 status_metrics.logical_size.y,
             );
-            let status_layout = text_system.prepare(status_text, s.text_style, status_rect);
-            cmds.push(DrawCmd::Text {
-                rect: status_rect,
-                color: s.status_text,
-                handle: status_layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                status_text,
+                s.text_style,
+                status_rect,
+                s.status_text,
+                spec.layer.get_z(),
+            );
         }
 
         let content_top = spec.rect.y + title_h + s.content_pad_y;
@@ -244,7 +259,7 @@ impl WindowStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct WindowResult<'b, T: TextSystem, LS: LayoutState, CF> {
+pub struct WindowResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
@@ -327,7 +342,7 @@ impl<'a> WindowSpecBuilder<'a> {
 /// and returns a WindowResult containing the layout info and child WidgetContext.
 ///
 /// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
-pub fn begin_window<'a, 'b, 'c, T: TextSystem, S: LayoutState, L: Layout, CF>(
+pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: WindowSpecBuilder<'c>,
     layout_params: S::Params,

@@ -5,7 +5,7 @@ use crate::{
     layout::{IntrinsicSize, LayoutState},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    TextSystem,
+    TextBackend,
 };
 
 pub mod raw {
@@ -331,7 +331,7 @@ impl CheckboxSpecBuilder {
 /// High-level checkbox widget function using WidgetContext.
 ///
 /// This function accepts a CheckboxSpecBuilder and calls the low-level raw::checkbox function.
-pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
+pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: CheckboxSpecBuilder,
     layout_params: S::Params,
@@ -363,7 +363,7 @@ pub fn checkbox<T: TextSystem, S: LayoutState, CF>(
 /// This draws a checkbox along with a label by its side. Clicking the label
 /// behaves identically to clicking the checkbox, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
-pub fn labelled_checkbox<T: TextSystem, S: LayoutState, CF>(
+pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: CheckboxSpecBuilder,
     label_text: &str,

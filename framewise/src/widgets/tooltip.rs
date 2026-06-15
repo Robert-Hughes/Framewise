@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -31,12 +31,13 @@ pub mod raw {
     }
 
     /// Measure a tooltip's intrinsic size from its measurement spec.
-    pub fn calc_tooltip_intrinsic_size<T: TextSystem>(
+    pub fn calc_tooltip_intrinsic_size<T: TextBackend>(
         spec: &TooltipCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             s.text_style,
             crate::text::TextBounds::width((s.max_width - s.pad_x * 2.0).max(0.0)),
@@ -50,7 +51,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<T: TextSystem>(
+    pub fn tooltip<T: TextBackend>(
         spec: TooltipSpec<'_>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -68,7 +69,8 @@ pub mod raw {
             TooltipVariant::Rust => (s.rust_bg, s.rust_text),
         };
 
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             s.text_style,
             crate::text::TextBounds::width((s.max_width - pad_x * 2.0).max(0.0)),
@@ -90,13 +92,15 @@ pub mod raw {
             metrics.logical_size.x,
             metrics.logical_size.y,
         );
-        let layout = text_system.prepare(spec.text, s.text_style, text_rect);
-        cmds.push(DrawCmd::Text {
-            rect: text_rect,
-            color: text_color,
-            handle: layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.text,
+            s.text_style,
+            text_rect,
+            text_color,
+            spec.layer.get_z(),
+        );
 
         // Arrow triangle below (two lines converging to a point).
         let arrow_x = r.x + s.arrow_x;
@@ -250,7 +254,7 @@ impl<'a> TooltipSpecBuilder<'a> {
 /// High-level tooltip widget function using WidgetContext.
 ///
 /// This function accepts a TooltipSpecBuilder and calls the low-level raw::tooltip function.
-pub fn tooltip<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TooltipSpecBuilder<'a>,
     layout_params: S::Params,

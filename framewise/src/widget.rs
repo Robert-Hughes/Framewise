@@ -7,7 +7,7 @@ use crate::layout::{
 use crate::theme::Theme;
 use crate::types::{ClipRect, Layer, Rect, Vec2};
 use crate::Input;
-use crate::TextSystem;
+use crate::TextBackend;
 
 // ── Common result fragments ───────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ pub enum LayoutViolationPolicy {
 /// Every reaction path has a `TextSystem` in reach (the immediate `layout()`, and the
 /// deferred `begin_layout`/`end_layout` reactions, which receive it through the
 /// `on_finish` closure), so the label is always drawn.
-pub fn react_layout_violation<T: TextSystem>(
+pub fn react_layout_violation<T: TextBackend>(
     policy: LayoutViolationPolicy,
     text_system: &mut T,
     cmds: &mut DrawCommands,
@@ -90,22 +90,22 @@ pub fn react_layout_violation<T: TextSystem>(
                 z,
             });
             // Label at the top-left corner, in the same red.
-            let layout = text_system.prepare(
+            let style =
+                crate::text::TextStyle::new(font, 12.0, 400, crate::text::TextFlow::single_line());
+            let layout = crate::text::layout_text_in_rect(
+                text_system,
                 &violation.to_string(),
-                crate::text::TextStyle::new(font, 12.0, 400, crate::text::TextFlow::single_line()),
+                style,
                 fallback_rect,
             );
-            cmds.push(crate::draw::DrawCmd::Text {
-                rect: Rect::new(
-                    fallback_rect.x,
-                    fallback_rect.y,
-                    layout.metrics.logical_size.x,
-                    layout.metrics.logical_size.y,
-                ),
+            layout.emit_glyphs(
+                cmds,
+                text_system,
+                crate::types::Vec2::new(fallback_rect.x, fallback_rect.y),
+                style,
                 color,
-                handle: layout.handle,
                 z,
-            });
+            );
         }
     }
 }
@@ -118,7 +118,7 @@ pub fn react_layout_violation<T: TextSystem>(
 /// Can be associated with a 'on_finish' closure, which allows widget cleanup code to be run
 /// when this context is finished (e.g. for nested windows)
 #[must_use = "finish() must be called to run cleanup"]
-pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
+pub struct WidgetContext<'a, T: TextBackend, LS: LayoutState, CF> {
     // Styling & environment fields (formerly BuilderCtx)
     pub theme: Theme,
     pub time: f64,
@@ -142,7 +142,7 @@ pub struct WidgetContext<'a, T: TextSystem, LS: LayoutState, CF> {
     pub on_finish: CF,
 }
 
-impl<'a, T: TextSystem, LS: LayoutState>
+impl<'a, T: TextBackend, LS: LayoutState>
     WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)>
 {
     /// Creates a root `WidgetContext`.
@@ -178,7 +178,7 @@ impl<'a, T: TextSystem, LS: LayoutState>
     }
 }
 
-impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
+impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
@@ -403,7 +403,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
 
 impl<'a, T, LS, CF> WidgetContext<'a, T, LS, CF>
 where
-    T: TextSystem,
+    T: TextBackend,
     LS: SpacerLayoutState,
 {
     pub fn spacer(&mut self, params: impl Into<LS::SpacerParams>) {
@@ -413,7 +413,7 @@ where
 
 impl<
         'a,
-        T: TextSystem,
+        T: TextBackend,
         LS: LayoutState,
         CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
     > WidgetContext<'a, T, LS, CF>

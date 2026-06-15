@@ -7,7 +7,7 @@ use framewise::{
         raw::{LabelCalcIntrinsicSizeSpec, LabelSpec as RawLabelSpec},
         LabelSpecBuilder, LabelStyle,
     },
-    ColumnLayoutParams, LayoutViolationPolicy, Rect, TextSystem, WidgetContext,
+    ColumnLayoutParams, LayoutViolationPolicy, Rect, TextBackend, WidgetContext,
 };
 
 #[derive(Default)]
@@ -16,17 +16,17 @@ pub struct DemoPageState {
     pub scroll: framewise::widgets::scroll_area::ScrollState,
 }
 
-pub struct DemoPageResult<'b, T: TextSystem, LS: LayoutState, CF> {
+pub struct DemoPageResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
-pub struct DemoPageNoScrollResult<'b, T: TextSystem, LS: LayoutState, CF> {
+pub struct DemoPageNoScrollResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
 #[cfg(feature = "scroll_area")]
 #[allow(clippy::type_complexity)]
-pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
+pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
     title: &str,
     state: &'b mut DemoPageState,
@@ -180,7 +180,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
 
 #[cfg(not(feature = "scroll_area"))]
 #[allow(clippy::type_complexity)]
-pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
+pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
     title: &str,
     _state: &'b mut DemoPageState,
@@ -198,7 +198,7 @@ pub fn begin_demo_page<'a, 'b, T: TextSystem, L: Layout, CF>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn begin_demo_page_no_scroll<'a, 'b, T: TextSystem, L: Layout, CF>(
+pub fn begin_demo_page_no_scroll<'a, 'b, T: TextBackend, L: Layout, CF>(
     parent_ctx: &'b mut WidgetContext<'a, T, ColumnState, CF>,
     title: &str,
     debug_layout: bool,

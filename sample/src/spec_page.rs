@@ -7,7 +7,7 @@
 
 use crate::text::SampleTextSystem;
 #[allow(unused_imports)]
-use framewise::text::TextSystem;
+use framewise::text::{measure_text, TextBackend};
 #[cfg(feature = "radio")]
 use framewise::RowState;
 use framewise::{
@@ -115,7 +115,7 @@ use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
 #[cfg(feature = "checkbox")]
-fn draw_checkbox_fake_state<T: TextSystem, CF>(
+fn draw_checkbox_fake_state<T: TextBackend, CF>(
     b: &mut WidgetContext<T, ManualState, CF>,
     rect: Rect,
     state_val: CheckedState,
@@ -156,7 +156,7 @@ fn draw_checkbox_fake_state<T: TextSystem, CF>(
 }
 
 #[cfg(feature = "radio")]
-fn draw_radio_fake_state<T: TextSystem, CF>(
+fn draw_radio_fake_state<T: TextBackend, CF>(
     b: &mut WidgetContext<T, RowState, CF>,
     size: Vec2,
     checked: bool,
@@ -195,7 +195,7 @@ fn draw_radio_fake_state<T: TextSystem, CF>(
 }
 
 #[cfg(feature = "switch")]
-fn draw_switch_fake_state<T: TextSystem, CF>(
+fn draw_switch_fake_state<T: TextBackend, CF>(
     b: &mut WidgetContext<T, RowState, CF>,
     layout_params: RowLayoutParams,
     checked: bool,
@@ -231,7 +231,7 @@ fn draw_switch_fake_state<T: TextSystem, CF>(
 }
 
 #[cfg(feature = "select")]
-fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
+fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     value: &'s str,
@@ -275,7 +275,7 @@ fn draw_select_fake_state<'s, T: TextSystem, LS: LayoutState, CF>(
 }
 
 #[cfg(feature = "drag_number")]
-fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
+fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     label: &str,
@@ -316,7 +316,7 @@ fn draw_drag_number_fake_state<T: TextSystem, LS: LayoutState, CF>(
 }
 
 #[cfg(feature = "button")]
-fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
+fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     text: &str,
@@ -370,7 +370,7 @@ fn draw_button_fake_state<T: TextSystem, LS: LayoutState, CF>(
 }
 
 #[cfg(feature = "button")]
-fn button_intrinsic_width<T: TextSystem>(
+fn button_intrinsic_width<T: TextBackend>(
     text: &str,
     style: ButtonStyle,
     text_system: &mut T,
@@ -397,7 +397,7 @@ fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
 }
 
 #[cfg(feature = "text_edit")]
-fn draw_text_edit_fake_state<T: TextSystem, LS: LayoutState, CF>(
+fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     value: &str,
@@ -2717,7 +2717,8 @@ fn section_05_selection<CF>(
                 },
                 ..ChipStyle::from_theme(&b.theme)
             };
-            let metrics = b.text_system.measure(
+            let metrics = measure_text(
+                b.text_system,
                 label,
                 chip_style.text_style,
                 framewise::text::TextBounds::UNBOUNDED,
@@ -2739,7 +2740,8 @@ fn section_05_selection<CF>(
             },
             ..ChipStyle::from_theme(&b.theme)
         };
-        let add_metrics = b.text_system.measure(
+        let add_metrics = measure_text(
+            b.text_system,
             "+ add backend",
             chip_style.text_style,
             framewise::text::TextBounds::UNBOUNDED,
@@ -4412,12 +4414,14 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, 
 
     let title_key = "FRAMEWISE";
     let title_value = "· WIDGET SPECIFICATION";
-    let title_key_metrics = b.text_system.measure(
+    let title_key_metrics = measure_text(
+        b.text_system,
         title_key,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,
     );
-    let title_value_metrics = b.text_system.measure(
+    let title_value_metrics = measure_text(
+        b.text_system,
         title_value,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,

@@ -5,11 +5,11 @@ use crate::{
     layout::LayoutState,
     types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    TextSystem,
+    TextBackend,
 };
 
 pub mod raw {
-    use crate::TextSystem;
+    use crate::text::{emit_text_in_rect, measure_text};
 
     use super::*;
 
@@ -41,12 +41,13 @@ pub mod raw {
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
     /// padded label height.
-    pub fn calc_button_intrinsic_size<T: TextSystem>(
+    pub fn calc_button_intrinsic_size<T: TextBackend>(
         spec: &ButtonCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let style = &spec.style;
-        let t = text_system.measure(
+        let t = measure_text(
+            text_system,
             spec.text,
             style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -56,21 +57,24 @@ pub mod raw {
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
     }
 
-    /// Shape the label inside the button content rect, returning the draw rect
-    /// and the prepared handle.
-    fn placed_text<T: TextSystem>(
+    /// Shape the label inside the button content rect and emit it.
+    fn emit_placed_text<T: TextBackend>(
         text: &str,
         style: &super::ButtonStyle,
         rect: Rect,
         text_system: &mut T,
-    ) -> (Rect, crate::text::TextHandle) {
+        cmds: &mut DrawCommands,
+        color: Color,
+        z: u32,
+    ) -> Rect {
         let content_rect = Rect::new(
             rect.x + style.pad_x,
             rect.y + style.pad_y,
             (rect.w - 2.0 * style.pad_x).max(0.0),
             (rect.h - 2.0 * style.pad_y).max(0.0),
         );
-        let m = text_system.measure(
+        let m = measure_text(
+            text_system,
             text,
             style.text_style,
             crate::text::TextBounds {
@@ -79,15 +83,23 @@ pub mod raw {
             },
         );
         let text_rect = style.content_placement.resolve_rect(content_rect, m);
-        let layout = text_system.prepare(text, style.text_style, text_rect);
-        (text_rect, layout.handle)
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            text,
+            style.text_style,
+            text_rect,
+            color,
+            z,
+        );
+        text_rect
     }
 
     /// Low-level button widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn button<T: TextSystem>(
+    pub fn button<T: TextBackend>(
         spec: ButtonSpec,
         state: &mut ButtonState,
         input: &Input,
@@ -114,13 +126,15 @@ pub mod raw {
                     z: spec.layer.get_z(),
                 });
             }
-            let (text_rect, handle) = placed_text(spec.text, &spec.style, spec.rect, text_system);
-            cmds.push(DrawCmd::Text {
-                rect: text_rect,
-                color: tint(spec.style.text_color),
-                handle,
-                z: spec.layer.get_z(),
-            });
+            emit_placed_text(
+                spec.text,
+                &spec.style,
+                spec.rect,
+                text_system,
+                cmds,
+                tint(spec.style.text_color),
+                spec.layer.get_z(),
+            );
             return ButtonResult {
                 content_bounds: spec.rect.inset(spec.style.border_width),
                 input: InputInfo {
@@ -191,13 +205,15 @@ pub mod raw {
         }
 
         // Text centered.
-        let (text_rect, handle) = placed_text(spec.text, &spec.style, spec.rect, text_system);
-        cmds.push(DrawCmd::Text {
-            rect: text_rect,
-            color: spec.style.text_color,
-            handle,
-            z: spec.layer.get_z(),
-        });
+        emit_placed_text(
+            spec.text,
+            &spec.style,
+            spec.rect,
+            text_system,
+            cmds,
+            spec.style.text_color,
+            spec.layer.get_z(),
+        );
 
         ButtonResult {
             content_bounds: spec.rect.inset(spec.style.border_width),
@@ -416,7 +432,7 @@ impl<'a> ButtonSpecBuilder<'a> {
 ///
 /// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
 /// and calls the low-level raw::button function.
-pub fn button<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,
     layout_params: S::Params,
@@ -462,12 +478,72 @@ mod tests {
     use crate::test_utils::DummyTextSys;
     use crate::text::TextHandle;
     use crate::text::{CaretPosition, FontId};
+    use crate::text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText};
     use crate::theme;
     use crate::types::Vec2;
+    use crate::TextSystem;
+    use crate::{DrawGlyph, PreparedGlyphHandle};
 
     struct PlacementTextSys {
         metrics: crate::text::TextMetrics,
         prepared_rect: Option<Rect>,
+    }
+
+    impl TextBackend for PlacementTextSys {
+        type ShapedGlyphId = u32;
+
+        fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
+            self.metrics.logical_size.y.max(1.0)
+        }
+
+        fn shape_text(
+            &mut self,
+            text: &str,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            if text.is_empty() {
+                return ShapedText {
+                    clusters: Vec::new(),
+                };
+            }
+            ShapedText {
+                clusters: vec![ShapedCluster {
+                    byte_start: 0,
+                    byte_end: text.len(),
+                    advance: self.metrics.logical_size.x,
+                    is_whitespace: false,
+                    glyphs: vec![ShapedGlyph {
+                        id: 1,
+                        x: 0.0,
+                        y: -style.size.round(),
+                        advance: self.metrics.logical_size.x,
+                    }],
+                }],
+            }
+        }
+
+        fn shape_ellipsis(
+            &mut self,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            self.shape_text(".", style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        ) -> Option<DrawGlyph> {
+            self.prepared_rect = Some(Rect::new(
+                request.glyph_origin.x,
+                request.glyph_origin.y,
+                self.metrics.logical_size.x,
+                self.metrics.logical_size.y,
+            ));
+            Some(DrawGlyph {
+                handle: PreparedGlyphHandle(request.glyph),
+                top_left: request.glyph_origin,
+            })
+        }
     }
 
     impl TextSystem for PlacementTextSys {

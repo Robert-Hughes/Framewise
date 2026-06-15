@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{IntrinsicSize, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -266,7 +266,7 @@ impl RadioSpecBuilder {
 /// High-level radio widget function using WidgetContext.
 ///
 /// This function accepts a RadioSpecBuilder and calls the low-level raw::radio function.
-pub fn radio<T: TextSystem, S: LayoutState, CF>(
+pub fn radio<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: RadioSpecBuilder,
     layout_params: S::Params,
@@ -297,7 +297,7 @@ pub fn radio<T: TextSystem, S: LayoutState, CF>(
 /// This draws a radio along with a label by its side. Clicking the label
 /// behaves identically to clicking the radio, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
-pub fn labelled_radio<T: TextSystem, S: LayoutState, CF>(
+pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: RadioSpecBuilder,
     label_text: &str,

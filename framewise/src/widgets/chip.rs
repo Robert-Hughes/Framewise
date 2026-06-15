@@ -5,11 +5,11 @@ use crate::{
     layout::LayoutState,
     types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    TextSystem,
+    TextBackend,
 };
 
 pub mod raw {
-    use crate::TextSystem;
+    use crate::text::{emit_text_in_rect, layout_text_in_rect, measure_text};
 
     use super::*;
 
@@ -38,11 +38,12 @@ pub mod raw {
     }
 
     /// Measure a chip's intrinsic size from its measurement spec.
-    pub fn calc_chip_intrinsic_size<T: TextSystem>(
+    pub fn calc_chip_intrinsic_size<T: TextBackend>(
         spec: &ChipCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let t = text_system.measure(
+        let t = measure_text(
+            text_system,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -54,7 +55,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn chip<'a, T: TextSystem>(
+    pub fn chip<'a, T: TextBackend>(
         spec: ChipSpec<'a>,
         state: &mut ChipState,
         input: &Input,
@@ -103,7 +104,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = text_system.prepare(spec.text, spec.style.text_style, spec.rect);
+        let layout = layout_text_in_rect(text_system, spec.text, spec.style.text_style, spec.rect);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -139,17 +140,20 @@ pub mod raw {
 
         let text_color = if state.checked { s.active_text } else { s.text };
         let ty = r.y + (h - layout.metrics.logical_size.y) * 0.5;
-        cmds.push(DrawCmd::Text {
-            rect: Rect::new(
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.text,
+            spec.style.text_style,
+            Rect::new(
                 r.x + pad_x,
                 ty,
                 layout.metrics.logical_size.x,
                 layout.metrics.logical_size.y,
             ),
-            color: tint(text_color),
-            handle: layout.handle,
-            z: spec.layer.get_z(),
-        });
+            tint(text_color),
+            spec.layer.get_z(),
+        );
 
         ChipResult {
             input: InputInfo {
@@ -287,7 +291,7 @@ impl<'a> ChipSpecBuilder<'a> {
 /// High-level chip widget function using WidgetContext.
 ///
 /// This function accepts a ChipSpecBuilder and calls the low-level raw::chip function.
-pub fn chip<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ChipSpecBuilder<'a>,
     layout_params: S::Params,

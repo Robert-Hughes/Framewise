@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -37,21 +37,29 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    pub fn calc_select_intrinsic_size<T: TextSystem>(
+    pub fn calc_select_intrinsic_size<T: TextBackend>(
         spec: &SelectCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
-        let mut widest = text_system
-            .measure(spec.value, s.text_style, crate::text::TextBounds::UNBOUNDED)
-            .logical_size
-            .x;
+        let mut widest = measure_text(
+            text_system,
+            spec.value,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        )
+        .logical_size
+        .x;
         for item in spec.items {
             widest = widest.max(
-                text_system
-                    .measure(item, s.text_style, crate::text::TextBounds::UNBOUNDED)
-                    .logical_size
-                    .x,
+                measure_text(
+                    text_system,
+                    item,
+                    s.text_style,
+                    crate::text::TextBounds::UNBOUNDED,
+                )
+                .logical_size
+                .x,
             );
         }
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(
@@ -64,7 +72,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn select<'a, T: TextSystem>(
+    pub fn select<'a, T: TextBackend>(
         spec: SelectSpec<'a>,
         state: &mut SelectState,
         input: &Input,
@@ -234,7 +242,8 @@ pub mod raw {
             spec.value
         };
 
-        let val_metrics = text_system.measure(
+        let val_metrics = measure_text(
+            text_system,
             display_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -246,18 +255,24 @@ pub mod raw {
             val_metrics.logical_size.x,
             val_metrics.logical_size.y,
         );
-        let val_layout = text_system.prepare(display_text, s.text_style, val_rect);
-        cmds.push(DrawCmd::Text {
-            rect: val_rect,
-            color: tint(s.text),
-            handle: val_layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            display_text,
+            s.text_style,
+            val_rect,
+            tint(s.text),
+            spec.layer.get_z(),
+        );
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_metrics =
-            text_system.measure("v", s.chevron_style, crate::text::TextBounds::UNBOUNDED);
+        let chev_metrics = measure_text(
+            text_system,
+            "v",
+            s.chevron_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let cty = r.y + (s.height - chev_metrics.logical_size.y) * 0.5;
         let chev_rect = Rect::new(
             r.x + r.w - s.chevron_right,
@@ -265,13 +280,15 @@ pub mod raw {
             chev_metrics.logical_size.x,
             chev_metrics.logical_size.y,
         );
-        let chev_layout = text_system.prepare("v", s.chevron_style, chev_rect);
-        cmds.push(DrawCmd::Text {
-            rect: chev_rect,
-            color: tint(chev_color),
-            handle: chev_layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            "v",
+            s.chevron_style,
+            chev_rect,
+            tint(chev_color),
+            spec.layer.get_z(),
+        );
 
         // Dropdown popup.
         if state.open && !spec.items.is_empty() {
@@ -316,8 +333,12 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_metrics =
-                    text_system.measure(opt, s.text_style, crate::text::TextBounds::UNBOUNDED);
+                let opt_metrics = measure_text(
+                    text_system,
+                    opt,
+                    s.text_style,
+                    crate::text::TextBounds::UNBOUNDED,
+                );
                 let oty = row_y + (row_h - opt_metrics.logical_size.y) * 0.5;
                 let opt_rect = Rect::new(
                     popup.x + s.pad_x + 2.0,
@@ -325,13 +346,15 @@ pub mod raw {
                     opt_metrics.logical_size.x,
                     opt_metrics.logical_size.y,
                 );
-                let opt_layout = text_system.prepare(opt, s.text_style, opt_rect);
-                cmds.push(DrawCmd::Text {
-                    rect: opt_rect,
-                    color: tint(text_color),
-                    handle: opt_layout.handle,
-                    z: spec.layer.get_z(),
-                });
+                emit_text_in_rect(
+                    cmds,
+                    text_system,
+                    opt,
+                    s.text_style,
+                    opt_rect,
+                    tint(text_color),
+                    spec.layer.get_z(),
+                );
             }
         }
 
@@ -500,7 +523,7 @@ impl<'a> SelectSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub fn select<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SelectSpecBuilder<'a>,
     layout_params: S::Params,

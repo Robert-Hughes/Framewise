@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::WidgetContext,
 };
@@ -156,7 +156,7 @@ impl FrameStyle {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct FrameResult<'b, T: TextSystem, LS: LayoutState, CF> {
+pub struct FrameResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
@@ -221,7 +221,7 @@ impl FrameSpecBuilder {
 /// destructuring the parent `ctx` fields. This disjointly borrows `ctx.layout_state` (held by the `LayoutToken`
 /// inside `on_finish`) separately from `ctx.text_system`, `ctx.focus_system`, etc., resulting in a perfectly
 /// compile-safe cursor-advance deferral.
-pub fn begin_frame<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
+pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: FrameSpecBuilder,
     layout_params: S::Params,

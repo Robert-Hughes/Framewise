@@ -914,6 +914,44 @@ pub fn measure_text<B: TextBackend>(
     layout_text(backend, text, style, bounds).metrics().clone()
 }
 
+pub fn layout_text_in_rect<B: TextBackend>(
+    backend: &mut B,
+    text: &str,
+    style: TextStyle,
+    rect: Rect,
+) -> TextLayout<B::ShapedGlyphId> {
+    layout_text(
+        backend,
+        text,
+        style,
+        TextBounds {
+            max_width: Some(rect.w),
+            max_height: Some(rect.h),
+        },
+    )
+}
+
+pub fn emit_text_in_rect<B: TextBackend>(
+    commands: &mut DrawCommands,
+    backend: &mut B,
+    text: &str,
+    style: TextStyle,
+    rect: Rect,
+    color: Color,
+    z: u32,
+) -> TextLayout<B::ShapedGlyphId> {
+    let layout = layout_text_in_rect(backend, text, style, rect);
+    layout.emit_glyphs(
+        commands,
+        backend,
+        Vec2::new(rect.x, rect.y),
+        style,
+        color,
+        z,
+    );
+    layout
+}
+
 impl<G: Copy + Eq + Hash> TextLayout<G> {
     fn from_backend<B: TextBackend<ShapedGlyphId = G>>(
         backend: &mut B,
@@ -1324,6 +1362,30 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             },
             None => self.empty_line_caret_position(line_idx),
         }
+    }
+
+    pub fn hit_test_cluster(&self, pos: Vec2) -> usize {
+        let line_idx = self
+            .lines
+            .iter()
+            .position(|line| pos.y < line.y_top + line.height)
+            .unwrap_or_else(|| self.lines.len().saturating_sub(1));
+        let line = &self.lines[line_idx];
+        let clusters = &self.clusters[line.cluster_start..line.cluster_end];
+        if clusters.is_empty() {
+            return 0;
+        }
+
+        for cluster in clusters {
+            if pos.x <= cluster.x + cluster.advance {
+                return cluster.byte_start;
+            }
+        }
+
+        clusters
+            .last()
+            .map(|cluster| cluster.byte_start)
+            .unwrap_or(0)
     }
 
     pub fn caret_insertion_byte(&self, position: CaretPosition) -> usize {

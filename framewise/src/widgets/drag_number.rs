@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -40,19 +40,31 @@ pub mod raw {
     }
 
     /// Measure a drag number's intrinsic size from its measurement spec.
-    pub fn calc_drag_number_intrinsic_size<T: TextSystem>(
+    pub fn calc_drag_number_intrinsic_size<T: TextBackend>(
         spec: &DragNumberCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
-        let label_metrics =
-            text_system.measure(spec.text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let label_metrics = measure_text(
+            text_system,
+            spec.text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let min_text = format!("{:.2}", spec.min);
         let max_text = format!("{:.2}", spec.max);
-        let min_metrics =
-            text_system.measure(&min_text, s.text_style, crate::text::TextBounds::UNBOUNDED);
-        let max_metrics =
-            text_system.measure(&max_text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let min_metrics = measure_text(
+            text_system,
+            &min_text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let max_metrics = measure_text(
+            text_system,
+            &max_text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let value_w =
             min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
         let label_w = label_metrics.logical_size.x + s.text_pad_x * 2.0;
@@ -63,7 +75,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn drag_number<'a, T: TextSystem>(
+    pub fn drag_number<'a, T: TextBackend>(
         spec: DragNumberSpec<'a>,
         state: &mut DragNumberState,
         input: &Input,
@@ -88,8 +100,12 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let text_metrics =
-            text_system.measure(spec.text, s.text_style, crate::text::TextBounds::UNBOUNDED);
+        let text_metrics = measure_text(
+            text_system,
+            spec.text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
         let text_w = text_metrics.logical_size.x + s.text_pad_x * 2.0;
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
@@ -184,13 +200,15 @@ pub mod raw {
             text_metrics.logical_size.x,
             text_metrics.logical_size.y,
         );
-        let text_layout = text_system.prepare(spec.text, s.text_style, text_rect);
-        cmds.push(DrawCmd::Text {
-            rect: text_rect,
-            color: tint(s.text_text),
-            handle: text_layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.text,
+            s.text_style,
+            text_rect,
+            tint(s.text_text),
+            spec.layer.get_z(),
+        );
 
         // Value area: rust_soft fill proportional to value fraction.
         let frac = ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
@@ -204,7 +222,8 @@ pub mod raw {
         }
 
         let value_text = format!("{:.2}", state.value);
-        let value_metrics = text_system.measure(
+        let value_metrics = measure_text(
+            text_system,
             &value_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -217,13 +236,15 @@ pub mod raw {
             value_metrics.logical_size.x,
             value_metrics.logical_size.y,
         );
-        let val_layout = text_system.prepare(&value_text, s.text_style, value_rect);
-        cmds.push(DrawCmd::Text {
-            rect: value_rect,
-            color: tint(s.value_text),
-            handle: val_layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            &value_text,
+            s.text_style,
+            value_rect,
+            tint(s.value_text),
+            spec.layer.get_z(),
+        );
 
         DragNumberResult {
             input: InputInfo {
@@ -381,7 +402,7 @@ impl<'a> DragNumberSpecBuilder<'a> {
 /// High-level drag number widget function using WidgetContext.
 ///
 /// This function accepts a DragNumberSpecBuilder and calls the low-level raw::drag_number function.
-pub fn drag_number<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: DragNumberSpecBuilder<'a>,
     layout_params: S::Params,

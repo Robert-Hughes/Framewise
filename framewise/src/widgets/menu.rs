@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -30,7 +30,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    pub fn calc_menu_intrinsic_size<T: TextSystem>(
+    pub fn calc_menu_intrinsic_size<T: TextBackend>(
         spec: &MenuCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
@@ -43,16 +43,24 @@ pub mod raw {
                     label, shortcut, ..
                 } => {
                     height += s.row_height;
-                    let label_w = text_system
-                        .measure(label, s.label_style, crate::text::TextBounds::UNBOUNDED)
-                        .logical_size
-                        .x;
+                    let label_w = measure_text(
+                        text_system,
+                        label,
+                        s.label_style,
+                        crate::text::TextBounds::UNBOUNDED,
+                    )
+                    .logical_size
+                    .x;
                     let shortcut_w = shortcut
                         .map(|sc| {
-                            text_system
-                                .measure(sc, s.meta_style, crate::text::TextBounds::UNBOUNDED)
-                                .logical_size
-                                .x
+                            measure_text(
+                                text_system,
+                                sc,
+                                s.meta_style,
+                                crate::text::TextBounds::UNBOUNDED,
+                            )
+                            .logical_size
+                            .x
                         })
                         .unwrap_or(0.0);
                     widest = widest.max(label_w + shortcut_w + s.pad_x * 3.0);
@@ -61,11 +69,14 @@ pub mod raw {
                 MenuItem::Group(label) => {
                     height += s.group_height;
                     widest = widest.max(
-                        text_system
-                            .measure(label, s.meta_style, crate::text::TextBounds::UNBOUNDED)
-                            .logical_size
-                            .x
-                            + s.pad_x * 2.0,
+                        measure_text(
+                            text_system,
+                            label,
+                            s.meta_style,
+                            crate::text::TextBounds::UNBOUNDED,
+                        )
+                        .logical_size
+                        .x + s.pad_x * 2.0,
                     );
                 }
             }
@@ -77,7 +88,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: TextSystem>(
+    pub fn menu<'a, T: TextBackend>(
         spec: MenuSpec<'a>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -135,7 +146,8 @@ pub mod raw {
                 }
                 MenuItem::Group(label) => {
                     let ty = y + s.group_text_y;
-                    let metrics = text_system.measure(
+                    let metrics = measure_text(
+                        text_system,
                         label,
                         s.meta_style,
                         crate::text::TextBounds::UNBOUNDED,
@@ -146,13 +158,15 @@ pub mod raw {
                         metrics.logical_size.x,
                         metrics.logical_size.y,
                     );
-                    let layout = text_system.prepare(label, s.meta_style, rect);
-                    cmds.push(DrawCmd::Text {
+                    emit_text_in_rect(
+                        cmds,
+                        text_system,
+                        label,
+                        s.meta_style,
                         rect,
-                        color: s.muted,
-                        handle: layout.handle,
-                        z: spec.layer.get_z(),
-                    });
+                        s.muted,
+                        spec.layer.get_z(),
+                    );
                     y += group_h;
                 }
                 MenuItem::Item {
@@ -180,7 +194,8 @@ pub mod raw {
                     } else {
                         tint(s.text)
                     };
-                    let metrics = text_system.measure(
+                    let metrics = measure_text(
+                        text_system,
                         label,
                         s.label_style,
                         crate::text::TextBounds::UNBOUNDED,
@@ -192,13 +207,15 @@ pub mod raw {
                         metrics.logical_size.x,
                         metrics.logical_size.y,
                     );
-                    let layout = text_system.prepare(label, s.label_style, rect);
-                    cmds.push(DrawCmd::Text {
+                    emit_text_in_rect(
+                        cmds,
+                        text_system,
+                        label,
+                        s.label_style,
                         rect,
-                        color: text_color,
-                        handle: layout.handle,
-                        z: spec.layer.get_z(),
-                    });
+                        text_color,
+                        spec.layer.get_z(),
+                    );
 
                     if let Some(sc) = shortcut {
                         let sc_color = if *selected {
@@ -211,7 +228,8 @@ pub mod raw {
                         } else {
                             tint(s.muted)
                         };
-                        let sc_metrics = text_system.measure(
+                        let sc_metrics = measure_text(
+                            text_system,
                             sc,
                             s.meta_style,
                             crate::text::TextBounds::UNBOUNDED,
@@ -224,13 +242,15 @@ pub mod raw {
                             sc_metrics.logical_size.x,
                             sc_metrics.logical_size.y,
                         );
-                        let sc_layout = text_system.prepare(sc, s.meta_style, sc_rect);
-                        cmds.push(DrawCmd::Text {
-                            rect: sc_rect,
-                            color: sc_color,
-                            handle: sc_layout.handle,
-                            z: spec.layer.get_z(),
-                        });
+                        emit_text_in_rect(
+                            cmds,
+                            text_system,
+                            sc,
+                            s.meta_style,
+                            sc_rect,
+                            sc_color,
+                            spec.layer.get_z(),
+                        );
                     }
 
                     y += row_h;
@@ -388,7 +408,7 @@ impl<'a> MenuSpecBuilder<'a> {
 /// High-level menu widget function using WidgetContext.
 ///
 /// This function accepts a MenuSpecBuilder and calls the low-level raw::menu function.
-pub fn menu<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MenuSpecBuilder<'a>,
     layout_params: S::Params,

@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -28,11 +28,12 @@ pub mod raw {
     pub struct StatusResult {}
 
     /// Measure a status widget's intrinsic size from its measurement spec.
-    pub fn calc_status_intrinsic_size<T: TextSystem>(
+    pub fn calc_status_intrinsic_size<T: TextBackend>(
         spec: &StatusCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -48,7 +49,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<T: TextSystem>(
+    pub fn status<T: TextBackend>(
         spec: StatusSpec<'_>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -73,7 +74,8 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
 
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             s.text_style,
             crate::text::TextBounds {
@@ -88,13 +90,15 @@ pub mod raw {
             metrics.logical_size.x,
             metrics.logical_size.y,
         );
-        let layout = text_system.prepare(spec.text, s.text_style, text_rect);
-        cmds.push(DrawCmd::Text {
-            rect: text_rect,
-            color: s.text,
-            handle: layout.handle,
-            z: spec.layer.get_z(),
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.text,
+            s.text_style,
+            text_rect,
+            s.text,
+            spec.layer.get_z(),
+        );
     }
 }
 
@@ -211,7 +215,7 @@ impl<'a> StatusSpecBuilder<'a> {
 /// High-level status widget function using WidgetContext.
 ///
 /// This function accepts a StatusSpecBuilder and calls the low-level raw::status function.
-pub fn status<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: StatusSpecBuilder<'a>,
     layout_params: S::Params,

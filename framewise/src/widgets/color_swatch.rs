@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -127,7 +127,7 @@ impl ColorSwatchSpecBuilder {
 /// High-level color swatch widget function using WidgetContext.
 ///
 /// This function accepts a ColorSwatchSpecBuilder and calls the low-level raw::color_swatch function.
-pub fn color_swatch<T: TextSystem, S: LayoutState, CF>(
+pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ColorSwatchSpecBuilder,
     layout_params: S::Params,

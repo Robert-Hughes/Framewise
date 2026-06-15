@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -190,7 +190,7 @@ impl ProgressBarSpecBuilder {
 // ── High‑level widget function ───────────────────────────────────────────────────
 
 /// High‑level progress bar widget function using `WidgetContext`.
-pub fn progress_bar<T: TextSystem, S: LayoutState, CF>(
+pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ProgressBarSpecBuilder,
     layout_params: S::Params,

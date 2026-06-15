@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -225,7 +225,7 @@ impl SpinnerSpecBuilder {
 /// High-level spinner widget function using WidgetContext.
 ///
 /// This function accepts a SpinnerSpecBuilder and calls the low-level raw::spinner function.
-pub fn spinner<T: TextSystem, S: LayoutState, CF>(
+pub fn spinner<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SpinnerSpecBuilder,
     layout_params: S::Params,

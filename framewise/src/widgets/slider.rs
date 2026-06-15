@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::TextSystem,
+    text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -897,7 +897,7 @@ impl SliderSpecBuilder {
 /// High-level slider widget function using WidgetContext.
 ///
 /// This function accepts a SliderSpecBuilder and calls the low-level raw::slider function.
-pub fn slider<T: TextSystem, S: LayoutState, CF>(
+pub fn slider<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SliderSpecBuilder,
     layout_params: S::Params,

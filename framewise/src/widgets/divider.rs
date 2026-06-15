@@ -3,7 +3,7 @@ use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -114,7 +114,7 @@ impl DividerSpecBuilder {
 ///
 /// This function accepts a DividerSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::divider function.
-pub fn divider<T: TextSystem, S: LayoutState, CF>(
+pub fn divider<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: DividerSpecBuilder,
     layout_params: S::Params,

@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{IntrinsicSize, LayoutState},
-    text::{TextBounds, TextStyle, TextSystem},
+    text::{emit_text_in_rect, measure_text, TextBackend, TextBounds, TextStyle},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -36,14 +36,14 @@ pub mod raw {
     }
 
     /// Measure a tabs widget's intrinsic size from its measurement spec.
-    pub fn calc_tabs_intrinsic_size<T: TextSystem>(
+    pub fn calc_tabs_intrinsic_size<T: TextBackend>(
         spec: &TabsCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> IntrinsicSize {
         let s = spec.style;
         let mut total_w = 0.0_f32;
         for label in spec.items.iter() {
-            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
             total_w += metrics.logical_size.x + s.pad_x * 2.0;
         }
         IntrinsicSize::preferred(Vec2::new(total_w, s.height))
@@ -53,7 +53,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tabs<'a, T: TextSystem>(
+    pub fn tabs<'a, T: TextBackend>(
         spec: TabsSpec<'a>,
         state: &mut TabsState,
         input: &Input,
@@ -70,7 +70,7 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
             total_w += metrics.logical_size.x + pad_x * 2.0;
         }
 
@@ -106,7 +106,7 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+                let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
                 let tab_w = metrics.logical_size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
@@ -137,7 +137,7 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let metrics = text_system.measure(label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
             let tab_w = metrics.logical_size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -159,13 +159,15 @@ pub mod raw {
             let text_color = if is_active { s.text } else { s.inactive_text };
             let ty = spec.rect.y + (tab_h - text_h) * 0.5;
             let text_rect = Rect::new(x + pad_x, ty, text_w, text_h);
-            let layout = text_system.prepare(label, s.text_style, text_rect);
-            cmds.push(DrawCmd::Text {
-                rect: text_rect,
-                color: tint(text_color),
-                handle: layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                label,
+                s.text_style,
+                text_rect,
+                tint(text_color),
+                spec.layer.get_z(),
+            );
 
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
             if is_active {
@@ -335,7 +337,7 @@ impl<'a> TabsSpecBuilder<'a> {
 /// High-level tabs widget function using WidgetContext.
 ///
 /// This function accepts a TabsSpecBuilder and calls the low-level raw::tabs function.
-pub fn tabs<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TabsSpecBuilder<'a>,
     layout_params: S::Params,

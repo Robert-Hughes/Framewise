@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -181,7 +181,7 @@ impl MeterSpecBuilder {
 // ── High‑level widget function ───────────────────────────────────────────────────
 
 /// High‑level meter widget function using `WidgetContext`.
-pub fn meter<T: TextSystem, S: LayoutState, CF>(
+pub fn meter<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MeterSpecBuilder,
     layout_params: S::Params,

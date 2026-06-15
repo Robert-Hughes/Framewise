@@ -4,8 +4,9 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBounds, TextFlow,
-        TextLineAlign, TextMetrics, TextStyle, TextSystem,
+        emit_text_in_rect, layout_text_in_rect, measure_text, CaretPosition, FontId, LineEndKind,
+        LineHeight, LineMetrics, TextBackend, TextBounds, TextFlow, TextLineAlign, TextMetrics,
+        TextStyle,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -74,7 +75,7 @@ pub mod raw {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn move_caret_vertical<T: TextSystem>(
+    fn move_caret_vertical<T: TextBackend>(
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
@@ -88,27 +89,27 @@ pub mod raw {
     ) -> VerticalCaretMove {
         let (_, layout_width, layout_height, _) =
             edit_layout_size(text_content, spec, text_style, text_system);
-        let layout = text_system.prepare(
+        let layout = layout_text_in_rect(
+            text_system,
             text_content,
             text_style,
             Rect::new(0.0, 0.0, layout_width, layout_height),
         );
-        let handle = layout.handle;
-        let metrics = layout.metrics;
 
         let visual_position = if caret_is_current && start_byte == caret_byte {
             caret
         } else {
-            text_system.caret_position_at_insertion_byte(handle, start_byte)
+            layout.caret_position_at_insertion_byte(start_byte)
         };
-        let caret_geom = text_system.caret_geom(handle, visual_position);
-        let current_line_idx = metrics
+        let caret_geom = layout.caret_geom(visual_position);
+        let current_line_idx = layout
+            .metrics
             .lines
             .iter()
             .rposition(|line| start_byte >= line.byte_start)
             .unwrap_or(0);
 
-        let line_len = metrics.lines.len();
+        let line_len = layout.metrics.lines.len();
         let (target_line_idx, target_clamped) = match direction {
             VerticalCaretDirection::Up => (
                 current_line_idx.saturating_sub(line_count),
@@ -132,11 +133,11 @@ pub mod raw {
             };
         }
 
-        let target_line = &metrics.lines[target_line_idx];
+        let target_line = &layout.metrics.lines[target_line_idx];
         let pos = Vec2::new(caret_geom.x, target_line.y_top + target_line.height * 0.5);
-        let new_caret = text_system.hit_test_caret(handle, pos);
-        let byte = text_system
-            .caret_insertion_byte(handle, new_caret)
+        let new_caret = layout.hit_test_caret(pos);
+        let byte = layout
+            .caret_insertion_byte(new_caret)
             .min(text_content.len());
         VerticalCaretMove {
             caret: new_caret,
@@ -145,7 +146,7 @@ pub mod raw {
         }
     }
 
-    fn page_line_count<T: TextSystem>(
+    fn page_line_count<T: TextBackend>(
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
@@ -155,23 +156,25 @@ pub mod raw {
     ) -> usize {
         let (_, layout_width, layout_height, _) =
             edit_layout_size(text_content, spec, text_style, text_system);
-        let layout = text_system.prepare(
+        let layout = layout_text_in_rect(
+            text_system,
             text_content,
             text_style,
             Rect::new(0.0, 0.0, layout_width, layout_height),
         );
-        let caret = text_system.caret_position_at_insertion_byte(layout.handle, caret_byte);
-        let line_height = text_system.caret_geom(layout.handle, caret).height.max(1.0);
+        let caret = layout.caret_position_at_insertion_byte(caret_byte);
+        let line_height = layout.caret_geom(caret).height.max(1.0);
         (scroll_outer_height / line_height).floor().max(1.0) as usize
     }
 
     /// Measure a text edit's intrinsic size from its current state and measurement spec.
-    pub fn calc_text_edit_intrinsic_size<T: TextSystem>(
+    pub fn calc_text_edit_intrinsic_size<T: TextBackend>(
         spec: &TextEditCalcIntrinsicSizeSpec,
         state: &TextEditState,
         text_system: &mut T,
     ) -> IntrinsicSize {
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             &state.value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
@@ -187,7 +190,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn text_edit<T: TextSystem>(
+    pub fn text_edit<T: TextBackend>(
         spec: TextEditSpec,
         state: &mut TextEditState,
         input: &Input,
@@ -238,7 +241,8 @@ pub mod raw {
                 Some(state.value.as_str())
             };
             if let Some(text) = disabled_text {
-                let metrics = text_system.measure(
+                let metrics = measure_text(
+                    text_system,
                     text,
                     text_style,
                     TextBounds {
@@ -254,18 +258,20 @@ pub mod raw {
                     Align::End => content_rect.y + content_rect.h - metrics.logical_size.y,
                 };
                 let text_rect = Rect::new(content_rect.x, ty, content_rect.w, content_rect.h);
-                let layout = text_system.prepare(text, text_style, text_rect);
                 let color = if state.value.is_empty() {
                     spec.style.placeholder_color
                 } else {
                     spec.style.text_color
                 };
-                cmds.push(DrawCmd::Text {
-                    rect: text_rect,
-                    color: tint(color),
-                    handle: layout.handle,
-                    z: spec.layer.get_z(),
-                });
+                emit_text_in_rect(
+                    cmds,
+                    text_system,
+                    text,
+                    text_style,
+                    text_rect,
+                    tint(color),
+                    spec.layer.get_z(),
+                );
             }
             return TextEditResult {
                 content_bounds: content_rect,
@@ -292,21 +298,21 @@ pub mod raw {
         let initial_text_content = state.value.as_str();
         let (_, initial_layout_width, initial_layout_height, _) =
             edit_layout_size(initial_text_content, &spec, text_style, text_system);
-        let initial_layout = text_system.prepare(
+        let initial_layout = layout_text_in_rect(
+            text_system,
             initial_text_content,
             text_style,
             Rect::new(0.0, 0.0, initial_layout_width, initial_layout_height),
         );
-        let initial_handle = initial_layout.handle;
 
-        let mut caret_byte = text_system
-            .caret_insertion_byte(initial_handle, state.caret)
+        let mut caret_byte = initial_layout
+            .caret_insertion_byte(state.caret)
             .min(state.value.len());
         let mut selection_byte = state
             .selection_anchor
             .map(|selection| {
-                text_system
-                    .caret_insertion_byte(initial_handle, selection)
+                initial_layout
+                    .caret_insertion_byte(selection)
                     .min(state.value.len())
             })
             .filter(|selection| state.value.is_char_boundary(*selection));
@@ -423,9 +429,9 @@ pub mod raw {
                             caret_byte = caret_byte.min(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
-                            caret = text_system.previous_caret_position(initial_handle, caret);
-                            caret_byte = text_system
-                                .caret_insertion_byte(initial_handle, caret)
+                            caret = initial_layout.previous_caret_position(caret);
+                            caret_byte = initial_layout
+                                .caret_insertion_byte(caret)
                                 .min(state.value.len());
                             caret_needs_layout_sync = false;
                         }
@@ -454,9 +460,9 @@ pub mod raw {
                             caret_byte = caret_byte.max(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
-                            caret = text_system.next_caret_position(initial_handle, caret);
-                            caret_byte = text_system
-                                .caret_insertion_byte(initial_handle, caret)
+                            caret = initial_layout.next_caret_position(caret);
+                            caret_byte = initial_layout
+                                .caret_insertion_byte(caret)
                                 .min(state.value.len());
                             caret_needs_layout_sync = false;
                         }
@@ -542,28 +548,25 @@ pub mod raw {
                             let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
                                 edit_layout_size(text_content, &spec, text_style, text_system);
-                            let layout = text_system.prepare(
+                            let layout = layout_text_in_rect(
+                                text_system,
                                 text_content,
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
                             );
-                            let handle = layout.handle;
-                            let metrics = layout.metrics;
                             let visual_caret = if caret_needs_layout_sync {
-                                text_system.caret_position_at_insertion_byte(handle, caret_byte)
+                                layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
                                 caret
                             };
-                            let caret_geom = text_system.caret_geom(handle, visual_caret);
+                            let caret_geom = layout.caret_geom(visual_caret);
                             let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let current_line_idx = visual_line_index_at_y(&metrics, caret_mid_y);
-                            let line = &metrics.lines[current_line_idx];
+                            let current_line_idx =
+                                visual_line_index_at_y(&layout.metrics, caret_mid_y);
+                            let line = &layout.metrics.lines[current_line_idx];
                             let line_mid_y = line.y_top + line.height * 0.5;
-                            caret = text_system
-                                .hit_test_caret(handle, Vec2::new(line.logical_x, line_mid_y));
-                            caret_byte = text_system
-                                .caret_insertion_byte(handle, caret)
-                                .min(state.value.len());
+                            caret = layout.hit_test_caret(Vec2::new(line.logical_x, line_mid_y));
+                            caret_byte = layout.caret_insertion_byte(caret).min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan left for the preceding '\n' (or
@@ -587,27 +590,27 @@ pub mod raw {
                             let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
                                 edit_layout_size(text_content, &spec, text_style, text_system);
-                            let layout = text_system.prepare(
+                            let layout = layout_text_in_rect(
+                                text_system,
                                 text_content,
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
                             );
-                            let handle = layout.handle;
-                            let metrics = layout.metrics;
                             let visual_caret = if caret_needs_layout_sync {
-                                text_system.caret_position_at_insertion_byte(handle, caret_byte)
+                                layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
                                 caret
                             };
-                            let caret_geom = text_system.caret_geom(handle, visual_caret);
+                            let caret_geom = layout.caret_geom(visual_caret);
                             let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let current_line_idx = visual_line_index_at_y(&metrics, caret_mid_y);
-                            let line = &metrics.lines[current_line_idx];
+                            let current_line_idx =
+                                visual_line_index_at_y(&layout.metrics, caret_mid_y);
+                            let line = &layout.metrics.lines[current_line_idx];
                             let line_mid_y = line.y_top + line.height * 0.5;
-                            let end_cluster = text_system.hit_test_cluster(
-                                handle,
-                                Vec2::new(line.logical_x + line.logical_width + 1.0, line_mid_y),
-                            );
+                            let end_cluster = layout.hit_test_cluster(Vec2::new(
+                                line.logical_x + line.logical_width + 1.0,
+                                line_mid_y,
+                            ));
                             caret = if matches!(
                                 line.end_kind,
                                 LineEndKind::HardNewline | LineEndKind::SoftWrapWhitespace
@@ -619,9 +622,9 @@ pub mod raw {
                                 let line_end_caret = CaretPosition::AfterCluster {
                                     cluster_byte_index: end_cluster,
                                 };
-                                let line_end_geom = text_system.caret_geom(handle, line_end_caret);
+                                let line_end_geom = layout.caret_geom(line_end_caret);
                                 let line_end_idx = visual_line_index_at_y(
-                                    &metrics,
+                                    &layout.metrics,
                                     line_end_geom.y_top + line_end_geom.height * 0.5,
                                 );
                                 if line_end_idx == current_line_idx {
@@ -632,9 +635,7 @@ pub mod raw {
                                     }
                                 }
                             };
-                            caret_byte = text_system
-                                .caret_insertion_byte(handle, caret)
-                                .min(state.value.len());
+                            caret_byte = layout.caret_insertion_byte(caret).min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan right for the next '\n' and land
@@ -897,8 +898,7 @@ pub mod raw {
             scroll_outer_rect.y + spec.style.padding_y - scroll_result.offset.y
         };
         let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
-        let layout = text_system.prepare(text_content, text_style, text_rect);
-        let handle = layout.handle;
+        let layout = layout_text_in_rect(text_system, text_content, text_style, text_rect);
 
         // Mouse interaction
         if contains && input.mouse_pressed {
@@ -911,13 +911,13 @@ pub mod raw {
                 input.mouse_pos.x - text_rect.x,
                 input.mouse_pos.y - text_rect.y,
             );
-            let clicked_caret = text_system.hit_test_caret(handle, relative_pos);
-            let clicked_byte = text_system.caret_insertion_byte(handle, clicked_caret);
+            let clicked_caret = layout.hit_test_caret(relative_pos);
+            let clicked_byte = layout.caret_insertion_byte(clicked_caret);
             let clicked_byte = clicked_byte.min(state.value.len());
 
             // Handling repeated clicks
             if input.mouse_click_count == 2 {
-                let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
+                let cluster_byte = layout.hit_test_cluster(relative_pos);
                 let (start, end) = word_bounds(&state.value, cluster_byte);
                 selection_byte = Some(start);
                 caret_byte = end;
@@ -960,12 +960,12 @@ pub mod raw {
                     input.mouse_pos.x - text_rect.x,
                     input.mouse_pos.y - text_rect.y,
                 );
-                let current_caret = text_system.hit_test_caret(handle, relative_pos);
-                let current_byte = text_system.caret_insertion_byte(handle, current_caret);
+                let current_caret = layout.hit_test_caret(relative_pos);
+                let current_byte = layout.caret_insertion_byte(current_caret);
                 let current_byte = current_byte.min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
-                    let cluster_byte = text_system.hit_test_cluster(handle, relative_pos);
+                    let cluster_byte = layout.hit_test_cluster(relative_pos);
                     let (cur_start, cur_end) = word_bounds(&state.value, cluster_byte);
                     if cluster_byte < orig_start {
                         selection_byte = Some(orig_end);
@@ -1001,18 +1001,18 @@ pub mod raw {
         }
 
         if caret_needs_layout_sync {
-            caret = text_system.caret_position_at_insertion_byte(handle, caret_byte);
+            caret = layout.caret_position_at_insertion_byte(caret_byte);
         }
         state.caret = caret;
-        state.selection_anchor = selection_byte
-            .map(|selection| text_system.caret_position_at_insertion_byte(handle, selection));
+        state.selection_anchor =
+            selection_byte.map(|selection| layout.caret_position_at_insertion_byte(selection));
 
-        caret_byte = text_system
-            .caret_insertion_byte(handle, state.caret)
+        caret_byte = layout
+            .caret_insertion_byte(state.caret)
             .min(state.value.len());
         selection_byte = state.selection_anchor.map(|selection| {
-            text_system
-                .caret_insertion_byte(handle, selection)
+            layout
+                .caret_insertion_byte(selection)
                 .min(state.value.len())
         });
 
@@ -1029,21 +1029,16 @@ pub mod raw {
                 (true, Some(sel)) if sel != caret_byte => {
                     let start = sel.min(caret_byte);
                     let end = sel.max(caret_byte);
-                    let start_caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, start),
-                    );
-                    let end_caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, end),
-                    );
+                    let start_caret =
+                        layout.caret_geom(layout.caret_position_at_insertion_byte(start));
+                    let end_caret = layout.caret_geom(layout.caret_position_at_insertion_byte(end));
                     (
                         start_caret.x.min(end_caret.x),
                         start_caret.x.max(end_caret.x),
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(handle, state.caret);
+                    let caret = layout.caret_geom(state.caret);
                     (caret.x, caret.x)
                 }
             };
@@ -1076,14 +1071,9 @@ pub mod raw {
                 (true, Some(sel)) if sel != caret_byte => {
                     let start = sel.min(caret_byte);
                     let end = sel.max(caret_byte);
-                    let start_caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, start),
-                    );
-                    let end_caret = text_system.caret_geom(
-                        handle,
-                        text_system.caret_position_at_insertion_byte(handle, end),
-                    );
+                    let start_caret =
+                        layout.caret_geom(layout.caret_position_at_insertion_byte(start));
+                    let end_caret = layout.caret_geom(layout.caret_position_at_insertion_byte(end));
                     (
                         start_caret.y_top.min(end_caret.y_top),
                         (start_caret.y_top + start_caret.height)
@@ -1091,7 +1081,7 @@ pub mod raw {
                     )
                 }
                 _ => {
-                    let caret = text_system.caret_geom(handle, state.caret);
+                    let caret = layout.caret_geom(state.caret);
                     (caret.y_top, caret.y_top + caret.height)
                 }
             };
@@ -1122,10 +1112,8 @@ pub mod raw {
 
                         if line_sel_start < line_sel_end {
                             let line_start_x = line.logical_x;
-                            let start_caret = text_system.caret_geom(
-                                handle,
-                                text_system
-                                    .caret_position_at_insertion_byte(handle, line_sel_start),
+                            let start_caret = layout.caret_geom(
+                                layout.caret_position_at_insertion_byte(line_sel_start),
                             );
 
                             let end_x = if line_sel_end == line.byte_end {
@@ -1133,11 +1121,9 @@ pub mod raw {
                                     + line.logical_width
                                     + selected_line_end_affordance_width(line)
                             } else {
-                                text_system
+                                layout
                                     .caret_geom(
-                                        handle,
-                                        text_system
-                                            .caret_position_at_insertion_byte(handle, line_sel_end),
+                                        layout.caret_position_at_insertion_byte(line_sel_end),
                                     )
                                     .x
                             };
@@ -1163,21 +1149,25 @@ pub mod raw {
 
         // Text
         if !state.value.is_empty() {
-            cmds.push(DrawCmd::Text {
-                rect: text_rect,
-                color: spec.style.text_color,
-                handle,
-                z: spec.layer.get_z(),
-            });
+            layout.emit_glyphs(
+                cmds,
+                text_system,
+                Vec2::new(text_rect.x, text_rect.y),
+                text_style,
+                spec.style.text_color,
+                spec.layer.get_z(),
+            );
         } else if !focused {
             if let Some(placeholder) = spec.placeholder.as_deref() {
-                let placeholder_layout = text_system.prepare(placeholder, text_style, text_rect);
-                cmds.push(DrawCmd::Text {
-                    rect: text_rect,
-                    color: spec.style.placeholder_color,
-                    handle: placeholder_layout.handle,
-                    z: spec.layer.get_z(),
-                });
+                emit_text_in_rect(
+                    cmds,
+                    text_system,
+                    placeholder,
+                    text_style,
+                    text_rect,
+                    spec.style.placeholder_color,
+                    spec.layer.get_z(),
+                );
             }
         }
 
@@ -1194,7 +1184,7 @@ pub mod raw {
             };
 
             if blink_on {
-                let caret = text_system.caret_geom(handle, state.caret);
+                let caret = layout.caret_geom(state.caret);
                 let caret_rect = Rect::new(
                     text_rect.x + caret.x,
                     text_rect.y + caret.y_top,
@@ -1261,7 +1251,7 @@ pub mod raw {
         }
     }
 
-    pub(super) fn edit_layout_size<T: TextSystem>(
+    pub(super) fn edit_layout_size<T: TextBackend>(
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
@@ -1279,7 +1269,8 @@ pub mod raw {
             None
         };
 
-        let mut metrics = text_system.measure(
+        let mut metrics = measure_text(
+            text_system,
             text_content,
             text_style,
             TextBounds {
@@ -1299,7 +1290,8 @@ pub mod raw {
                 let max_width_narrow =
                     Some(((scroll_outer_rect.w - 2.0 * spec.style.padding_x) - 5.0).max(0.0));
                 final_max_width = max_width_narrow;
-                metrics = text_system.measure(
+                metrics = measure_text(
+                    text_system,
                     text_content,
                     text_style,
                     TextBounds {
@@ -1753,7 +1745,7 @@ pub fn logical_line_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 /// High-level text edit widget function using WidgetContext.
 ///
 /// This function accepts a TextEditSpecBuilder and calls the low-level raw::text_edit function.
-pub fn text_edit<T: TextSystem, S: LayoutState, CF>(
+pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TextEditSpecBuilder,
     layout_params: S::Params,
@@ -1805,7 +1797,11 @@ mod tests {
 
     use crate::{
         test_utils::DummyTextSys,
-        text::{CaretGeom, LineEndKind, LineMetrics, TextHandle, TextLayout},
+        text::{
+            CaretGeom, LineEndKind, LineMetrics, PrepareGlyphRequest, ShapedCluster, ShapedGlyph,
+            ShapedText, TextHandle, TextLayout,
+        },
+        DrawGlyph, PreparedGlyphHandle, TextSystem,
     };
 
     #[test]
@@ -1946,6 +1942,50 @@ mod tests {
                     },
                 ],
             }
+        }
+    }
+
+    impl TextBackend for VisualBoundaryTextSys {
+        type ShapedGlyphId = u32;
+
+        fn line_height(&mut self, _style: TextStyle) -> f32 {
+            16.0
+        }
+
+        fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+            let clusters = text
+                .char_indices()
+                .map(|(byte_start, ch)| ShapedCluster {
+                    byte_start,
+                    byte_end: byte_start + ch.len_utf8(),
+                    advance: 8.0,
+                    is_whitespace: ch.is_whitespace(),
+                    glyphs: vec![ShapedGlyph {
+                        id: ch as u32,
+                        x: 0.0,
+                        y: 0.0,
+                        advance: 8.0,
+                    }],
+                })
+                .collect();
+            ShapedText { clusters }
+        }
+
+        fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+            self.shape_text(".", style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        ) -> Option<DrawGlyph> {
+            if request.glyph == ' ' as u32 {
+                return None;
+            }
+            Some(DrawGlyph {
+                handle: PreparedGlyphHandle(request.glyph),
+                top_left: request.glyph_origin,
+            })
         }
     }
 
@@ -2158,6 +2198,50 @@ mod tests {
                     },
                 ],
             }
+        }
+    }
+
+    impl TextBackend for CollapsedTrailingSpaceTextSys {
+        type ShapedGlyphId = u32;
+
+        fn line_height(&mut self, _style: TextStyle) -> f32 {
+            16.0
+        }
+
+        fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+            let clusters = text
+                .char_indices()
+                .map(|(byte_start, ch)| ShapedCluster {
+                    byte_start,
+                    byte_end: byte_start + ch.len_utf8(),
+                    advance: 8.0,
+                    is_whitespace: ch.is_whitespace(),
+                    glyphs: vec![ShapedGlyph {
+                        id: ch as u32,
+                        x: 0.0,
+                        y: 0.0,
+                        advance: 8.0,
+                    }],
+                })
+                .collect();
+            ShapedText { clusters }
+        }
+
+        fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+            self.shape_text(".", style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        ) -> Option<DrawGlyph> {
+            if request.glyph == ' ' as u32 {
+                return None;
+            }
+            Some(DrawGlyph {
+                handle: PreparedGlyphHandle(request.glyph),
+                top_left: request.glyph_origin,
+            })
         }
     }
 

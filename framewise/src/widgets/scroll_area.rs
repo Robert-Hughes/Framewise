@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{AxisBound, Layout, LayoutSpace, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     widgets::SliderStyle,
@@ -621,7 +621,7 @@ pub struct ScrollState {
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
-pub struct ScrollAreaResult<'b, T: TextSystem, LS: LayoutState, CF> {
+pub struct ScrollAreaResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub layout: LayoutInfo,
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
@@ -774,7 +774,7 @@ const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 ///
 /// Note there is no low-level end_scroll_area - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
 #[allow(clippy::type_complexity)]
-pub fn begin_scroll_area<'a, 'b, T: TextSystem, S: LayoutState, L: Layout, CF>(
+pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: ScrollAreaSpecBuilder,
     layout_params: S::Params,

@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{IntrinsicSize, LayoutState},
-    text::TextSystem,
+    text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -273,7 +273,7 @@ impl SwitchSpecBuilder {
 /// High-level switch widget function using WidgetContext.
 ///
 /// This function accepts a SwitchSpecBuilder and calls the low-level raw::switch function.
-pub fn switch<T: TextSystem, S: LayoutState, CF>(
+pub fn switch<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,
     layout_params: S::Params,
@@ -304,7 +304,7 @@ pub fn switch<T: TextSystem, S: LayoutState, CF>(
 /// This draws a switch along with a label by its side. Clicking the label
 /// behaves identically to clicking the switch, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
-pub fn labelled_switch<T: TextSystem, S: LayoutState, CF>(
+pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,
     label_text: &str,

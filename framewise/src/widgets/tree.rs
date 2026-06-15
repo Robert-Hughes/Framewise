@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
-    text::{TextBounds, TextStyle, TextSystem},
+    text::{emit_text_in_rect, measure_text, TextBackend, TextBounds, TextStyle},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -40,7 +40,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: TextSystem>(
+    pub fn tree<'a, T: TextBackend>(
         spec: TreeSpec<'a>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -108,7 +108,8 @@ pub mod raw {
                 Some(false) => ">",
                 None => " ",
             };
-            let caret_metrics = text_system.measure(caret_sym, s.text_style, TextBounds::UNBOUNDED);
+            let caret_metrics =
+                measure_text(text_system, caret_sym, s.text_style, TextBounds::UNBOUNDED);
             let cty = y + (row_h - caret_metrics.logical_size.y) * 0.5;
             let caret_rect = Rect::new(
                 indent_x,
@@ -116,16 +117,19 @@ pub mod raw {
                 caret_metrics.logical_size.x,
                 caret_metrics.logical_size.y,
             );
-            let caret_layout = text_system.prepare(caret_sym, s.text_style, caret_rect);
-            cmds.push(DrawCmd::Text {
-                rect: caret_rect,
-                color: caret_color,
-                handle: caret_layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                caret_sym,
+                s.text_style,
+                caret_rect,
+                caret_color,
+                spec.layer.get_z(),
+            );
 
             // Label.
-            let label_metrics = text_system.measure(row.label, s.text_style, TextBounds::UNBOUNDED);
+            let label_metrics =
+                measure_text(text_system, row.label, s.text_style, TextBounds::UNBOUNDED);
             let lty = y + (row_h - label_metrics.logical_size.y) * 0.5;
             let label_rect = Rect::new(
                 indent_x + caret_w,
@@ -133,17 +137,20 @@ pub mod raw {
                 label_metrics.logical_size.x,
                 label_metrics.logical_size.y,
             );
-            let label_layout = text_system.prepare(row.label, s.text_style, label_rect);
-            cmds.push(DrawCmd::Text {
-                rect: label_rect,
-                color: text_color,
-                handle: label_layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                row.label,
+                s.text_style,
+                label_rect,
+                text_color,
+                spec.layer.get_z(),
+            );
 
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
-                let meta_metrics = text_system.measure(meta, s.text_style, TextBounds::UNBOUNDED);
+                let meta_metrics =
+                    measure_text(text_system, meta, s.text_style, TextBounds::UNBOUNDED);
                 let mx = outer.x + w - pad_x - meta_metrics.logical_size.x;
                 let mty = y + (row_h - meta_metrics.logical_size.y) * 0.5;
                 let meta_rect = Rect::new(
@@ -152,13 +159,15 @@ pub mod raw {
                     meta_metrics.logical_size.x,
                     meta_metrics.logical_size.y,
                 );
-                let meta_layout = text_system.prepare(meta, s.text_style, meta_rect);
-                cmds.push(DrawCmd::Text {
-                    rect: meta_rect,
-                    color: meta_color,
-                    handle: meta_layout.handle,
-                    z: spec.layer.get_z(),
-                });
+                emit_text_in_rect(
+                    cmds,
+                    text_system,
+                    meta,
+                    s.text_style,
+                    meta_rect,
+                    meta_color,
+                    spec.layer.get_z(),
+                );
             }
 
             y += row_h;
@@ -298,7 +307,7 @@ impl<'a> TreeSpecBuilder<'a> {
 /// High-level tree widget function using WidgetContext.
 ///
 /// This function accepts a TreeSpecBuilder and calls the low-level raw::tree function.
-pub fn tree<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TreeSpecBuilder<'a>,
     layout_params: S::Params,

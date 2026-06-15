@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -36,7 +36,7 @@ pub mod raw {
     }
 
     /// Measure a segmented control's intrinsic size from its measurement spec.
-    pub fn calc_segmented_intrinsic_size<T: TextSystem>(
+    pub fn calc_segmented_intrinsic_size<T: TextBackend>(
         spec: &SegmentedCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
@@ -45,11 +45,14 @@ pub mod raw {
             .items
             .iter()
             .map(|text| {
-                text_system
-                    .measure(text, s.text_style, crate::text::TextBounds::UNBOUNDED)
-                    .logical_size
-                    .x
-                    + s.pad_x * 2.0
+                measure_text(
+                    text_system,
+                    text,
+                    s.text_style,
+                    crate::text::TextBounds::UNBOUNDED,
+                )
+                .logical_size
+                .x + s.pad_x * 2.0
             })
             .sum();
         crate::layout::IntrinsicSize::preferred(Vec2::new(total_w, s.height))
@@ -59,7 +62,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn segmented<'a, T: TextSystem>(
+    pub fn segmented<'a, T: TextBackend>(
         spec: SegmentedSpec<'a>,
         state: &mut SegmentedState,
         input: &Input,
@@ -88,7 +91,14 @@ pub mod raw {
         let metrics: Vec<_> = spec
             .items
             .iter()
-            .map(|text| text_system.measure(text, s.text_style, crate::text::TextBounds::UNBOUNDED))
+            .map(|text| {
+                measure_text(
+                    text_system,
+                    text,
+                    s.text_style,
+                    crate::text::TextBounds::UNBOUNDED,
+                )
+            })
             .collect();
         let widths: Vec<f32> = metrics
             .iter()
@@ -205,13 +215,15 @@ pub mod raw {
             let text_color = if is_active { s.active_text } else { s.text };
             let ty = spec.rect.y + (h - metric.logical_size.y) * 0.5;
             let text_rect = Rect::new(x + pad_x, ty, metric.logical_size.x, metric.logical_size.y);
-            let layout = text_system.prepare(label, s.text_style, text_rect);
-            cmds.push(DrawCmd::Text {
-                rect: text_rect,
-                color: tint(text_color),
-                handle: layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                label,
+                s.text_style,
+                text_rect,
+                tint(text_color),
+                spec.layer.get_z(),
+            );
 
             x += w;
         }
@@ -351,7 +363,7 @@ impl<'a> SegmentedSpecBuilder<'a> {
 /// High-level segmented widget function using WidgetContext.
 ///
 /// This function accepts a SegmentedSpecBuilder and calls the low-level raw::segmented function.
-pub fn segmented<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SegmentedSpecBuilder<'a>,
     layout_params: S::Params,

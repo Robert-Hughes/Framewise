@@ -5,11 +5,11 @@ use crate::{
     layout::LayoutState,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
-    TextSystem,
+    TextBackend,
 };
 
 pub mod raw {
-    use crate::TextSystem;
+    use crate::text::{emit_text_in_rect, measure_text};
 
     use super::*;
 
@@ -33,11 +33,12 @@ pub mod raw {
     }
 
     /// Measure a label's intrinsic size from its measurement spec.
-    pub fn calc_label_intrinsic_size<T: TextSystem>(
+    pub fn calc_label_intrinsic_size<T: TextBackend>(
         spec: &LabelCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let t = text_system.measure(
+        let t = measure_text(
+            text_system,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -49,12 +50,13 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn label<T: TextSystem>(
+    pub fn label<T: TextBackend>(
         spec: LabelSpec,
         text_system: &mut T,
         cmds: &mut DrawCommands,
     ) -> LabelResult {
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds {
@@ -66,13 +68,15 @@ pub mod raw {
             .style
             .content_placement
             .resolve_rect(spec.rect, metrics);
-        let layout = text_system.prepare(spec.text, spec.style.text_style, text_rect);
-        cmds.push(DrawCmd::Text {
-            rect: text_rect,
-            color: spec.style.text_color,
-            handle: layout.handle,
-            z: 0,
-        });
+        emit_text_in_rect(
+            cmds,
+            text_system,
+            spec.text,
+            spec.style.text_style,
+            text_rect,
+            spec.style.text_color,
+            0,
+        );
 
         if spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
@@ -191,7 +195,7 @@ impl<'a> LabelSpecBuilder<'a> {
 ///
 /// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
 /// and calls the low-level raw::label function.
-pub fn label<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: LabelSpecBuilder<'a>,
     layout_params: S::Params,
@@ -224,9 +228,10 @@ mod tests {
     use crate::{
         test_utils::DummyTextSys,
         text::{CaretPosition, FontId, TextHandle},
+        text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText},
         theme,
         types::Vec2,
-        Input,
+        DrawGlyph, Input, PreparedGlyphHandle, TextSystem,
     };
 
     struct RecordingTextSys {
@@ -236,6 +241,63 @@ mod tests {
     struct PlacementTextSys {
         metrics: crate::text::TextMetrics,
         prepared_rect: Option<Rect>,
+    }
+
+    impl TextBackend for PlacementTextSys {
+        type ShapedGlyphId = u32;
+
+        fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
+            self.metrics.logical_size.y.max(1.0)
+        }
+
+        fn shape_text(
+            &mut self,
+            text: &str,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            if text.is_empty() {
+                return ShapedText {
+                    clusters: Vec::new(),
+                };
+            }
+            ShapedText {
+                clusters: vec![ShapedCluster {
+                    byte_start: 0,
+                    byte_end: text.len(),
+                    advance: self.metrics.logical_size.x,
+                    is_whitespace: false,
+                    glyphs: vec![ShapedGlyph {
+                        id: 1,
+                        x: 0.0,
+                        y: -style.size.round(),
+                        advance: self.metrics.logical_size.x,
+                    }],
+                }],
+            }
+        }
+
+        fn shape_ellipsis(
+            &mut self,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            self.shape_text(".", style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        ) -> Option<DrawGlyph> {
+            self.prepared_rect = Some(Rect::new(
+                request.glyph_origin.x,
+                request.glyph_origin.y,
+                self.metrics.logical_size.x,
+                self.metrics.logical_size.y,
+            ));
+            Some(DrawGlyph {
+                handle: PreparedGlyphHandle(request.glyph),
+                top_left: request.glyph_origin,
+            })
+        }
     }
 
     impl TextSystem for PlacementTextSys {
@@ -367,6 +429,59 @@ mod tests {
 
         fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {
             0
+        }
+    }
+
+    impl TextBackend for RecordingTextSys {
+        type ShapedGlyphId = u32;
+
+        fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
+            16.0
+        }
+
+        fn shape_text(
+            &mut self,
+            text: &str,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            self.font = Some(style.font);
+            if text.is_empty() {
+                return ShapedText {
+                    clusters: Vec::new(),
+                };
+            }
+            ShapedText {
+                clusters: vec![ShapedCluster {
+                    byte_start: 0,
+                    byte_end: text.len(),
+                    advance: 1.0,
+                    is_whitespace: false,
+                    glyphs: vec![ShapedGlyph {
+                        id: 1,
+                        x: 0.0,
+                        y: -style.size.round(),
+                        advance: 1.0,
+                    }],
+                }],
+            }
+        }
+
+        fn shape_ellipsis(
+            &mut self,
+            style: crate::text::TextStyle,
+        ) -> ShapedText<Self::ShapedGlyphId> {
+            self.shape_text(".", style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        ) -> Option<DrawGlyph> {
+            self.font = Some(request.style.font);
+            Some(DrawGlyph {
+                handle: PreparedGlyphHandle(request.glyph),
+                top_left: request.glyph_origin,
+            })
         }
     }
 

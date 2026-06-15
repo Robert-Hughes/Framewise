@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::TextSystem,
+    text::{emit_text_in_rect, measure_text, TextBackend},
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -29,11 +29,12 @@ pub mod raw {
     }
 
     /// Measure a keycap's intrinsic size from its measurement spec.
-    pub fn calc_keycap_intrinsic_size<T: TextSystem>(
+    pub fn calc_keycap_intrinsic_size<T: TextBackend>(
         spec: &KeycapCalcIntrinsicSizeSpec,
         text_system: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let metrics = text_system.measure(
+        let metrics = measure_text(
+            text_system,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -45,7 +46,7 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<T: TextSystem>(
+    pub fn keycap<T: TextBackend>(
         spec: KeycapSpec<'_>,
         text_system: &mut T,
         cmds: &mut DrawCommands,
@@ -80,7 +81,8 @@ pub mod raw {
 
         // text, centered
         if !spec.text.is_empty() {
-            let metrics = text_system.measure(
+            let metrics = measure_text(
+                text_system,
                 spec.text,
                 spec.style.text_style,
                 crate::text::TextBounds {
@@ -92,13 +94,15 @@ pub mod raw {
                 .style
                 .content_placement
                 .resolve_rect(spec.rect, metrics);
-            let layout = text_system.prepare(spec.text, spec.style.text_style, text_rect);
-            cmds.push(DrawCmd::Text {
-                rect: text_rect,
-                color: spec.style.text_color,
-                handle: layout.handle,
-                z: spec.layer.get_z(),
-            });
+            emit_text_in_rect(
+                cmds,
+                text_system,
+                spec.text,
+                spec.style.text_style,
+                text_rect,
+                spec.style.text_color,
+                spec.layer.get_z(),
+            );
         }
 
         KeycapResult {
@@ -205,7 +209,7 @@ impl<'a> KeycapSpecBuilder<'a> {
 /// High-level keycap widget function using WidgetContext.
 ///
 /// This function accepts a KeycapSpecBuilder and calls the low-level raw::keycap function.
-pub fn keycap<'a, T: TextSystem, S: LayoutState, CF>(
+pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: KeycapSpecBuilder<'a>,
     layout_params: S::Params,
