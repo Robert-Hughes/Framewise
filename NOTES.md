@@ -5,19 +5,19 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - scrollbar visibility
-  - scrollbar styling
-  - mouse scroll behaviour
-  - keyboard scroll behaviour
-  - scrollbar(s) focusable?
-  - tab focus behaviour with scrollbars
-  - correct offsets with error bar
-  - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
-  - Ctrl+Up/Down?
-  - newline policy reject - is this useful? What about trim after first newline?
-  - newline policy - how is enter rejected? Even for replace-with-space?
-  - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
-  - TESTS for all this!
+
+  - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
+    - check Antigravity conversation
+    - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
+
+  - Improve and test
+    - keyboard scroll behaviour
+    - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
+    - Ctrl+Up/Down?
+  - Consider
+    - newline policy reject - is this useful? What about trim after first newline?
+    - newline policy - how is enter rejected? Even for replace-with-space?
+    - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
 
   - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
   - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
@@ -35,10 +35,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - add to demo page?
   - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
-  - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
-    - check Antigravity conversation
-    - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
-
   - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
   - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
   - text_edit tests are very long! Many TextSystem implementations. Reduce duplication, use a common 'testing' TextSystem (upgrade of DummyTextSystem?)
@@ -48,7 +44,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
-- Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour?
+- Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
   - Done 01 and 03

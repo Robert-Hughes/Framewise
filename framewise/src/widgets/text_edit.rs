@@ -5802,6 +5802,111 @@ mod tests {
     }
 
     #[test]
+    fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("line1\nline2\nline3\nline4\nline5");
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0);
+        edit_spec.error = true;
+        edit_spec.newline_policy = NewlinePolicy::Allow;
+
+        state.scroll.offset.y = 16.0;
+
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert!(
+            cmds.iter().any(|cmd| matches!(
+                cmd,
+                DrawCmd::PushClip {
+                    rect: Rect {
+                        x: 5.0,
+                        y: 1.0,
+                        w: 189.0,
+                        h: 38.0
+                    }
+                }
+            )),
+            "content clip should account for border, error stripe, and vertical scrollbar"
+        );
+
+        assert!(
+            cmds.iter().any(|cmd| matches!(
+                cmd,
+                DrawCmd::Text {
+                    rect: Rect {
+                        x: 9.0,
+                        y: -11.0,
+                        w: 194.0,
+                        h: 80.0
+                    },
+                    ..
+                }
+            )),
+            "text origin should be offset by the error stripe and scroll amount"
+        );
+
+        assert!(
+            cmds.iter().any(|cmd| matches!(
+                cmd,
+                DrawCmd::FillRect {
+                    rect: Rect {
+                        x: 194.0,
+                        y: 1.0,
+                        w: 5.0,
+                        h: 38.0
+                    },
+                    ..
+                }
+            )),
+            "vertical scrollbar should stay tucked against the right edge"
+        );
+
+        let mut click_input = Input::default();
+        click_input.mouse_pos = Vec2::new(9.0, 37.0);
+
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &click_input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        click_input.mouse_pressed = true;
+        click_input.mouse_down = true;
+
+        focus_system.begin_frame();
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &click_input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        assert_eq!(
+            caret_byte(&state),
+            18,
+            "hit testing should use the error stripe-adjusted, scrolled text rect"
+        );
+    }
+
+    #[test]
     fn test_text_edit_visual_vertical_scrollbar() {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
