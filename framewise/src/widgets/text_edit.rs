@@ -71,10 +71,10 @@ pub mod raw {
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
         );
-        let inset = (spec.style.border_width + spec.style.padding) * 2.0;
         IntrinsicSize::preferred(Vec2::new(
-            metrics.logical_size.x + inset,
-            (metrics.logical_size.y + inset).max(spec.style.min_height),
+            metrics.logical_size.x + (spec.style.border_width + spec.style.padding_x) * 2.0,
+            (metrics.logical_size.y + (spec.style.border_width + spec.style.padding_y) * 2.0)
+                .max(spec.style.min_height),
         ))
     }
 
@@ -119,8 +119,14 @@ pub mod raw {
                     z: spec.layer.get_z(),
                 });
             }
-            let inset = spec.style.border_width + spec.style.padding;
-            let content_rect = spec.rect.inset(inset);
+            let inset_x = spec.style.border_width + spec.style.padding_x;
+            let inset_y = spec.style.border_width + spec.style.padding_y;
+            let content_rect = Rect::new(
+                spec.rect.x + inset_x,
+                spec.rect.y + inset_y,
+                (spec.rect.w - inset_x * 2.0).max(0.0),
+                (spec.rect.h - inset_y * 2.0).max(0.0),
+            );
             let disabled_text = if state.value.is_empty() {
                 spec.placeholder.as_deref()
             } else {
@@ -722,9 +728,9 @@ pub mod raw {
         // Prepare text after content bounds are known so hit testing and caret
         // geometry use the same logical text block that will be drawn.
         let inner_scroll_size = Vec2::new(
-            metrics.logical_size.x + 2.0 * spec.style.padding,
-            metrics.logical_size.y + 2.0 * spec.style.padding,
-        ); // Include padding on either side of text
+            metrics.logical_size.x + 2.0 * spec.style.padding_x,
+            metrics.logical_size.y + 2.0 * spec.style.padding_y,
+        ); // Include padding on either side of text.
 
         let scroll_spec = raw::ScrollAreaSpec {
             rect: scroll_outer_rect,
@@ -767,21 +773,21 @@ pub mod raw {
         let scroll_result =
             raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
 
-        let text_x = scroll_outer_rect.x + spec.style.padding - scroll_result.offset.x;
-        let text_y = if metrics.logical_size.y + 2.0 * spec.style.padding <= scroll_outer_rect.h {
+        let text_x = scroll_outer_rect.x + spec.style.padding_x - scroll_result.offset.x;
+        let text_y = if metrics.logical_size.y + 2.0 * spec.style.padding_y <= scroll_outer_rect.h {
             match spec.vertical_align {
-                Align::Start => scroll_outer_rect.y + spec.style.padding,
+                Align::Start => scroll_outer_rect.y + spec.style.padding_y,
                 Align::Center => {
                     scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0
                 }
                 Align::End => {
                     scroll_outer_rect.y + scroll_outer_rect.h
-                        - spec.style.padding
+                        - spec.style.padding_y
                         - metrics.logical_size.y
                 }
             }
         } else {
-            scroll_outer_rect.y + spec.style.padding - scroll_result.offset.y
+            scroll_outer_rect.y + spec.style.padding_y - scroll_result.offset.y
         };
         let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
         let layout = text_system.prepare(text_content, text_style, text_rect);
@@ -1156,7 +1162,7 @@ pub mod raw {
         }
 
         let max_width = if spec.wrap {
-            Some((scroll_outer_rect.w - 2.0 * spec.style.padding).max(0.0))
+            Some((scroll_outer_rect.w - 2.0 * spec.style.padding_x).max(0.0))
         } else {
             None
         };
@@ -1176,10 +1182,10 @@ pub mod raw {
             // If the wrapped height exceeds the viewport height, a vertical scrollbar
             // will be shown. The vertical scrollbar steals width (5.0px in our scroll spec),
             // so we re-measure the text with a narrower width.
-            let content_h = metrics.logical_size.y + 2.0 * spec.style.padding;
+            let content_h = metrics.logical_size.y + 2.0 * spec.style.padding_y;
             if content_h > scroll_outer_rect.h {
                 let max_width_narrow =
-                    Some(((scroll_outer_rect.w - 2.0 * spec.style.padding) - 5.0).max(0.0));
+                    Some(((scroll_outer_rect.w - 2.0 * spec.style.padding_x) - 5.0).max(0.0));
                 final_max_width = max_width_narrow;
                 metrics = text_system.measure(
                     text_content,
@@ -1216,7 +1222,8 @@ pub struct TextEditStyle {
     pub error_border: Color,
     pub error_stripe_width: f32,
     pub min_height: f32,
-    pub padding: f32,
+    pub padding_x: f32,
+    pub padding_y: f32,
     pub font: FontId,
     pub size: f32,
     pub weight: u16,
@@ -1244,7 +1251,8 @@ impl TextEditStyle {
             border_width: theme.border,
             focus_width: theme.focus_width,
             min_height: theme.h_md,
-            padding: 4.0,
+            padding_x: 4.0,
+            padding_y: 4.0,
             font: theme.mono_font,
             size: theme.text_mono,
             weight: theme.sans_weight_regular,
@@ -2511,7 +2519,7 @@ mod tests {
 
         let mut input = Input::default();
         input.mouse_pos = crate::types::Vec2::new(
-            40.0 + spec().style.padding + spec().style.border_width,
+            40.0 + spec().style.padding_x + spec().style.border_width,
             15.0,
         );
 
@@ -2586,7 +2594,7 @@ mod tests {
         let mut input = Input::default();
         // Click on "rust" (byte index 8 -> pixel 64)
         input.mouse_pos = crate::types::Vec2::new(
-            64.0 + spec().style.padding + spec().style.border_width,
+            64.0 + spec().style.padding_x + spec().style.border_width,
             15.0,
         );
 
@@ -2624,7 +2632,7 @@ mod tests {
 
         // Frame 3: Drag right to "world" (byte index 14 -> pixel 112)
         input.mouse_pressed = false;
-        input.mouse_pos.x = 112.0 + spec().style.padding + spec().style.border_width;
+        input.mouse_pos.x = 112.0 + spec().style.padding_x + spec().style.border_width;
         focus_system.begin_frame();
         raw::text_edit(
             spec(),
@@ -2640,7 +2648,7 @@ mod tests {
         assert_eq!(caret_byte(&state), 16); // end of "world"
 
         // Frame 4: Drag left to "hello" (byte index 2 -> pixel 16)
-        input.mouse_pos.x = 16.0 + spec().style.padding + spec().style.border_width;
+        input.mouse_pos.x = 16.0 + spec().style.padding_x + spec().style.border_width;
         focus_system.begin_frame();
         raw::text_edit(
             spec(),
@@ -2664,7 +2672,7 @@ mod tests {
         let mut run_double_click = |x_within_text: f32| -> (Option<usize>, usize) {
             let mut state = TextEditState::new("a b");
             let mut input = Input::default();
-            let x_offset = spec().style.padding + spec().style.border_width;
+            let x_offset = spec().style.padding_x + spec().style.border_width;
             input.mouse_pos = crate::types::Vec2::new(x_within_text + x_offset, 8.0);
 
             // Frame 1: Hover
@@ -2726,7 +2734,7 @@ mod tests {
             let mut state = TextEditState::new(text);
             let mut input = Input::default();
             // Click way past the end of the line (e.g. x = 100.0)
-            let x_offset = spec().style.padding + spec().style.border_width;
+            let x_offset = spec().style.padding_x + spec().style.border_width;
             input.mouse_pos = crate::types::Vec2::new(100.0 + x_offset, y_pos);
 
             let edit_spec = TextEditSpec {
@@ -3139,7 +3147,7 @@ mod tests {
 
         let mut input = Input {
             mouse_pos: crate::types::Vec2::new(
-                40.0 + spec().style.padding + spec().style.border_width,
+                40.0 + spec().style.padding_x + spec().style.border_width,
                 15.0,
             ),
             ..Input::default()
@@ -3258,7 +3266,7 @@ mod tests {
 
         let mut input = Input::default();
         input.mouse_pos = crate::types::Vec2::new(
-            40.0 + spec().style.padding + spec().style.border_width,
+            40.0 + spec().style.padding_x + spec().style.border_width,
             15.0,
         );
 
@@ -3965,7 +3973,7 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
         input.mouse_pos = Vec2::new(
-            136.0 + spec().style.padding + spec().style.border_width - 120.0,
+            136.0 + spec().style.padding_x + spec().style.border_width - 120.0,
             15.0,
         );
         focus_system.begin_frame();
@@ -3989,7 +3997,7 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
         input.mouse_pos = Vec2::new(
-            256.0 + spec().style.padding + spec().style.border_width - 120.0,
+            256.0 + spec().style.padding_x + spec().style.border_width - 120.0,
             15.0,
         );
         focus_system.begin_frame();
@@ -5519,7 +5527,8 @@ mod tests {
         let mut spec_error = spec();
         spec_error.rect = Rect::new(0.0, 0.0, 52.0, 100.0); // 50px width content boundary + 2px borders
         spec_error.style.border_width = 1.0;
-        spec_error.style.padding = 0.0;
+        spec_error.style.padding_x = 0.0;
+        spec_error.style.padding_y = 0.0;
         spec_error.wrap = true;
         spec_error.error = true;
         spec_error.style.error_stripe_width = 4.0;
@@ -5720,7 +5729,8 @@ mod tests {
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
         edit_spec.wrap = true;
         edit_spec.style.border_width = 1.0;
-        edit_spec.style.padding = 4.0;
+        edit_spec.style.padding_x = 4.0;
+        edit_spec.style.padding_y = 4.0;
 
         // scroll_outer_rect: x=1.0, y=1.0, w=98.0, h=28.0.
         // available text width without scrollbar = 98.0 - 2 * 4.0 = 90.0.
