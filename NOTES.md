@@ -7,20 +7,18 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Text Edit
 
   - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
-    - check Antigravity conversation
-    - probably we want this to move the caret though, not the scroll position (though that will update automatically). For single line it can go to to the start/end still (shouldn't need special case)
+    - check that it swallows the keys when embedded inside a scroll area
+
+  - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
+  - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
 
   - Improve and test
-    - keyboard scroll behaviour
     - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
     - Ctrl+Up/Down?
   - Consider
     - newline policy reject - is this useful? What about trim after first newline?
     - newline policy - how is enter rejected? Even for replace-with-space?
     - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
-
-  - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
-  - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
 
   - Copy/paste integration with the system (apparently not working!)
   - caret cursor

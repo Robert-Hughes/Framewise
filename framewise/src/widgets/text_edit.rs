@@ -60,6 +60,111 @@ pub mod raw {
             .unwrap_or(0)
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum VerticalCaretDirection {
+        Up,
+        Down,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    struct VerticalCaretMove {
+        caret: CaretPosition,
+        byte: usize,
+        needs_layout_sync: bool,
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn move_caret_vertical<T: TextSystem>(
+        text_content: &str,
+        spec: &TextEditSpec,
+        text_style: TextStyle,
+        text_system: &mut T,
+        caret: CaretPosition,
+        caret_byte: usize,
+        caret_is_current: bool,
+        start_byte: usize,
+        direction: VerticalCaretDirection,
+        line_count: usize,
+    ) -> VerticalCaretMove {
+        let (_, layout_width, layout_height, _) =
+            edit_layout_size(text_content, spec, text_style, text_system);
+        let layout = text_system.prepare(
+            text_content,
+            text_style,
+            Rect::new(0.0, 0.0, layout_width, layout_height),
+        );
+        let handle = layout.handle;
+        let metrics = layout.metrics;
+
+        let visual_position = if caret_is_current && start_byte == caret_byte {
+            caret
+        } else {
+            text_system.caret_position_at_insertion_byte(handle, start_byte)
+        };
+        let caret_geom = text_system.caret_geom(handle, visual_position);
+        let current_line_idx = metrics
+            .lines
+            .iter()
+            .rposition(|line| start_byte >= line.byte_start)
+            .unwrap_or(0);
+
+        let line_len = metrics.lines.len();
+        let (target_line_idx, target_clamped) = match direction {
+            VerticalCaretDirection::Up => (
+                current_line_idx.saturating_sub(line_count),
+                line_count > current_line_idx,
+            ),
+            VerticalCaretDirection::Down => (
+                (current_line_idx + line_count).min(line_len.saturating_sub(1)),
+                current_line_idx + line_count >= line_len,
+            ),
+        };
+
+        if target_clamped {
+            let byte = match direction {
+                VerticalCaretDirection::Up => 0,
+                VerticalCaretDirection::Down => text_content.len(),
+            };
+            return VerticalCaretMove {
+                caret,
+                byte,
+                needs_layout_sync: true,
+            };
+        }
+
+        let target_line = &metrics.lines[target_line_idx];
+        let pos = Vec2::new(caret_geom.x, target_line.y_top + target_line.height * 0.5);
+        let new_caret = text_system.hit_test_caret(handle, pos);
+        let byte = text_system
+            .caret_insertion_byte(handle, new_caret)
+            .min(text_content.len());
+        VerticalCaretMove {
+            caret: new_caret,
+            byte,
+            needs_layout_sync: false,
+        }
+    }
+
+    fn page_line_count<T: TextSystem>(
+        text_content: &str,
+        spec: &TextEditSpec,
+        text_style: TextStyle,
+        text_system: &mut T,
+        caret_byte: usize,
+        scroll_outer_height: f32,
+    ) -> usize {
+        let (_, layout_width, layout_height, _) =
+            edit_layout_size(text_content, spec, text_style, text_system);
+        let layout = text_system.prepare(
+            text_content,
+            text_style,
+            Rect::new(0.0, 0.0, layout_width, layout_height),
+        );
+        let caret = text_system.caret_position_at_insertion_byte(layout.handle, caret_byte);
+        let line_height = text_system.caret_geom(layout.handle, caret).height.max(1.0);
+        (scroll_outer_height / line_height).floor().max(1.0) as usize
+    }
+
     /// Measure a text edit's intrinsic size from its current state and measurement spec.
     pub fn calc_text_edit_intrinsic_size<T: TextSystem>(
         spec: &TextEditCalcIntrinsicSizeSpec,
@@ -374,47 +479,21 @@ pub mod raw {
                             caret_byte
                         };
 
-                        let text_content = state.value.as_str();
-                        let (_, layout_width, layout_height, _) =
-                            edit_layout_size(text_content, &spec, text_style, text_system);
-                        let layout = text_system.prepare(
-                            text_content,
+                        let moved = move_caret_vertical(
+                            state.value.as_str(),
+                            &spec,
                             text_style,
-                            Rect::new(0.0, 0.0, layout_width, layout_height),
+                            text_system,
+                            caret,
+                            caret_byte,
+                            !caret_needs_layout_sync,
+                            start_byte,
+                            VerticalCaretDirection::Up,
+                            1,
                         );
-                        let handle = layout.handle;
-                        let metrics = layout.metrics;
-
-                        let visual_position = if start_byte == caret_byte {
-                            caret
-                        } else {
-                            text_system.caret_position_at_insertion_byte(handle, start_byte)
-                        };
-                        let caret_geom = text_system.caret_geom(handle, visual_position);
-                        let current_line_idx = metrics
-                            .lines
-                            .iter()
-                            .rposition(|line| start_byte >= line.byte_start)
-                            .unwrap_or(0);
-
-                        if current_line_idx > 0 {
-                            let target_line_idx = current_line_idx - 1;
-                            let target_line = &metrics.lines[target_line_idx];
-                            let pos = Vec2::new(
-                                caret_geom.x,
-                                target_line.y_top + target_line.height * 0.5,
-                            );
-                            let new_caret = text_system.hit_test_caret(handle, pos);
-                            caret_byte = text_system
-                                .caret_insertion_byte(handle, new_caret)
-                                .min(state.value.len());
-                            caret = new_caret;
-                            caret_needs_layout_sync = false;
-                        } else {
-                            // Already on first visual line, move to start of text
-                            caret_byte = 0;
-                            caret_needs_layout_sync = true;
-                        }
+                        caret = moved.caret;
+                        caret_byte = moved.byte;
+                        caret_needs_layout_sync = moved.needs_layout_sync;
                     }
                     TextEvent::CaretDown { shift } => {
                         let sel_byte = selection_byte;
@@ -434,47 +513,21 @@ pub mod raw {
                             caret_byte
                         };
 
-                        let text_content = state.value.as_str();
-                        let (_, layout_width, layout_height, _) =
-                            edit_layout_size(text_content, &spec, text_style, text_system);
-                        let layout = text_system.prepare(
-                            text_content,
+                        let moved = move_caret_vertical(
+                            state.value.as_str(),
+                            &spec,
                             text_style,
-                            Rect::new(0.0, 0.0, layout_width, layout_height),
+                            text_system,
+                            caret,
+                            caret_byte,
+                            !caret_needs_layout_sync,
+                            start_byte,
+                            VerticalCaretDirection::Down,
+                            1,
                         );
-                        let handle = layout.handle;
-                        let metrics = layout.metrics;
-
-                        let visual_position = if start_byte == caret_byte {
-                            caret
-                        } else {
-                            text_system.caret_position_at_insertion_byte(handle, start_byte)
-                        };
-                        let caret_geom = text_system.caret_geom(handle, visual_position);
-                        let current_line_idx = metrics
-                            .lines
-                            .iter()
-                            .rposition(|line| start_byte >= line.byte_start)
-                            .unwrap_or(0);
-
-                        if current_line_idx + 1 < metrics.lines.len() {
-                            let target_line_idx = current_line_idx + 1;
-                            let target_line = &metrics.lines[target_line_idx];
-                            let pos = Vec2::new(
-                                caret_geom.x,
-                                target_line.y_top + target_line.height * 0.5,
-                            );
-                            let new_caret = text_system.hit_test_caret(handle, pos);
-                            caret_byte = text_system
-                                .caret_insertion_byte(handle, new_caret)
-                                .min(state.value.len());
-                            caret = new_caret;
-                            caret_needs_layout_sync = false;
-                        } else {
-                            // Already on last visual line, move to end of text
-                            caret_byte = state.value.len();
-                            caret_needs_layout_sync = true;
-                        }
+                        caret = moved.caret;
+                        caret_byte = moved.byte;
+                        caret_needs_layout_sync = moved.needs_layout_sync;
                     }
                     TextEvent::CaretHome { shift, ctrl } => {
                         if *shift && selection_byte.is_none() {
@@ -644,6 +697,60 @@ pub mod raw {
                 state.value.insert(caret_byte, '\n');
                 caret_byte += 1;
                 caret_needs_layout_sync = true;
+            }
+
+            if input.key_pressed_page_up || input.key_pressed_page_down {
+                let direction = if input.key_pressed_page_down {
+                    VerticalCaretDirection::Down
+                } else {
+                    VerticalCaretDirection::Up
+                };
+                let sel_byte = selection_byte;
+                let has_selection = sel_byte.is_some() && sel_byte != Some(caret_byte);
+                let shift = input.modifier_shift;
+
+                if shift {
+                    if selection_byte.is_none() {
+                        selection_byte = Some(caret_byte);
+                    }
+                } else {
+                    selection_byte = None;
+                }
+
+                let start_byte = if has_selection && !shift {
+                    match direction {
+                        VerticalCaretDirection::Up => caret_byte.min(sel_byte.unwrap()),
+                        VerticalCaretDirection::Down => caret_byte.max(sel_byte.unwrap()),
+                    }
+                } else {
+                    caret_byte
+                };
+
+                let (_, _, _, scroll_outer_rect) =
+                    edit_layout_size(state.value.as_str(), &spec, text_style, text_system);
+                let line_count = page_line_count(
+                    state.value.as_str(),
+                    &spec,
+                    text_style,
+                    text_system,
+                    start_byte,
+                    scroll_outer_rect.h,
+                );
+                let moved = move_caret_vertical(
+                    state.value.as_str(),
+                    &spec,
+                    text_style,
+                    text_system,
+                    caret,
+                    start_byte,
+                    !caret_needs_layout_sync && start_byte == caret_byte,
+                    start_byte,
+                    direction,
+                    line_count,
+                );
+                caret = moved.caret;
+                caret_byte = moved.byte;
+                caret_needs_layout_sync = moved.needs_layout_sync;
             }
         }
 
@@ -5043,6 +5150,190 @@ mod tests {
         );
         assert_eq!(selection_byte(&state), Some(2));
         assert_eq!(caret_byte(&state), 8);
+    }
+
+    #[test]
+    fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        let mut edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+        // 1px border on each side leaves a 48px scroll outer height.
+        // DummyTextSys lines are 16px tall, so PgUp/PgDown moves three lines.
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 50.0);
+
+        let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
+        let mut input = Input::default();
+        focus_system.begin_frame();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        set_caret_byte(&mut state, 2);
+        set_selection_byte(&mut state, None);
+        input.key_pressed_page_down = true;
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), 20);
+        assert_eq!(selection_byte(&state), None);
+
+        input.key_pressed_page_down = false;
+        input.key_pressed_page_up = true;
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), 2);
+
+        set_caret_byte(&mut state, 29);
+        input.key_pressed_page_up = false;
+        input.key_pressed_page_down = true;
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), state.value.len());
+
+        set_caret_byte(&mut state, 9);
+        input.key_pressed_page_down = false;
+        input.key_pressed_page_up = true;
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), 0);
+    }
+
+    #[test]
+    fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        let mut edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 50.0);
+
+        let mut state = TextEditState::new("000000\n1\n222222\n333\n444444\n5");
+        let mut input = Input::default();
+        focus_system.begin_frame();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        // Line 0 column 5 pages down to line 3. Line 3 has only three
+        // characters, so the closest valid x-position is its end.
+        set_caret_byte(&mut state, 5);
+        set_selection_byte(&mut state, None);
+        input.key_pressed_page_down = true;
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), 19);
+
+        // Line 4 column 5 pages up to line 1. Line 1 has one character, so
+        // preserving x clamps to that line's end.
+        set_caret_byte(&mut state, 25);
+        input.key_pressed_page_down = false;
+        input.key_pressed_page_up = true;
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+        assert_eq!(caret_byte(&state), 8);
+    }
+
+    #[test]
+    fn test_shift_page_down_extends_selection() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        let mut edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 50.0);
+
+        let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
+        let mut input = Input::default();
+        focus_system.begin_frame();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        set_caret_byte(&mut state, 2);
+        set_selection_byte(&mut state, None);
+        input.key_pressed_page_down = true;
+        input.modifier_shift = true;
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert_eq!(selection_byte(&state), Some(2));
+        assert_eq!(caret_byte(&state), 20);
     }
 
     // ── Home / End navigation ───────────────────────────────────────────────────
