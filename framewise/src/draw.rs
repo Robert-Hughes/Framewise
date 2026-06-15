@@ -147,7 +147,7 @@ impl DrawCommands {
         index
     }
 
-    pub fn push_glyph_run<I>(&mut self, glyphs: I, color: Color, z: u32) -> usize
+    pub fn push_glyph_run<I>(&mut self, glyphs: I, color: Color, z: u32) -> Option<usize>
     where
         I: IntoIterator<Item = DrawGlyph>,
     {
@@ -162,26 +162,9 @@ impl DrawCommands {
                 color,
                 z,
             });
-        }
-
-        index
-    }
-
-    /// Append plain draw commands without glyph arena rebasing.
-    ///
-    /// This is only valid for non-`GlyphRun` commands. Use [`append`](Self::append)
-    /// to merge another `DrawCommands` value that may contain glyph runs.
-    pub fn extend(&mut self, other: impl IntoIterator<Item = DrawCmd>) {
-        let other = other.into_iter();
-        let (lower, _) = other.size_hint();
-        self.cmds.reserve(lower);
-
-        for cmd in other {
-            debug_assert!(
-                !matches!(cmd, DrawCmd::GlyphRun { .. }),
-                "DrawCmd::GlyphRun must be added with push_glyph_run or append"
-            );
-            self.cmds.push(cmd);
+            Some(index)
+        } else {
+            None
         }
     }
 
@@ -233,14 +216,6 @@ impl std::ops::Deref for DrawCommands {
     }
 }
 
-impl IntoIterator for DrawCommands {
-    type Item = DrawCmd;
-    type IntoIter = std::vec::IntoIter<DrawCmd>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.cmds.into_iter()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,7 +237,7 @@ mod tests {
 
         let index = cmds.push_glyph_run([glyph(10, 1.0), glyph(11, 9.0)], color(), 7);
 
-        assert_eq!(index, 0);
+        assert_eq!(index, Some(0));
         assert_eq!(cmds.glyphs(), &[glyph(10, 1.0), glyph(11, 9.0)]);
         assert_eq!(
             cmds.commands(),
@@ -317,7 +292,7 @@ mod tests {
             rect: Rect::new(1.0, 2.0, 3.0, 4.0),
         });
 
-        assert_eq!((first, second, third), (0, 1, 2));
+        assert_eq!((first, second, third), (0, Some(1), 2));
         assert!(matches!(cmds.get_mut(first), Some(DrawCmd::PopClip)));
     }
 
@@ -327,7 +302,7 @@ mod tests {
 
         let index = cmds.push_glyph_run([], color(), 1);
 
-        assert_eq!(index, 0);
+        assert_eq!(index, None);
         assert!(cmds.commands().is_empty());
         assert!(cmds.glyphs().is_empty());
     }

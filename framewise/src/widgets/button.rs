@@ -1064,8 +1064,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1079,11 +1079,27 @@ mod tests {
                     width: border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(48.0, 17.0, 24.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..3,
                     color: text_color,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 48.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 56.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 64.0, y: 30.0 },
                 },
             ]
         );
@@ -1133,8 +1149,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1148,11 +1164,27 @@ mod tests {
                     width: border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(48.0, 17.0, 24.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..3,
                     color: text_color,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 48.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 56.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 64.0, y: 30.0 },
                 },
             ]
         );
@@ -1204,8 +1236,8 @@ mod tests {
         } = ButtonStyle::primary_from_theme(&theme::Theme::default());
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1219,11 +1251,27 @@ mod tests {
                     width: border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(48.0, 17.0, 24.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..3,
                     color: text_color,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 48.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 56.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 64.0, y: 30.0 },
                 },
             ]
         );
@@ -1266,8 +1314,8 @@ mod tests {
             Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(focus_offset + focus_width));
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::StrokeRect {
                     anti_alias: false,
                     rect: expected_focus_rect,
@@ -1288,11 +1336,27 @@ mod tests {
                     width: border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(48.0, 17.0, 24.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..3,
                     color: text_color,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 48.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 56.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 64.0, y: 30.0 },
                 },
             ]
         );
@@ -1332,8 +1396,8 @@ mod tests {
         let border_width = primary_style.border_width;
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -1347,11 +1411,27 @@ mod tests {
                     width: border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(48.0, 17.0, 24.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..3,
                     color: expected_text,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 48.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 56.0, y: 30.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 64.0, y: 30.0 },
                 },
             ]
         );

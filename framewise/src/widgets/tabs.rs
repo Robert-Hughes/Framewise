@@ -380,6 +380,7 @@ mod tests {
     use super::raw::TabsSpec;
     use super::*;
     use crate::test_utils::DummyTextSys;
+    use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn make_spec<'a>(items: &'a [&'a str]) -> TabsSpec<'a> {
         TabsSpec {
@@ -417,8 +418,8 @@ mod tests {
         let (cmds, _res) = tabs_dummy(spec, 0);
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::StrokeLine {
                     anti_alias: false,
                     p0: Vec2::new(0.0, 36.0),
@@ -427,10 +428,9 @@ mod tests {
                     width: style.border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(18.0, 10.0, 32.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..4,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -451,13 +451,49 @@ mod tests {
                     color: style.accent,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(86.0, 10.0, 32.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 4..8,
                     color: style.inactive_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 18.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(97),
+                    top_left: Vec2 { x: 26.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(98),
+                    top_left: Vec2 { x: 34.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(49),
+                    top_left: Vec2 { x: 42.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 86.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(97),
+                    top_left: Vec2 { x: 94.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(98),
+                    top_left: Vec2 { x: 102.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(50),
+                    top_left: Vec2 { x: 110.0, y: 23.0 }
+                }
+            ]
         );
     }
 
@@ -486,8 +522,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::StrokeLine {
                     anti_alias: false,
                     p0: Vec2::new(0.0, 36.0),
@@ -496,10 +532,9 @@ mod tests {
                     width: style.border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(18.0, 10.0, 32.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..4,
                     color: style.inactive_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::StrokeRect {
@@ -509,10 +544,9 @@ mod tests {
                     width: style.focus_width,
                     z: 1,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(86.0, 10.0, 32.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 4..8,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -533,7 +567,44 @@ mod tests {
                     color: style.accent,
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 18.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(97),
+                    top_left: Vec2 { x: 26.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(98),
+                    top_left: Vec2 { x: 34.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(49),
+                    top_left: Vec2 { x: 42.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 86.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(97),
+                    top_left: Vec2 { x: 94.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(98),
+                    top_left: Vec2 { x: 102.0, y: 23.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(50),
+                    top_left: Vec2 { x: 110.0, y: 23.0 }
+                }
+            ]
         );
     }
 

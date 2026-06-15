@@ -244,7 +244,8 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::StatusSpec;
     use super::*;
-    use crate::{focus::FocusSystem, test_utils::DummyTextSys};
+    use crate::types::Vec2;
+    use crate::{focus::FocusSystem, test_utils::DummyTextSys, DrawGlyph, PreparedGlyphHandle};
 
     #[test]
     fn test_status_visual_ok() {
@@ -261,21 +262,49 @@ mod tests {
         raw::status(spec, &mut text_system, &mut cmds);
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.ok,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(14.0, -5.0, 48.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..6,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(79),
+                    top_left: Vec2 { x: 14.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 22.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 30.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 38.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 46.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(101),
+                    top_left: Vec2 { x: 54.0, y: 6.0 },
+                },
+            ]
         );
     }
 
@@ -294,21 +323,53 @@ mod tests {
         raw::status(spec, &mut text_system, &mut cmds);
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                     color: style.warn,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(14.0, -5.0, 56.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..7,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(87),
+                    top_left: Vec2 { x: 14.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(97),
+                    top_left: Vec2 { x: 22.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(114),
+                    top_left: Vec2 { x: 30.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 38.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 46.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 54.0, y: 6.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(103),
+                    top_left: Vec2 { x: 62.0, y: 6.0 },
+                },
+            ]
         );
     }
 

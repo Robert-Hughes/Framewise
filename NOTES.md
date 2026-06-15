@@ -6,6 +6,48 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - D:\Temp\Framewise text refactor.txt
 - Check code against the design - is it implemented completely, correctly, without omission and without unwanted additions? Is it well tested? Are there any leftovers of the old design?
+
+  4. TextMetrics::ink_bounds docs are now wrong
+
+    The current docs still say ink_bounds are “tight visual bounds of the ink”.
+
+    But the new Framewise layout currently sets ink_width = logical_line_w, ink_x = align_off, and ink_bounds to either Rect::ZERO or the logical block rectangle.
+
+    That is fine for now, but the docs must say it is approximate/conservative layout-space ink, not exact raster ink. This was one of the points we explicitly agreed on.
+
+  6. text.rs has become the giant file we expected
+
+    The new layout implementation is already large and still coexists with the legacy TextSystem contract and docs. The old docs still describe Framewise as not inspecting glyphs and TextSystem as owning shaping/layout decisions, which is now the opposite of the new direction.
+
+    I’d do the framewise/src/text/ split soon, before Phase 6. Waiting until after the full migration will make the file harder to untangle.
+
+    label currently calls measure_text to resolve placement, then calls emit_text_in_rect, which internally lays out again.
+
+  - I’d rewrite that pattern as:
+
+    let layout = layout_text(...);
+    let text_rect = placement.resolve_rect(spec.rect, layout.metrics().clone());
+    layout.emit_glyphs(cmds, text_system, text_rect.origin(), style, color, z);
+
+    Same idea in text_edit: edit_layout_size measures, then the main draw path later creates a fresh layout_text_in_rect. That is probably acceptable temporarily, but the final shape should try to compute the final layout once and reuse it for drawing, hit-testing, selection, and caret geometry.
+
+  - Possible correctness issue: baseline offset
+
+    The new layout code uses:
+
+    let baseline_offset = style.size.round();
+
+    The old sample layout used font ascent from font metrics and rounded that ascent.
+
+    That difference may visibly shift text vertically, especially across fonts. I think TextBackend probably needs to expose a small line metrics object, not just line_height:
+
+    pub struct TextLineMetrics {
+        pub line_height: f32,
+        pub baseline_offset: f32,
+    }
+
+    Then Framewise owns line layout, but the backend still supplies font-derived baseline placement.
+
 - perf 40fps on text edit demo page
 
 - Text Edit

@@ -237,7 +237,7 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::KeycapSpec;
     use super::*;
-    use crate::{focus::FocusSystem, test_utils::DummyTextSys, text::FontId};
+    use crate::{DrawGlyph, PreparedGlyphHandle, Vec2, focus::FocusSystem, test_utils::DummyTextSys, text::FontId};
 
     #[test]
     fn test_keycap_visual() {
@@ -275,8 +275,8 @@ mod tests {
             Rect::new(0.0, 0.0, 30.0, 30.0).inset(1.0)
         );
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 30.0, 30.0),
@@ -296,13 +296,19 @@ mod tests {
                     color: custom_shadow,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(11.0, 7.0, 8.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..1,
                     color: custom_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![DrawGlyph {
+                handle: PreparedGlyphHandle(75),
+                top_left: Vec2 { x: 11.0, y: 21.0 }
+            }]
         );
     }
 

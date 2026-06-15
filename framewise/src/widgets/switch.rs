@@ -1369,7 +1369,7 @@ mod tests {
 
         // Find the text draw command to check its color.
         let text_cmd = cmds.iter().find_map(|cmd| {
-            if let DrawCmd::Text { color, .. } = cmd {
+            if let DrawCmd::GlyphRun { color, .. } = cmd {
                 Some(*color)
             } else {
                 None

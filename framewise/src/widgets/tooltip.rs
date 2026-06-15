@@ -283,7 +283,7 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::TooltipSpec;
     use super::*;
-    use crate::{focus::FocusSystem, test_utils::DummyTextSys};
+    use crate::{focus::FocusSystem, test_utils::DummyTextSys, DrawGlyph, PreparedGlyphHandle};
 
     #[test]
     fn test_tooltip_visual_dark() {
@@ -301,18 +301,17 @@ mod tests {
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.dark_bg,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(8.0, 5.0, 56.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..7,
                     color: style.dark_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
@@ -331,7 +330,40 @@ mod tests {
                     width: style.arrow_width,
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 8.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 16.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 24.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 32.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 40.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 48.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(112),
+                    top_left: Vec2 { x: 56.0, y: 16.0 }
+                }
+            ]
         );
     }
 
@@ -351,18 +383,17 @@ mod tests {
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                     color: style.rust_bg,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(8.0, 5.0, 56.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..7,
                     color: style.rust_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
@@ -381,7 +412,40 @@ mod tests {
                     width: style.arrow_width,
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(84),
+                    top_left: Vec2 { x: 8.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 16.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 24.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 32.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 40.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 48.0, y: 16.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(112),
+                    top_left: Vec2 { x: 56.0, y: 16.0 }
+                }
+            ]
         );
     }
 

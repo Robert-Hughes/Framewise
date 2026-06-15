@@ -1484,60 +1484,58 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
     // simulate square cap endings.
     let ext = 5.0_f32;
 
-    cmds.extend(vec![
-        // left bracket
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
-            color: t.ink,
-            width: lw,
-            z: 0,
-        },
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
-            p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
-            color: t.ink,
-            width: lw,
-            z: 0,
-        },
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
-            p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
-            color: t.ink,
-            width: lw,
-            z: 0,
-        },
-        // top horizontal
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
-            p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
-            color: t.ink,
-            width: lw,
-            z: 0,
-        },
-        // middle horizontal (rust)
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
-            p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
-            color: t.rust,
-            width: lw,
-            z: 0,
-        },
-        // vertical
-        DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
-            p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
-            color: t.ink,
-            width: lw,
-            z: 0,
-        },
-    ]);
+    // left bracket
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
+        p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
+        color: t.ink,
+        width: lw,
+        z: 0,
+    });
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
+        p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
+        color: t.ink,
+        width: lw,
+        z: 0,
+    });
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
+        p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
+        color: t.ink,
+        width: lw,
+        z: 0,
+    });
+    // top horizontal
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
+        p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
+        color: t.ink,
+        width: lw,
+        z: 0,
+    });
+    // middle horizontal (rust)
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
+        p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
+        color: t.rust,
+        width: lw,
+        z: 0,
+    });
+    // vertical
+    cmds.push(DrawCmd::StrokeLine {
+        anti_alias: false,
+        p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
+        p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
+        color: t.ink,
+        width: lw,
+        z: 0,
+    });
 
     cmds
 }

@@ -510,13 +510,37 @@ mod tests {
 
         assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 50.0));
         assert_eq!(
-            &cmds[..],
-            &[DrawCmd::Text {
-                rect: Rect::new(0.0, 0.0, 40.0, 16.0),
+            cmds.commands(),
+            vec![DrawCmd::GlyphRun {
+                glyphs: 0..5,
                 color: Color::WHITE,
-                handle: TextHandle(0),
                 z: 0,
             }]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(72),
+                    top_left: Vec2 { x: 0.0, y: 16.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(101),
+                    top_left: Vec2 { x: 8.0, y: 16.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 16.0, y: 16.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 24.0, y: 16.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 32.0, y: 16.0 },
+                },
+            ]
         );
     }
 
@@ -544,12 +568,11 @@ mod tests {
         let res = raw::label(spec, &mut sys, &mut cmds);
         assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
         assert_eq!(
-            &cmds[..],
-            &[
-                DrawCmd::Text {
-                    rect: Rect::new(0.0, 0.0, 56.0, 16.0),
+            cmds.commands(),
+            vec![
+                DrawCmd::GlyphRun {
+                    glyphs: 0..7,
                     color: Color::WHITE,
-                    handle: TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::StrokeLine {
@@ -560,6 +583,39 @@ mod tests {
                     width: 1.0,
                     z: 0,
                 }
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(83),
+                    top_left: Vec2 { x: 0.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(101),
+                    top_left: Vec2 { x: 8.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(99),
+                    top_left: Vec2 { x: 16.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 24.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 32.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 40.0, y: 14.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(110),
+                    top_left: Vec2 { x: 48.0, y: 14.0 },
+                },
             ]
         );
     }
@@ -583,13 +639,37 @@ mod tests {
         let _ = raw::label(spec, &mut sys, &mut cmds);
 
         assert_eq!(
-            &cmds[..],
-            &[DrawCmd::Text {
-                rect: Rect::new(70.0, 54.0, 40.0, 16.0),
+            cmds.commands(),
+            vec![DrawCmd::GlyphRun {
+                glyphs: 0..5,
                 color: LabelStyle::from_theme(&theme::Theme::default()).text_color,
-                handle: TextHandle(0),
                 z: 0,
             }]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(72),
+                    top_left: Vec2 { x: 70.0, y: 67.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(101),
+                    top_left: Vec2 { x: 78.0, y: 67.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 86.0, y: 67.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 94.0, y: 67.0 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(111),
+                    top_left: Vec2 { x: 102.0, y: 67.0 },
+                },
+            ]
         );
     }
 
@@ -727,8 +807,9 @@ mod tests {
             Rect::new(100.0, 100.0, 40.0, 28.0),
         );
         let has_custom_color = cmds
+            .commands()
             .iter()
-            .any(|c| matches!(c, DrawCmd::Text { color, .. } if *color == custom.text_color));
+            .any(|c| matches!(c, DrawCmd::GlyphRun { color, .. } if *color == custom.text_color));
         assert!(
             has_custom_color,
             "high-level label must honor user-set style"

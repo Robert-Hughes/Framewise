@@ -405,6 +405,7 @@ mod tests {
     use super::raw::SegmentedSpec;
     use super::*;
     use crate::test_utils::DummyTextSys;
+    use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn segmented_dummy<'a>(
         spec: SegmentedSpec<'a>,
@@ -441,8 +442,8 @@ mod tests {
         let (_res, cmds) = segmented_dummy(spec, 0);
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
@@ -470,19 +471,30 @@ mod tests {
                     width: style.border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(14.0, 6.0, 8.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..1,
                     color: style.active_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(50.0, 6.0, 8.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 1..2,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(65),
+                    top_left: Vec2 { x: 14.0, y: 19.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 50.0, y: 19.0 }
+                }
+            ]
         );
     }
 
@@ -518,8 +530,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 72.0, 28.0),
@@ -541,10 +553,9 @@ mod tests {
                     width: style.border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(14.0, 6.0, 8.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..1,
                     color: style.text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -560,13 +571,25 @@ mod tests {
                     width: style.focus_width,
                     z: 1,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(50.0, 6.0, 8.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 1..2,
                     color: style.active_text,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
-            ])
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(65),
+                    top_left: Vec2 { x: 14.0, y: 19.0 }
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(66),
+                    top_left: Vec2 { x: 50.0, y: 19.0 }
+                }
+            ]
         );
     }
 
