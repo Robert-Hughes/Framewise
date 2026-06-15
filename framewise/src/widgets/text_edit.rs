@@ -1251,7 +1251,7 @@ impl TextEditStyle {
             border_width: theme.border,
             focus_width: theme.focus_width,
             min_height: theme.h_md,
-            padding_x: 4.0,
+            padding_x: 10.0,
             padding_y: 4.0,
             font: theme.mono_font,
             size: theme.text_mono,
@@ -1720,9 +1720,13 @@ mod tests {
     }
 
     fn spec() -> TextEditSpec {
+        let mut style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
+        style.padding_x = 4.0;
+        style.padding_y = 4.0;
+
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-            style: TextEditStyle::from_theme(&crate::theme::Theme::framewise()),
+            style,
             placeholder: None,
             clip_rect: None,
             error: false,

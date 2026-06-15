@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - text_edit caret blinking should reset phase when first focusing (any time where the caret moves or appears it should reset)
   - change text_edit padding left/right to 10px to match mockup. Affects many tests, perhaps override there?
 
   - scrollbar visibility
