@@ -1958,6 +1958,9 @@ mod tests {
             TextLayout {
                 handle: TextHandle(0),
                 metrics: Self::metrics(text),
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             }
         }
 
@@ -2167,6 +2170,9 @@ mod tests {
             TextLayout {
                 handle: TextHandle(0),
                 metrics: Self::metrics(),
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             }
         }
 

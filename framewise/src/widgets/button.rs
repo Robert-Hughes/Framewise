@@ -490,6 +490,9 @@ mod tests {
             crate::text::TextLayout {
                 handle: TextHandle(7),
                 metrics: self.metrics.clone(),
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             }
         }
 

@@ -378,6 +378,9 @@ impl TextSystem for SampleTextSystem {
             return TextLayout {
                 handle: framewise::TextHandle(handle_id),
                 metrics,
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             };
         }
 
@@ -428,6 +431,9 @@ impl TextSystem for SampleTextSystem {
         TextLayout {
             handle: framewise::TextHandle(handle_id),
             metrics,
+            lines: Vec::new(),
+            clusters: Vec::new(),
+            glyphs: Vec::new(),
         }
     }
 

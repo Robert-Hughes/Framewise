@@ -167,6 +167,9 @@ impl TextSystem for DummyTextSys {
         TextLayout {
             handle: TextHandle(0),
             metrics,
+            lines: Vec::new(),
+            clusters: Vec::new(),
+            glyphs: Vec::new(),
         }
     }
 

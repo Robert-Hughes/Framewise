@@ -258,6 +258,9 @@ mod tests {
             crate::text::TextLayout {
                 handle: TextHandle(7),
                 metrics: self.metrics.clone(),
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             }
         }
 
@@ -328,6 +331,9 @@ mod tests {
                     truncated_vertical: false,
                     lines: Vec::new(),
                 },
+                lines: Vec::new(),
+                clusters: Vec::new(),
+                glyphs: Vec::new(),
             }
         }
 

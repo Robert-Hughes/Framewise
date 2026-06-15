@@ -1,7 +1,7 @@
 use crate::{
-    draw::DrawGlyph,
+    draw::{DrawCommands, DrawGlyph},
     layout::Align,
-    types::{Rect, Vec2},
+    types::{Color, Rect, Vec2},
 };
 use std::hash::Hash;
 
@@ -792,13 +792,1137 @@ pub struct TextMetrics {
 
 /// The geometry and handle for a piece of text prepared for drawing.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextLayout {
+pub struct TextLayout<G = TextHandle> {
     /// The opaque handle to give to the renderer via `DrawCmd::Text`.
     pub handle: TextHandle,
     /// The block's measured geometry, identical to what [`TextSystem::measure`]
     /// would return for the same text, flow policy, and the draw rect's logical
     /// size as bounds.
     pub metrics: TextMetrics,
+    /// Owned line records for Framewise-owned text layouts.
+    pub lines: Vec<TextLine>,
+    /// Owned text clusters for Framewise-owned text layouts.
+    pub clusters: Vec<TextCluster>,
+    /// Owned layout glyphs for Framewise-owned text layouts.
+    pub glyphs: Vec<LayoutGlyph<G>>,
+}
+
+/// One laid-out visual line in a Framewise-owned text layout.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextLine {
+    pub y_top: f32,
+    pub height: f32,
+    pub glyph_start: usize,
+    pub glyph_end: usize,
+    pub cluster_start: usize,
+    pub cluster_end: usize,
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub logical_width: f32,
+    pub ink_width: f32,
+    pub logical_x: f32,
+    pub ink_x: f32,
+    pub end_kind: LineEndKind,
+}
+
+/// One indivisible laid-out cluster in a Framewise-owned text layout.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextCluster {
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub glyph_start: usize,
+    pub glyph_end: usize,
+    pub x: f32,
+    pub advance: f32,
+    pub is_hard_break: bool,
+    pub is_whitespace: bool,
+    pub is_soft_wrap_boundary: bool,
+}
+
+/// One glyph after Framewise line layout, before caller draw origin is added.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutGlyph<G> {
+    pub id: G,
+    pub origin: Vec2,
+    pub advance: f32,
+    pub byte_start: usize,
+}
+
+struct SourceLine<G> {
+    clusters: Vec<OwnedCluster<G>>,
+    byte_start: usize,
+    byte_end: usize,
+    baseline_y: f32,
+}
+
+struct ProcessedLine<G> {
+    clusters: Vec<OwnedCluster<G>>,
+    byte_start: usize,
+    byte_end: usize,
+    baseline_y: f32,
+    end_kind: LineEndKind,
+}
+
+#[derive(Debug, Clone)]
+struct OwnedCluster<G> {
+    byte_start: usize,
+    byte_end: usize,
+    x: f32,
+    advance: f32,
+    is_hard_break: bool,
+    is_whitespace: bool,
+    is_soft_wrap_boundary: bool,
+    glyphs: Vec<LayoutGlyph<G>>,
+}
+
+impl<G> OwnedCluster<G> {
+    fn end_x(&self) -> f32 {
+        self.x + self.advance
+    }
+
+    fn shift_x(&mut self, dx: f32) {
+        self.x += dx;
+        for glyph in &mut self.glyphs {
+            glyph.origin.x += dx;
+        }
+    }
+
+    fn collapse_soft_wrap_boundary(&mut self) {
+        self.advance = 0.0;
+        self.is_soft_wrap_boundary = true;
+        for glyph in &mut self.glyphs {
+            glyph.advance = 0.0;
+        }
+    }
+}
+
+pub fn layout_text<B: TextBackend>(
+    backend: &mut B,
+    text: &str,
+    style: TextStyle,
+    bounds: TextBounds,
+) -> TextLayout<B::ShapedGlyphId> {
+    TextLayout::from_backend(backend, text, style, bounds)
+}
+
+pub fn measure_text<B: TextBackend>(
+    backend: &mut B,
+    text: &str,
+    style: TextStyle,
+    bounds: TextBounds,
+) -> TextMetrics {
+    layout_text(backend, text, style, bounds).metrics().clone()
+}
+
+impl<G: Copy + Eq + Hash> TextLayout<G> {
+    fn from_backend<B: TextBackend<ShapedGlyphId = G>>(
+        backend: &mut B,
+        text: &str,
+        style: TextStyle,
+        bounds: TextBounds,
+    ) -> Self {
+        let flow = style.flow;
+        let line_height = backend.line_height(style).round().max(1.0);
+        let baseline_offset = style.size.round();
+        let mut source_lines = Vec::new();
+        let mut start_byte = 0;
+
+        for (idx, ch) in text.char_indices() {
+            if ch == '\n' {
+                source_lines.push(make_source_line(
+                    backend,
+                    text,
+                    style,
+                    start_byte,
+                    idx,
+                    true,
+                    source_lines.len(),
+                    line_height,
+                    baseline_offset,
+                ));
+                start_byte = idx + ch.len_utf8();
+            }
+        }
+        if start_byte <= text.len() {
+            source_lines.push(make_source_line(
+                backend,
+                text,
+                style,
+                start_byte,
+                text.len(),
+                false,
+                source_lines.len(),
+                line_height,
+                baseline_offset,
+            ));
+        }
+
+        let global_line_start = if source_lines.iter().all(|line| line.clusters.is_empty()) {
+            0.0
+        } else {
+            source_lines
+                .iter()
+                .flat_map(|line| line.clusters.iter().map(|cluster| cluster.x))
+                .fold(f32::INFINITY, f32::min)
+        };
+
+        let mut truncated_horizontal = false;
+        let mut processed_lines = Vec::new();
+
+        for line in source_lines {
+            let mut seg = line.clusters;
+            let line_start = logical_cluster_line_start(&seg);
+            let logical_line_w = logical_cluster_line_width(&seg);
+            let base_shift = match flow.line_align {
+                TextLineAlign::Start => global_line_start,
+                TextLineAlign::Center | TextLineAlign::End => line_start,
+            };
+            if base_shift != 0.0 {
+                for cluster in &mut seg {
+                    cluster.shift_x(-base_shift);
+                }
+            }
+
+            let mut final_sublines = Vec::new();
+            let mut overflow_line_end_kind = None;
+            if let Some(w) = bounds.max_width {
+                match flow.overflow_x {
+                    OverflowX::WrapWord { fallback } => {
+                        final_sublines.extend(wrap_clusters_at_words(seg, w, fallback));
+                    }
+                    OverflowX::WrapCluster { fallback } => {
+                        final_sublines.extend(wrap_clusters(seg, w, fallback));
+                    }
+                    _ => {
+                        if logical_line_w > w + 0.5 {
+                            truncated_horizontal = true;
+                            match flow.overflow_x {
+                                OverflowX::Ellipsis { fallback } => {
+                                    overflow_line_end_kind = Some(LineEndKind::EllipsisX);
+                                    final_sublines.push(apply_ellipsis_x(
+                                        backend,
+                                        seg,
+                                        w,
+                                        style,
+                                        fallback,
+                                        line.baseline_y,
+                                    ));
+                                }
+                                OverflowX::Keep => {
+                                    overflow_line_end_kind = Some(LineEndKind::OverflowKeep);
+                                    let mut out = Vec::new();
+                                    for cluster in seg {
+                                        let end_x = cluster.end_x();
+                                        out.push(cluster);
+                                        if end_x > w {
+                                            break;
+                                        }
+                                    }
+                                    final_sublines.push(out);
+                                }
+                                OverflowX::Drop => {
+                                    overflow_line_end_kind = Some(LineEndKind::OverflowDrop);
+                                    let mut out = Vec::new();
+                                    for cluster in seg {
+                                        if cluster.end_x() <= w {
+                                            out.push(cluster);
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                    final_sublines.push(out);
+                                }
+                                _ => unreachable!(),
+                            }
+                        } else {
+                            final_sublines.push(seg);
+                        }
+                    }
+                }
+            } else {
+                final_sublines.push(seg);
+            }
+
+            append_empty_after_terminal_soft_wrap_boundary(&mut final_sublines, line.byte_end);
+
+            let mut sub_starts = Vec::new();
+            let mut previous_end = line.byte_start;
+            for (idx, sub_seg) in final_sublines.iter().enumerate() {
+                let byte_start = if idx == 0 {
+                    line.byte_start
+                } else {
+                    sub_seg
+                        .first()
+                        .map(|cluster| cluster.byte_start)
+                        .unwrap_or(previous_end)
+                };
+                previous_end = sub_seg
+                    .last()
+                    .map(|cluster| cluster.byte_end)
+                    .unwrap_or(byte_start);
+                sub_starts.push(byte_start);
+            }
+            sub_starts.push(line.byte_end);
+
+            for (idx, sub_seg) in final_sublines.into_iter().enumerate() {
+                let end_kind = overflow_line_end_kind.unwrap_or_else(|| {
+                    if sub_seg.last().is_some_and(|cluster| cluster.is_hard_break) {
+                        LineEndKind::HardNewline
+                    } else if sub_seg
+                        .last()
+                        .is_some_and(|cluster| cluster.is_soft_wrap_boundary)
+                    {
+                        LineEndKind::SoftWrapWhitespace
+                    } else if idx + 1 < sub_starts.len() - 1 {
+                        LineEndKind::SoftWrapNonWhitespace
+                    } else {
+                        LineEndKind::EndOfText
+                    }
+                });
+                processed_lines.push(ProcessedLine {
+                    clusters: sub_seg,
+                    byte_start: sub_starts[idx],
+                    byte_end: sub_starts[idx + 1],
+                    baseline_y: line.baseline_y,
+                    end_kind,
+                });
+            }
+        }
+
+        let max_lines = bounds
+            .max_height
+            .map(|h| (h / line_height).floor() as usize)
+            .unwrap_or(processed_lines.len());
+        let mut truncated_vertical = false;
+        if processed_lines.len() > max_lines {
+            truncated_vertical = true;
+            match flow.overflow_y {
+                OverflowY::Drop => processed_lines.truncate(max_lines),
+                OverflowY::Keep => processed_lines.truncate(max_lines + 1),
+                OverflowY::Ellipsis { fallback } => {
+                    if max_lines > 0 {
+                        let last_idx = max_lines - 1;
+                        let last_line_clusters =
+                            std::mem::take(&mut processed_lines[last_idx].clusters);
+                        let w = bounds.max_width.unwrap_or(f32::INFINITY);
+                        processed_lines[last_idx].clusters = apply_ellipsis_x(
+                            backend,
+                            last_line_clusters,
+                            w,
+                            style,
+                            fallback,
+                            processed_lines[last_idx].baseline_y,
+                        );
+                        processed_lines[last_idx].end_kind = LineEndKind::EllipsisY;
+                        processed_lines.truncate(max_lines);
+                    } else {
+                        match fallback {
+                            EllipsisFallback::Keep => {
+                                processed_lines.truncate(1);
+                                if let Some(line) = processed_lines.first_mut() {
+                                    line.end_kind = LineEndKind::EllipsisY;
+                                }
+                            }
+                            EllipsisFallback::Drop => processed_lines.clear(),
+                        }
+                    }
+                }
+            }
+        }
+
+        if processed_lines.is_empty() {
+            processed_lines.push(ProcessedLine {
+                clusters: Vec::new(),
+                byte_start: 0,
+                byte_end: text.len(),
+                baseline_y: baseline_offset,
+                end_kind: LineEndKind::EndOfText,
+            });
+        }
+
+        let mut glyphs = Vec::new();
+        let mut clusters = Vec::new();
+        let mut lines = Vec::new();
+        let mut block_width = 0.0_f32;
+
+        for (idx, mut line) in processed_lines.into_iter().enumerate() {
+            let new_baseline_y = idx as f32 * line_height + baseline_offset;
+            let y_top = idx as f32 * line_height;
+
+            for cluster in &mut line.clusters {
+                for glyph in &mut cluster.glyphs {
+                    let baseline_relative_y = glyph.origin.y - line.baseline_y;
+                    glyph.origin.y = (new_baseline_y + baseline_relative_y).round();
+                }
+            }
+
+            let align_off = match bounds.max_width {
+                Some(w) => {
+                    let logical_line_w = logical_cluster_line_width(&line.clusters);
+                    match flow.line_align {
+                        TextLineAlign::Start => 0.0,
+                        TextLineAlign::Center => ((w - logical_line_w) * 0.5).max(0.0),
+                        TextLineAlign::End => (w - logical_line_w).max(0.0),
+                    }
+                }
+                None => 0.0,
+            };
+            if align_off != 0.0 {
+                for cluster in &mut line.clusters {
+                    cluster.shift_x(align_off);
+                }
+            }
+
+            let logical_line_w = logical_cluster_line_width(&line.clusters);
+            block_width = block_width.max(logical_line_w);
+
+            let glyph_start = glyphs.len();
+            let cluster_start = clusters.len();
+            for cluster in line.clusters {
+                let cluster_glyph_start = glyphs.len();
+                glyphs.extend(cluster.glyphs);
+                clusters.push(TextCluster {
+                    byte_start: cluster.byte_start,
+                    byte_end: cluster.byte_end,
+                    glyph_start: cluster_glyph_start,
+                    glyph_end: glyphs.len(),
+                    x: cluster.x,
+                    advance: cluster.advance,
+                    is_hard_break: cluster.is_hard_break,
+                    is_whitespace: cluster.is_whitespace,
+                    is_soft_wrap_boundary: cluster.is_soft_wrap_boundary,
+                });
+            }
+
+            lines.push(TextLine {
+                y_top,
+                height: line_height,
+                glyph_start,
+                glyph_end: glyphs.len(),
+                cluster_start,
+                cluster_end: clusters.len(),
+                byte_start: line.byte_start,
+                byte_end: line.byte_end,
+                logical_width: logical_line_w,
+                ink_width: logical_line_w,
+                logical_x: align_off,
+                ink_x: align_off,
+                end_kind: line.end_kind,
+            });
+        }
+
+        let metrics_lines = lines
+            .iter()
+            .map(|line| LineMetrics {
+                y_top: line.y_top,
+                height: line.height,
+                logical_width: line.logical_width,
+                ink_width: line.ink_width,
+                logical_x: line.logical_x,
+                ink_x: line.ink_x,
+                byte_start: line.byte_start,
+                byte_end: line.byte_end,
+                end_kind: line.end_kind,
+            })
+            .collect::<Vec<_>>();
+
+        let metrics = TextMetrics {
+            logical_size: Vec2::new(block_width.ceil(), lines.len() as f32 * line_height),
+            ink_bounds: if glyphs.is_empty() {
+                Rect::ZERO
+            } else {
+                Rect::new(
+                    0.0,
+                    0.0,
+                    block_width.ceil(),
+                    lines.len() as f32 * line_height,
+                )
+            },
+            line_count: lines.len() as u32,
+            truncated_horizontal,
+            truncated_vertical,
+            lines: metrics_lines,
+        };
+
+        Self {
+            handle: TextHandle(usize::MAX),
+            metrics,
+            lines,
+            clusters,
+            glyphs,
+        }
+    }
+
+    pub fn metrics(&self) -> &TextMetrics {
+        &self.metrics
+    }
+
+    pub fn caret_geom(&self, position: CaretPosition) -> CaretGeom {
+        let Some((cluster_idx, cluster)) = self.find_caret_cluster(position) else {
+            let line = self
+                .lines
+                .first()
+                .expect("a text layout always has at least one line");
+            return CaretGeom {
+                x: line.logical_x,
+                y_top: line.y_top,
+                height: line.height,
+            };
+        };
+
+        let line_idx = self.line_index_for_cluster(cluster_idx).unwrap_or(0);
+        let line = &self.lines[line_idx];
+        let (x, y_top, height) = match position {
+            CaretPosition::BeforeCluster { .. } => (cluster.x, line.y_top, line.height),
+            CaretPosition::AfterCluster { .. }
+                if cluster.is_hard_break || cluster.is_soft_wrap_boundary =>
+            {
+                let next_line = self.lines.get(line_idx + 1).unwrap_or(line);
+                let next_clusters = &self.clusters[next_line.cluster_start..next_line.cluster_end];
+                let next_x = next_clusters
+                    .first()
+                    .map(|cluster| cluster.x)
+                    .unwrap_or(next_line.logical_x);
+                (next_x, next_line.y_top, next_line.height)
+            }
+            CaretPosition::AfterCluster { .. } => {
+                (cluster.x + cluster.advance, line.y_top, line.height)
+            }
+            CaretPosition::EmptyText => unreachable!("handled by missing-cluster branch"),
+        };
+
+        CaretGeom { x, y_top, height }
+    }
+
+    pub fn hit_test_caret(&self, pos: Vec2) -> CaretPosition {
+        let line_idx = self
+            .lines
+            .iter()
+            .position(|line| pos.y < line.y_top + line.height)
+            .unwrap_or_else(|| self.lines.len().saturating_sub(1));
+        let line = &self.lines[line_idx];
+        let clusters = &self.clusters[line.cluster_start..line.cluster_end];
+        if clusters.is_empty() {
+            return self.empty_line_caret_position(line_idx);
+        }
+        for cluster in clusters {
+            let mid = cluster.x + cluster.advance * 0.5;
+            if pos.x < mid {
+                return CaretPosition::BeforeCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
+            }
+        }
+        match clusters.last() {
+            Some(last) if last.is_hard_break || last.is_soft_wrap_boundary => {
+                CaretPosition::BeforeCluster {
+                    cluster_byte_index: last.byte_start,
+                }
+            }
+            Some(last) => CaretPosition::AfterCluster {
+                cluster_byte_index: last.byte_start,
+            },
+            None => self.empty_line_caret_position(line_idx),
+        }
+    }
+
+    pub fn caret_insertion_byte(&self, position: CaretPosition) -> usize {
+        match self.find_caret_cluster(position) {
+            Some((_, cluster)) => match position {
+                CaretPosition::BeforeCluster { .. } => cluster.byte_start,
+                CaretPosition::AfterCluster { .. } => cluster.byte_end,
+                CaretPosition::EmptyText => 0,
+            },
+            None => 0,
+        }
+    }
+
+    pub fn caret_position_at_insertion_byte(&self, byte_index: usize) -> CaretPosition {
+        if self.clusters.is_empty() {
+            return CaretPosition::EmptyText;
+        }
+
+        for (idx, cluster) in self.clusters.iter().enumerate() {
+            if byte_index <= cluster.byte_start || byte_index < cluster.byte_end {
+                return CaretPosition::BeforeCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
+            }
+
+            if byte_index == cluster.byte_end {
+                if let Some(next) = self.clusters.get(idx + 1) {
+                    if next.byte_start == byte_index {
+                        return CaretPosition::BeforeCluster {
+                            cluster_byte_index: next.byte_start,
+                        };
+                    }
+                }
+                return CaretPosition::AfterCluster {
+                    cluster_byte_index: cluster.byte_start,
+                };
+            }
+        }
+
+        let last = self.clusters.last().expect("clusters is non-empty");
+        CaretPosition::AfterCluster {
+            cluster_byte_index: last.byte_start,
+        }
+    }
+
+    pub fn previous_caret_position(&self, position: CaretPosition) -> CaretPosition {
+        let byte_index = self.caret_insertion_byte(position);
+        let Some(target_byte) = self.previous_insertion_boundary(byte_index) else {
+            return self.caret_position_at_insertion_byte(0);
+        };
+        self.caret_position_for_movement_target(target_byte)
+            .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
+    }
+
+    pub fn next_caret_position(&self, position: CaretPosition) -> CaretPosition {
+        let byte_index = self.caret_insertion_byte(position);
+        let Some(target_byte) = self.next_insertion_boundary(byte_index) else {
+            return self
+                .clusters
+                .last()
+                .map(|cluster| CaretPosition::AfterCluster {
+                    cluster_byte_index: cluster.byte_start,
+                })
+                .unwrap_or(CaretPosition::EmptyText);
+        };
+        self.caret_position_for_movement_target(target_byte)
+            .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
+    }
+
+    pub fn emit_glyphs<B>(
+        &self,
+        commands: &mut DrawCommands,
+        backend: &mut B,
+        origin: Vec2,
+        style: TextStyle,
+        color: Color,
+        z: u32,
+    ) where
+        B: TextBackend<ShapedGlyphId = G>,
+    {
+        let glyphs = self.glyphs.iter().filter_map(|glyph| {
+            backend.prepare_glyph(PrepareGlyphRequest {
+                glyph: glyph.id,
+                style,
+                glyph_origin: Vec2::new(origin.x + glyph.origin.x, origin.y + glyph.origin.y),
+            })
+        });
+        commands.push_glyph_run(glyphs, color, z);
+    }
+
+    fn find_caret_cluster(&self, position: CaretPosition) -> Option<(usize, &TextCluster)> {
+        let cluster_byte_index = match position {
+            CaretPosition::BeforeCluster { cluster_byte_index }
+            | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,
+            CaretPosition::EmptyText => return None,
+        };
+
+        self.clusters
+            .iter()
+            .enumerate()
+            .find(|(_, cluster)| cluster.byte_start == cluster_byte_index)
+            .or_else(|| {
+                self.clusters.iter().enumerate().find(|(_, cluster)| {
+                    cluster_byte_index <= cluster.byte_start
+                        || cluster_byte_index < cluster.byte_end
+                })
+            })
+            .or_else(|| self.clusters.iter().enumerate().next_back())
+    }
+
+    fn line_index_for_cluster(&self, cluster_idx: usize) -> Option<usize> {
+        self.lines
+            .iter()
+            .position(|line| cluster_idx >= line.cluster_start && cluster_idx < line.cluster_end)
+    }
+
+    fn empty_line_caret_position(&self, line_idx: usize) -> CaretPosition {
+        if self.clusters.is_empty() {
+            return CaretPosition::EmptyText;
+        }
+
+        self.lines
+            .get(..line_idx)
+            .and_then(|lines| {
+                lines
+                    .iter()
+                    .rev()
+                    .find(|line| line.cluster_end > line.cluster_start)
+            })
+            .and_then(|line| self.clusters.get(line.cluster_end - 1))
+            .map(|cluster| CaretPosition::AfterCluster {
+                cluster_byte_index: cluster.byte_start,
+            })
+            .unwrap_or(CaretPosition::EmptyText)
+    }
+
+    fn previous_insertion_boundary(&self, byte_index: usize) -> Option<usize> {
+        self.clusters
+            .iter()
+            .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
+            .filter(|byte| *byte < byte_index)
+            .max()
+    }
+
+    fn next_insertion_boundary(&self, byte_index: usize) -> Option<usize> {
+        self.clusters
+            .iter()
+            .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
+            .filter(|byte| *byte > byte_index)
+            .min()
+    }
+
+    fn caret_position_for_movement_target(&self, target_byte: usize) -> Option<CaretPosition> {
+        if let Some(cluster) = self.clusters.iter().find(|cluster| {
+            (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
+                && cluster.byte_end == target_byte
+        }) {
+            return Some(CaretPosition::AfterCluster {
+                cluster_byte_index: cluster.byte_start,
+            });
+        }
+
+        if let Some(cluster) = self.clusters.iter().find(|cluster| {
+            (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
+                && cluster.byte_start == target_byte
+        }) {
+            return Some(CaretPosition::BeforeCluster {
+                cluster_byte_index: cluster.byte_start,
+            });
+        }
+
+        None
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn make_source_line<B: TextBackend>(
+    backend: &mut B,
+    text: &str,
+    style: TextStyle,
+    segment_start: usize,
+    segment_end: usize,
+    has_newline: bool,
+    line_idx: usize,
+    line_height: f32,
+    baseline_offset: f32,
+) -> SourceLine<B::ShapedGlyphId> {
+    let segment = &text[segment_start..segment_end];
+    let baseline_y = line_idx as f32 * line_height + baseline_offset;
+    let mut clusters = Vec::new();
+
+    if !segment.is_empty() {
+        let shaped = backend.shape_text(segment, style);
+        for shaped_cluster in shaped.clusters {
+            let byte_start = segment_start + shaped_cluster.byte_start;
+            let byte_end = segment_start + shaped_cluster.byte_end;
+            let x = clusters.last().map(OwnedCluster::end_x).unwrap_or(0.0);
+            let glyphs = shaped_cluster
+                .glyphs
+                .into_iter()
+                .map(|glyph| LayoutGlyph {
+                    id: glyph.id,
+                    origin: Vec2::new(x + glyph.x, baseline_y + glyph.y),
+                    advance: glyph.advance,
+                    byte_start,
+                })
+                .collect();
+            clusters.push(OwnedCluster {
+                byte_start,
+                byte_end,
+                x,
+                advance: shaped_cluster.advance,
+                is_hard_break: false,
+                is_whitespace: shaped_cluster.is_whitespace,
+                is_soft_wrap_boundary: false,
+                glyphs,
+            });
+        }
+    }
+
+    if has_newline {
+        let x = clusters.last().map(OwnedCluster::end_x).unwrap_or(0.0);
+        clusters.push(OwnedCluster {
+            byte_start: segment_end,
+            byte_end: segment_end + 1,
+            x,
+            advance: 0.0,
+            is_hard_break: true,
+            is_whitespace: true,
+            is_soft_wrap_boundary: false,
+            glyphs: Vec::new(),
+        });
+    }
+
+    SourceLine {
+        clusters,
+        byte_start: segment_start,
+        byte_end: if has_newline {
+            segment_end + 1
+        } else {
+            segment_end
+        },
+        baseline_y,
+    }
+}
+
+fn logical_cluster_line_width<G>(clusters: &[OwnedCluster<G>]) -> f32 {
+    let start = logical_cluster_line_start(clusters);
+    clusters
+        .iter()
+        .map(OwnedCluster::end_x)
+        .fold(start, f32::max)
+        - start
+}
+
+fn logical_cluster_line_start<G>(clusters: &[OwnedCluster<G>]) -> f32 {
+    clusters
+        .iter()
+        .map(|cluster| cluster.x)
+        .reduce(f32::min)
+        .unwrap_or(0.0)
+}
+
+fn append_empty_after_terminal_soft_wrap_boundary<G>(
+    lines: &mut Vec<Vec<OwnedCluster<G>>>,
+    source_byte_end: usize,
+) {
+    let has_terminal_boundary = lines
+        .last()
+        .and_then(|line| line.last())
+        .is_some_and(|cluster| {
+            cluster.is_soft_wrap_boundary && cluster.byte_end == source_byte_end
+        });
+    if has_terminal_boundary {
+        lines.push(Vec::new());
+    }
+}
+
+fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [OwnedCluster<G>]) {
+    let has_non_whitespace_content = clusters
+        .iter()
+        .rev()
+        .skip(1)
+        .any(|cluster| !cluster.is_whitespace && !cluster.is_hard_break);
+    if has_non_whitespace_content {
+        if let Some(cluster) = clusters
+            .last_mut()
+            .filter(|cluster| cluster.is_whitespace && !cluster.is_hard_break)
+        {
+            cluster.collapse_soft_wrap_boundary();
+        }
+    }
+}
+
+fn wrap_clusters<G: Clone>(
+    clusters: Vec<OwnedCluster<G>>,
+    w: f32,
+    fallback: WrapClusterFallback,
+) -> Vec<Vec<OwnedCluster<G>>> {
+    let mut lines: Vec<Vec<OwnedCluster<G>>> = Vec::new();
+    if clusters.is_empty() {
+        return vec![Vec::new()];
+    }
+    let mut current_line = Vec::new();
+    let mut current_line_start_x = clusters[0].x;
+
+    for cluster in clusters {
+        if cluster.is_hard_break {
+            let mut moved = cluster;
+            let mut appended = false;
+            if current_line.is_empty() {
+                if let Some(last_line) = lines.last_mut() {
+                    if last_line.last().map(|c: &OwnedCluster<G>| c.is_hard_break) != Some(true) {
+                        moved.shift_x(-moved.x);
+                        last_line.push(moved.clone());
+                        appended = true;
+                    }
+                }
+            }
+            if !appended {
+                moved.shift_x(-current_line_start_x);
+                current_line.push(moved);
+                lines.push(current_line);
+                current_line = Vec::new();
+            }
+            continue;
+        }
+
+        let rel_start_x = cluster.x - current_line_start_x;
+        let rel_end_x = rel_start_x + cluster.advance;
+
+        if rel_end_x <= w {
+            let mut moved = cluster;
+            moved.shift_x(rel_start_x - moved.x);
+            current_line.push(moved);
+        } else if cluster.is_whitespace && !current_line.is_empty() {
+            let next_line_start_x = cluster.x + cluster.advance;
+            let mut moved = cluster;
+            moved.shift_x(rel_start_x - moved.x);
+            moved.collapse_soft_wrap_boundary();
+            current_line.push(moved);
+            lines.push(current_line);
+            current_line = Vec::new();
+            current_line_start_x = next_line_start_x;
+        } else if current_line.is_empty() {
+            match fallback {
+                WrapClusterFallback::Keep => {
+                    let mut moved = cluster;
+                    moved.shift_x(rel_start_x - moved.x);
+                    current_line.push(moved);
+                    lines.push(current_line);
+                    current_line = Vec::new();
+                    current_line_start_x += rel_end_x;
+                }
+                WrapClusterFallback::Drop => break,
+            }
+        } else {
+            collapse_trailing_soft_wrap_space(&mut current_line);
+            lines.push(current_line);
+            current_line = Vec::new();
+            current_line_start_x = cluster.x;
+
+            if cluster.advance <= w {
+                let mut moved = cluster;
+                moved.shift_x(-moved.x);
+                current_line.push(moved);
+            } else {
+                match fallback {
+                    WrapClusterFallback::Keep => {
+                        let advance = cluster.advance;
+                        let mut moved = cluster;
+                        moved.shift_x(-moved.x);
+                        current_line.push(moved);
+                        lines.push(current_line);
+                        current_line = Vec::new();
+                        current_line_start_x += advance;
+                    }
+                    WrapClusterFallback::Drop => break,
+                }
+            }
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    lines
+}
+
+fn wrap_clusters_at_words<G: Clone>(
+    clusters: Vec<OwnedCluster<G>>,
+    w: f32,
+    fallback: WrapWordFallback,
+) -> Vec<Vec<OwnedCluster<G>>> {
+    if clusters.is_empty() {
+        return vec![Vec::new()];
+    }
+
+    struct Seg<G> {
+        is_space: bool,
+        clusters: Vec<OwnedCluster<G>>,
+        logical_w: f32,
+    }
+
+    let mut segments: Vec<Seg<G>> = Vec::new();
+    for cluster in clusters {
+        let is_space = cluster.is_whitespace || cluster.is_hard_break;
+        if !is_space {
+            if let Some(last) = segments.last_mut() {
+                if !last.is_space {
+                    last.clusters.push(cluster);
+                    continue;
+                }
+            }
+        }
+        segments.push(Seg {
+            is_space,
+            clusters: vec![cluster],
+            logical_w: 0.0,
+        });
+    }
+
+    let seg_starts = segments
+        .iter()
+        .map(|seg| {
+            seg.clusters
+                .iter()
+                .map(|cluster| cluster.x)
+                .reduce(f32::min)
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+
+    let seg_len = segments.len();
+    for i in 0..seg_len {
+        if segments[i].clusters.is_empty() {
+            continue;
+        }
+        let seg_l = seg_starts[i];
+        for cluster in &mut segments[i].clusters {
+            cluster.shift_x(-seg_l);
+        }
+        segments[i].logical_w = if i + 1 < seg_len {
+            seg_starts[i + 1] - seg_l
+        } else {
+            logical_cluster_line_width(&segments[i].clusters)
+        };
+    }
+
+    let mut lines = Vec::new();
+    let mut current_line = Vec::new();
+    let mut current_logical_w = 0.0;
+
+    for seg in segments {
+        let seg_logical_w = seg.logical_w;
+        let is_hard_break = seg.clusters.iter().any(|cluster| cluster.is_hard_break);
+        if is_hard_break || current_logical_w + seg_logical_w <= w {
+            for mut cluster in seg.clusters {
+                cluster.shift_x(current_logical_w);
+                current_line.push(cluster);
+            }
+            current_logical_w += seg_logical_w;
+        } else {
+            if seg.is_space && !current_line.is_empty() {
+                for mut cluster in seg.clusters {
+                    cluster.shift_x(current_logical_w);
+                    cluster.collapse_soft_wrap_boundary();
+                    current_line.push(cluster);
+                }
+                lines.push(current_line);
+                current_line = Vec::new();
+                current_logical_w = 0.0;
+                continue;
+            }
+
+            if !current_line.is_empty() {
+                collapse_trailing_soft_wrap_space(&mut current_line);
+                lines.push(current_line);
+                current_line = Vec::new();
+                current_logical_w = 0.0;
+            }
+
+            if seg_logical_w <= w {
+                for mut cluster in seg.clusters {
+                    cluster.shift_x(current_logical_w);
+                    current_line.push(cluster);
+                }
+                current_logical_w += seg_logical_w;
+            } else {
+                match fallback {
+                    WrapWordFallback::WrapCluster { fallback } => {
+                        let seg_len = seg.clusters.len();
+                        let wrapped = wrap_clusters(seg.clusters, w, fallback);
+                        let mut wrapped_count = 0;
+                        if !wrapped.is_empty() {
+                            lines.extend(wrapped[..wrapped.len() - 1].to_vec());
+                            current_line = wrapped.last().expect("wrapped is non-empty").clone();
+                            current_logical_w = current_line
+                                .iter()
+                                .map(OwnedCluster::end_x)
+                                .fold(0.0, f32::max);
+                            wrapped_count = wrapped.iter().map(Vec::len).sum();
+                        }
+                        if fallback == WrapClusterFallback::Drop && wrapped_count < seg_len {
+                            break;
+                        }
+                    }
+                    WrapWordFallback::Drop => {
+                        for cluster in seg.clusters {
+                            if cluster.end_x() <= w {
+                                current_line.push(cluster);
+                            } else {
+                                break;
+                            }
+                        }
+                        lines.push(current_line);
+                        current_line = Vec::new();
+                        break;
+                    }
+                    WrapWordFallback::Keep => {
+                        for cluster in seg.clusters {
+                            let end_x = cluster.end_x();
+                            current_line.push(cluster);
+                            if end_x > w {
+                                break;
+                            }
+                        }
+                        lines.push(current_line);
+                        current_line = Vec::new();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    lines
+}
+
+fn apply_ellipsis_x<B: TextBackend>(
+    backend: &mut B,
+    clusters: Vec<OwnedCluster<B::ShapedGlyphId>>,
+    w: f32,
+    style: TextStyle,
+    fallback: EllipsisFallback,
+    line_baseline_y: f32,
+) -> Vec<OwnedCluster<B::ShapedGlyphId>> {
+    let shaped = backend.shape_ellipsis(style);
+    let ell_w = shaped
+        .clusters
+        .iter()
+        .map(|cluster| cluster.advance)
+        .sum::<f32>();
+    let insert_byte = clusters.last().map(|cluster| cluster.byte_end).unwrap_or(0);
+    let mut ell_glyphs = Vec::new();
+    let mut pen_x = 0.0;
+    for cluster in shaped.clusters {
+        for glyph in cluster.glyphs {
+            ell_glyphs.push(LayoutGlyph {
+                id: glyph.id,
+                origin: Vec2::new(pen_x + glyph.x, line_baseline_y + glyph.y),
+                advance: glyph.advance,
+                byte_start: insert_byte,
+            });
+        }
+        pen_x += cluster.advance;
+    }
+    let mut ell_cluster = OwnedCluster {
+        byte_start: insert_byte,
+        byte_end: insert_byte,
+        x: 0.0,
+        advance: ell_w,
+        is_hard_break: false,
+        is_whitespace: false,
+        is_soft_wrap_boundary: false,
+        glyphs: ell_glyphs,
+    };
+
+    if ell_w > w {
+        match fallback {
+            EllipsisFallback::Keep => vec![ell_cluster],
+            EllipsisFallback::Drop => Vec::new(),
+        }
+    } else {
+        let limit = w - ell_w;
+        let mut trimmed = Vec::new();
+        for cluster in clusters {
+            if cluster.end_x() <= limit {
+                trimmed.push(cluster);
+            } else {
+                break;
+            }
+        }
+        let pen_x = trimmed.last().map(OwnedCluster::end_x).unwrap_or(0.0);
+        ell_cluster.shift_x(pen_x);
+        trimmed.push(ell_cluster);
+        trimmed
+    }
 }
 
 /// A visual caret anchor in prepared text.
