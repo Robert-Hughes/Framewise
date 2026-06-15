@@ -332,9 +332,9 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::ChipSpec;
     use super::*;
-    use crate::{DrawGlyph, PreparedGlyphHandle};
-use crate::test_utils::DummyTextSys;
+    use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
+    use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();

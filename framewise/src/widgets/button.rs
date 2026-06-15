@@ -1467,14 +1467,9 @@ mod tests {
         focus_system.end_frame();
 
         assert!(
-            cmds.iter().any(|cmd| matches!(
-                cmd,
-                DrawCmd::Text {
-                    rect,
-                    handle: TextHandle(0),
-                    ..
-                } if *rect == Rect::new(72.0, 48.0, 24.0, 16.0)
-            )),
+            cmds.glyphs()
+                .first()
+                .is_some_and(|glyph| glyph.top_left == Vec2::new(72.0, 61.0)),
             "button text should be bottom-right aligned inside the padded content rect"
         );
     }
@@ -1576,8 +1571,8 @@ mod tests {
         focus_system.end_frame();
 
         assert_eq!(
-            &cmds[..],
-            &[
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(5.0, 15.0, 120.0, 45.0),
@@ -1591,11 +1586,55 @@ mod tests {
                     width: custom_style.border_width,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(13.0, 29.5, 92.0, 16.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..10,
                     color: custom_style.text_color,
-                    handle: TextHandle(0),
                     z: 0,
+                },
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            vec![
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(69),
+                    top_left: Vec2 { x: 21.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(120),
+                    top_left: Vec2 { x: 29.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(112),
+                    top_left: Vec2 { x: 37.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(108),
+                    top_left: Vec2 { x: 45.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 53.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(99),
+                    top_left: Vec2 { x: 61.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(105),
+                    top_left: Vec2 { x: 69.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(116),
+                    top_left: Vec2 { x: 77.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(83),
+                    top_left: Vec2 { x: 93.0, y: 49.5 },
+                },
+                DrawGlyph {
+                    handle: PreparedGlyphHandle(112),
+                    top_left: Vec2 { x: 101.0, y: 49.5 },
                 },
             ]
         );

@@ -55,7 +55,7 @@ mod tests {
             .collect()
     }
 
-    fn label_visual_lines(text: &str, flow: TextFlow, rect: Rect) -> Vec<String> {
+    fn label_glyph_counts_by_line(text: &str, flow: TextFlow, rect: Rect) -> Vec<usize> {
         let mut sys = sys();
         let mut cmds = DrawCommands::new();
         raw_label::label(
@@ -74,7 +74,18 @@ mod tests {
             &mut sys,
             &mut cmds,
         );
-        visual_lines(&sys, TextHandle(sys.runs.len() - 1))
+        let mut lines = Vec::<(f32, usize)>::new();
+        for glyph in cmds.glyphs() {
+            if let Some((_, count)) = lines
+                .iter_mut()
+                .find(|(y, _)| (*y - glyph.top_left.y).abs() < 0.5)
+            {
+                *count += 1;
+            } else {
+                lines.push((glyph.top_left.y, 1));
+            }
+        }
+        lines.into_iter().map(|(_, count)| count).collect()
     }
 
     fn caret_geom_at_byte(
@@ -2315,8 +2326,8 @@ mod tests {
             line_align: TextLineAlign::Start,
         };
         assert_eq!(
-            label_visual_lines("hello\nhello", flow, Rect::new(0.0, 0.0, 4.0, 162.0)),
-            ["h", "e", "l", "l", "o\n", "h", "e", "l", "l", "o"]
+            label_glyph_counts_by_line("hello\nhello", flow, Rect::new(0.0, 0.0, 4.0, 162.0)),
+            vec![1; 10]
         );
     }
 
@@ -2447,15 +2458,12 @@ mod tests {
             line_align: TextLineAlign::Start,
         };
         assert_eq!(
-            label_visual_lines(
+            label_glyph_counts_by_line(
                 "hello there\nhello there",
                 flow,
                 Rect::new(0.0, 0.0, 4.0, 318.0),
             ),
-            [
-                "h", "e", "l", "l", "o ", "t", "h", "e", "r", "e\n", "h", "e", "l", "l", "o ", "t",
-                "h", "e", "r"
-            ]
+            vec![1; 19]
         );
     }
 

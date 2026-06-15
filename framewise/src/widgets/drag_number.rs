@@ -447,9 +447,9 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::DragNumberSpec;
     use super::*;
-    use crate::{DrawGlyph, PreparedGlyphHandle};
     use crate::test_utils::DummyTextSys;
     use crate::types::Vec2;
+    use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
         let mut cmds = DrawCommands::new();

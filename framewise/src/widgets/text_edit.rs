@@ -1893,6 +1893,16 @@ mod tests {
         state.selection_anchor = byte.map(|byte| caret_position_at_byte(&state.value, byte));
     }
 
+    fn glyphs(items: &[(char, f32, f32)]) -> Vec<DrawGlyph> {
+        items
+            .iter()
+            .map(|(ch, x, y)| DrawGlyph {
+                handle: PreparedGlyphHandle(*ch as u32),
+                top_left: Vec2::new(*x, *y),
+            })
+            .collect()
+    }
+
     fn insertion_byte_for_position(text: &str, position: CaretPosition) -> usize {
         match position {
             CaretPosition::EmptyText => 0,
@@ -2650,12 +2660,17 @@ mod tests {
         let mut text_system = VisualBoundaryTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("ab");
+        let edit_spec = TextEditSpec {
+            rect: Rect::new(0.0, 0.0, 18.0, 50.0),
+            wrap: true,
+            ..spec()
+        };
         let mut input = Input::default();
-        input.mouse_pos = Vec2::new(100.0, 8.0);
+        input.mouse_pos = Vec2::new(15.0, 8.0);
 
         focus_system.begin_frame();
         raw::text_edit(
-            spec(),
+            edit_spec.clone(),
             &mut state,
             &input,
             &mut focus_system,
@@ -2668,7 +2683,7 @@ mod tests {
         input.mouse_pressed = true;
         focus_system.begin_frame();
         raw::text_edit(
-            spec(),
+            edit_spec.clone(),
             &mut state,
             &input,
             &mut focus_system,
@@ -2689,7 +2704,7 @@ mod tests {
         input.mouse_pressed = false;
         focus_system.begin_frame();
         raw::text_edit(
-            spec(),
+            edit_spec,
             &mut state,
             &input,
             &mut focus_system,
@@ -3699,8 +3714,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -3717,13 +3732,22 @@ mod tests {
                 DrawCmd::PushClip {
                     rect: Rect::new(1.0, 1.0, 198.0, 28.0),
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..5,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('h', 5.0, 19.0),
+                ('e', 13.0, 19.0),
+                ('l', 21.0, 19.0),
+                ('l', 29.0, 19.0),
+                ('o', 37.0, 19.0),
             ])
         );
     }
@@ -3775,7 +3799,7 @@ mod tests {
 
         assert!(cmds.iter().any(|cmd| matches!(
             cmd,
-            DrawCmd::Text { color, .. } if *color == spec().style.placeholder_color
+            DrawCmd::GlyphRun { color, .. } if *color == spec().style.placeholder_color
         )));
 
         let mut focus_system = FocusSystem::new();
@@ -3799,7 +3823,7 @@ mod tests {
 
         assert!(!focused_cmds.iter().any(|cmd| matches!(
             cmd,
-            DrawCmd::Text { color, .. } if *color == spec().style.placeholder_color
+            DrawCmd::GlyphRun { color, .. } if *color == spec().style.placeholder_color
         )));
     }
 
@@ -3826,8 +3850,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -3844,10 +3868,9 @@ mod tests {
                 DrawCmd::PushClip {
                     rect: Rect::new(1.0, 1.0, 198.0, 28.0),
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..5,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -3857,6 +3880,16 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('h', 5.0, 19.0),
+                ('e', 13.0, 19.0),
+                ('l', 21.0, 19.0),
+                ('l', 29.0, 19.0),
+                ('o', 37.0, 19.0),
             ])
         );
     }
@@ -3886,8 +3919,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -3910,10 +3943,9 @@ mod tests {
                     color: spec().style.select_color,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(5.0, 7.0, 198.0, 28.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..5,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -3923,6 +3955,16 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('h', 5.0, 19.0),
+                ('e', 13.0, 19.0),
+                ('l', 21.0, 19.0),
+                ('l', 29.0, 19.0),
+                ('o', 37.0, 19.0),
             ])
         );
     }
@@ -3994,8 +4036,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 30.0),
@@ -4018,13 +4060,22 @@ mod tests {
                 DrawCmd::PushClip {
                     rect: Rect::new(5.0, 1.0, 194.0, 28.0),
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(9.0, 7.0, 194.0, 28.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..5,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('h', 9.0, 19.0),
+                ('e', 17.0, 19.0),
+                ('l', 25.0, 19.0),
+                ('l', 33.0, 19.0),
+                ('o', 41.0, 19.0),
             ])
         );
     }
@@ -4281,11 +4332,10 @@ mod tests {
 
         for cmd in cmds.iter() {
             match cmd {
-                DrawCmd::Text { rect, .. } => {
+                DrawCmd::GlyphRun { glyphs, .. } => {
                     // Originally, text_x was: outer_rect.x + padding = 1.0 + 4.0 = 5.0
                     // Scrolled left by 50.0 -> 5.0 - 50.0 = -45.0
-                    assert_eq!(rect.x, -45.0);
-                    assert_eq!(rect.w, 280.0);
+                    assert_eq!(cmds.glyphs()[glyphs.start].top_left.x, -45.0);
                     found_text = true;
                 }
                 DrawCmd::FillRect { rect, color, .. } => {
@@ -4385,9 +4435,8 @@ mod tests {
         let mut found_selection = false;
         for cmd in cmds.iter() {
             match cmd {
-                DrawCmd::Text { rect, .. } => {
-                    assert_eq!(rect.y, -15.0);
-                    assert_eq!(rect.h, 64.0);
+                DrawCmd::GlyphRun { glyphs, .. } => {
+                    assert_eq!(cmds.glyphs()[glyphs.start].top_left.y, -3.0);
                     found_text = true;
                 }
                 DrawCmd::FillRect { rect, color, .. } => {
@@ -4421,9 +4470,8 @@ mod tests {
         let mut found_selection = false;
         for cmd in cmds.iter() {
             match cmd {
-                DrawCmd::Text { rect, .. } => {
-                    assert_eq!(rect.y, 5.0);
-                    assert_eq!(rect.h, 64.0);
+                DrawCmd::GlyphRun { glyphs, .. } => {
+                    assert_eq!(cmds.glyphs()[glyphs.start].top_left.y, 17.0);
                     found_text = true;
                 }
                 DrawCmd::FillRect { rect, color, .. } => {
@@ -5817,8 +5865,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 100.0),
@@ -5849,10 +5897,9 @@ mod tests {
                     color: spec().style.select_color,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(5.0, 34.0, 198.0, 98.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..10,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -5862,6 +5909,21 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('h', 5.0, 46.0),
+                ('e', 13.0, 46.0),
+                ('l', 21.0, 46.0),
+                ('l', 29.0, 46.0),
+                ('o', 37.0, 46.0),
+                ('w', 5.0, 62.0),
+                ('o', 13.0, 62.0),
+                ('r', 21.0, 62.0),
+                ('l', 29.0, 62.0),
+                ('d', 37.0, 62.0),
             ])
         );
     }
@@ -5943,8 +6005,8 @@ mod tests {
         );
 
         assert_eq!(
-            cmds,
-            DrawCommands::from_vec(vec![
+            cmds.commands(),
+            vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(0.0, 0.0, 200.0, 100.0),
@@ -5982,10 +6044,9 @@ mod tests {
                     color: spec().style.select_color,
                     z: 0,
                 },
-                DrawCmd::Text {
-                    rect: Rect::new(5.0, 26.0, 198.0, 98.0),
+                DrawCmd::GlyphRun {
+                    glyphs: 0..11,
                     color: spec().style.text_color,
-                    handle: crate::text::TextHandle(0),
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -5995,6 +6056,22 @@ mod tests {
                     z: 0,
                 },
                 DrawCmd::PopClip,
+            ]
+        );
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('o', 5.0, 38.0),
+                ('n', 13.0, 38.0),
+                ('e', 21.0, 38.0),
+                ('t', 5.0, 54.0),
+                ('w', 13.0, 54.0),
+                ('o', 21.0, 54.0),
+                ('t', 5.0, 70.0),
+                ('h', 13.0, 70.0),
+                ('r', 21.0, 70.0),
+                ('e', 29.0, 70.0),
+                ('e', 37.0, 70.0),
             ])
         );
     }
@@ -6092,8 +6169,8 @@ mod tests {
             // scroll_outer_rect = (1.0, 1.0, 198.0, 28.0).
             // Align::Start text_y = scroll_outer_rect.y + padding = 1.0 + 4.0 = 5.0.
             let has_text = cmds.iter().any(|cmd| {
-                if let DrawCmd::Text { rect, .. } = cmd {
-                    rect.y == 5.0
+                if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                    cmds.glyphs()[glyphs.start].top_left.y == 17.0
                 } else {
                     false
                 }
@@ -6121,8 +6198,8 @@ mod tests {
 
             // Align::Center text_y = scroll_outer_rect.y + (28.0 - 16.0)/2.0 = 1.0 + 6.0 = 7.0.
             let has_text = cmds.iter().any(|cmd| {
-                if let DrawCmd::Text { rect, .. } = cmd {
-                    rect.y == 7.0
+                if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                    cmds.glyphs()[glyphs.start].top_left.y == 19.0
                 } else {
                     false
                 }
@@ -6151,8 +6228,8 @@ mod tests {
             // Align::End text_y = scroll_outer_rect.y + scroll_outer_rect.h - padding - logical_size.y
             // = 1.0 + 28.0 - 4.0 - 16.0 = 9.0.
             let has_text = cmds.iter().any(|cmd| {
-                if let DrawCmd::Text { rect, .. } = cmd {
-                    rect.y == 9.0
+                if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                    cmds.glyphs()[glyphs.start].top_left.y == 21.0
                 } else {
                     false
                 }
@@ -6301,18 +6378,13 @@ mod tests {
         );
 
         assert!(
-            cmds.iter().any(|cmd| matches!(
-                cmd,
-                DrawCmd::Text {
-                    rect: Rect {
-                        x: 9.0,
-                        y: -11.0,
-                        w: 194.0,
-                        h: 80.0
-                    },
-                    ..
+            cmds.iter().any(|cmd| {
+                if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                    cmds.glyphs()[glyphs.start].top_left == Vec2::new(9.0, 1.0)
+                } else {
+                    false
                 }
-            )),
+            }),
             "text origin should be offset by the error stripe and scroll amount"
         );
 
@@ -6463,33 +6535,22 @@ mod tests {
     #[test]
     fn test_text_edit_wrapping() {
         let mut text_system = DummyTextSys;
-        let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
-        let input = Input::default();
-        let mut cmds = DrawCommands::new();
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // available width = 90px without scrollbar (11 chars)
         edit_spec.wrap = true;
 
-        raw::text_edit(
-            edit_spec,
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_system,
-            &mut cmds,
-        );
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let (metrics, layout_width, _, _) =
+            super::raw::edit_layout_size(&state.value, &edit_spec, text_style, &mut text_system);
 
-        // Verify that the text was prepared with the narrower max_width (85px)
+        // Verify that the text is laid out with the narrower max_width (85px)
         // so that it fits 10 characters per line.
-        if let Some((text, metrics)) = text_system.last_run {
-            assert_eq!(text, "abcdefghijklmnopqrst");
-            assert_eq!(metrics.line_count, 2);
-            assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
-            assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);
-        } else {
-            panic!("DummyTextSys did not record last prepared layout run");
-        }
+        assert_eq!(layout_width, 85.0);
+        assert_eq!(metrics.line_count, 2);
+        assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
+        assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);
     }
 
     #[test]
@@ -6703,6 +6764,7 @@ mod tests {
 
         let mut edit_spec = spec();
         edit_spec.wrap = true;
+        edit_spec.rect = Rect::new(0.0, 0.0, 18.0, 100.0);
 
         state.caret = CaretPosition::BeforeCluster {
             cluster_byte_index: 0,

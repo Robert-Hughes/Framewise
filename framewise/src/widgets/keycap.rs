@@ -237,7 +237,10 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::KeycapSpec;
     use super::*;
-    use crate::{DrawGlyph, PreparedGlyphHandle, Vec2, focus::FocusSystem, test_utils::DummyTextSys, text::FontId};
+    use crate::{
+        focus::FocusSystem, test_utils::DummyTextSys, text::FontId, DrawGlyph, PreparedGlyphHandle,
+        Vec2,
+    };
 
     #[test]
     fn test_keycap_visual() {
