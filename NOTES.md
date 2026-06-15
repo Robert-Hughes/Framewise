@@ -6,9 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
 
-  - page down/up behaviouor - currently doing nothing, not even scrolling the scroll area! WHy? This works for buttons inside scroll area.
-    - check that it swallows the keys when embedded inside a scroll area
-
   - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
   - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
 
@@ -20,8 +17,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - newline policy - how is enter rejected? Even for replace-with-space?
     - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
 
-  - Copy/paste integration with the system (apparently not working!)
-  - caret cursor
+  - Copy/paste integration with the OS (apparently not working!)
+  - caret cursor when mouse is over a text_edit
 
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?

@@ -1210,6 +1210,11 @@ pub mod raw {
             }
         }
 
+        if focused {
+            focus_system.claim_pgup_vert(state.focus_id);
+            focus_system.claim_pgdn_vert(state.focus_id);
+        }
+
         end_scroll_area(
             scroll_result.token,
             inner_scroll_size,
@@ -5334,6 +5339,81 @@ mod tests {
 
         assert_eq!(selection_byte(&state), Some(2));
         assert_eq!(caret_byte(&state), 20);
+    }
+
+    #[test]
+    fn test_text_edit_claims_page_keys_inside_outer_scroll_area() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+        let mut outer_scroll = crate::widgets::scroll_area::ScrollState::default();
+        let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
+        set_caret_byte(&mut state, 2);
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut edit_spec = TextEditSpec {
+            newline_policy: NewlinePolicy::Allow,
+            vertical_align: Align::Start,
+            ..spec()
+        };
+        edit_spec.rect = Rect::new(0.0, 0.0, 190.0, 50.0);
+
+        let outer_spec = crate::widgets::scroll_area::raw::ScrollAreaSpec {
+            rect: Rect::new(0.0, 0.0, 200.0, 80.0),
+            horizontal: crate::widgets::scroll_area::ScrollAxis {
+                extent: crate::widgets::scroll_area::ScrollExtent::FIT,
+                vis: crate::widgets::ScrollbarVisibility::Auto,
+            },
+            vertical: crate::widgets::scroll_area::ScrollAxis {
+                extent: crate::widgets::scroll_area::ScrollExtent::SCROLL,
+                vis: crate::widgets::ScrollbarVisibility::Always,
+            },
+            clip_rect: None,
+            time: 0.0,
+            scrollbar_width: 10.0,
+            scrollbar_style: crate::widgets::SliderStyle::scrollbar_from_theme(
+                &crate::theme::Theme::default(),
+            ),
+            layer: Layer::default(),
+            keyboard_focusable: true,
+        };
+
+        for _ in 0..2 {
+            let mut input = Input::default();
+            input.key_pressed_page_down = true;
+
+            focus_system.begin_frame();
+            let outer_token = crate::widgets::scroll_area::raw::begin_scroll_area(
+                outer_spec.clone(),
+                &mut outer_scroll,
+                &input,
+                &mut focus_system,
+                &mut cmds,
+            )
+            .token;
+
+            raw::text_edit(
+                edit_spec.clone(),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_system,
+                &mut cmds,
+            );
+
+            crate::widgets::scroll_area::raw::end_scroll_area(
+                outer_token,
+                Vec2::new(200.0, 1000.0),
+                &mut outer_scroll,
+                &input,
+                &mut focus_system,
+                &mut cmds,
+            );
+            focus_system.end_frame();
+        }
+
+        assert_eq!(outer_scroll.offset.y, 0.0);
+        assert_ne!(caret_byte(&state), 2);
     }
 
     // ── Home / End navigation ───────────────────────────────────────────────────
