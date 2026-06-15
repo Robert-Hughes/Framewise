@@ -397,7 +397,7 @@ impl<'a, T: TextSystem, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
 
     /// Append draw commands to the context's accumulated list.
     pub fn append_cmds(&mut self, cmds: DrawCommands) {
-        self.cmds.extend(cmds);
+        self.cmds.append(cmds);
     }
 }
 

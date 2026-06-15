@@ -4,6 +4,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- D:\Temp\Framewise text refactor.txt
+- Check code against the design - is it implemented completely, correctly, without omission and without unwanted additions? Is it well tested?
+
 - Text Edit
 
   - Improve and test

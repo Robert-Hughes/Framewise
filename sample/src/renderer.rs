@@ -698,6 +698,10 @@ impl Renderer {
                         );
                     }
                 }
+                DrawCmd::GlyphRun { .. } => {
+                    // Phase 1 introduces the command shape and arena. The sample
+                    // renderer starts drawing these in Phase 2.
+                }
                 DrawCmd::PushClip { rect } => {
                     flush_quads(
                         quad_verts.len() as u32,

@@ -1,5 +1,24 @@
 use crate::text::TextHandle;
 use crate::types::{Color, Rect, Vec2};
+use std::ops::Range;
+
+/// An opaque backend/renderer-owned handle to a renderer-ready glyph resource.
+///
+/// Framewise never inspects this value. It is not a character, text cluster,
+/// font glyph id, or layout glyph id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PreparedGlyphHandle(pub u32);
+
+/// A single prepared glyph blit emitted into a draw command glyph arena.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DrawGlyph {
+    pub handle: PreparedGlyphHandle,
+
+    /// Final top-left position of the prepared glyph bitmap in draw-list coordinates.
+    ///
+    /// The renderer resolves `handle` to atlas/resource data, including bitmap size.
+    pub top_left: Vec2,
+}
 
 /// A single drawing instruction produced by a widget.
 ///
@@ -67,6 +86,14 @@ pub enum DrawCmd {
         handle: TextHandle,
         z: u32,
     },
+
+    /// Draw a contiguous range of prepared glyphs from the `DrawCommands` glyph arena.
+    GlyphRun {
+        glyphs: Range<usize>,
+        color: Color,
+        z: u32,
+    },
+
     PushClip {
         rect: Rect,
     },
@@ -89,34 +116,104 @@ pub enum DrawCmd {
 /// that could remove, clear, truncate, or reorder elements (such as `clear`, `remove`,
 /// `truncate`, `swap`, or a `DerefMut` implementation).
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct DrawCommands(Vec<DrawCmd>);
+pub struct DrawCommands {
+    cmds: Vec<DrawCmd>,
+    glyphs: Vec<DrawGlyph>,
+}
 
 impl DrawCommands {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self {
+            cmds: Vec::new(),
+            glyphs: Vec::new(),
+        }
     }
 
     /// Build a command list from an existing vector. Useful for callers that
     /// assemble a batch of commands up front (e.g. demo/sample code).
+    ///
+    /// `GlyphRun` commands should be created with [`push_glyph_run`](Self::push_glyph_run)
+    /// so their ranges point at this command list's glyph arena.
     pub fn from_vec(cmds: Vec<DrawCmd>) -> Self {
-        Self(cmds)
+        Self {
+            cmds,
+            glyphs: Vec::new(),
+        }
     }
 
-    pub fn push(&mut self, cmd: DrawCmd) {
-        self.0.push(cmd);
+    pub fn push(&mut self, cmd: DrawCmd) -> usize {
+        let index = self.cmds.len();
+        self.cmds.push(cmd);
+        index
     }
 
+    pub fn push_glyph_run<I>(&mut self, glyphs: I, color: Color, z: u32) -> usize
+    where
+        I: IntoIterator<Item = DrawGlyph>,
+    {
+        let start = self.glyphs.len();
+        self.glyphs.extend(glyphs);
+        let end = self.glyphs.len();
+        let index = self.cmds.len();
+
+        if start != end {
+            self.cmds.push(DrawCmd::GlyphRun {
+                glyphs: start..end,
+                color,
+                z,
+            });
+        }
+
+        index
+    }
+
+    /// Append plain draw commands without glyph arena rebasing.
+    ///
+    /// This is only valid for non-`GlyphRun` commands. Use [`append`](Self::append)
+    /// to merge another `DrawCommands` value that may contain glyph runs.
     pub fn extend(&mut self, other: impl IntoIterator<Item = DrawCmd>) {
-        self.0.extend(other);
+        let other = other.into_iter();
+        let (lower, _) = other.size_hint();
+        self.cmds.reserve(lower);
+
+        for cmd in other {
+            debug_assert!(
+                !matches!(cmd, DrawCmd::GlyphRun { .. }),
+                "DrawCmd::GlyphRun must be added with push_glyph_run or append"
+            );
+            self.cmds.push(cmd);
+        }
+    }
+
+    pub fn commands(&self) -> &[DrawCmd] {
+        &self.cmds
+    }
+
+    pub fn glyphs(&self) -> &[DrawGlyph] {
+        &self.glyphs
+    }
+
+    pub fn append(&mut self, mut other: DrawCommands) {
+        let glyph_offset = self.glyphs.len();
+
+        for cmd in &mut other.cmds {
+            if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                glyphs.start += glyph_offset;
+                glyphs.end += glyph_offset;
+            }
+        }
+
+        self.glyphs.extend(other.glyphs);
+        self.cmds.extend(other.cmds);
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.cmds.is_empty()
     }
 
     /// Returns the number of draw commands in the list.
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.cmds.len()
     }
 
     /// Mutably borrows a single draw command by its index.
@@ -125,14 +222,14 @@ impl DrawCommands {
     /// mutating the content of a single command and does not permit removal or
     /// reordering, it preserves index stability.
     pub fn get_mut(&mut self, index: usize) -> Option<&mut DrawCmd> {
-        self.0.get_mut(index)
+        self.cmds.get_mut(index)
     }
 }
 
 impl std::ops::Deref for DrawCommands {
     type Target = [DrawCmd];
     fn deref(&self) -> &[DrawCmd] {
-        &self.0
+        &self.cmds
     }
 }
 
@@ -140,6 +237,98 @@ impl IntoIterator for DrawCommands {
     type Item = DrawCmd;
     type IntoIter = std::vec::IntoIter<DrawCmd>;
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.cmds.into_iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn color() -> Color {
+        Color::from_srgb_u8(1, 2, 3, 4)
+    }
+
+    fn glyph(handle: u32, x: f32) -> DrawGlyph {
+        DrawGlyph {
+            handle: PreparedGlyphHandle(handle),
+            top_left: Vec2::new(x, 2.0),
+        }
+    }
+
+    #[test]
+    fn push_glyph_run_stores_glyphs_and_command_range() {
+        let mut cmds = DrawCommands::new();
+
+        let index = cmds.push_glyph_run([glyph(10, 1.0), glyph(11, 9.0)], color(), 7);
+
+        assert_eq!(index, 0);
+        assert_eq!(cmds.glyphs(), &[glyph(10, 1.0), glyph(11, 9.0)]);
+        assert_eq!(
+            cmds.commands(),
+            &[DrawCmd::GlyphRun {
+                glyphs: 0..2,
+                color: color(),
+                z: 7,
+            }]
+        );
+    }
+
+    #[test]
+    fn append_rebases_glyph_run_ranges() {
+        let mut first = DrawCommands::new();
+        first.push_glyph_run([glyph(1, 0.0), glyph(2, 8.0)], color(), 1);
+
+        let mut second = DrawCommands::new();
+        second.push(DrawCmd::PopClip);
+        second.push_glyph_run([glyph(3, 16.0)], color(), 2);
+
+        first.append(second);
+
+        assert_eq!(
+            first.glyphs(),
+            &[glyph(1, 0.0), glyph(2, 8.0), glyph(3, 16.0)]
+        );
+        assert_eq!(
+            first.commands(),
+            &[
+                DrawCmd::GlyphRun {
+                    glyphs: 0..2,
+                    color: color(),
+                    z: 1,
+                },
+                DrawCmd::PopClip,
+                DrawCmd::GlyphRun {
+                    glyphs: 2..3,
+                    color: color(),
+                    z: 2,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn command_indices_remain_stable() {
+        let mut cmds = DrawCommands::new();
+
+        let first = cmds.push(DrawCmd::PopClip);
+        let second = cmds.push_glyph_run([glyph(1, 0.0)], color(), 1);
+        let third = cmds.push(DrawCmd::PushClip {
+            rect: Rect::new(1.0, 2.0, 3.0, 4.0),
+        });
+
+        assert_eq!((first, second, third), (0, 1, 2));
+        assert!(matches!(cmds.get_mut(first), Some(DrawCmd::PopClip)));
+    }
+
+    #[test]
+    fn empty_glyph_run_is_not_emitted() {
+        let mut cmds = DrawCommands::new();
+
+        let index = cmds.push_glyph_run([], color(), 1);
+
+        assert_eq!(index, 0);
+        assert!(cmds.commands().is_empty());
+        assert!(cmds.glyphs().is_empty());
     }
 }
