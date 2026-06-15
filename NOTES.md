@@ -337,6 +337,10 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Dialogs (blocking and non-blocking)
 - Could provide a "WindowSystem" trait to framewise which allows it to dynamically spawn new OS windows when it needs a tooltip etc. that overhangs the window.
 
+## Text and Fonts
+
+- Support for italics (currently advertised but does nothing I think!)
+
 ## Text Editing
 
 - Text editing (`TextEditState`)
