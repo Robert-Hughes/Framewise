@@ -6,9 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
 
-  - Add a large text editing area to the demo page, with a word wrap toggle. Pre-fill with very large text! (e.g. include_str from source!)
-  - Add a weirdly styled text edit (using all the font, italic, spacing, line height etc. settings, font colour etc)
-
   - Improve and test
     - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
     - Ctrl+Up/Down?
