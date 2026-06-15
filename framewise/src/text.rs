@@ -1083,8 +1083,10 @@ pub trait TextSystem {
     /// - Points to the right of a line clamp to the last cluster of that line.
     /// - For multi-byte characters or complex clusters, this returns the starting
     ///   byte index of the cluster.
-    /// - If the line ends with a hard newline (`\n`), a hit to the right of the line
-    ///   or on the newline itself must return the index of the `\n` character itself.
+    /// - If the line ends with a boundary cluster that has no visual advance,
+    ///   such as a hard newline (`\n`) or collapsed soft-wrap boundary
+    ///   whitespace, a hit to the right of the line or on that boundary must
+    ///   return the boundary cluster's start byte index.
     /// - Empty prepared text has no clusters, so every hit returns byte `0`.
     fn hit_test_cluster(&self, handle: TextHandle, pos: Vec2) -> usize;
 }
