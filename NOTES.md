@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - change text_edit padding left/right to 10px to match mockup. Affects many tests, perhaps override there?
-
   - scrollbar visibility
   - scrollbar styling
   - mouse scroll behaviour

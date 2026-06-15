@@ -1252,7 +1252,7 @@ impl TextEditStyle {
             focus_width: theme.focus_width,
             min_height: theme.h_md,
             padding_x: 10.0,
-            padding_y: 4.0,
+            padding_y: 0.0,
             font: theme.mono_font,
             size: theme.text_mono,
             weight: theme.sans_weight_regular,
@@ -1485,7 +1485,11 @@ impl TextEditSpecBuilder {
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
-            self.style = Some(TextEditStyle::from_theme(theme));
+            let mut style = TextEditStyle::from_theme(theme);
+            let multiline = self.newline_policy.unwrap_or_default() == NewlinePolicy::Allow
+                || self.wrap.unwrap_or(false);
+            style.padding_y = if multiline { 8.0 } else { 0.0 };
+            self.style = Some(style);
         }
         self
     }
@@ -1707,6 +1711,29 @@ mod tests {
             builder.style.unwrap().size,
             TextEditStyle::from_theme(&theme).size
         );
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_uses_single_line_vertical_padding() {
+        let theme = crate::theme::Theme::framewise();
+        let builder = TextEditSpecBuilder::new().defaults_from_theme(&theme);
+
+        assert_eq!(builder.style.unwrap().padding_y, 0.0);
+    }
+
+    #[test]
+    fn test_builder_defaults_from_theme_uses_multiline_vertical_padding() {
+        let theme = crate::theme::Theme::framewise();
+
+        let allow_newlines = TextEditSpecBuilder::new()
+            .newline_policy(NewlinePolicy::Allow)
+            .defaults_from_theme(&theme);
+        assert_eq!(allow_newlines.style.unwrap().padding_y, 8.0);
+
+        let wrapped = TextEditSpecBuilder::new()
+            .wrap(true)
+            .defaults_from_theme(&theme);
+        assert_eq!(wrapped.style.unwrap().padding_y, 8.0);
     }
 
     #[test]
