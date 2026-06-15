@@ -1,7 +1,9 @@
 use crate::{
+    draw::DrawGlyph,
     layout::Align,
     types::{Rect, Vec2},
 };
+use std::hash::Hash;
 
 /// A lightweight application-owned font handle.
 ///
@@ -104,6 +106,70 @@ pub enum FontRole {
 /// frame). Handles must not be retained across frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextHandle(pub usize);
+
+/// Backend-to-Framewise shaped text output.
+///
+/// This is a logical shaping result only. It contains no renderer resources and
+/// no final line layout.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShapedText<G> {
+    pub clusters: Vec<ShapedCluster<G>>,
+}
+
+/// One indivisible shaped cluster.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShapedCluster<G> {
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub advance: f32,
+    pub is_whitespace: bool,
+    pub glyphs: Vec<ShapedGlyph<G>>,
+}
+
+/// One shaped glyph inside a cluster.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShapedGlyph<G> {
+    pub id: G,
+    /// Position relative to the shaped text run before Framewise line layout.
+    pub x: f32,
+    /// Position relative to the line baseline before Framewise line layout.
+    pub y: f32,
+    pub advance: f32,
+}
+
+/// Request for a backend-owned glyph preparation/rasterisation step.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PrepareGlyphRequest<G> {
+    pub glyph: G,
+    pub style: TextStyle,
+
+    /// Final logical-pixel origin of the shaped glyph.
+    ///
+    /// This is after layout, wrapping, line alignment, baseline placement, and
+    /// caller draw origin have all been applied. The backend may use this for
+    /// subpixel bin selection and returns a [`DrawGlyph`] with bitmap placement
+    /// applied.
+    pub glyph_origin: Vec2,
+}
+
+/// Low-level text backend contract used by Framewise-owned text layout.
+///
+/// Framewise owns layout policy; the backend owns font selection, shaping,
+/// glyph rasterisation, glyph caching, and renderer resource handles.
+pub trait TextBackend {
+    type ShapedGlyphId: Copy + Eq + Hash;
+
+    fn line_height(&mut self, style: TextStyle) -> f32;
+
+    fn shape_text(&mut self, text: &str, style: TextStyle) -> ShapedText<Self::ShapedGlyphId>;
+
+    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId>;
+
+    fn prepare_glyph(
+        &mut self,
+        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+    ) -> Option<DrawGlyph>;
+}
 
 // ── Flow & overflow policy ──────────────────────────────────────────────────
 

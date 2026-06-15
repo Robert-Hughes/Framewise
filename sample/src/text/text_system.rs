@@ -37,8 +37,9 @@ use crate::text::types::{
     PreparedGlyphResources, TextCluster,
 };
 use framewise::{
-    CaretGeom, CaretPosition, FontId, LineHeight, PreparedGlyphHandle, Rect, TextBounds, TextFlow,
-    TextLayout, TextMetrics, TextSystem, Vec2,
+    CaretGeom, CaretPosition, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest,
+    PreparedGlyphHandle, Rect, ShapedText, TextBackend, TextBounds, TextFlow, TextLayout,
+    TextMetrics, TextSystem, Vec2,
 };
 use std::collections::HashMap;
 
@@ -215,6 +216,58 @@ impl PreparedGlyphResources for SampleTextSystem {
         let info = self.glyph_cache.get(key)?;
         Some(PreparedGlyphImage {
             atlas_rect: info.atlas_rect,
+        })
+    }
+}
+
+impl TextBackend for SampleTextSystem {
+    type ShapedGlyphId = u16;
+
+    fn line_height(&mut self, style: framewise::TextStyle) -> f32 {
+        Self::line_height(self, style.size, style.font, style.line_height)
+    }
+
+    fn shape_text(
+        &mut self,
+        text: &str,
+        style: framewise::TextStyle,
+    ) -> ShapedText<Self::ShapedGlyphId> {
+        self.shape_text_run(text, style)
+    }
+
+    fn shape_ellipsis(&mut self, style: framewise::TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+        self.shape_text_run("\u{2026}", style)
+    }
+
+    fn prepare_glyph(
+        &mut self,
+        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+    ) -> Option<DrawGlyph> {
+        let style = request.style;
+        let subpixel_x = ((request.glyph_origin.x * 4.0).round() as i32).rem_euclid(4) as u8;
+        let opsz = self.opsz_for_size(style.size, style.font) as u16;
+        let key = GlyphKey {
+            font_id: style.font.0,
+            glyph_index: request.glyph,
+            size: (style.size * 10.0) as u32,
+            subpixel_x,
+            weight: style.weight,
+            opsz,
+        };
+
+        let handle = self.prepare_glyph_handle(key);
+        let info = self.glyph_cache.get(&key)?;
+        if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
+            return None;
+        }
+
+        let quantized_x = (request.glyph_origin.x * 4.0).round() / 4.0;
+        Some(DrawGlyph {
+            handle,
+            top_left: Vec2::new(
+                quantized_x.floor() + info.left as f32,
+                request.glyph_origin.y.round() - info.top as f32,
+            ),
         })
     }
 }

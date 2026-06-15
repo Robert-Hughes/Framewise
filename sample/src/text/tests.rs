@@ -4,14 +4,38 @@ mod tests {
     use framewise::widgets::label::{raw as raw_label, LabelStyle};
     use framewise::{
         CaretGeom, CaretPosition, Color, DrawCommands, EllipsisFallback, FontId, Layer,
-        LineEndKind, LineHeight, OverflowX, OverflowY, Rect, TextBounds, TextContentPlacement,
-        TextFlow, TextHandle, TextLineAlign, TextStyle, TextSystem, Vec2, WrapClusterFallback,
-        WrapWordFallback,
+        LineEndKind, LineHeight, OverflowX, OverflowY, PrepareGlyphRequest, Rect, TextBackend,
+        TextBounds, TextContentPlacement, TextFlow, TextHandle, TextLineAlign, TextStyle,
+        TextSystem, Vec2, WrapClusterFallback, WrapWordFallback,
     };
     use swash::{shape::ShapeContext, FontRef};
 
     fn sys() -> SampleTextSystem {
         SampleTextSystem::new()
+    }
+
+    #[test]
+    fn text_backend_shapes_ellipsis_and_prepares_glyphs() {
+        let mut sys = sys();
+        let style = TextStyle::new(FontId(1), 16.0, 500, TextFlow::single_line());
+
+        let shaped = TextBackend::shape_text(&mut sys, "Hi", style);
+        assert!(!shaped.clusters.is_empty());
+        assert!(TextBackend::line_height(&mut sys, style) > 0.0);
+
+        let ellipsis = TextBackend::shape_ellipsis(&mut sys, style);
+        assert_eq!(ellipsis.clusters.len(), 1);
+
+        let glyph = shaped.clusters[0].glyphs[0];
+        let prepared = TextBackend::prepare_glyph(
+            &mut sys,
+            PrepareGlyphRequest {
+                glyph: glyph.id,
+                style,
+                glyph_origin: Vec2::new(12.25 + glyph.x, 18.0 + glyph.y),
+            },
+        );
+        assert!(prepared.is_some());
     }
 
     fn visible(sys: &SampleTextSystem, h: TextHandle) -> String {
