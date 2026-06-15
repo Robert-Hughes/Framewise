@@ -32,10 +32,13 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
-use crate::text::types::{CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec, TextCluster};
+use crate::text::types::{
+    CachedLayout, GlyphInfo, GlyphKey, GlyphPosition, LineRec, PreparedGlyphImage,
+    PreparedGlyphResources, TextCluster,
+};
 use framewise::{
-    CaretGeom, CaretPosition, FontId, LineHeight, Rect, TextBounds, TextFlow, TextLayout,
-    TextMetrics, TextSystem, Vec2,
+    CaretGeom, CaretPosition, FontId, LineHeight, PreparedGlyphHandle, Rect, TextBounds, TextFlow,
+    TextLayout, TextMetrics, TextSystem, Vec2,
 };
 use std::collections::HashMap;
 
@@ -76,6 +79,8 @@ pub struct SampleTextSystem {
 
     // Atlas data
     pub glyph_cache: HashMap<GlyphKey, GlyphInfo>,
+    pub prepared_glyph_keys: Vec<GlyphKey>,
+    pub prepared_glyph_handles: HashMap<GlyphKey, PreparedGlyphHandle>,
     pub atlas_data: Vec<u8>,
     pub atlas_size: u32,
 
@@ -168,6 +173,8 @@ impl SampleTextSystem {
             runs: Vec::new(),
             layout_cache: HashMap::new(),
             glyph_cache: HashMap::new(),
+            prepared_glyph_keys: Vec::new(),
+            prepared_glyph_handles: HashMap::new(),
             atlas_data: vec![0; (atlas_size * atlas_size) as usize],
             atlas_size,
             current_x: 0,
@@ -187,6 +194,28 @@ impl SampleTextSystem {
     pub fn begin_frame(&mut self) {
         self.runs.clear();
         self.atlas_dirty = false;
+    }
+
+    pub fn prepare_glyph_handle(&mut self, key: GlyphKey) -> PreparedGlyphHandle {
+        if let Some(handle) = self.prepared_glyph_handles.get(&key) {
+            return *handle;
+        }
+
+        self.ensure_glyph(key);
+        let handle = PreparedGlyphHandle(self.prepared_glyph_keys.len() as u32);
+        self.prepared_glyph_keys.push(key);
+        self.prepared_glyph_handles.insert(key, handle);
+        handle
+    }
+}
+
+impl PreparedGlyphResources for SampleTextSystem {
+    fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage> {
+        let key = self.prepared_glyph_keys.get(handle.0 as usize)?;
+        let info = self.glyph_cache.get(key)?;
+        Some(PreparedGlyphImage {
+            atlas_rect: info.atlas_rect,
+        })
     }
 }
 
@@ -282,7 +311,7 @@ impl TextSystem for SampleTextSystem {
                     weight: style.weight,
                     opsz: opsz as u16,
                 };
-                self.ensure_glyph(key);
+                self.prepare_glyph_handle(key);
             }
 
             let handle_id = self.runs.len();
@@ -322,7 +351,7 @@ impl TextSystem for SampleTextSystem {
                 weight: style.weight,
                 opsz: opsz as u16,
             };
-            self.ensure_glyph(key);
+            self.prepare_glyph_handle(key);
         }
 
         let handle_id = self.runs.len();

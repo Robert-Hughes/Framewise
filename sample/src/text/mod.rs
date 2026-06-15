@@ -9,4 +9,4 @@ mod integration_tests;
 mod tests;
 
 pub use text_system::SampleTextSystem;
-pub use types::{CachedLayout, GlyphKey};
+pub use types::{CachedLayout, GlyphKey, PreparedGlyphResources};

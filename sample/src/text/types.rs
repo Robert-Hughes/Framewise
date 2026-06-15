@@ -1,4 +1,4 @@
-use framewise::{FontId, LineEndKind};
+use framewise::{FontId, LineEndKind, PreparedGlyphHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GlyphRasterConfig {
@@ -31,6 +31,7 @@ pub struct GlyphKey {
     pub opsz: u16,   // optical size axis value (typically matches size in pt)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AtlasRect {
     pub x: u32,
     pub y: u32,
@@ -38,10 +39,20 @@ pub struct AtlasRect {
     pub h: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlyphInfo {
     pub atlas_rect: AtlasRect,
     pub left: i32,
     pub top: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PreparedGlyphImage {
+    pub atlas_rect: AtlasRect,
+}
+
+pub trait PreparedGlyphResources {
+    fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage>;
 }
 
 /// One indivisible shaped text unit used for layout and input mapping.

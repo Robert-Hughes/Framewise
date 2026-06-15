@@ -1,5 +1,6 @@
+use crate::text::PreparedGlyphResources;
 use bytemuck::{Pod, Zeroable};
-use framewise::{Color, DrawCmd, Rect};
+use framewise::{Color, DrawCmd, DrawCommands, DrawGlyph, Rect};
 use wgpu::util::DeviceExt;
 
 // ── Vertex layout ─────────────────────────────────────────────────────────────
@@ -392,6 +393,7 @@ impl Renderer {
 
     fn process_commands(
         cmds: &[DrawCmd],
+        glyphs: &[DrawGlyph],
         window_size: (u32, u32),
         text_system: &mut crate::text::SampleTextSystem,
     ) -> (
@@ -698,9 +700,31 @@ impl Renderer {
                         );
                     }
                 }
-                DrawCmd::GlyphRun { .. } => {
-                    // Phase 1 introduces the command shape and arena. The sample
-                    // renderer starts drawing these in Phase 2.
+                DrawCmd::GlyphRun {
+                    glyphs: glyph_range,
+                    color,
+                    z,
+                } => {
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        &mut render_cmds,
+                    );
+                    flush_aa(
+                        aa_shapes.len() as u32,
+                        &mut current_aa_start,
+                        &mut render_cmds,
+                    );
+                    if let Some(run_glyphs) = glyphs.get(glyph_range.clone()) {
+                        push_glyph_run(
+                            &mut text_verts,
+                            run_glyphs,
+                            *color,
+                            *z,
+                            text_system,
+                            window_size,
+                        );
+                    }
                 }
                 DrawCmd::PushClip { rect } => {
                     flush_quads(
@@ -780,7 +804,7 @@ impl Renderer {
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
-        cmds: &[DrawCmd],
+        draw_commands: &DrawCommands,
         window_size: (u32, u32),
         text_system: &mut crate::text::SampleTextSystem,
     ) {
@@ -807,8 +831,12 @@ impl Renderer {
             text_system.atlas_dirty = false;
         }
 
-        let (quad_verts, text_verts, aa_shapes, render_cmds) =
-            Self::process_commands(cmds, window_size, text_system);
+        let (quad_verts, text_verts, aa_shapes, render_cmds) = Self::process_commands(
+            draw_commands.commands(),
+            draw_commands.glyphs(),
+            window_size,
+            text_system,
+        );
 
         if quad_verts.is_empty() && text_verts.is_empty() && aa_shapes.is_empty() {
             return;
@@ -1382,11 +1410,88 @@ fn push_text_run(
     }
 }
 
+/// Generate vertices for a range of prepared glyph arena entries.
+fn push_glyph_run(
+    verts: &mut Vec<TextVertex>,
+    glyphs: &[DrawGlyph],
+    color: Color,
+    z: u32,
+    text_system: &crate::text::SampleTextSystem,
+    (sw, sh): (u32, u32),
+) {
+    let c = color_arr(color);
+    let z = z_to_depth(z);
+    let atlas_size = text_system.atlas_size as f32;
+
+    for glyph in glyphs {
+        let Some(image) = text_system.resolve_glyph(glyph.handle) else {
+            continue;
+        };
+        let src = image.atlas_rect;
+        if src.w == 0 || src.h == 0 {
+            continue;
+        }
+
+        let gx = glyph.top_left.x;
+        let gy = glyph.top_left.y;
+        let gw = src.w as f32;
+        let gh = src.h as f32;
+
+        let tl_pos = to_clip(gx, gy, sw, sh);
+        let tr_pos = to_clip(gx + gw, gy, sw, sh);
+        let bl_pos = to_clip(gx, gy + gh, sw, sh);
+        let br_pos = to_clip(gx + gw, gy + gh, sw, sh);
+
+        let u0 = src.x as f32 / atlas_size;
+        let v0 = src.y as f32 / atlas_size;
+        let u1 = (src.x + src.w) as f32 / atlas_size;
+        let v1 = (src.y + src.h) as f32 / atlas_size;
+
+        verts.push(TextVertex {
+            pos: tl_pos,
+            uv: [u0, v0],
+            color: c,
+            z,
+        });
+        verts.push(TextVertex {
+            pos: bl_pos,
+            uv: [u0, v1],
+            color: c,
+            z,
+        });
+        verts.push(TextVertex {
+            pos: tr_pos,
+            uv: [u1, v0],
+            color: c,
+            z,
+        });
+
+        verts.push(TextVertex {
+            pos: tr_pos,
+            uv: [u1, v0],
+            color: c,
+            z,
+        });
+        verts.push(TextVertex {
+            pos: bl_pos,
+            uv: [u0, v1],
+            color: c,
+            z,
+        });
+        verts.push(TextVertex {
+            pos: br_pos,
+            uv: [u1, v1],
+            color: c,
+            z,
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::push_text_run;
+    use super::{push_glyph_run, push_text_run};
     use crate::text::{GlyphKey, SampleTextSystem};
-    use framewise::{Color, FontId, Rect, TextFlow, TextSystem};
+    use framewise::{Color, DrawCommands, DrawGlyph, FontId, Rect, TextFlow, TextSystem, Vec2};
 
     #[test]
     fn text_vertices_snap_origin_before_adding_glyph_placement() {
@@ -1439,6 +1544,82 @@ mod tests {
         assert_eq!(
             actual_x, expected_x,
             "glyph quad x should snap the quantized origin before adding placement.left"
+        );
+    }
+
+    #[test]
+    fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {
+        let mut text_system = SampleTextSystem::new();
+        let key = GlyphKey {
+            font_id: 1,
+            glyph_index: 43,
+            size: 140,
+            subpixel_x: 0,
+            weight: 400,
+            opsz: 14,
+        };
+        let handle = text_system.prepare_glyph_handle(key);
+        let image = text_system.glyph_cache.get(&key).unwrap();
+        assert!(image.atlas_rect.w > 0);
+        assert!(image.atlas_rect.h > 0);
+
+        let mut verts = Vec::new();
+        push_glyph_run(
+            &mut verts,
+            &[DrawGlyph {
+                handle,
+                top_left: Vec2::new(25.0, 11.0),
+            }],
+            Color::from_srgb_u8(10, 20, 30, 255),
+            7,
+            &text_system,
+            (200, 100),
+        );
+
+        assert_eq!(verts.len(), 6);
+        assert_eq!(clip_x_to_pixels(verts[0].pos[0], 200), 25.0);
+        assert_eq!(clip_y_to_pixels(verts[0].pos[1], 100), 11.0);
+        assert_eq!(
+            clip_x_to_pixels(verts[5].pos[0], 200),
+            25.0 + image.atlas_rect.w as f32
+        );
+        assert_eq!(
+            clip_y_to_pixels(verts[5].pos[1], 100),
+            11.0 + image.atlas_rect.h as f32
+        );
+    }
+
+    #[test]
+    fn process_commands_draws_glyph_runs_from_arena() {
+        let mut text_system = SampleTextSystem::new();
+        let handle = text_system.prepare_glyph_handle(GlyphKey {
+            font_id: 1,
+            glyph_index: 43,
+            size: 140,
+            subpixel_x: 0,
+            weight: 400,
+            opsz: 14,
+        });
+        let mut cmds = DrawCommands::new();
+        cmds.push_glyph_run(
+            [DrawGlyph {
+                handle,
+                top_left: Vec2::new(4.0, 8.0),
+            }],
+            Color::from_srgb_u8(0, 0, 0, 255),
+            3,
+        );
+
+        let (_, text_verts, _, render_cmds) = super::Renderer::process_commands(
+            cmds.commands(),
+            cmds.glyphs(),
+            (100, 100),
+            &mut text_system,
+        );
+
+        assert_eq!(text_verts.len(), 6);
+        assert!(
+            matches!(render_cmds.as_slice(), [super::RenderCommand::DrawText(range)] if range == &(0..6))
         );
     }
 
@@ -1498,7 +1679,7 @@ mod tests {
         ];
 
         let (quad_verts, text_verts, aa_shapes, render_cmds) =
-            Renderer::process_commands(&cmds, (800, 600), &mut text_system);
+            Renderer::process_commands(&cmds, &[], (800, 600), &mut text_system);
 
         // Expect:
         // - 3 non-AA rects total -> 3 * 6 = 18 quad_verts
@@ -1527,5 +1708,9 @@ mod tests {
 
     fn clip_x_to_pixels(x: f32, width: u32) -> f32 {
         ((x + 1.0) * 0.5 * width as f32).round()
+    }
+
+    fn clip_y_to_pixels(y: f32, height: u32) -> f32 {
+        ((1.0 - y) * 0.5 * height as f32).round()
     }
 }
