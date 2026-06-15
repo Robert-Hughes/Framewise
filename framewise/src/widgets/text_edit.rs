@@ -165,7 +165,7 @@ pub mod raw {
         }
 
         let focused = focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect);
-        let just_focused = focused && !state.was_focused;
+        let just_focused = focused && !state.had_keyboard_focus;
 
         // Hit test mouse
         let is_visible = spec
@@ -205,7 +205,7 @@ pub mod raw {
         let mut caret = state.caret;
         let mut caret_needs_layout_sync = false;
 
-        if just_focused && !(contains && input.mouse_pressed) {
+        if just_focused && !state.suppress_select_all_on_next_focus {
             selection_byte = Some(0);
             caret_byte = state.value.len();
             caret_needs_layout_sync = true;
@@ -789,6 +789,9 @@ pub mod raw {
 
         // Mouse interaction
         if contains && input.mouse_pressed {
+            if !focused {
+                state.suppress_select_all_on_next_focus = true;
+            }
             focus_system.take_keyboard_focus(state.focus_id);
 
             let relative_pos = Vec2::new(
@@ -900,7 +903,7 @@ pub mod raw {
                 .min(state.value.len())
         });
 
-        if state.caret != old_caret || state.selection_anchor != old_selection {
+        if just_focused || state.caret != old_caret || state.selection_anchor != old_selection {
             state.last_caret_move_time = spec.time;
 
             let padding = 16.0_f32;
@@ -1110,7 +1113,10 @@ pub mod raw {
             crate::focus::FocusTraversalKeys::tab_only(),
         );
 
-        state.was_focused = focused || (contains && input.mouse_pressed);
+        if just_focused {
+            state.suppress_select_all_on_next_focus = false;
+        }
+        state.had_keyboard_focus = focused;
 
         TextEditResult {
             content_bounds: scroll_outer_rect,
@@ -1289,7 +1295,8 @@ pub struct TextEditState {
     pub drag_word_origin: Option<(usize, usize)>,
     pub drag_line_origin: Option<(usize, usize)>,
     pub last_caret_move_time: f64,
-    pub was_focused: bool,
+    pub had_keyboard_focus: bool,
+    pub suppress_select_all_on_next_focus: bool,
     pub scroll: ScrollState,
 }
 
@@ -1304,7 +1311,8 @@ impl Default for TextEditState {
             drag_word_origin: None,
             drag_line_origin: None,
             last_caret_move_time: 0.0,
-            was_focused: false,
+            had_keyboard_focus: false,
+            suppress_select_all_on_next_focus: false,
             scroll: ScrollState::default(),
         }
     }
@@ -2223,7 +2231,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 3);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
@@ -2261,7 +2269,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
         set_caret_byte(&mut state, 8); // "hello wo|rld"
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
@@ -2299,7 +2307,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 1);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
@@ -2344,7 +2352,7 @@ mod tests {
         let mut text_system = VisualBoundaryTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("ab");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
@@ -2534,7 +2542,7 @@ mod tests {
         focus_system.end_frame();
         assert_eq!(caret_byte(&state), 5);
         assert!(state.is_dragging);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         // Frame 3: Dragging
         input.mouse_pressed = false;
@@ -2988,7 +2996,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 5);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
@@ -3089,6 +3097,108 @@ mod tests {
     }
 
     #[test]
+    fn test_caret_blink_reset_on_focus_even_without_caret_move() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        set_caret_byte(&mut state, 5);
+        state.selection_anchor = Some(caret_position_at_byte(&state.value, 0));
+
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            TextEditSpec {
+                time: 0.6,
+                ..spec()
+            },
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert_eq!(state.last_caret_move_time, 0.6);
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        );
+        assert!(
+            has_caret,
+            "Caret should be visible immediately after gaining focus"
+        );
+    }
+
+    #[test]
+    fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
+        let mut text_system = DummyTextSys;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello");
+        set_caret_byte(&mut state, 5);
+
+        let mut input = Input {
+            mouse_pos: crate::types::Vec2::new(
+                40.0 + spec().style.padding + spec().style.border_width,
+                15.0,
+            ),
+            ..Input::default()
+        };
+
+        focus_system.begin_frame();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = true;
+        input.mouse_pressed = true;
+        focus_system.begin_frame();
+        raw::text_edit(
+            TextEditSpec {
+                time: 0.6,
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+
+        input.mouse_down = false;
+        input.mouse_pressed = false;
+        let mut cmds = DrawCommands::new();
+        focus_system.begin_frame();
+        raw::text_edit(
+            TextEditSpec {
+                time: 0.6,
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_system,
+            &mut cmds,
+        );
+
+        assert_eq!(state.last_caret_move_time, 0.6);
+        let has_caret = cmds.iter().any(
+            |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        );
+        assert!(
+            has_caret,
+            "Caret should be visible immediately after gaining focus from a mouse click"
+        );
+    }
+
+    #[test]
     fn test_word_boundaries() {
         let text = "hello world! 123";
         assert_eq!(word_bounds(text, 0), (0, 5));
@@ -3135,7 +3245,7 @@ mod tests {
             &mut text_system,
             &mut DrawCommands::new(),
         );
-        assert!(state.was_focused);
+        assert!(state.had_keyboard_focus);
         assert_eq!(selection_byte(&state), Some(0));
         assert_eq!(caret_byte(&state), 11);
     }
@@ -3191,7 +3301,7 @@ mod tests {
         );
         focus_system.end_frame();
 
-        assert!(state.was_focused);
+        assert!(state.had_keyboard_focus);
         assert_eq!(selection_byte(&state), None);
         assert_eq!(caret_byte(&state), 5);
     }
@@ -3284,7 +3394,7 @@ mod tests {
 
         set_selection_byte(&mut state, Some(6));
         set_caret_byte(&mut state, 11);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
@@ -3431,7 +3541,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
         focus_system.begin_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         let mut focused_cmds = DrawCommands::new();
 
         raw::text_edit(
@@ -3461,7 +3571,7 @@ mod tests {
         focus_system.end_frame();
         focus_system.begin_frame();
 
-        state.was_focused = true; // ensure state knows
+        state.had_keyboard_focus = true; // ensure state knows
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -3519,7 +3629,7 @@ mod tests {
         focus_system.end_frame();
         focus_system.begin_frame();
 
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         set_selection_byte(&mut state, Some(0));
         set_caret_byte(&mut state, 5);
 
@@ -3587,7 +3697,7 @@ mod tests {
             focus_system.end_frame();
             focus_system.begin_frame();
 
-            state.was_focused = true;
+            state.had_keyboard_focus = true;
             set_selection_byte(&mut state, Some(0));
             set_caret_byte(&mut state, 5);
 
@@ -3715,7 +3825,7 @@ mod tests {
         // Viewport width = 200 - 2 = 198.
         // Max scroll = 296 - 198 = 98.
         let mut state = TextEditState::new("hello world how are you today doing");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -3812,7 +3922,7 @@ mod tests {
         // Max scroll: 472 - 200 = 272px
         let mut state =
             TextEditState::new("leftwordoverlappingedge middle rightwordoverlappingedge");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -3905,7 +4015,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
         focus_system.begin_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         // Manually inject a scroll offset of 50.0
         state.scroll.offset.x = 50.0;
@@ -4005,7 +4115,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
         focus_system.begin_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let edit_spec = TextEditSpec {
             newline_policy: NewlinePolicy::Allow,
@@ -4153,7 +4263,7 @@ mod tests {
         // Viewport height = 60 - 2 = 58px.
         // Max scroll = 168 - 58 = 110px.
         let mut state = TextEditState::new("l0\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -4228,7 +4338,7 @@ mod tests {
         // 10 lines of 16px: total height = 160px.
         // Viewport height = 58px. Max scroll = 110px.
         let mut state = TextEditState::new("l0\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -4321,7 +4431,7 @@ mod tests {
         focus_system.begin_frame();
 
         let mut state = TextEditState::new("hello world how are you");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -4483,7 +4593,7 @@ mod tests {
         // Line 1: "l1\n" (bytes 3..6)
         // Line 2: "l2"   (bytes 6..8)
         let mut state = TextEditState::new("l0\nl1\nl2");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut input = Input::default();
@@ -4639,7 +4749,7 @@ mod tests {
             input.text_events.clear();
             input.key_pressed_enter = true;
             let mut state = TextEditState::new("abc");
-            state.was_focused = true;
+            state.had_keyboard_focus = true;
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
@@ -4777,7 +4887,7 @@ mod tests {
             let mut state = TextEditState::new("abc");
             set_caret_byte(&mut state, 1);
             set_selection_byte(&mut state, None);
-            state.was_focused = true;
+            state.had_keyboard_focus = true;
             let mut input = Input::default();
             input.key_pressed_enter = true;
             focus_system.begin_frame();
@@ -4922,7 +5032,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         let mut state = TextEditState::new("line1\nline2\nline3");
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.begin_frame();
         focus_system.take_keyboard_focus(state.focus_id);
 
@@ -5187,7 +5297,7 @@ mod tests {
         focus_system.end_frame();
         focus_system.begin_frame();
 
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         set_selection_byte(&mut state, Some(3)); // 'l' in "hello"
         set_caret_byte(&mut state, 9); // 'r' in "world"
 
@@ -5265,7 +5375,7 @@ mod tests {
         focus_system.end_frame();
         focus_system.begin_frame();
 
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         set_selection_byte(&mut state, Some(0));
         set_caret_byte(&mut state, 2);
 
@@ -5313,7 +5423,7 @@ mod tests {
         focus_system.end_frame();
         focus_system.begin_frame();
 
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         set_selection_byte(&mut state, Some(2)); // 'e' in "one"
         set_caret_byte(&mut state, 10); // 'r' in "three"
 
@@ -5431,7 +5541,7 @@ mod tests {
         // Due to the bug (layout width 50.0), CaretUp thinks index 8 is on Line 1 of the 50.0 layout,
         // and moves it up to index 2.
         set_caret_byte(&mut state, 8);
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         focus_system.begin_frame();
 
         let mut input = Input::default();
@@ -5782,7 +5892,7 @@ mod tests {
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
@@ -5839,7 +5949,7 @@ mod tests {
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
@@ -5914,7 +6024,7 @@ mod tests {
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
@@ -5982,7 +6092,7 @@ mod tests {
         let mut state = TextEditState::new("a b");
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
 
         let mut edit_spec = spec();
         edit_spec.wrap = true;
@@ -6020,7 +6130,7 @@ mod tests {
         let mut text_system = DummyTextSys;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
-        state.was_focused = true;
+        state.had_keyboard_focus = true;
         set_selection_byte(&mut state, Some(5));
         set_caret_byte(&mut state, 15);
         focus_system.take_keyboard_focus(state.focus_id);
