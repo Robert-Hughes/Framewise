@@ -2,7 +2,7 @@ use super::cluster_layout::{
     append_empty_after_terminal_soft_wrap_boundary, logical_cluster_line_start,
     logical_cluster_line_width, make_source_line, wrap_clusters, wrap_clusters_at_words,
 };
-use super::overflow::apply_ellipsis_x;
+use super::text_overflow::apply_ellipsis_x;
 use super::{
     EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX, OverflowY, TextBackend,
     TextBounds, TextCluster, TextLayout, TextLine, TextLineAlign, TextMetrics, TextStyle,
@@ -544,7 +544,7 @@ mod tests {
                     byte_end: byte_start + ch.len_utf8(),
                     advance: 8.0,
                     is_whitespace: ch.is_whitespace(),
-                    glyphs: vec![super::super::ShapedGlyph {
+                    glyphs: vec![crate::ShapedGlyph {
                         id: ch as u32,
                         x: 0.0,
                         y: 0.0,

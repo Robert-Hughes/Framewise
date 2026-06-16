@@ -11,6 +11,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
     3. Did we lose any test coverage compared to the previous design?
     4. Did we lose any useful documentation or comments?
     5. Are there any leftovers of the old design?
+  - Rename files to avoid duplicate names
   - The two dodgy tests are:
     widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
     widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds

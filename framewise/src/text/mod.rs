@@ -1,18 +1,18 @@
-mod backend;
+mod text_backend;
 mod caret;
 mod cluster_layout;
 mod glyph_emission;
-mod layout;
-mod overflow;
-mod placement;
+mod text_layout;
+mod text_overflow;
+mod text_placement;
 mod shaped_text;
-mod types;
+mod text_types;
 
-pub use backend::*;
-pub use layout::*;
-pub use placement::*;
+pub use text_backend::*;
+pub use text_layout::*;
+pub use text_placement::*;
 pub use shaped_text::*;
-pub use types::*;
+pub use text_types::*;
 
 #[cfg(test)]
-mod tests;
+mod text_tests;
