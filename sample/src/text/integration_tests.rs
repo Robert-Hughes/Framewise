@@ -4,7 +4,10 @@ mod integration_tests {
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
         text::SampleTextSystem,
     };
-    use framewise::{Color, DrawCmd, DrawCommands, FontId, LineHeight, Rect, TextFlow, TextSystem};
+    use framewise::{
+        text::layout_text, Color, DrawCommands, FontId, LineHeight, Rect, TextBounds, TextFlow,
+        TextStyle,
+    };
 
     #[test]
     fn test_headless_text_rendering() {
@@ -16,20 +19,26 @@ mod integration_tests {
 
             let mut cmds = DrawCommands::new();
             let font_id = FontId(1);
-            let body_style = framewise::TextStyle::new(font_id, 15.0, 400, TextFlow::wrapped())
+            let body_style = TextStyle::new(font_id, 15.0, 400, TextFlow::wrapped())
                 .with_line_height(LineHeight::Relative(1.55));
             let body_rect = Rect::new(0.0, 0.0, width as f32, height as f32);
-            let describe_layout = text_system.prepare(
+            let layout = layout_text(
+                &mut text_system,
                 "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.",
                 body_style,
-                body_rect,
+                TextBounds {
+                    max_width: Some(body_rect.w),
+                    max_height: Some(body_rect.h),
+                },
             );
-            cmds.push(DrawCmd::Text {
-                rect: body_rect,
-                color: Color::from_srgb_u8(0, 0, 0, 255),
-                handle: describe_layout.handle,
-                z: 0,
-            });
+            layout.emit_glyphs(
+                &mut cmds,
+                &mut text_system,
+                body_rect.top_left(),
+                body_style,
+                Color::from_srgb_u8(0, 0, 0, 255),
+                0,
+            );
 
             let Some(actual) = render_commands_to_rgba(width, height, cmds, text_system).await
             else {

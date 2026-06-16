@@ -477,12 +477,9 @@ mod tests {
     use super::*;
 
     use crate::test_utils::DummyTextSys;
-    use crate::text::TextHandle;
-    use crate::text::{CaretPosition, FontId};
+    use crate::text::FontId;
     use crate::text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText};
     use crate::theme;
-    use crate::types::Vec2;
-    use crate::TextSystem;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     struct PlacementTextSys {
@@ -544,65 +541,6 @@ mod tests {
                 handle: PreparedGlyphHandle(request.glyph),
                 top_left: request.glyph_origin,
             })
-        }
-    }
-
-    impl TextSystem for PlacementTextSys {
-        fn measure(
-            &mut self,
-            _text: &str,
-            _style: crate::text::TextStyle,
-            _bounds: crate::text::TextBounds,
-        ) -> crate::text::TextMetrics {
-            self.metrics.clone()
-        }
-
-        fn prepare(
-            &mut self,
-            _text: &str,
-            _style: crate::text::TextStyle,
-            rect: Rect,
-        ) -> crate::text::TextLayout {
-            self.prepared_rect = Some(rect);
-            crate::text::TextLayout {
-                handle: TextHandle(7),
-                metrics: self.metrics.clone(),
-                lines: Vec::new(),
-                clusters: Vec::new(),
-                glyphs: Vec::new(),
-            }
-        }
-
-        fn caret_geom(
-            &self,
-            _handle: TextHandle,
-            _position: CaretPosition,
-        ) -> crate::text::CaretGeom {
-            crate::text::CaretGeom {
-                x: 0.0,
-                y_top: 0.0,
-                height: 0.0,
-            }
-        }
-
-        fn hit_test_caret(&self, _handle: TextHandle, _pos: Vec2) -> CaretPosition {
-            CaretPosition::EmptyText
-        }
-
-        fn caret_insertion_byte(&self, _handle: TextHandle, _position: CaretPosition) -> usize {
-            0
-        }
-
-        fn caret_position_at_insertion_byte(
-            &self,
-            _handle: TextHandle,
-            _byte_index: usize,
-        ) -> CaretPosition {
-            CaretPosition::EmptyText
-        }
-
-        fn hit_test_cluster(&self, _handle: TextHandle, _pos: Vec2) -> usize {
-            0
         }
     }
 

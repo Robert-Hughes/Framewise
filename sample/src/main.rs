@@ -171,7 +171,7 @@ impl App {
         win_size: (f32, f32),
         text_system: &mut SampleTextSystem,
     ) -> framewise::DrawCommands {
-        use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow, TextSystem};
+        use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
         let mut cmds = framewise::DrawCommands::new();
         cmds.push(DrawCmd::FillRect {
             anti_alias: false,
@@ -180,24 +180,29 @@ impl App {
             z: 0,
         });
         let flow = TextFlow::single_line();
-        let m = text_system.measure(
+        let style = framewise::TextStyle::new(FontId(1), 24.0, 400, flow);
+        let m = framewise::text::measure_text(
+            text_system,
             "Feature not enabled",
-            framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
+            style,
             TextBounds::UNBOUNDED,
         );
         let cx = (win_size.0 - m.logical_size.x) * 0.5;
         let cy = (win_size.1 - m.logical_size.y) * 0.5;
-        let layout = text_system.prepare(
+        let layout = framewise::text::layout_text_in_rect(
+            text_system,
             "Feature not enabled",
-            framewise::TextStyle::new(FontId(1), 24.0, 400, flow),
+            style,
             Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
         );
-        cmds.push(DrawCmd::Text {
-            rect: Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
-            color: Color::from_srgb_u8(140, 140, 150, 255),
-            handle: layout.handle,
-            z: 0,
-        });
+        layout.emit_glyphs(
+            &mut cmds,
+            text_system,
+            framewise::Vec2::new(cx, cy),
+            style,
+            Color::from_srgb_u8(140, 140, 150, 255),
+            0,
+        );
         cmds
     }
 

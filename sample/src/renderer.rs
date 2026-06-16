@@ -672,34 +672,6 @@ impl Renderer {
                         );
                     }
                 }
-                DrawCmd::Text {
-                    rect,
-                    color,
-                    handle,
-                    z,
-                } => {
-                    flush_quads(
-                        quad_verts.len() as u32,
-                        &mut current_quad_start,
-                        &mut render_cmds,
-                    );
-                    flush_aa(
-                        aa_shapes.len() as u32,
-                        &mut current_aa_start,
-                        &mut render_cmds,
-                    );
-                    if let Some(run) = text_system.runs.get(handle.0) {
-                        push_text_run(
-                            &mut text_verts,
-                            *rect,
-                            *color,
-                            *z,
-                            run,
-                            text_system,
-                            window_size,
-                        );
-                    }
-                }
                 DrawCmd::GlyphRun {
                     glyphs: glyph_range,
                     color,
@@ -1316,100 +1288,6 @@ fn push_stroked_circle(
     }
 }
 
-/// Generate vertices for a prepared text run.
-fn push_text_run(
-    verts: &mut Vec<TextVertex>,
-    rect: Rect,
-    color: Color,
-    z: u32,
-    run: &crate::text::CachedLayout,
-    text_system: &crate::text::SampleTextSystem,
-    (sw, sh): (u32, u32),
-) {
-    let c = color_arr(color);
-    let z = z_to_depth(z);
-    let atlas_size = text_system.atlas_size as f32;
-
-    for g in &run.glyphs {
-        let key = crate::text::GlyphKey {
-            font_id: run.font_id.0,
-            glyph_index: g.key.glyph_index,
-            size: (g.key.px * 10.0) as u32,
-            subpixel_x: g.subpixel_x,
-            weight: g.weight,
-            opsz: g.opsz,
-        };
-        if let Some(info) = text_system.glyph_cache.get(&key) {
-            let src = &info.atlas_rect;
-            if src.w == 0 || src.h == 0 {
-                continue;
-            } // Space character
-
-            // Snap screen quad coordinates to integer boundaries using .round().
-            // With subpixel-baked bitmaps, snap/quantize the glyph origin first,
-            // then add placement. This ensures correct alignment.
-            let absolute_x = rect.x + g.x;
-            let quantized_x = (absolute_x * 4.0).round() / 4.0; // Snap to subpixel bin
-            let gx = quantized_x.floor() + info.left as f32;
-
-            let absolute_y = rect.y + g.y;
-            let gy = absolute_y.round() - info.top as f32;
-
-            let gw = g.raster_w as f32;
-            let gh = g.raster_h as f32;
-
-            let tl_pos = to_clip(gx, gy, sw, sh);
-            let tr_pos = to_clip(gx + gw, gy, sw, sh);
-            let bl_pos = to_clip(gx, gy + gh, sw, sh);
-            let br_pos = to_clip(gx + gw, gy + gh, sw, sh);
-
-            // Source UV in atlas
-            let u0 = src.x as f32 / atlas_size;
-            let v0 = src.y as f32 / atlas_size;
-            let u1 = (src.x + src.w) as f32 / atlas_size;
-            let v1 = (src.y + src.h) as f32 / atlas_size;
-
-            verts.push(TextVertex {
-                pos: tl_pos,
-                uv: [u0, v0],
-                color: c,
-                z,
-            });
-            verts.push(TextVertex {
-                pos: bl_pos,
-                uv: [u0, v1],
-                color: c,
-                z,
-            });
-            verts.push(TextVertex {
-                pos: tr_pos,
-                uv: [u1, v0],
-                color: c,
-                z,
-            });
-
-            verts.push(TextVertex {
-                pos: tr_pos,
-                uv: [u1, v0],
-                color: c,
-                z,
-            });
-            verts.push(TextVertex {
-                pos: bl_pos,
-                uv: [u0, v1],
-                color: c,
-                z,
-            });
-            verts.push(TextVertex {
-                pos: br_pos,
-                uv: [u1, v1],
-                color: c,
-                z,
-            });
-        }
-    }
-}
-
 /// Generate vertices for a range of prepared glyph arena entries.
 fn push_glyph_run(
     verts: &mut Vec<TextVertex>,
@@ -1489,63 +1367,9 @@ fn push_glyph_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{push_glyph_run, push_text_run};
+    use super::push_glyph_run;
     use crate::text::{GlyphKey, SampleTextSystem};
-    use framewise::{Color, DrawCommands, DrawGlyph, FontId, Rect, TextFlow, TextSystem, Vec2};
-
-    #[test]
-    fn text_vertices_snap_origin_before_adding_glyph_placement() {
-        let mut text_system = SampleTextSystem::new();
-        text_system.begin_frame();
-
-        let rect = Rect::new(10.0, 15.0, 180.0, 30.0);
-        let layout = text_system.prepare(
-            "Headless Test.",
-            framewise::TextStyle::new(FontId(1), 14.0, 400, TextFlow::single_line()),
-            rect,
-        );
-        let run = &text_system.runs[layout.handle.0];
-
-        let glyph_index = run
-            .glyphs
-            .iter()
-            .position(|g| g.parent == 'e')
-            .expect("test string should contain an e glyph");
-        let glyph = &run.glyphs[glyph_index];
-        let key = GlyphKey {
-            font_id: run.font_id.0,
-            glyph_index: glyph.key.glyph_index,
-            size: (glyph.key.px * 10.0) as u32,
-            subpixel_x: glyph.subpixel_x,
-            weight: glyph.weight,
-            opsz: glyph.opsz,
-        };
-        let info = text_system
-            .glyph_cache
-            .get(&key)
-            .expect("prepared glyph should be in cache");
-
-        let mut verts = Vec::new();
-        push_text_run(
-            &mut verts,
-            rect,
-            Color::from_srgb_u8(0, 0, 0, 255),
-            0,
-            run,
-            &text_system,
-            (200, 50),
-        );
-
-        let actual_x = clip_x_to_pixels(verts[glyph_index * 6].pos[0], 200);
-        let absolute_x = rect.x + glyph.x;
-        let quantized_x = (absolute_x * 4.0).round() / 4.0;
-        let expected_x = quantized_x.floor() + info.left as f32;
-
-        assert_eq!(
-            actual_x, expected_x,
-            "glyph quad x should snap the quantized origin before adding placement.left"
-        );
-    }
+    use framewise::{Color, DrawCommands, DrawGlyph, Vec2};
 
     #[test]
     fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {

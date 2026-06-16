@@ -3,8 +3,7 @@ use crate::types::{Rect, Vec2};
 /// A lightweight application-owned font handle.
 ///
 /// Framewise never loads or owns font files. It only passes this handle to the
-/// application's `TextSystem`, which decides how the handle maps to real font
-/// data.
+/// application's text backend, which decides how the handle maps to real font data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FontId(pub u16);
 
@@ -91,17 +90,6 @@ pub enum FontRole {
     Mono,
 }
 
-/// An opaque handle to a text layout prepared by the application's text system.
-///
-/// Framewise does not know how text is shaped or rasterised. It just passes this
-/// handle to the renderer via `DrawCmd::Text`.
-///
-/// A handle is produced by [`TextSystem::prepare`] and is valid only until the
-/// text system's next frame reset (the implementation clears its run table each
-/// frame). Handles must not be retained across frames.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TextHandle(pub usize);
-
 // ── Flow & overflow policy ──────────────────────────────────────────────────
 
 /// How a block of text flows and fills the logical space it is measured or
@@ -124,6 +112,18 @@ pub struct TextHandle(pub usize);
 /// This makes wrapping just one possible X-axis overflow response, rather than
 /// a separate boolean. Hard line breaks (`'\n'`) are always respected before
 /// X-overflow handling is applied.
+///
+/// Preserved whitespace characters are individually wrap-capable. Under word
+/// wrapping, each whitespace cluster is treated as a single-cluster word-like
+/// unit for overflow and fallback purposes. Under cluster wrapping, whitespace
+/// is an ordinary cluster for wrapping and fallback purposes.
+///
+/// Whitespace does not have a separate fallback chain. It follows the selected
+/// [`OverflowX`] policy normally. The special case is only how a whitespace
+/// cluster is represented when it becomes a soft-wrap boundary after other
+/// clusters have already been admitted to the current visual line: instead of
+/// producing a whitespace-only visual line, that single boundary character is
+/// kept on the previous line with zero advance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextFlow {
     /// Inline-axis overflow policy.
@@ -233,7 +233,7 @@ pub enum OverflowX {
     /// Preserved whitespace participates in this hierarchy as single-cluster
     /// word-like units, using the same fallback sequence as any other word-like
     /// unit. The only whitespace-specific behavior is the soft-wrap boundary
-    /// collapse described in the `TextSystem` contract below: when whitespace
+    /// collapse described in the Framewise text layout contract: when whitespace
     /// itself overflows after other clusters have already been admitted to the
     /// current visual line, or when whitespace is immediately before the unit
     /// that overflows, that boundary whitespace may be retained on the previous
@@ -378,7 +378,7 @@ pub enum TextLineAlign {
 // ── Measurement inputs & outputs ────────────────────────────────────────────
 
 /// Logical layout constraints available to text, used by
-/// [`TextSystem::measure`].
+/// [`measure_text`](crate::text::measure_text).
 ///
 /// Each axis is `Some(px)` for a finite ceiling, or `None` for unbounded. This
 /// is the reduction of the layout's `AxisBound`: both `Exact(w)` and `AtMost(w)`
@@ -391,6 +391,10 @@ pub enum TextLineAlign {
 /// hit-testing. The visible ink may still protrude outside these bounds due to
 /// glyph bearings, overhangs, accents, combining marks, symbol placement, or
 /// custom font behavior.
+///
+/// A caller that needs strict pixel containment should clip, add padding, or use
+/// a future ink-fitting policy rather than assuming that these input bounds
+/// contain all rendered pixels.
 ///
 /// Measurement is **symmetric**: text is reflowable, so its logical size is a
 /// curve, not a point. Whichever axis is bounded constrains the flow; the
@@ -517,14 +521,19 @@ pub struct TextMetrics {
     /// Approximate/conservative ink bounds in layout coordinates.
     ///
     /// These bounds are useful for broad placement decisions and diagnostics,
-    /// but they are not guaranteed to match exact final raster bounds. Final
-    /// glyph rasterisation may depend on [`TextLayout::emit_glyphs`], backend
-    /// `prepare_glyph`, draw origin, subpixel binning, hinting, glyph bearings,
-    /// and renderer resource sizes.
+    /// but they are not guaranteed to match exact final raster bounds. Ink may
+    /// sit inside the logical box, protrude outside it, be empty for whitespace,
+    /// or be offset by glyph bearings, overhangs, accents, combining marks, or
+    /// symbol placement. Final glyph rasterisation may depend on
+    /// [`TextLayout::emit_glyphs`], backend `prepare_glyph`, draw origin,
+    /// subpixel binning, hinting, glyph bearings, and renderer resource sizes.
     ///
     /// Exact drawn bounds can only be derived from emitted `DrawGlyph`s plus the
     /// resolved image sizes for their `PreparedGlyphHandle`s. `measure_text`
-    /// does not promise exact pixel ink bounds.
+    /// does not promise exact pixel ink bounds. Callers that require strict
+    /// pixel containment should clip, add padding, or use a future ink-fitting
+    /// policy rather than assuming that input bounds contain all rendered
+    /// pixels.
     pub ink_bounds: Rect,
 
     /// Number of lines actually laid out (after wrapping, hard breaks, and
@@ -545,61 +554,107 @@ pub struct TextMetrics {
     pub lines: Vec<LineMetrics>,
 }
 
-/// The geometry and handle for a piece of text prepared for drawing.
+/// The owned geometry for a laid-out piece of text.
+///
+/// All positions are in block-local coordinates: the origin is the text block's
+/// top-left corner, with y increasing downward. Callers translate the layout to
+/// screen space by passing a draw origin to [`TextLayout::emit_glyphs`].
+///
+/// Empty input is a valid layout, not an error case. It produces one visible
+/// empty line with normal line metrics, zero advance, empty ink bounds, and a
+/// positive height so editors can size and draw a non-zero-height caret.
+///
+/// For empty text:
+/// - `metrics.line_count == 1` and `lines.len() == 1`.
+/// - `metrics.logical_size.x == 0.0`.
+/// - `metrics.logical_size.y` is one line height.
+/// - `metrics.ink_bounds` is empty because no glyph ink is emitted.
+/// - The single line has `byte_start == byte_end == 0`,
+///   `end_kind == LineEndKind::EndOfText`, and a positive `height`.
+///
+/// Every hard newline starts a new visual line. A trailing hard newline creates
+/// a following empty visual line. Preserved whitespace at the end of the text
+/// does the same when it overflows and is collapsed at a soft-wrap boundary:
+/// the boundary character remains in the previous line's byte range while the
+/// caret position after it is on the following empty line.
+///
+/// At a soft-wrap boundary, exactly one preserved whitespace character may be
+/// collapsed to zero advance. Leading indentation remains visible unless one of
+/// those whitespace characters independently becomes a later boundary.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextLayout<G = TextHandle> {
-    /// The opaque handle to give to the renderer via `DrawCmd::Text`.
-    pub handle: TextHandle,
-    /// The block's measured geometry, identical to what [`TextSystem::measure`]
-    /// would return for the same text, flow policy, and the draw rect's logical
-    /// size as bounds.
+pub struct TextLayout<G> {
+    /// The block's measured logical geometry.
     pub metrics: TextMetrics,
-    /// Owned line records for Framewise-owned text layouts.
+    /// Owned visual line records in block-local coordinates.
     pub lines: Vec<TextLine>,
-    /// Owned text clusters for Framewise-owned text layouts.
+    /// Owned text clusters used for wrapping, caret placement, hit-testing, and
+    /// source byte mapping.
     pub clusters: Vec<TextCluster>,
-    /// Owned layout glyphs for Framewise-owned text layouts.
+    /// Owned layout glyphs with final layout-space origins, before caller draw
+    /// origin is added.
     pub glyphs: Vec<LayoutGlyph<G>>,
 }
 
 /// One laid-out visual line in a Framewise-owned text layout.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextLine {
+    /// Top edge of the line in block-local coordinates.
     pub y_top: f32,
+    /// Line height, and the vertical advance to the next line.
     pub height: f32,
+    /// Range into the layout's `glyphs` vec: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
+    /// Range into the layout's `clusters` vec: `[cluster_start, cluster_end)`.
     pub cluster_start: usize,
     pub cluster_end: usize,
+    /// Byte range of the original string mapped to this line:
+    /// `[byte_start, byte_end)`.
     pub byte_start: usize,
     pub byte_end: usize,
+    /// Logical advance width of the line.
     pub logical_width: f32,
+    /// Approximate/conservative ink width of the line.
     pub ink_width: f32,
+    /// X offset of the line's logical start in block-local coordinates.
     pub logical_x: f32,
+    /// X offset of the line's approximate ink start in block-local coordinates.
     pub ink_x: f32,
+    /// The semantic reason this visual line ends here.
     pub end_kind: LineEndKind,
 }
 
 /// One indivisible laid-out cluster in a Framewise-owned text layout.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextCluster {
+    /// Byte range of the original string represented by this cluster.
     pub byte_start: usize,
     pub byte_end: usize,
+    /// Range into the layout's `glyphs` vec: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
+    /// Logical leading edge in block-local coordinates.
     pub x: f32,
+    /// Logical advance used by wrapping, caret placement, and hit-testing.
     pub advance: f32,
+    /// True for explicit hard line break clusters.
     pub is_hard_break: bool,
+    /// True for Unicode whitespace clusters.
     pub is_whitespace: bool,
+    /// True for a preserved whitespace cluster collapsed at a soft-wrap boundary.
     pub is_soft_wrap_boundary: bool,
 }
 
 /// One glyph after Framewise line layout, before caller draw origin is added.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LayoutGlyph<G> {
+    /// Backend-shaped glyph identifier.
     pub id: G,
+    /// Final layout-space glyph origin before caller draw origin is added.
     pub origin: Vec2,
+    /// Shaped advance used by text flow.
     pub advance: f32,
+    /// Source byte index of the cluster that produced this glyph.
     pub byte_start: usize,
 }
 
@@ -620,9 +675,9 @@ pub struct LayoutGlyph<G> {
 /// - [`AfterCluster`](Self::AfterCluster) inserts at the anchored cluster's
 ///   `byte_end`.
 ///
-/// Use [`TextSystem::caret_insertion_byte`] to convert a prepared visual caret
-/// position into an insertion byte index for editing operations. Use
-/// [`TextSystem::caret_position_at_insertion_byte`] to choose a canonical visual
+/// Use [`TextLayout::caret_insertion_byte`] to convert a visual caret position
+/// into an insertion byte index for editing operations. Use
+/// [`TextLayout::caret_position_at_insertion_byte`] to choose a canonical visual
 /// anchor for a programmatic byte position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CaretPosition {

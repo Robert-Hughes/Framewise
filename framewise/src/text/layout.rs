@@ -4,9 +4,8 @@ use super::cluster_layout::{
 };
 use super::overflow::apply_ellipsis_x;
 use super::{
-    CaretGeom, CaretPosition, EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX,
-    OverflowY, TextBackend, TextBounds, TextCluster, TextHandle, TextLayout, TextLine,
-    TextLineAlign, TextMetrics, TextStyle,
+    EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX, OverflowY, TextBackend,
+    TextBounds, TextCluster, TextLayout, TextLine, TextLineAlign, TextMetrics, TextStyle,
 };
 use crate::{
     draw::DrawCommands,
@@ -62,6 +61,16 @@ impl<G> OwnedCluster<G> {
     }
 }
 
+/// Lay out `text` with Framewise-owned text layout policy.
+///
+/// Framewise owns hard newline handling, wrapping, overflow, line records,
+/// logical metrics, caret geometry, hit-testing, and glyph-run emission. The
+/// backend owns font selection, shaping, glyph rasterisation, glyph caching, and
+/// renderer resource handles.
+///
+/// All positions in the returned layout are in block-local coordinates: the
+/// origin is the block's top-left corner, with y increasing downward. The caller
+/// translates the block to its final screen position when emitting glyphs.
 pub fn layout_text<B: TextBackend>(
     backend: &mut B,
     text: &str,
@@ -71,6 +80,30 @@ pub fn layout_text<B: TextBackend>(
     TextLayout::from_backend(backend, text, style, bounds)
 }
 
+/// Measure `text` without preparing backend glyph resources for drawing.
+///
+/// Used by widgets' intrinsic-sizing companions to learn how large a piece of
+/// text wants to be inside a given space, before the final rect is resolved.
+/// The returned [`TextMetrics`] reflect the style's flow policy applied against
+/// `bounds`; see [`TextBounds`] for how bounded and unbounded axes drive reflow.
+///
+/// The returned `logical_size` represents logical layout geometry:
+/// advance-based line width and line-height-based block height after the
+/// selected overflow policy has been applied. It is not a tight ink box.
+///
+/// With strict overflow policies the logical size should fit within bounded
+/// input axes. Policies that explicitly keep overflowing content may return a
+/// logical size larger than the supplied bounds. `ink_bounds` reports approximate
+/// visible bounds, which may protrude outside the logical size due to font
+/// metrics and glyph placement.
+///
+/// `style.flow.line_align` has no effect on logical sizing, wrapping, or
+/// truncation: those decisions are made in logical line space. It may affect
+/// `ink_bounds`, because alignment shifts the admitted glyphs within the
+/// available line width.
+///
+/// For empty `text`, this returns the empty-text metrics described on
+/// [`TextLayout`]: one normal-height line, zero width, and empty ink bounds.
 pub fn measure_text<B: TextBackend>(
     backend: &mut B,
     text: &str,
@@ -97,6 +130,23 @@ pub fn layout_text_in_rect<B: TextBackend>(
     )
 }
 
+/// Lay out `text` in `rect`, emit its drawable glyphs, and return the owned
+/// layout for further metrics, caret, or hit-testing queries.
+///
+/// `rect` is the fully concrete logical layout rect: its width is the
+/// wrap/alignment width, its height is the vertical layout or clip extent, and
+/// its origin is the block origin used for rendering.
+///
+/// The final screen position (`rect.x`, `rect.y`) is passed to the backend when
+/// glyphs are emitted so it can apply subpixel offsets/positioning at the
+/// absolute draw location.
+///
+/// The text backend may produce ink that extends outside this rect. A caller
+/// that needs hard containment must apply clipping or provide padding.
+///
+/// The returned [`TextLayout::metrics`] equal what [`measure_text`] would report
+/// for the same `text` and `style`, with
+/// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
 pub fn emit_text_in_rect<B: TextBackend>(
     commands: &mut DrawCommands,
     backend: &mut B,
@@ -450,7 +500,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         };
 
         Self {
-            handle: TextHandle(usize::MAX),
             metrics,
             lines,
             clusters,
@@ -463,319 +512,11 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
     }
 }
 
-/// Implemented by the application to measure, shape, and cache text.
-///
-/// Framewise owns *policy* (whether to wrap, how much space is available, what to
-/// do on overflow) and hands it down; the `TextSystem` owns *shaping* (where
-/// lines actually break, how the ellipsis is fitted, how glyphs are positioned)
-/// and hands geometry back. Framewise never inspects glyphs.
-///
-/// ### Character Preservation Contract
-///
-/// A text system must account for every source character in its layout, source
-/// byte ranges, caret positions, hit-testing, and selection geometry. Characters
-/// may be omitted from emitted geometry only when the selected overflow policy
-/// explicitly truncates content, such as `Drop`, ellipsis fitting, or a `Drop`
-/// fallback.
-///
-/// ### Newlines and Empty Lines
-///
-/// - Every hard newline (`\n`) must start a new visual line.
-/// - Empty lines (such as a line consisting only of `\n`, or a trailing newline at
-///   the end of the text) must produce a corresponding `LineMetrics` entry and
-///   contribute to the vertical layout height.
-/// - If preserved whitespace at the end of the text overflows and is collapsed at
-///   a soft-wrap boundary, the layout must still create a following empty visual
-///   line. This mirrors the behavior of a trailing hard newline: the boundary
-///   character belongs to the previous line, while the caret position after it is
-///   on the next empty line.
-///
-/// ### Whitespace Wrapping
-///
-/// Preserved whitespace characters are individually wrap-capable. Under word
-/// wrapping, each whitespace cluster is treated as a single-cluster word-like
-/// unit for overflow and fallback purposes. Under cluster wrapping, whitespace
-/// is an ordinary cluster for wrapping and fallback purposes.
-///
-/// Whitespace does not have a separate fallback chain. It follows the selected
-/// [`OverflowX`] policy normally. The special case is only how a whitespace
-/// cluster is represented when it becomes a soft-wrap boundary after other
-/// clusters have already been admitted to the current visual line: instead of
-/// producing a whitespace-only visual line, that single boundary character is
-/// kept on the previous line with zero advance.
-///
-/// At a soft-wrap boundary, exactly one preserved whitespace character is
-/// collapsed if either that whitespace character is the overflowing unit, or
-/// the overflowing unit immediately follows that whitespace character and the
-/// line already contains non-whitespace content before the whitespace. The
-/// non-whitespace requirement preserves leading indentation: leading whitespace
-/// at the start of a visual line remains visible unless one of those whitespace
-/// characters independently becomes the boundary character of a later soft
-/// wrap.
-///
-/// The collapsed whitespace is kept in the previous visual line's byte range
-/// and caret/selection model, like a hard newline, but is assigned zero visual
-/// advance and excluded from that line's `logical_width`. Adjacent whitespace
-/// remains preserved and participates in wrapping normally. A soft wrap
-/// collapses only the single boundary whitespace character for that wrap; later
-/// adjacent whitespace is not collapsed unless it independently becomes the
-/// boundary character of a later soft wrap.
-///
-/// See `DESIGN.md` ("Text Wrapping And Whitespace") for rationale and examples.
-///
-/// ### Logical Bounds and Ink Bounds
-///
-/// The bounds passed into this trait are **logical layout bounds**. They constrain
-/// text flow: advances, wrapping, ellipsis, alignment frames, line admission,
-/// caret positions, and hit-testing. They are not a guarantee that every visible
-/// pixel of ink will be contained inside the same rectangle.
-///
-/// **Ink bounds** are the visible bounds of the shaped/rasterized glyphs. They
-/// are an output of shaping and rendering, not something the caller can know
-/// before calling `measure` or `prepare`. Ink may sit inside the logical box,
-/// protrude outside it, be empty for whitespace, or be offset by glyph bearings,
-/// overhangs, accents, combining marks, or symbol placement.
-///
-/// [`TextMetrics`] reports both logical geometry and ink bounds. Callers that
-/// require strict pixel containment should clip, add padding, or use a future
-/// ink-fitting policy rather than assuming that the input bounds contain all
-/// rendered pixels.
-///
-/// All positions returned by this trait are in **block-local coordinates**: the
-/// origin is the block's top-left corner, with y increasing downward. The caller
-/// translates the block to its final screen position via the `Rect` it passes to
-/// [`prepare`](Self::prepare) and the rect on `DrawCmd::Text`.
-///
-/// ### Empty Text
-///
-/// Empty input (`""`) is a valid layout, not an error case. Implementations must
-/// report one visible empty line with normal line metrics and zero text advance:
-///
-/// - `line_count == 1` and `lines.len() == 1`.
-/// - `logical_size.x == 0.0`.
-/// - `logical_size.y` is one line height, so empty editors can size and draw a
-///   non-zero-height caret.
-/// - `ink_bounds` is empty because no glyph ink is emitted.
-/// - The single line has `byte_start == byte_end == 0`,
-///   `end_kind == LineEndKind::EndOfText`, and a positive `height`.
-///
-/// Preparing empty text must allocate a valid handle whose cached layout may
-/// contain zero clusters and zero glyphs, but must still contain the single
-/// empty line record above. All caret, hit-testing, and navigation methods must
-/// handle that handle without panicking.
-pub trait TextSystem {
-    /// Measure `text` without committing it for drawing (no handle is produced).
-    ///
-    /// Used by widgets' intrinsic-sizing companions to learn how large a piece of
-    /// text wants to be inside a given space, before the final rect is resolved.
-    /// The returned [`TextMetrics`] reflect `flow` applied against `bounds` — see
-    /// [`TextBounds`] for how the bounded/unbounded axes drive reflow.
-    ///
-    /// The returned `logical_size` represents logical layout geometry: advance-based
-    /// line width and line-height-based block height after the selected overflow
-    /// policy has been applied. It is not a tight ink box.
-    ///
-    /// With strict overflow policies the logical size should fit within bounded
-    /// input axes. Policies that explicitly keep overflowing content may return
-    /// a logical size larger than the supplied bounds. `ink_bounds` reports the
-    /// visible bounds of the emitted glyphs, which may protrude outside the
-    /// logical size due to font metrics and glyph placement.
-    ///
-    /// `flow.line_align` has no effect on logical sizing, wrapping, or
-    /// truncation: those decisions are made in logical line space. It may affect
-    /// `ink_bounds`, because alignment shifts the admitted glyphs within the
-    /// available line width.
-    ///
-    /// For empty `text`, this must return the empty-text metrics described in
-    /// the trait-level contract: one normal-height line, zero width, and empty
-    /// ink bounds.
-    ///
-    /// Must be free of observable side effects on the run table — calling
-    /// `measure` does not allocate a [`TextHandle`].
-    fn measure(&mut self, text: &str, style: TextStyle, bounds: TextBounds) -> TextMetrics;
-
-    /// Shape `text` for drawing into `rect` and register it, returning a handle.
-    ///
-    /// `rect` is the fully concrete **logical layout rect** by the time this is
-    /// called: its width is the wrap/alignment width, its height is the vertical
-    /// layout or clip extent, and its origin is the block origin used for
-    /// rendering.
-    ///
-    /// The screen position (`rect.x`, `rect.y`) must be known at this stage because
-    /// modern text shapers and font rasterizers use the absolute physical screen coordinates
-    /// to apply subpixel offsets/positioning. This ensures crisp glyph rasterization at
-    /// fractional pixel boundaries and prevents blurriness.
-    ///
-    /// The text system may produce ink that extends outside this rect. A caller
-    /// that needs hard containment must apply clipping or provide padding.
-    ///
-    /// The returned [`TextLayout::metrics`] equal what [`measure`](Self::measure)
-    /// would report for the same `text` and `style`, with
-    /// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
-    ///
-    /// For empty `text`, this must still return a valid handle. The prepared run
-    /// may have no clusters or glyphs, but it must have one empty line with
-    /// positive line height so caret and hit-testing methods have stable line
-    /// geometry.
-    ///
-    /// The handle is valid until the next frame reset (see [`TextHandle`]).
-    fn prepare(&mut self, text: &str, style: TextStyle, rect: Rect) -> TextLayout;
-
-    /// Caret geometry for a prepared visual caret position.
-    ///
-    /// Caret positions are in the same logical block coordinate system used by
-    /// `prepare`. They should follow shaped advances and line metrics, not the
-    /// tight ink box of the surrounding text.
-    ///
-    /// - `BeforeCluster { cluster_byte_index }` returns the leading visual edge
-    ///   of the anchored cluster.
-    /// - `AfterCluster { cluster_byte_index }` returns the trailing visual edge
-    ///   of the anchored cluster.
-    /// - `EmptyText` returns the start of the single empty line with a positive
-    ///   height.
-    ///
-    /// If an empty prepared layout is queried with any cluster-anchored
-    /// position, implementations should clamp to the same geometry as
-    /// `EmptyText` instead of panicking.
-    ///
-    /// Hard newline clusters have newline-specific visual anchors:
-    ///
-    /// - `BeforeCluster` for the newline is the trailing text position before
-    ///   the newline, on the previous visual line.
-    /// - `AfterCluster` for the newline is the start of the following visual
-    ///   line.
-    ///
-    /// Collapsed soft-wrap-boundary whitespace has the same shape:
-    ///
-    /// - `BeforeCluster` for the boundary whitespace is the end of the previous
-    ///   visual line, with the boundary whitespace retained in that line's byte
-    ///   range and caret/selection model.
-    /// - `AfterCluster` for the boundary whitespace is the start of the
-    ///   following visual line. If the boundary whitespace is terminal, this is
-    ///   the following empty visual line created for editor feedback.
-    fn caret_geom(&self, handle: TextHandle, position: CaretPosition) -> CaretGeom;
-
-    /// Hit-test a point (block-local coordinates) to the nearest character
-    /// boundary, returning a visual caret anchor.
-    ///
-    /// The coordinates `pos` are in the logical block coordinate system used by
-    /// `prepare`. Hit testing should compare against the shaped logical cluster
-    /// positions in the cached run.
-    ///
-    /// The point is resolved to a line by `y` first, then to the nearest gap
-    /// between clusters by `x`:
-    /// - Points above the block clamp to the first line; points below clamp to
-    ///   the last line.
-    /// - Points to the left of a non-empty line return `BeforeCluster` for that
-    ///   line's first cluster.
-    /// - Points to the right of a line clamp to the end of the *visible* content
-    ///   on that line. If the line ends with a hard newline or collapsed
-    ///   soft-wrap boundary, this returns a caret anchored to that boundary
-    ///   cluster so the visual line is preserved.
-    /// - Points on an empty line return the visual position for that empty line:
-    ///   `EmptyText` for empty input, or `AfterCluster` for the previous hard
-    ///   newline / terminal collapsed soft-wrap boundary when the empty line
-    ///   exists because of such a boundary.
-    /// - Points anywhere in an empty prepared layout return `EmptyText`.
-    ///
-    /// The returned cluster anchor can be converted to an insertion byte index
-    /// with [`TextSystem::caret_insertion_byte`].
-    fn hit_test_caret(&self, handle: TextHandle, pos: Vec2) -> CaretPosition;
-
-    /// Convert a prepared visual caret position into the insertion byte index
-    /// used by text editing operations.
-    ///
-    /// `BeforeCluster` returns the anchored cluster's `byte_start`;
-    /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
-    ///
-    /// For an empty prepared layout, every position must map to byte `0`,
-    /// including stale or invalid cluster-anchored positions.
-    fn caret_insertion_byte(&self, handle: TextHandle, position: CaretPosition) -> usize;
-
-    /// Choose a canonical visual caret anchor for a programmatic insertion byte
-    /// index.
-    ///
-    /// This is intended for non-hit-tested movement such as "go to byte 0",
-    /// "go to end", or adapting existing byte-oriented editor state. It should
-    /// return `BeforeCluster` for the first cluster at or after the byte, and
-    /// `AfterCluster` for the last cluster when the byte is at or beyond the
-    /// prepared text's end. Empty prepared text returns `EmptyText` for every
-    /// requested byte index.
-    fn caret_position_at_insertion_byte(
-        &self,
-        handle: TextHandle,
-        byte_index: usize,
-    ) -> CaretPosition;
-
-    /// Move one shaped cluster boundary to the left.
-    ///
-    /// Implementations should move by the prepared text's cluster model, not by
-    /// UTF-8 scalar boundaries. When movement is possible, the returned caret
-    /// should map to a different insertion byte from `position`. At hard
-    /// newlines and collapsed soft-wrap boundary whitespace, the returned
-    /// [`CaretPosition`] should preserve the visual side reached by moving from
-    /// the right, such as `AfterCluster` for the boundary character when landing
-    /// immediately after it.
-    ///
-    /// The default implementation is a no-op for text systems used only by
-    /// non-editing tests. Editable text systems should override it.
-    ///
-    /// Empty prepared text has no previous insertion boundary; editable
-    /// implementations must return `EmptyText`.
-    fn previous_caret_position(
-        &self,
-        _handle: TextHandle,
-        position: CaretPosition,
-    ) -> CaretPosition {
-        position
-    }
-
-    /// Move one shaped cluster boundary to the right.
-    ///
-    /// Implementations should move by the prepared text's cluster model, not by
-    /// UTF-8 scalar boundaries. When movement is possible, the returned caret
-    /// should map to a different insertion byte from `position`. At hard
-    /// newlines and collapsed soft-wrap boundary whitespace, the returned
-    /// [`CaretPosition`] should preserve the visual side reached by moving from
-    /// the left, such as `BeforeCluster` for the boundary character when landing
-    /// immediately before it.
-    ///
-    /// The default implementation is a no-op for text systems used only by
-    /// non-editing tests. Editable text systems should override it.
-    ///
-    /// Empty prepared text has no next insertion boundary; editable
-    /// implementations must return `EmptyText`.
-    fn next_caret_position(&self, _handle: TextHandle, position: CaretPosition) -> CaretPosition {
-        position
-    }
-
-    /// Hit-test a point (block-local coordinates) to a shaped glyph cluster,
-    /// returning the start byte index of the hit cluster.
-    ///
-    /// The coordinates `pos` are in the logical block coordinate system used by
-    /// `prepare`. Hit testing compares against the shaped logical cluster
-    /// positions in the cached run.
-    ///
-    /// The point is resolved to a line by `y` first, then to the cluster containing `x`:
-    /// - Points above the block clamp to the first line; points below clamp to
-    ///   the last line.
-    /// - Points to the left of a line clamp to the first cluster of that line.
-    /// - Points to the right of a line clamp to the last cluster of that line.
-    /// - For multi-byte characters or complex clusters, this returns the starting
-    ///   byte index of the cluster.
-    /// - If the line ends with a boundary cluster that has no visual advance,
-    ///   such as a hard newline (`\n`) or collapsed soft-wrap boundary
-    ///   whitespace, a hit to the right of the line or on that boundary must
-    ///   return the boundary cluster's start byte index.
-    /// - Empty prepared text has no clusters, so every hit returns byte `0`.
-    fn hit_test_cluster(&self, handle: TextHandle, pos: Vec2) -> usize;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphHandle, TextFlow,
+        CaretPosition, DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphHandle, TextFlow,
         TextLineLayoutMetrics,
     };
 

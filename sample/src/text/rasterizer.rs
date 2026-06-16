@@ -108,26 +108,4 @@ impl SampleTextSystem {
             },
         );
     }
-
-    pub fn get_glyph_metrics(
-        &mut self,
-        font_id: u16,
-        glyph_index: u16,
-        size: f32,
-        subpixel_x: u8,
-        weight: u16,
-        opsz: u16,
-    ) -> (u32, u32) {
-        let key = GlyphKey {
-            font_id,
-            glyph_index,
-            size: (size * 10.0) as u32,
-            subpixel_x,
-            weight,
-            opsz,
-        };
-        self.ensure_glyph(key);
-        let info = self.glyph_cache.get(&key).unwrap();
-        (info.atlas_rect.w, info.atlas_rect.h)
-    }
 }

@@ -63,7 +63,7 @@ impl TextContentPlacement {
         }
     }
 
-    /// Resolve the logical text block rect to pass to [`TextSystem::prepare`].
+    /// Resolve the logical text block rect used for owned text layout.
     pub fn resolve_rect(self, content_rect: Rect, metrics: TextMetrics) -> Rect {
         let logical = metrics.logical_size;
         let ink = metrics.ink_bounds;

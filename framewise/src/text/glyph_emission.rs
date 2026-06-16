@@ -5,6 +5,11 @@ use crate::{
 };
 
 impl<G: Copy> TextLayout<G> {
+    /// Prepare and emit visible layout glyphs into a draw command glyph arena.
+    ///
+    /// The backend may return `None` for non-drawable glyphs such as spaces,
+    /// newlines, zero-area glyphs, or failed rasterisation. Empty prepared
+    /// output does not emit a `GlyphRun` command.
     pub fn emit_glyphs<B>(
         &self,
         commands: &mut DrawCommands,

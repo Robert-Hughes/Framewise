@@ -13,3 +13,6 @@ pub use layout::*;
 pub use placement::*;
 pub use shaped_text::*;
 pub use types::*;
+
+#[cfg(test)]
+mod tests;

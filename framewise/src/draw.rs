@@ -1,4 +1,3 @@
-use crate::text::TextHandle;
 use crate::types::{Color, Rect, Vec2};
 use std::ops::Range;
 
@@ -6,6 +5,9 @@ use std::ops::Range;
 ///
 /// Framewise never inspects this value. It is not a character, text cluster,
 /// font glyph id, or layout glyph id.
+///
+/// It represents something backend-specific, such as font face, glyph id, size,
+/// weight, optical size, subpixel bin, and raster mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PreparedGlyphHandle(pub u32);
 
@@ -16,7 +18,12 @@ pub struct DrawGlyph {
 
     /// Final top-left position of the prepared glyph bitmap in draw-list coordinates.
     ///
-    /// The renderer resolves `handle` to atlas/resource data, including bitmap size.
+    /// This is not the cluster position and not the text baseline origin. It is
+    /// the bitmap/blit position after glyph bearings, layout position, line
+    /// baseline, alignment, and caller draw origin have all been applied.
+    ///
+    /// The renderer resolves `handle` to atlas/resource data, including bitmap
+    /// size and UVs, and performs a no-scale blit at this position.
     pub top_left: Vec2,
 }
 
@@ -77,14 +84,6 @@ pub enum DrawCmd {
         width: f32,
         z: u32,
         anti_alias: bool,
-    },
-
-    /// Draw a piece of prepared text.
-    Text {
-        rect: Rect,
-        color: Color,
-        handle: TextHandle,
-        z: u32,
     },
 
     /// Draw a contiguous range of prepared glyphs from the `DrawCommands` glyph arena.

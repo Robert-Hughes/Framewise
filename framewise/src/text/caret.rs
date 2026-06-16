@@ -2,6 +2,17 @@ use super::{CaretGeom, CaretPosition, TextCluster, TextLayout};
 use crate::types::Vec2;
 
 impl<G> TextLayout<G> {
+    /// Caret geometry for a visual caret position in block-local coordinates.
+    ///
+    /// Caret positions follow shaped advances and line metrics, not the tight
+    /// ink box of the surrounding text. `EmptyText` returns the start of the
+    /// single empty line with a positive height.
+    ///
+    /// Hard newline clusters and collapsed soft-wrap-boundary whitespace have
+    /// two distinct visual anchors: `BeforeCluster` is on the previous visual
+    /// line, while `AfterCluster` is at the start of the following visual line.
+    /// If the boundary whitespace is terminal, `AfterCluster` is on the
+    /// following empty visual line created for editor feedback.
     pub fn caret_geom(&self, position: CaretPosition) -> CaretGeom {
         let Some((cluster_idx, cluster)) = self.find_caret_cluster(position) else {
             let line = self
@@ -39,6 +50,24 @@ impl<G> TextLayout<G> {
         CaretGeom { x, y_top, height }
     }
 
+    /// Hit-test a block-local point to the nearest character boundary.
+    ///
+    /// The point is resolved to a visual line by y, then to the nearest gap
+    /// between clusters by x:
+    ///
+    /// - Points above the block clamp to the first line; points below clamp to
+    ///   the last line.
+    /// - Points to the left of a non-empty line return `BeforeCluster` for that
+    ///   line's first cluster.
+    /// - Points to the right of a line clamp to the end of the visible content
+    ///   on that line. If the line ends with a hard newline or collapsed
+    ///   soft-wrap boundary, this returns a caret anchored to that boundary
+    ///   cluster so the visual line is preserved.
+    /// - Points on an empty line return the visual position for that empty line:
+    ///   `EmptyText` for empty input, or `AfterCluster` for the previous hard
+    ///   newline or terminal collapsed soft-wrap boundary when the empty line
+    ///   exists because of such a boundary.
+    /// - Points anywhere in an empty text layout return `EmptyText`.
     pub fn hit_test_caret(&self, pos: Vec2) -> CaretPosition {
         let line_idx = self
             .lines
@@ -71,6 +100,22 @@ impl<G> TextLayout<G> {
         }
     }
 
+    /// Hit-test a block-local point to a shaped cluster start byte.
+    ///
+    /// The point is resolved to a visual line by y, then to the cluster
+    /// containing x:
+    ///
+    /// - Points above the block clamp to the first line; points below clamp to
+    ///   the last line.
+    /// - Points to the left of a line clamp to the first cluster of that line.
+    /// - Points to the right of a line clamp to the last cluster of that line.
+    /// - For multi-byte characters or complex clusters, this returns the
+    ///   starting byte index of the cluster.
+    /// - If the line ends with a boundary cluster that has no visual advance,
+    ///   such as a hard newline or collapsed soft-wrap-boundary whitespace, a
+    ///   hit to the right of the line or on that boundary returns the boundary
+    ///   cluster's start byte index.
+    /// - Empty text has no clusters, so every hit returns byte `0`.
     pub fn hit_test_cluster(&self, pos: Vec2) -> usize {
         let line_idx = self
             .lines
@@ -95,6 +140,11 @@ impl<G> TextLayout<G> {
             .unwrap_or(0)
     }
 
+    /// Convert a visual caret position into the insertion byte index used by
+    /// text editing operations.
+    ///
+    /// `BeforeCluster` returns the anchored cluster's `byte_start`;
+    /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
     pub fn caret_insertion_byte(&self, position: CaretPosition) -> usize {
         match self.find_caret_cluster(position) {
             Some((_, cluster)) => match position {
@@ -106,6 +156,15 @@ impl<G> TextLayout<G> {
         }
     }
 
+    /// Choose a canonical visual caret anchor for a programmatic insertion byte
+    /// index.
+    ///
+    /// This is intended for non-hit-tested movement such as "go to byte 0",
+    /// "go to end", or adapting existing byte-oriented editor state. It returns
+    /// `BeforeCluster` for the first cluster at or after the byte, and
+    /// `AfterCluster` for the last cluster when the byte is at or beyond the
+    /// prepared text's end. Empty text returns `EmptyText` for every requested
+    /// byte index.
     pub fn caret_position_at_insertion_byte(&self, byte_index: usize) -> CaretPosition {
         if self.clusters.is_empty() {
             return CaretPosition::EmptyText;
@@ -138,8 +197,32 @@ impl<G> TextLayout<G> {
         }
     }
 
+    /// Move one shaped cluster boundary to the left.
+    ///
+    /// Movement follows the prepared text's cluster model, not UTF-8 scalar
+    /// boundaries. When movement is possible, the returned caret maps to a
+    /// different insertion byte from `position`. At hard newlines and collapsed
+    /// soft-wrap-boundary whitespace, the returned [`CaretPosition`] preserves
+    /// the visual side reached by moving from the right, such as `AfterCluster`
+    /// for the boundary character when landing immediately after it.
     pub fn previous_caret_position(&self, position: CaretPosition) -> CaretPosition {
         let byte_index = self.caret_insertion_byte(position);
+        if let CaretPosition::BeforeCluster { cluster_byte_index } = position {
+            if let Some(cluster) = self
+                .clusters
+                .iter()
+                .find(|cluster| cluster.byte_start == cluster_byte_index)
+            {
+                if let Some(previous) = self.clusters.iter().rev().find(|previous| {
+                    previous.byte_end == cluster.byte_start
+                        && (previous.is_hard_break || previous.is_soft_wrap_boundary)
+                }) {
+                    return CaretPosition::AfterCluster {
+                        cluster_byte_index: previous.byte_start,
+                    };
+                }
+            }
+        }
         let Some(target_byte) = self.previous_insertion_boundary(byte_index) else {
             return self.caret_position_at_insertion_byte(0);
         };
@@ -147,6 +230,14 @@ impl<G> TextLayout<G> {
             .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
     }
 
+    /// Move one shaped cluster boundary to the right.
+    ///
+    /// Movement follows the prepared text's cluster model, not UTF-8 scalar
+    /// boundaries. When movement is possible, the returned caret maps to a
+    /// different insertion byte from `position`. At hard newlines and collapsed
+    /// soft-wrap-boundary whitespace, the returned [`CaretPosition`] preserves
+    /// the visual side reached by moving from the left, such as `BeforeCluster`
+    /// for the boundary character when landing immediately before it.
     pub fn next_caret_position(&self, position: CaretPosition) -> CaretPosition {
         let byte_index = self.caret_insertion_byte(position);
         let Some(target_byte) = self.next_insertion_boundary(byte_index) else {

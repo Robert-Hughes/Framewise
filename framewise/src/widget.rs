@@ -65,7 +65,7 @@ pub enum LayoutViolationPolicy {
 ///
 /// `Panic` rethrows the violation message; `Highlight` draws a red outline over the
 /// fallback geometry and labels the violation message in red at its top-left corner.
-/// Every reaction path has a `TextSystem` in reach (the immediate `layout()`, and the
+/// Every reaction path has a `TextBackend` in reach (the immediate `layout()`, and the
 /// deferred `begin_layout`/`end_layout` reactions, which receive it through the
 /// `on_finish` closure), so the label is always drawn.
 pub fn react_layout_violation<T: TextBackend>(

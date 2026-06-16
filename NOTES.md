@@ -5,60 +5,20 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - D:\Temp\Framewise text refactor.txt
-- Check code against the design - is it implemented completely, correctly, without omission and without unwanted additions? Is it well tested? Are there any leftovers of the old design?
-
-  4. TextMetrics::ink_bounds docs are now wrong
-
-    The current docs still say ink_bounds are “tight visual bounds of the ink”.
-
-    But the new Framewise layout currently sets ink_width = logical_line_w, ink_x = align_off, and ink_bounds to either Rect::ZERO or the logical block rectangle.
-
-    That is fine for now, but the docs must say it is approximate/conservative layout-space ink, not exact raster ink. This was one of the points we explicitly agreed on.
-
-  6. text.rs has become the giant file we expected
-
-    The new layout implementation is already large and still coexists with the legacy TextSystem contract and docs. The old docs still describe Framewise as not inspecting glyphs and TextSystem as owning shaping/layout decisions, which is now the opposite of the new direction.
-
-    I’d do the framewise/src/text/ split soon, before Phase 6. Waiting until after the full migration will make the file harder to untangle.
-
-    label currently calls measure_text to resolve placement, then calls emit_text_in_rect, which internally lays out again.
-
-  - I’d rewrite that pattern as:
-
-    let layout = layout_text(...);
-    let text_rect = placement.resolve_rect(spec.rect, layout.metrics().clone());
-    layout.emit_glyphs(cmds, text_system, text_rect.origin(), style, color, z);
-
-    Same idea in text_edit: edit_layout_size measures, then the main draw path later creates a fresh layout_text_in_rect. That is probably acceptable temporarily, but the final shape should try to compute the final layout once and reuse it for drawing, hit-testing, selection, and caret geometry.
-
-  - Possible correctness issue: baseline offset
-
-    The new layout code uses:
-
-    let baseline_offset = style.size.round();
-
-    The old sample layout used font ascent from font metrics and rounded that ascent.
-
-    That difference may visibly shift text vertically, especially across fonts. I think TextBackend probably needs to expose a small line metrics object, not just line_height:
-
-    pub struct TextLineMetrics {
-        pub line_height: f32,
-        pub baseline_offset: f32,
-    }
-
-    Then Framewise owns line layout, but the backend still supplies font-derived baseline placement.
-
-
-The two dodgy tests are:
-widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
-widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds
-Summary: both try to prove INK_CENTER uses distinct TextMetrics::ink_bounds, but the new widget path recomputes metrics through layout_text, so the fake backend’s stored metrics.ink_bounds is ignored. Later, move that exact assertion to a direct TextContentPlacement::resolve_rect(...) test, and keep these widget tests focused on glyph emission/placement.
-
-
-- perf 40fps on text edit demo page
+  - Check code against the design:
+    1. is it implemented completely, correctly, without omission and without unwanted additions
+    2. Is it well tested?
+    3. Did we lose any test coverage compared to the previous design?
+    4. Did we lose any useful documentation or comments?
+    5. Are there any leftovers of the old design?
+  - The two dodgy tests are:
+    widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
+    widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds
+    Summary: both try to prove INK_CENTER uses distinct TextMetrics::ink_bounds, but the new widget path recomputes metrics through layout_text, so the fake backend’s stored metrics.ink_bounds is ignored. Later, move that exact assertion to a direct TextContentPlacement::resolve_rect(...) test, and keep these widget tests focused on glyph emission/placement.
+  - DODGY golden images - spec page, label, button. Probably cos of ink centre broken!
+  - perf 40fps on text edit demo page
 
 - Text Edit
-
   - Improve and test
     - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
     - Ctrl+Up/Down?
@@ -341,7 +301,6 @@ continue to scroll up, and only when you move the mouse does it 'reset' onto the
 
 - Labels and text measurement
   - All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
-  - Consider moving some/all of the SampleTextSystem into framewise (or a related crate?)
   - Itatlic support - as these are separate .ttf files, we'll need to wrap this up somehow in our SampleTextSystem.
   - Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 
